@@ -48,10 +48,9 @@
             border-top: 2px solid red;
         }
 
-        .nav button {
-            background: none;
-            border: none;
+        .nav a {
             color: white;
+            text-decoration: none;
             font-size: 16px;
         }
 
@@ -78,13 +77,13 @@
     RaceControl
 </div>
 
-<div class="container" id="content">
-</div>
+<div class="container" id="content"></div>
 
 <div class="nav">
-    <button onclick="showHome()">Home</button>
-    <button onclick="showStandings()">Standings</button>
-    <button onclick="showCalendar()">Calendar</button>
+    <a href="#" onclick="showHome(); return false;">Home</a>
+    <a href="#" onclick="showStandings(); return false;">Standings</a>
+    <a href="#" onclick="showCalendar(); return false;">Calendar</a>
+    <a href="#" onclick="showSim(); return false;">Sim</a>
 </div>
 
 <script>
@@ -139,24 +138,6 @@ function showStandings() {
                 <tr><td>22</td><td>Fernando Alonso</td><td>Aston Martin</td><td>0</td></tr>
             </table>
         </div>
-
-        <div class="card">
-            <h3>Constructors Standings</h3>
-            <table>
-                <tr><th>Pos</th><th>Equipo</th><th>Puntos</th></tr>
-                <tr><td>1</td><td>Mercedes</td><td>135</td></tr>
-                <tr><td>2</td><td>Ferrari</td><td>90</td></tr>
-                <tr><td>3</td><td>McLaren</td><td>46</td></tr>
-                <tr><td>4</td><td>Haas</td><td>18</td></tr>
-                <tr><td>5</td><td>Red Bull</td><td>16</td></tr>
-                <tr><td>6</td><td>Alpine</td><td>16</td></tr>
-                <tr><td>7</td><td>Racing Bulls</td><td>14</td></tr>
-                <tr><td>8</td><td>Audi</td><td>2</td></tr>
-                <tr><td>9</td><td>Williams</td><td>2</td></tr>
-                <tr><td>10</td><td>Cadillac</td><td>0</td></tr>
-                <tr><td>11</td><td>Aston Martin</td><td>0</td></tr>
-            </table>
-        </div>
     `;
 }
 
@@ -170,6 +151,40 @@ function showCalendar() {
             <p>Miami — Próximo</p>
             <p>Canadá — Próximo</p>
             <p>Mónaco — Próximo</p>
+        </div>
+    `;
+}
+
+function showSim() {
+    let positions = [
+        "Antonelli", "Russell", "Leclerc", "Hamilton", "Norris",
+        "Piastri", "Verstappen", "Gasly", "Bearman", "Lawson",
+        "Hadjar", "Lindblad", "Sainz", "Albon", "Bortoleto",
+        "Hulkenberg", "Ocon", "Colapinto", "Perez", "Bottas",
+        "Stroll", "Alonso"
+    ];
+
+    positions.sort(() => Math.random() - 0.5);
+
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <h3>Simulación de Carrera</h3>
+            <p>Circuito: Suzuka</p>
+            <p>Condiciones: Seco</p>
+        </div>
+
+        <div class="card">
+            <h3>Resultado Simulado</h3>
+            <p>1. ${positions[0]}</p>
+            <p>2. ${positions[1]}</p>
+            <p>3. ${positions[2]}</p>
+            <p>4. ${positions[3]}</p>
+            <p>5. ${positions[4]}</p>
+            <p>6. ${positions[5]}</p>
+            <p>7. ${positions[6]}</p>
+            <p>8. ${positions[7]}</p>
+            <p>9. ${positions[8]}</p>
+            <p>10. ${positions[9]}</p>
         </div>
     `;
 }
