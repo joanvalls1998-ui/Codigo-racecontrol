@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RaceControl</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #0b0b0b;
+            color: white;
+        }
+
+        .header {
+            background-color: #111;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            border-bottom: 2px solid red;
+        }
+
+        .container {
+            padding: 20px;
+            padding-bottom: 90px;
+        }
+
+        .card {
+            background-color: #1a1a1a;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: #ff4747;
+        }
+
+        .nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background-color: #111;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            border-top: 2px solid red;
+        }
+
+        .nav button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="header">
+    RaceControl
+</div>
+
+<div class="container">
+    <div class="card">
+        <h3>Última carrera</h3>
+        <p>Japanese Grand Prix</p>
+        <p>Ganador: Kimi Antonelli</p>
+    </div>
+
+    <div class="card">
+        <h3>Próxima carrera</h3>
+        <p>Miami Grand Prix</p>
+    </div>
+
+    <div class="card">
+        <h3>Noticias</h3>
+        <p>Mercedes domina el inicio de temporada 2026.</p>
+        <p>Aston Martin sigue con problemas de fiabilidad.</p>
+    </div>
+</div>
+
+<div class="nav">
+    <button>Home</button>
+    <button>Standings</button>
+    <button>Calendar</button>
+</div>
+
+</body>
+</html>
