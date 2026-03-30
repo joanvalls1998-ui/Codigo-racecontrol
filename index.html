@@ -7,17 +7,14 @@
         :root {
             --bg: #060606;
             --panel: #121212;
-            --panel-2: #1a1a1a;
             --text: #f5f5f5;
             --muted: #a0a0a0;
             --accent: #e10600;
             --accent-soft: #ff3b30;
             --line: #262626;
-            --green: #0f9d58;
             --green-soft: #8de1b1;
             --warning: #f59e0b;
-            --danger: #ef4444;
-            --blue: #3b82f6;
+            --blue-soft: #93c5fd;
         }
 
         * {
@@ -109,6 +106,7 @@
             padding: 12px 8px calc(14px + env(safe-area-inset-bottom));
             border-top: 1px solid rgba(225, 6, 0, 0.35);
             box-shadow: 0 -8px 20px rgba(0,0,0,0.25);
+            overflow-x: auto;
         }
 
         .nav a {
@@ -121,6 +119,7 @@
             transition: 0.2s ease;
             min-width: 52px;
             text-align: center;
+            white-space: nowrap;
         }
 
         .nav a.active {
@@ -153,10 +152,6 @@
             border-bottom: none;
         }
 
-        td {
-            color: #f0f0f0;
-        }
-
         .pill {
             display: inline-block;
             padding: 6px 10px;
@@ -176,7 +171,7 @@
 
         .pill-blue {
             background: rgba(59, 130, 246, 0.12);
-            color: #93c5fd;
+            color: var(--blue-soft);
             border: 1px solid rgba(59, 130, 246, 0.25);
         }
 
@@ -281,9 +276,20 @@
         .bar-green { background: linear-gradient(90deg, #166534, #22c55e); }
         .bar-yellow { background: linear-gradient(90deg, #92400e, #f59e0b); }
         .bar-blue { background: linear-gradient(90deg, #1d4ed8, #60a5fa); }
+
+        .btn {
+            width: 100%;
+            border: none;
+            border-radius: 14px;
+            padding: 14px;
+            background: linear-gradient(90deg, #e10600, #ff3b30);
+            color: white;
+            font-size: 15px;
+            font-weight: 800;
+            margin-top: 12px;
+        }
     </style>
 </head>
-
 <body>
 
 <div class="header">
@@ -298,13 +304,14 @@
     <a href="#" id="nav-standings" onclick="showStandings(); return false;">Standings</a>
     <a href="#" id="nav-calendar" onclick="showCalendar(); return false;">Calendar</a>
     <a href="#" id="nav-sim" onclick="showSim(); return false;">Sim</a>
+    <a href="#" id="nav-predict" onclick="showPredict(); return false;">Predict</a>
     <a href="#" id="nav-aston" onclick="showAston(); return false;">Aston</a>
     <a href="#" id="nav-news" onclick="showNews(); return false;">News</a>
 </div>
 
 <script>
 function setActiveNav(tabId) {
-    const ids = ["nav-home", "nav-standings", "nav-calendar", "nav-sim", "nav-aston", "nav-news"];
+    const ids = ["nav-home", "nav-standings", "nav-calendar", "nav-sim", "nav-predict", "nav-aston", "nav-news"];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.remove("active");
@@ -421,21 +428,19 @@ function showCalendar() {
     `;
 }
 
-function showSim() {
-    setActiveNav("nav-sim");
-
+function generateSimulation() {
     const teams = [
-        { name: "Mercedes", pace: 100, qualy: 100, race: 100 },
-        { name: "Ferrari", pace: 98, qualy: 98, race: 98 },
-        { name: "McLaren", pace: 96, qualy: 97, race: 96 },
-        { name: "Red Bull", pace: 95, qualy: 95, race: 95 },
-        { name: "Haas", pace: 92, qualy: 92, race: 92 },
-        { name: "Alpine", pace: 91, qualy: 91, race: 91 },
-        { name: "Racing Bulls", pace: 90, qualy: 90, race: 90 },
-        { name: "Williams", pace: 89, qualy: 89, race: 89 },
-        { name: "Audi", pace: 88, qualy: 88, race: 88 },
-        { name: "Aston Martin", pace: 86, qualy: 86, race: 86 },
-        { name: "Cadillac", pace: 85, qualy: 85, race: 85 }
+        { name: "Mercedes", pace: 100 },
+        { name: "Ferrari", pace: 98 },
+        { name: "McLaren", pace: 96 },
+        { name: "Red Bull", pace: 95 },
+        { name: "Haas", pace: 92 },
+        { name: "Alpine", pace: 91 },
+        { name: "Racing Bulls", pace: 90 },
+        { name: "Williams", pace: 89 },
+        { name: "Audi", pace: 88 },
+        { name: "Aston Martin", pace: 86 },
+        { name: "Cadillac", pace: 85 }
     ];
 
     let rainPercent = Math.floor(15 + Math.random() * 26);
@@ -465,11 +470,19 @@ function showSim() {
         alonsoPointsProb = 34;
     }
 
+    return { teams, rainPercent, scPercent, alonsoPointsProb, alonsoDnfProb, alonsoQualy, alonsoRace, strollRace, top10 };
+}
+
+function showSim() {
+    setActiveNav("nav-sim");
+    const sim = generateSimulation();
+
     document.getElementById("content").innerHTML = `
         <div class="card">
             <div class="pill pill-blue">Simulación realista</div>
             <div class="section-title">GP de Japón · Suzuka</div>
             <p><span class="highlight">Predicción basada en forma actual, ritmo por equipos y estado de Aston Martin.</span></p>
+            <button class="btn" onclick="showSim()">Recalcular simulación</button>
         </div>
 
         <div class="card">
@@ -477,18 +490,18 @@ function showSim() {
             <div class="stat-grid">
                 <div class="stat-box">
                     <div class="stat-label">Lluvia</div>
-                    <div class="stat-value">${rainPercent}%</div>
+                    <div class="stat-value">${sim.rainPercent}%</div>
                 </div>
                 <div class="stat-box">
                     <div class="stat-label">Safety Car</div>
-                    <div class="stat-value">${scPercent}%</div>
+                    <div class="stat-value">${sim.scPercent}%</div>
                 </div>
             </div>
         </div>
 
         <div class="card">
             <h3>Ritmo por equipos</h3>
-            ${teams.map(team => `
+            ${sim.teams.map(team => `
                 <div class="bar-wrap">
                     <div class="bar-label">
                         <span>${team.name}</span>
@@ -504,7 +517,7 @@ function showSim() {
         <div class="card">
             <h3>Predicción Top 10</h3>
             <div class="sim-grid">
-                ${top10.map((driver, index) => `
+                ${sim.top10.map((driver, index) => `
                     <div class="sim-line"><span>${index + 1}</span><span>${driver}</span></div>
                 `).join("")}
             </div>
@@ -512,18 +525,60 @@ function showSim() {
 
         <div class="card">
             <h3>Fernando Alonso</h3>
-            <p><span class="highlight">Qualy estimada:</span> P${alonsoQualy}</p>
-            <p><span class="highlight">Carrera estimada:</span> P${alonsoRace}</p>
-            <p><span class="highlight">Probabilidad de puntos:</span> ${alonsoPointsProb}%</p>
-            <p><span class="highlight">Probabilidad de DNF:</span> ${alonsoDnfProb}%</p>
+            <p><span class="highlight">Qualy estimada:</span> P${sim.alonsoQualy}</p>
+            <p><span class="highlight">Carrera estimada:</span> P${sim.alonsoRace}</p>
+            <p><span class="highlight">Probabilidad de puntos:</span> ${sim.alonsoPointsProb}%</p>
+            <p><span class="highlight">Probabilidad de DNF:</span> ${sim.alonsoDnfProb}%</p>
             <p><span class="highlight">Estrategia probable:</span> Medium → Hard</p>
         </div>
 
         <div class="card">
             <h3>Lance Stroll</h3>
-            <p><span class="highlight">Carrera estimada:</span> P${strollRace}</p>
-            <p><span class="highlight">Probabilidad de puntos:</span> ${Math.max(5, alonsoPointsProb - 8)}%</p>
-            <p><span class="highlight">Probabilidad de DNF:</span> ${Math.min(55, alonsoDnfProb + 5)}%</p>
+            <p><span class="highlight">Carrera estimada:</span> P${sim.strollRace}</p>
+            <p><span class="highlight">Probabilidad de puntos:</span> ${Math.max(5, sim.alonsoPointsProb - 8)}%</p>
+            <p><span class="highlight">Probabilidad de DNF:</span> ${Math.min(55, sim.alonsoDnfProb + 5)}%</p>
+        </div>
+    `;
+}
+
+function showPredict() {
+    setActiveNav("nav-predict");
+    const predictRain = Math.floor(20 + Math.random() * 21);
+    const predictSC = Math.floor(30 + Math.random() * 21);
+    const mercedesWin = 58;
+    const ferrariPodium = 66;
+    const alonsoPoints = 24;
+
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <div class="pill pill-blue">Predict</div>
+            <div class="section-title">Predicción previa · Miami GP</div>
+            <p>Estimación general basada en el momento de forma actual tras Japón.</p>
+        </div>
+
+        <div class="card">
+            <h3>Favoritos</h3>
+            <p><span class="highlight">Victoria Mercedes:</span> ${mercedesWin}%</p>
+            <p><span class="highlight">Podio Ferrari:</span> ${ferrariPodium}%</p>
+            <p><span class="highlight">Puntos Alonso:</span> ${alonsoPoints}%</p>
+        </div>
+
+        <div class="card">
+            <h3>Condiciones probables</h3>
+            <p><span class="highlight">Lluvia:</span> ${predictRain}%</p>
+            <p><span class="highlight">Safety Car:</span> ${predictSC}%</p>
+            <p><span class="highlight">Estrategia dominante:</span> Medium → Hard</p>
+        </div>
+
+        <div class="card">
+            <h3>Top 5 esperado</h3>
+            <div class="sim-grid">
+                <div class="sim-line"><span>1</span><span>Antonelli</span></div>
+                <div class="sim-line"><span>2</span><span>Russell</span></div>
+                <div class="sim-line"><span>3</span><span>Leclerc</span></div>
+                <div class="sim-line"><span>4</span><span>Hamilton</span></div>
+                <div class="sim-line"><span>5</span><span>Norris</span></div>
+            </div>
         </div>
     `;
 }
