@@ -154,40 +154,87 @@ function showCalendar() {
         </div>
     `;
 }
-
 function showSim() {
-    let positions = [
-        "Antonelli", "Russell", "Leclerc", "Hamilton", "Norris",
-        "Piastri", "Verstappen", "Gasly", "Bearman", "Lawson",
-        "Hadjar", "Lindblad", "Sainz", "Albon", "Bortoleto",
-        "Hulkenberg", "Ocon", "Colapinto", "Perez", "Bottas",
-        "Stroll", "Alonso"
+
+    let drivers = [
+        {name:"Antonelli", team:"Mercedes", pace:1.0},
+        {name:"Russell", team:"Mercedes", pace:1.0},
+        {name:"Leclerc", team:"Ferrari", pace:1.05},
+        {name:"Hamilton", team:"Ferrari", pace:1.05},
+        {name:"Norris", team:"McLaren", pace:1.07},
+        {name:"Piastri", team:"McLaren", pace:1.07},
+        {name:"Verstappen", team:"Red Bull", pace:1.08},
+        {name:"Hadjar", team:"Red Bull", pace:1.08},
+        {name:"Gasly", team:"Alpine", pace:1.10},
+        {name:"Colapinto", team:"Alpine", pace:1.10},
+        {name:"Bearman", team:"Haas", pace:1.11},
+        {name:"Ocon", team:"Haas", pace:1.11},
+        {name:"Albon", team:"Williams", pace:1.12},
+        {name:"Sainz", team:"Williams", pace:1.12},
+        {name:"Bortoleto", team:"Audi", pace:1.13},
+        {name:"Hulkenberg", team:"Audi", pace:1.13},
+        {name:"Lawson", team:"Racing Bulls", pace:1.11},
+        {name:"Lindblad", team:"Racing Bulls", pace:1.11},
+        {name:"Perez", team:"Cadillac", pace:1.14},
+        {name:"Bottas", team:"Cadillac", pace:1.14},
+        {name:"Alonso", team:"Aston Martin", pace:1.12},
+        {name:"Stroll", team:"Aston Martin", pace:1.12}
     ];
 
-    positions.sort(() => Math.random() - 0.5);
+    // Añadir variación
+    drivers.forEach(d => {
+        d.random = Math.random() * 0.06;
+        d.total = d.pace + d.random;
+    });
+
+    // Ordenar por ritmo
+    drivers.sort((a,b) => a.total - b.total);
+
+    // Safety car
+    let safetyCar = Math.random() < 0.4 ? "Sí" : "No";
+
+    // Lluvia
+    let rain = Math.random() < 0.3 ? "Sí" : "No";
+
+    // DNF
+    let dnf = Math.random() < 0.25 ? "Sí" : "No";
+
+    // Posición Alonso
+    let alonsoPos = drivers.findIndex(d => d.name === "Alonso") + 1;
 
     document.getElementById("content").innerHTML = `
         <div class="card">
             <h3>Simulación de Carrera</h3>
             <p>Circuito: Suzuka</p>
-            <p>Condiciones: Seco</p>
+            <p>Lluvia: ${rain}</p>
+            <p>Safety Car: ${safetyCar}</p>
+            <p>DNF: ${dnf}</p>
         </div>
 
         <div class="card">
-            <h3>Resultado Simulado</h3>
-            <p>1. ${positions[0]}</p>
-            <p>2. ${positions[1]}</p>
-            <p>3. ${positions[2]}</p>
-            <p>4. ${positions[3]}</p>
-            <p>5. ${positions[4]}</p>
-            <p>6. ${positions[5]}</p>
-            <p>7. ${positions[6]}</p>
-            <p>8. ${positions[7]}</p>
-            <p>9. ${positions[8]}</p>
-            <p>10. ${positions[9]}</p>
+            <h3>Top 10</h3>
+            <p>1. ${drivers[0].name}</p>
+            <p>2. ${drivers[1].name}</p>
+            <p>3. ${drivers[2].name}</p>
+            <p>4. ${drivers[3].name}</p>
+            <p>5. ${drivers[4].name}</p>
+            <p>6. ${drivers[5].name}</p>
+            <p>7. ${drivers[6].name}</p>
+            <p>8. ${drivers[7].name}</p>
+            <p>9. ${drivers[8].name}</p>
+            <p>10. ${drivers[9].name}</p>
+        </div>
+
+        <div class="card">
+            <h3>Fernando Alonso</h3>
+            <p>Posición: P${alonsoPos}</p>
+            <p>Estrategia: Medium → Hard</p>
+            <p>Pit Stop: Vuelta 17</p>
+            <p>Ritmo: +${(drivers[alonsoPos-1].total - drivers[0].total).toFixed(2)}s</p>
         </div>
     `;
 }
+
 
 showHome();
 </script>
