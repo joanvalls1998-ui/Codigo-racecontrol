@@ -1,72 +1,192 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <title>RaceControl</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        :root {
+            --bg: #060606;
+            --panel: #121212;
+            --panel-2: #1a1a1a;
+            --text: #f5f5f5;
+            --muted: #a0a0a0;
+            --accent: #e10600;
+            --accent-soft: #ff3b30;
+            --line: #262626;
+            --success: #22c55e;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #0b0b0b;
-            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Arial, sans-serif;
+            background: radial-gradient(circle at top, #1a1a1a 0%, #0b0b0b 35%, #060606 100%);
+            color: var(--text);
         }
 
         .header {
-            background-color: #111;
-            padding: 20px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            border-bottom: 2px solid red;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: rgba(10, 10, 10, 0.92);
+            backdrop-filter: blur(10px);
+            padding: 18px 20px 16px;
+            border-bottom: 1px solid rgba(225, 6, 0, 0.35);
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            margin-top: 4px;
+            font-size: 13px;
+            color: var(--muted);
         }
 
         .container {
-            padding: 20px;
-            padding-bottom: 90px;
+            padding: 18px 16px 100px;
+            max-width: 760px;
+            margin: 0 auto;
         }
 
         .card {
-            background-color: #1a1a1a;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 12px;
+            background: linear-gradient(180deg, rgba(28,28,28,0.96) 0%, rgba(18,18,18,0.96) 100%);
+            border: 1px solid rgba(255,255,255,0.04);
+            padding: 16px;
+            margin-bottom: 14px;
+            border-radius: 18px;
+            box-shadow:
+                0 10px 24px rgba(0,0,0,0.28),
+                inset 0 1px 0 rgba(255,255,255,0.03);
         }
 
         .card h3 {
-            margin-top: 0;
-            color: #ff4747;
+            margin: 0 0 10px 0;
+            color: var(--accent-soft);
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: -0.2px;
+        }
+
+        .card p {
+            margin: 6px 0;
+            color: var(--text);
+            line-height: 1.45;
+            font-size: 15px;
+        }
+
+        .small {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .highlight {
+            color: white;
+            font-weight: 700;
         }
 
         .nav {
             position: fixed;
             bottom: 0;
             width: 100%;
-            background-color: #111;
+            background: rgba(10, 10, 10, 0.96);
+            backdrop-filter: blur(10px);
             display: flex;
             justify-content: space-around;
-            padding: 12px 0;
-            border-top: 2px solid red;
+            align-items: center;
+            padding: 14px 8px calc(14px + env(safe-area-inset-bottom));
+            border-top: 1px solid rgba(225, 6, 0, 0.35);
+            box-shadow: 0 -8px 20px rgba(0,0,0,0.25);
         }
 
         .nav a {
-            color: white;
+            color: var(--muted);
             text-decoration: none;
-            font-size: 16px;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 8px 10px;
+            border-radius: 10px;
+            transition: 0.2s ease;
+        }
+
+        .nav a:hover,
+        .nav a:active {
+            color: white;
+            background: rgba(255,255,255,0.05);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 12px;
         }
 
         th, td {
-            padding: 8px;
+            padding: 10px 8px;
             text-align: left;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid var(--line);
+            font-size: 14px;
         }
 
         th {
-            color: red;
+            color: var(--accent-soft);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        td {
+            color: #f0f0f0;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            background: rgba(225, 6, 0, 0.12);
+            color: #ff8a84;
+            border: 1px solid rgba(225, 6, 0, 0.2);
+        }
+
+        .section-title {
+            margin: 4px 0 12px;
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+        }
+
+        .sim-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .sim-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--line);
+            font-size: 14px;
+        }
+
+        .sim-line:last-child {
+            border-bottom: none;
         }
     </style>
 </head>
@@ -74,7 +194,8 @@
 <body>
 
 <div class="header">
-    RaceControl
+    <div class="title">RaceControl</div>
+    <div class="subtitle">Fórmula 1 · Datos · Simulación · Noticias</div>
 </div>
 
 <div class="container" id="content"></div>
@@ -90,14 +211,22 @@
 function showHome() {
     document.getElementById("content").innerHTML = `
         <div class="card">
+            <div class="pill">Resumen F1</div>
+            <div class="section-title">Inicio de temporada 2026</div>
+            <p><span class="highlight">Mercedes</span> domina el arranque del campeonato y <span class="highlight">Antonelli</span> llega como referencia tras Japón.</p>
+        </div>
+
+        <div class="card">
             <h3>Última carrera</h3>
             <p>Japanese Grand Prix</p>
-            <p>Ganador: Kimi Antonelli</p>
+            <p><span class="highlight">Ganador:</span> Kimi Antonelli</p>
+            <p class="small">Suzuka confirmó el gran momento de Mercedes.</p>
         </div>
 
         <div class="card">
             <h3>Próxima carrera</h3>
             <p>Miami Grand Prix</p>
+            <p class="small">Siguiente cita del calendario 2026.</p>
         </div>
 
         <div class="card">
@@ -138,6 +267,24 @@ function showStandings() {
                 <tr><td>22</td><td>Fernando Alonso</td><td>Aston Martin</td><td>0</td></tr>
             </table>
         </div>
+
+        <div class="card">
+            <h3>Constructors Standings</h3>
+            <table>
+                <tr><th>Pos</th><th>Equipo</th><th>Puntos</th></tr>
+                <tr><td>1</td><td>Mercedes</td><td>135</td></tr>
+                <tr><td>2</td><td>Ferrari</td><td>90</td></tr>
+                <tr><td>3</td><td>McLaren</td><td>46</td></tr>
+                <tr><td>4</td><td>Haas</td><td>18</td></tr>
+                <tr><td>5</td><td>Red Bull</td><td>16</td></tr>
+                <tr><td>6</td><td>Alpine</td><td>16</td></tr>
+                <tr><td>7</td><td>Racing Bulls</td><td>14</td></tr>
+                <tr><td>8</td><td>Audi</td><td>2</td></tr>
+                <tr><td>9</td><td>Williams</td><td>2</td></tr>
+                <tr><td>10</td><td>Cadillac</td><td>0</td></tr>
+                <tr><td>11</td><td>Aston Martin</td><td>0</td></tr>
+            </table>
+        </div>
     `;
 }
 
@@ -154,87 +301,98 @@ function showCalendar() {
         </div>
     `;
 }
-function showSim() {
 
+function showSim() {
     let drivers = [
-        {name:"Antonelli", team:"Mercedes", pace:1.0},
-        {name:"Russell", team:"Mercedes", pace:1.0},
-        {name:"Leclerc", team:"Ferrari", pace:1.05},
-        {name:"Hamilton", team:"Ferrari", pace:1.05},
-        {name:"Norris", team:"McLaren", pace:1.07},
-        {name:"Piastri", team:"McLaren", pace:1.07},
-        {name:"Verstappen", team:"Red Bull", pace:1.08},
-        {name:"Hadjar", team:"Red Bull", pace:1.08},
-        {name:"Gasly", team:"Alpine", pace:1.10},
-        {name:"Colapinto", team:"Alpine", pace:1.10},
-        {name:"Bearman", team:"Haas", pace:1.11},
-        {name:"Ocon", team:"Haas", pace:1.11},
-        {name:"Albon", team:"Williams", pace:1.12},
-        {name:"Sainz", team:"Williams", pace:1.12},
-        {name:"Bortoleto", team:"Audi", pace:1.13},
-        {name:"Hulkenberg", team:"Audi", pace:1.13},
-        {name:"Lawson", team:"Racing Bulls", pace:1.11},
-        {name:"Lindblad", team:"Racing Bulls", pace:1.11},
-        {name:"Perez", team:"Cadillac", pace:1.14},
-        {name:"Bottas", team:"Cadillac", pace:1.14},
-        {name:"Alonso", team:"Aston Martin", pace:1.12},
-        {name:"Stroll", team:"Aston Martin", pace:1.12}
+        {name:"Antonelli", team:"Mercedes", pace:1.00},
+        {name:"Russell", team:"Mercedes", pace:1.00},
+        {name:"Leclerc", team:"Ferrari", pace:1.03},
+        {name:"Hamilton", team:"Ferrari", pace:1.03},
+        {name:"Norris", team:"McLaren", pace:1.05},
+        {name:"Piastri", team:"McLaren", pace:1.05},
+        {name:"Verstappen", team:"Red Bull", pace:1.06},
+        {name:"Hadjar", team:"Red Bull", pace:1.06},
+        {name:"Gasly", team:"Alpine", pace:1.08},
+        {name:"Colapinto", team:"Alpine", pace:1.08},
+        {name:"Bearman", team:"Haas", pace:1.09},
+        {name:"Ocon", team:"Haas", pace:1.09},
+        {name:"Lawson", team:"Racing Bulls", pace:1.09},
+        {name:"Lindblad", team:"Racing Bulls", pace:1.09},
+        {name:"Alonso", team:"Aston Martin", pace:1.10},
+        {name:"Stroll", team:"Aston Martin", pace:1.10},
+        {name:"Albon", team:"Williams", pace:1.11},
+        {name:"Sainz", team:"Williams", pace:1.11},
+        {name:"Bortoleto", team:"Audi", pace:1.12},
+        {name:"Hulkenberg", team:"Audi", pace:1.12},
+        {name:"Perez", team:"Cadillac", pace:1.13},
+        {name:"Bottas", team:"Cadillac", pace:1.13}
     ];
 
-    // Añadir variación
     drivers.forEach(d => {
-        d.random = Math.random() * 0.06;
-        d.total = d.pace + d.random;
+        d.qualy = d.pace + Math.random() * 0.05;
     });
 
-    // Ordenar por ritmo
-    drivers.sort((a,b) => a.total - b.total);
+    drivers.sort((a,b) => a.qualy - b.qualy);
 
-    // Safety car
-    let safetyCar = Math.random() < 0.4 ? "Sí" : "No";
+    drivers.forEach(d => {
+        let pitLoss = 0.02;
+        let raceVariance = Math.random() * 0.06;
+        d.raceTime = d.pace + raceVariance + pitLoss;
+    });
 
-    // Lluvia
-    let rain = Math.random() < 0.3 ? "Sí" : "No";
+    drivers.sort((a,b) => a.raceTime - b.raceTime);
 
-    // DNF
-    let dnf = Math.random() < 0.25 ? "Sí" : "No";
-
-    // Posición Alonso
+    let rain = Math.random() < 0.25 ? "Sí" : "No";
+    let safetyCar = Math.random() < 0.45 ? "Sí" : "No";
+    let dnf = Math.random() < 0.20 ? "Sí" : "No";
     let alonsoPos = drivers.findIndex(d => d.name === "Alonso") + 1;
+    let leaderGap = (drivers[alonsoPos - 1].raceTime - drivers[0].raceTime).toFixed(2);
 
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <h3>Simulación de Carrera</h3>
-            <p>Circuito: Suzuka</p>
-            <p>Lluvia: ${rain}</p>
-            <p>Safety Car: ${safetyCar}</p>
-            <p>DNF: ${dnf}</p>
+            <div class="pill">Simulación</div>
+            <div class="section-title">GP de Japón · Suzuka</div>
+            <p><span class="highlight">Clima:</span> ${rain === "Sí" ? "Lluvia" : "Seco"}</p>
+            <p><span class="highlight">Safety Car:</span> ${safetyCar}</p>
+            <p><span class="highlight">DNF probable:</span> ${dnf}</p>
         </div>
 
         <div class="card">
-            <h3>Top 10</h3>
-            <p>1. ${drivers[0].name}</p>
-            <p>2. ${drivers[1].name}</p>
-            <p>3. ${drivers[2].name}</p>
-            <p>4. ${drivers[3].name}</p>
-            <p>5. ${drivers[4].name}</p>
-            <p>6. ${drivers[5].name}</p>
-            <p>7. ${drivers[6].name}</p>
-            <p>8. ${drivers[7].name}</p>
-            <p>9. ${drivers[8].name}</p>
-            <p>10. ${drivers[9].name}</p>
+            <h3>Clasificación (Qualy)</h3>
+            <div class="sim-grid">
+                <div class="sim-line"><span>P1</span><span>${drivers[0].name}</span></div>
+                <div class="sim-line"><span>P2</span><span>${drivers[1].name}</span></div>
+                <div class="sim-line"><span>P3</span><span>${drivers[2].name}</span></div>
+                <div class="sim-line"><span>P4</span><span>${drivers[3].name}</span></div>
+                <div class="sim-line"><span>P5</span><span>${drivers[4].name}</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Resultado Carrera</h3>
+            <div class="sim-grid">
+                <div class="sim-line"><span>1</span><span>${drivers[0].name}</span></div>
+                <div class="sim-line"><span>2</span><span>${drivers[1].name}</span></div>
+                <div class="sim-line"><span>3</span><span>${drivers[2].name}</span></div>
+                <div class="sim-line"><span>4</span><span>${drivers[3].name}</span></div>
+                <div class="sim-line"><span>5</span><span>${drivers[4].name}</span></div>
+                <div class="sim-line"><span>6</span><span>${drivers[5].name}</span></div>
+                <div class="sim-line"><span>7</span><span>${drivers[6].name}</span></div>
+                <div class="sim-line"><span>8</span><span>${drivers[7].name}</span></div>
+                <div class="sim-line"><span>9</span><span>${drivers[8].name}</span></div>
+                <div class="sim-line"><span>10</span><span>${drivers[9].name}</span></div>
+            </div>
         </div>
 
         <div class="card">
             <h3>Fernando Alonso</h3>
-            <p>Posición: P${alonsoPos}</p>
-            <p>Estrategia: Medium → Hard</p>
-            <p>Pit Stop: Vuelta 17</p>
-            <p>Ritmo: +${(drivers[alonsoPos-1].total - drivers[0].total).toFixed(2)}s</p>
+            <p><span class="highlight">Posición final:</span> P${alonsoPos}</p>
+            <p><span class="highlight">Estrategia:</span> Medium → Hard</p>
+            <p><span class="highlight">Pit Stop:</span> Vuelta 18</p>
+            <p><span class="highlight">Ritmo carrera:</span> +${leaderGap}s</p>
         </div>
     `;
 }
-
 
 showHome();
 </script>
