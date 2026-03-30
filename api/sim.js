@@ -1,56 +1,7 @@
-
 export default async function handler(req, res) {
   const prompt = `
 Actúa como ingeniero de estrategia de Fórmula 1 en 2026.
-
-Quiero una simulación realista del próximo Gran Premio teniendo en cuenta:
-- Rendimiento actual de los equipos
-- Resultados de las últimas carreras
-- Fiabilidad de cada equipo
-- Ritmo de carrera vs clasificación
-- Probabilidad de Safety Car
-- Probabilidad de lluvia
-- Estrategias reales usadas en ese circuito
-- Reglamento 2026
-
-Salida en este formato:
-
-SIMULACIÓN GP JAPÓN
-
-Ritmo equipos (%):
-Mercedes:
-Ferrari:
-McLaren:
-Red Bull:
-Aston Martin:
-Alpine:
-Haas:
-Racing Bulls:
-Williams:
-Audi:
-Cadillac:
-
-Predicción clasificación Alonso:
-Predicción carrera Alonso:
-Probabilidad puntos Alonso (%):
-Probabilidad DNF Alonso (%):
-Estrategia más probable Alonso:
-Vuelta parada:
-
-Probabilidad Safety Car (%):
-Probabilidad lluvia (%):
-
-Top 10 estimado carrera:
-1.
-2.
-3.
-4.
-5.
-6.
-7.
-8.
-9.
-10.
+Haz una simulación realista del GP de Japón.
 `;
 
   try {
@@ -67,8 +18,22 @@ Top 10 estimado carrera:
     });
 
     const data = await response.json();
-    res.status(200).json({ result: data.output[0].content[0].text });
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        step: "openai_error",
+        data
+      });
+    }
+
+    return res.status(200).json({
+      step: "success",
+      data
+    });
   } catch (error) {
-    res.status(500).json({ error: "Error generando simulación" });
+    return res.status(500).json({
+      step: "server_error",
+      message: error.message || "Unknown error"
+    });
   }
 }
