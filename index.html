@@ -54,6 +54,21 @@
             color: white;
             font-size: 16px;
         }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+
+        th {
+            color: red;
+        }
     </style>
 </head>
 
@@ -63,30 +78,76 @@
     RaceControl
 </div>
 
-<div class="container">
-    <div class="card">
-        <h3>Última carrera</h3>
-        <p>Japanese Grand Prix</p>
-        <p>Ganador: Kimi Antonelli</p>
-    </div>
-
-    <div class="card">
-        <h3>Próxima carrera</h3>
-        <p>Miami Grand Prix</p>
-    </div>
-
-    <div class="card">
-        <h3>Noticias</h3>
-        <p>Mercedes domina el inicio de temporada 2026.</p>
-        <p>Aston Martin sigue con problemas de fiabilidad.</p>
-    </div>
+<div class="container" id="content">
 </div>
 
 <div class="nav">
-    <button>Home</button>
-    <button>Standings</button>
-    <button>Calendar</button>
+    <button onclick="showHome()">Home</button>
+    <button onclick="showStandings()">Standings</button>
+    <button onclick="showCalendar()">Calendar</button>
 </div>
+
+<script>
+function showHome() {
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <h3>Última carrera</h3>
+            <p>Japanese Grand Prix</p>
+            <p>Ganador: Kimi Antonelli</p>
+        </div>
+
+        <div class="card">
+            <h3>Próxima carrera</h3>
+            <p>Miami Grand Prix</p>
+        </div>
+
+        <div class="card">
+            <h3>Noticias</h3>
+            <p>Mercedes domina el inicio de temporada 2026.</p>
+            <p>Aston Martin sigue con problemas de fiabilidad.</p>
+        </div>
+    `;
+}
+
+function showStandings() {
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <h3>Drivers Standings</h3>
+            <table>
+                <tr><th>Pos</th><th>Piloto</th><th>Equipo</th><th>Puntos</th></tr>
+                <tr><td>1</td><td>Antonelli</td><td>Mercedes</td><td>72</td></tr>
+                <tr><td>2</td><td>Russell</td><td>Mercedes</td><td>63</td></tr>
+                <tr><td>3</td><td>Leclerc</td><td>Ferrari</td><td>49</td></tr>
+                <tr><td>4</td><td>Hamilton</td><td>Ferrari</td><td>41</td></tr>
+                <tr><td>5</td><td>Norris</td><td>McLaren</td><td>25</td></tr>
+                <tr><td>6</td><td>Piastri</td><td>McLaren</td><td>21</td></tr>
+                <tr><td>7</td><td>Bearman</td><td>Haas</td><td>17</td></tr>
+                <tr><td>8</td><td>Gasly</td><td>Alpine</td><td>15</td></tr>
+                <tr><td>9</td><td>Verstappen</td><td>Red Bull</td><td>12</td></tr>
+                <tr><td>10</td><td>Lawson</td><td>RB</td><td>10</td></tr>
+                <tr><td>21</td><td>Stroll</td><td>Aston Martin</td><td>0</td></tr>
+                <tr><td>22</td><td>Alonso</td><td>Aston Martin</td><td>0</td></tr>
+            </table>
+        </div>
+    `;
+}
+
+function showCalendar() {
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <h3>Calendario</h3>
+            <p>Australia — Completado</p>
+            <p>China — Completado</p>
+            <p>Japón — Completado</p>
+            <p>Miami — Próximo</p>
+            <p>Canadá — Próximo</p>
+            <p>Mónaco — Próximo</p>
+        </div>
+    `;
+}
+
+showHome();
+</script>
 
 </body>
 </html>
