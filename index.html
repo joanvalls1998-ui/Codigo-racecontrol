@@ -7,14 +7,15 @@
         :root {
             --bg: #060606;
             --panel: #121212;
-            --panel-2: #1a1a1a;
             --text: #f5f5f5;
             --muted: #a0a0a0;
             --accent: #e10600;
             --accent-soft: #ff3b30;
             --line: #262626;
-            --success: #22c55e;
+            --green: #0f9d58;
+            --green-soft: #8de1b1;
             --warning: #f59e0b;
+            --danger: #ef4444;
         }
 
         * {
@@ -163,6 +164,12 @@
             border: 1px solid rgba(225, 6, 0, 0.2);
         }
 
+        .pill-green {
+            background: rgba(15, 157, 88, 0.12);
+            color: var(--green-soft);
+            border: 1px solid rgba(15, 157, 88, 0.25);
+        }
+
         .section-title {
             margin: 4px 0 12px;
             font-size: 20px;
@@ -188,6 +195,10 @@
         .sim-line:last-child {
             border-bottom: none;
         }
+
+        .status-good { color: var(--green-soft); font-weight: 700; }
+        .status-mid { color: #ffd166; font-weight: 700; }
+        .status-bad { color: #ff8a84; font-weight: 700; }
     </style>
 </head>
 
@@ -195,7 +206,7 @@
 
 <div class="header">
     <div class="title">RaceControl</div>
-    <div class="subtitle">Fórmula 1 · Datos · Simulación · Noticias</div>
+    <div class="subtitle">Fórmula 1 · Datos · Simulación · Noticias · Aston Martin</div>
 </div>
 
 <div class="container" id="content"></div>
@@ -205,6 +216,7 @@
     <a href="#" onclick="showStandings(); return false;">Standings</a>
     <a href="#" onclick="showCalendar(); return false;">Calendar</a>
     <a href="#" onclick="showSim(); return false;">Sim</a>
+    <a href="#" onclick="showAston(); return false;">Aston</a>
 </div>
 
 <script>
@@ -233,6 +245,7 @@ function showHome() {
             <h3>Noticias</h3>
             <p>Mercedes domina el inicio de temporada 2026.</p>
             <p>Aston Martin sigue con problemas de fiabilidad.</p>
+            <p>Ferrari se mantiene como segunda fuerza del campeonato.</p>
         </div>
     `;
 }
@@ -319,7 +332,7 @@ function showSim() {
         {name:"Lawson", team:"Racing Bulls", pace:1.09},
         {name:"Lindblad", team:"Racing Bulls", pace:1.09},
         {name:"Alonso", team:"Aston Martin", pace:1.10},
-        {name:"Stroll", team:"Aston Martin", pace:1.10},
+        {name:"Stroll", team:"Aston Martin", pace:1.11},
         {name:"Albon", team:"Williams", pace:1.11},
         {name:"Sainz", team:"Williams", pace:1.11},
         {name:"Bortoleto", team:"Audi", pace:1.12},
@@ -332,7 +345,7 @@ function showSim() {
         d.qualy = d.pace + Math.random() * 0.05;
     });
 
-    drivers.sort((a,b) => a.qualy - b.qualy);
+    let qualyOrder = [...drivers].sort((a,b) => a.qualy - b.qualy);
 
     drivers.forEach(d => {
         let pitLoss = 0.02;
@@ -340,13 +353,13 @@ function showSim() {
         d.raceTime = d.pace + raceVariance + pitLoss;
     });
 
-    drivers.sort((a,b) => a.raceTime - b.raceTime);
+    let raceOrder = [...drivers].sort((a,b) => a.raceTime - b.raceTime);
 
     let rain = Math.random() < 0.25 ? "Sí" : "No";
     let safetyCar = Math.random() < 0.45 ? "Sí" : "No";
     let dnf = Math.random() < 0.20 ? "Sí" : "No";
-    let alonsoPos = drivers.findIndex(d => d.name === "Alonso") + 1;
-    let leaderGap = (drivers[alonsoPos - 1].raceTime - drivers[0].raceTime).toFixed(2);
+    let alonsoPos = raceOrder.findIndex(d => d.name === "Alonso") + 1;
+    let leaderGap = (raceOrder[alonsoPos - 1].raceTime - raceOrder[0].raceTime).toFixed(2);
 
     document.getElementById("content").innerHTML = `
         <div class="card">
@@ -360,27 +373,27 @@ function showSim() {
         <div class="card">
             <h3>Clasificación (Qualy)</h3>
             <div class="sim-grid">
-                <div class="sim-line"><span>P1</span><span>${drivers[0].name}</span></div>
-                <div class="sim-line"><span>P2</span><span>${drivers[1].name}</span></div>
-                <div class="sim-line"><span>P3</span><span>${drivers[2].name}</span></div>
-                <div class="sim-line"><span>P4</span><span>${drivers[3].name}</span></div>
-                <div class="sim-line"><span>P5</span><span>${drivers[4].name}</span></div>
+                <div class="sim-line"><span>P1</span><span>${qualyOrder[0].name}</span></div>
+                <div class="sim-line"><span>P2</span><span>${qualyOrder[1].name}</span></div>
+                <div class="sim-line"><span>P3</span><span>${qualyOrder[2].name}</span></div>
+                <div class="sim-line"><span>P4</span><span>${qualyOrder[3].name}</span></div>
+                <div class="sim-line"><span>P5</span><span>${qualyOrder[4].name}</span></div>
             </div>
         </div>
 
         <div class="card">
             <h3>Resultado Carrera</h3>
             <div class="sim-grid">
-                <div class="sim-line"><span>1</span><span>${drivers[0].name}</span></div>
-                <div class="sim-line"><span>2</span><span>${drivers[1].name}</span></div>
-                <div class="sim-line"><span>3</span><span>${drivers[2].name}</span></div>
-                <div class="sim-line"><span>4</span><span>${drivers[3].name}</span></div>
-                <div class="sim-line"><span>5</span><span>${drivers[4].name}</span></div>
-                <div class="sim-line"><span>6</span><span>${drivers[5].name}</span></div>
-                <div class="sim-line"><span>7</span><span>${drivers[6].name}</span></div>
-                <div class="sim-line"><span>8</span><span>${drivers[7].name}</span></div>
-                <div class="sim-line"><span>9</span><span>${drivers[8].name}</span></div>
-                <div class="sim-line"><span>10</span><span>${drivers[9].name}</span></div>
+                <div class="sim-line"><span>1</span><span>${raceOrder[0].name}</span></div>
+                <div class="sim-line"><span>2</span><span>${raceOrder[1].name}</span></div>
+                <div class="sim-line"><span>3</span><span>${raceOrder[2].name}</span></div>
+                <div class="sim-line"><span>4</span><span>${raceOrder[3].name}</span></div>
+                <div class="sim-line"><span>5</span><span>${raceOrder[4].name}</span></div>
+                <div class="sim-line"><span>6</span><span>${raceOrder[5].name}</span></div>
+                <div class="sim-line"><span>7</span><span>${raceOrder[6].name}</span></div>
+                <div class="sim-line"><span>8</span><span>${raceOrder[7].name}</span></div>
+                <div class="sim-line"><span>9</span><span>${raceOrder[8].name}</span></div>
+                <div class="sim-line"><span>10</span><span>${raceOrder[9].name}</span></div>
             </div>
         </div>
 
@@ -390,6 +403,40 @@ function showSim() {
             <p><span class="highlight">Estrategia:</span> Medium → Hard</p>
             <p><span class="highlight">Pit Stop:</span> Vuelta 18</p>
             <p><span class="highlight">Ritmo carrera:</span> +${leaderGap}s</p>
+        </div>
+    `;
+}
+
+function showAston() {
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <div class="pill pill-green">Aston Martin</div>
+            <div class="section-title">Estado del equipo</div>
+            <p><span class="highlight">Fiabilidad:</span> <span class="status-bad">Baja</span></p>
+            <p><span class="highlight">Ritmo:</span> <span class="status-mid">Medio-bajo</span></p>
+            <p><span class="highlight">Motor Honda:</span> con problemas</p>
+        </div>
+
+        <div class="card">
+            <h3>Fernando Alonso</h3>
+            <p><span class="highlight">Puntos:</span> 0</p>
+            <p><span class="highlight">Últimas carreras:</span> DNF / DNF / fuera de puntos</p>
+            <p><span class="highlight">Probabilidad de puntos:</span> Baja</p>
+            <p><span class="highlight">Probabilidad de DNF:</span> Media</p>
+        </div>
+
+        <div class="card">
+            <h3>Lance Stroll</h3>
+            <p><span class="highlight">Puntos:</span> 0</p>
+            <p><span class="highlight">Últimas carreras:</span> DNF / DNF / fuera de puntos</p>
+            <p><span class="highlight">Probabilidad de puntos:</span> Baja</p>
+            <p><span class="highlight">Probabilidad de DNF:</span> Media</p>
+        </div>
+
+        <div class="card">
+            <h3>Próxima carrera</h3>
+            <p>Miami Grand Prix</p>
+            <p><span class="highlight">Objetivo Aston Martin:</span> terminar con ambos coches</p>
         </div>
     `;
 }
