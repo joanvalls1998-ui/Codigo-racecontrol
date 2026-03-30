@@ -288,6 +288,32 @@
             font-weight: 800;
             margin-top: 12px;
         }
+
+        .btn-secondary {
+            width: 100%;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            padding: 14px;
+            background: rgba(255,255,255,0.03);
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            margin-top: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 180px;
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+            color: white;
+            font-size: 14px;
+            line-height: 1.45;
+            resize: vertical;
+        }
     </style>
 </head>
 <body>
@@ -307,17 +333,24 @@
     <a href="#" id="nav-predict" onclick="showPredict(); return false;">Predict</a>
     <a href="#" id="nav-aston" onclick="showAston(); return false;">Aston</a>
     <a href="#" id="nav-news" onclick="showNews(); return false;">News</a>
+    <a href="#" id="nav-ia" onclick="showIA(); return false;">IA</a>
 </div>
 
 <script>
 function setActiveNav(tabId) {
-    const ids = ["nav-home", "nav-standings", "nav-calendar", "nav-sim", "nav-predict", "nav-aston", "nav-news"];
+    const ids = ["nav-home", "nav-standings", "nav-calendar", "nav-sim", "nav-predict", "nav-aston", "nav-news", "nav-ia"];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.remove("active");
     });
     const active = document.getElementById(tabId);
     if (active) active.classList.add("active");
+}
+
+function copyPrompt(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        alert("Prompt copiado");
+    });
 }
 
 function showHome() {
@@ -452,16 +485,8 @@ function generateSimulation() {
     let strollRace = Math.min(18, alonsoRace + 2 + Math.floor(Math.random() * 2));
 
     let top10 = [
-        "Antonelli",
-        "Russell",
-        "Leclerc",
-        "Hamilton",
-        "Norris",
-        "Piastri",
-        "Verstappen",
-        "Gasly",
-        "Bearman",
-        "Lawson"
+        "Antonelli","Russell","Leclerc","Hamilton","Norris",
+        "Piastri","Verstappen","Gasly","Bearman","Lawson"
     ];
 
     if (Math.random() < 0.35) {
@@ -545,9 +570,6 @@ function showPredict() {
     setActiveNav("nav-predict");
     const predictRain = Math.floor(20 + Math.random() * 21);
     const predictSC = Math.floor(30 + Math.random() * 21);
-    const mercedesWin = 58;
-    const ferrariPodium = 66;
-    const alonsoPoints = 24;
 
     document.getElementById("content").innerHTML = `
         <div class="card">
@@ -558,9 +580,9 @@ function showPredict() {
 
         <div class="card">
             <h3>Favoritos</h3>
-            <p><span class="highlight">Victoria Mercedes:</span> ${mercedesWin}%</p>
-            <p><span class="highlight">Podio Ferrari:</span> ${ferrariPodium}%</p>
-            <p><span class="highlight">Puntos Alonso:</span> ${alonsoPoints}%</p>
+            <p><span class="highlight">Victoria Mercedes:</span> 58%</p>
+            <p><span class="highlight">Podio Ferrari:</span> 66%</p>
+            <p><span class="highlight">Puntos Alonso:</span> 24%</p>
         </div>
 
         <div class="card">
@@ -615,33 +637,16 @@ function showAston() {
         <div class="card">
             <h3>Comparativa Alonso vs Stroll</h3>
             <div class="bar-wrap">
-                <div class="bar-label">
-                    <span>Ritmo Alonso</span>
-                    <span>88%</span>
-                </div>
-                <div class="bar">
-                    <div class="bar-fill bar-green" style="width:88%"></div>
-                </div>
+                <div class="bar-label"><span>Ritmo Alonso</span><span>88%</span></div>
+                <div class="bar"><div class="bar-fill bar-green" style="width:88%"></div></div>
             </div>
-
             <div class="bar-wrap">
-                <div class="bar-label">
-                    <span>Ritmo Stroll</span>
-                    <span>84%</span>
-                </div>
-                <div class="bar">
-                    <div class="bar-fill bar-yellow" style="width:84%"></div>
-                </div>
+                <div class="bar-label"><span>Ritmo Stroll</span><span>84%</span></div>
+                <div class="bar"><div class="bar-fill bar-yellow" style="width:84%"></div></div>
             </div>
-
             <div class="bar-wrap">
-                <div class="bar-label">
-                    <span>Fiabilidad equipo</span>
-                    <span>61%</span>
-                </div>
-                <div class="bar">
-                    <div class="bar-fill bar-red" style="width:61%"></div>
-                </div>
+                <div class="bar-label"><span>Fiabilidad equipo</span><span>61%</span></div>
+                <div class="bar"><div class="bar-fill bar-red" style="width:61%"></div></div>
             </div>
         </div>
 
@@ -679,6 +684,180 @@ function showNews() {
                 <p><span class="highlight">Ferrari mantiene el pulso como segunda fuerza</span></p>
                 <div class="news-source">Rendimiento equipos</div>
             </div>
+        </div>
+    `;
+}
+
+function showIA() {
+    setActiveNav("nav-ia");
+
+    const simPrompt = `Actúa como ingeniero de estrategia de Fórmula 1 en 2026.
+
+Quiero una simulación realista del próximo Gran Premio teniendo en cuenta:
+- Rendimiento actual de los equipos
+- Resultados de las últimas carreras
+- Fiabilidad de cada equipo
+- Ritmo de carrera vs clasificación
+- Probabilidad de Safety Car
+- Probabilidad de lluvia
+- Estrategias reales usadas en ese circuito
+- Reglamento 2026
+
+Quiero la salida en este formato EXACTO:
+
+SIMULACIÓN GP [CIRCUITO]
+
+Ritmo equipos (%):
+Mercedes:
+Ferrari:
+McLaren:
+Red Bull:
+Aston Martin:
+Alpine:
+Haas:
+Racing Bulls:
+Williams:
+Audi:
+Cadillac:
+
+Predicción clasificación Alonso:
+Predicción carrera Alonso:
+Probabilidad puntos Alonso (%):
+Probabilidad DNF Alonso (%):
+Estrategia más probable Alonso:
+Vuelta parada:
+
+Probabilidad Safety Car (%):
+Probabilidad lluvia (%):
+
+Top 10 estimado carrera:
+1.
+2.
+3.
+4.
+5.
+6.
+7.
+8.
+9.
+10.`;
+
+    const predictPrompt = `Actúa como analista de Fórmula 1.
+
+Haz una predicción realista para la próxima carrera teniendo en cuenta:
+- Forma actual de los equipos
+- Ritmo de clasificación
+- Ritmo de carrera
+- Degradación de neumáticos
+- Historial del circuito
+- Fiabilidad de los equipos
+
+Salida en este formato:
+
+PREDICCIÓN GP [CIRCUITO]
+
+Favorito para la victoria:
+Equipos con más ritmo:
+Equipos con peor ritmo:
+
+Predicción Alonso clasificación:
+Predicción Alonso carrera:
+Probabilidad de puntos Alonso (%):
+
+Probabilidad lluvia (%):
+Probabilidad Safety Car (%):
+
+Estrategia más probable:
+Número de paradas:`;
+
+    const astonPrompt = `Actúa como ingeniero de Aston Martin F1.
+
+Analiza el estado actual del equipo en la temporada 2026 teniendo en cuenta:
+- Rendimiento del coche
+- Motor Honda
+- Fiabilidad
+- Ritmo de clasificación
+- Ritmo de carrera
+- Comparación Alonso vs Stroll
+- Posibilidades de mejora durante la temporada
+
+Salida en este formato:
+
+ASTON MARTIN INFORME
+
+Posición actual del equipo:
+Ritmo del coche:
+Fiabilidad:
+Rendimiento en clasificación:
+Rendimiento en carrera:
+
+Fernando Alonso:
+Rendimiento:
+Probabilidad de puntos próximas carreras (%):
+
+Lance Stroll:
+Rendimiento:
+Probabilidad de puntos (%):
+
+Objetivo del equipo próxima carrera:`;
+
+    const newsPrompt = `Haz un boletín de noticias de Fórmula 1 centrado en:
+- Aston Martin
+- Fernando Alonso
+- Adrian Newey
+- Honda F1
+- Equipos top (Mercedes, Ferrari, McLaren, Red Bull)
+
+Solo noticias relevantes recientes.
+
+Formato:
+
+BOLETÍN F1
+
+Aston Martin:
+-
+
+Fernando Alonso:
+-
+
+Adrian Newey:
+-
+
+Honda:
+-
+
+Situación campeonato:
+-`;
+
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <div class="pill pill-blue">IA</div>
+            <div class="section-title">Prompts oficiales RaceControl</div>
+            <p>Usa estos botones para copiar prompts y generar contenido con IA para la app.</p>
+        </div>
+
+        <div class="card">
+            <h3>Simulación IA</h3>
+            <button class="btn" onclick='copyPrompt(${JSON.stringify(simPrompt)})'>Copiar prompt de simulación</button>
+            <textarea readonly>${simPrompt}</textarea>
+        </div>
+
+        <div class="card">
+            <h3>Predicción IA</h3>
+            <button class="btn-secondary" onclick='copyPrompt(${JSON.stringify(predictPrompt)})'>Copiar prompt de predicción</button>
+            <textarea readonly>${predictPrompt}</textarea>
+        </div>
+
+        <div class="card">
+            <h3>Informe Aston IA</h3>
+            <button class="btn-secondary" onclick='copyPrompt(${JSON.stringify(astonPrompt)})'>Copiar prompt Aston Martin</button>
+            <textarea readonly>${astonPrompt}</textarea>
+        </div>
+
+        <div class="card">
+            <h3>Noticias IA</h3>
+            <button class="btn-secondary" onclick='copyPrompt(${JSON.stringify(newsPrompt)})'>Copiar prompt de noticias</button>
+            <textarea readonly>${newsPrompt}</textarea>
         </div>
     `;
 }
