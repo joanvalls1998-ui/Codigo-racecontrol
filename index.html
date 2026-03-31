@@ -169,18 +169,6 @@
             box-shadow: 0 10px 20px rgba(225, 6, 0, 0.22);
         }
 
-        .btn-secondary {
-            width: 100%;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 16px;
-            padding: 13px 16px;
-            font-size: 14px;
-            font-weight: 700;
-            color: white;
-            background: rgba(255,255,255,0.04);
-            margin-top: 10px;
-        }
-
         .nav {
             position: fixed;
             bottom: 0;
@@ -334,6 +322,16 @@
             flex: 0 0 auto;
         }
 
+        .row-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex: 0 0 auto;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.04);
+        }
+
         .row-stripe {
             width: 4px;
             height: 44px;
@@ -367,6 +365,15 @@
             font-size: 12px;
             color: var(--muted);
             margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .team-logo {
+            height: 14px;
+            width: auto;
         }
 
         .row-points {
@@ -432,15 +439,6 @@
         .list-right {
             font-size: 13px;
             color: var(--muted);
-        }
-
-        .muted {
-            color: var(--muted);
-        }
-
-        .highlight {
-            color: white;
-            font-weight: 700;
         }
 
         pre.ai-output {
@@ -666,13 +664,17 @@
             document.getElementById("standingsContent").innerHTML = `
                 <div class="card">
                     ${driverRow(1, "12", "Kimi Antonelli", "Mercedes", "72", "mercedes", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/antonelli")}
-${driverRow(2, "63", "George Russell", "Mercedes", "63", "mercedes", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/russell")}
-${driverRow(3, "16", "Charles Leclerc", "Ferrari", "49", "ferrari", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/leclerc")}
-${driverRow(4, "44", "Lewis Hamilton", "Ferrari", "41", "ferrari", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/hamilton")}
-${driverRow(5, "1", "Lando Norris", "McLaren", "25", "mclaren", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/norris")}
-${driverRow(6, "81", "Oscar Piastri", "McLaren", "21", "mclaren", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/piastri")}
-${driverRow(21, "18", "Lance Stroll", "Aston Martin", "0", "aston", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/stroll")}
-${driverRow(22, "14", "Fernando Alonso", "Aston Martin", "0", "aston", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/alonso")}
+                    ${driverRow(2, "63", "George Russell", "Mercedes", "63", "mercedes", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/russell")}
+                    ${driverRow(3, "16", "Charles Leclerc", "Ferrari", "49", "ferrari", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/leclerc")}
+                    ${driverRow(4, "44", "Lewis Hamilton", "Ferrari", "41", "ferrari", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/hamilton")}
+                    ${driverRow(5, "1", "Lando Norris", "McLaren", "25", "mclaren", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/norris")}
+                    ${driverRow(6, "81", "Oscar Piastri", "McLaren", "21", "mclaren", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/piastri")}
+                    ${driverRow(7, "87", "Oliver Bearman", "Haas", "17", "haas", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/bearman")}
+                    ${driverRow(8, "10", "Pierre Gasly", "Alpine", "15", "alpine", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/gasly")}
+                    ${driverRow(9, "3", "Max Verstappen", "Red Bull", "12", "redbull", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/verstappen")}
+                    ${driverRow(10, "30", "Liam Lawson", "Racing Bulls", "10", "rb", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/lawson")}
+                    ${driverRow(21, "18", "Lance Stroll", "Aston Martin", "0", "aston", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/stroll")}
+                    ${driverRow(22, "14", "Fernando Alonso", "Aston Martin", "0", "aston", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/alonso")}
                 </div>
             `;
         }
@@ -699,39 +701,40 @@ ${driverRow(22, "14", "Fernando Alonso", "Aston Martin", "0", "aston", "https://
         }
 
         function driverRow(pos, number, name, team, points, colorClass, image) {
-    return `
-        <div class="standing-row">
-            <div class="row-left">
-                <div class="row-pos">${pos}</div>
-                <img src="${image}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;">
-                <div class="row-stripe ${colorClass}"></div>
-                <div class="row-number" style="color: var(--${colorClass});">${number}</div>
-                <div class="row-info">
-    <div class="row-name">${name}</div>
-    <div class="row-team">
-        ${team}
-        <img src="${getTeamLogo(team)}" style="height:14px;margin-left:6px;vertical-align:middle;">
-    </div>
-</div>
- function getTeamLogo(team) {
-    if (team.includes("Aston")) return "https://upload.wikimedia.org/wikipedia/en/thumb/1/1b/Aston_Martin_F1_Team_Logo.svg/512px-Aston_Martin_F1_Team_Logo.svg.png";
-    if (team.includes("Mercedes")) return "https://upload.wikimedia.org/wikipedia/commons/9/90/Mercedes-Logo.svg";
-    if (team.includes("Ferrari")) return "https://upload.wikimedia.org/wikipedia/en/thumb/d/d1/Scuderia_Ferrari_Logo.svg/512px-Scuderia_Ferrari_Logo.svg.png";
-    if (team.includes("McLaren")) return "https://upload.wikimedia.org/wikipedia/en/thumb/6/61/McLaren_Racing_logo.svg/512px-McLaren_Racing_logo.svg.png";
-    if (team.includes("Red Bull")) return "https://upload.wikimedia.org/wikipedia/en/thumb/f/fd/Red_Bull_Racing_logo.svg/512px-Red_Bull_Racing_logo.svg.png";
-    if (team.includes("Alpine")) return "https://upload.wikimedia.org/wikipedia/en/thumb/7/7e/Alpine_F1_Team_Logo.svg/512px-Alpine_F1_Team_Logo.svg.png";
-    if (team.includes("Williams")) return "https://upload.wikimedia.org/wikipedia/en/thumb/3/3e/Williams_Grand_Prix_Engineering_logo.svg/512px-Williams_Grand_Prix_Engineering_logo.svg.png";
-    if (team.includes("Haas")) return "https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Haas_F1_Team_logo.svg/512px-Haas_F1_Team_logo.svg.png";
-    if (team.includes("Audi")) return "https://upload.wikimedia.org/wikipedia/commons/9/92/Audi-Logo_2016.svg";
-    if (team.includes("Cadillac")) return "https://upload.wikimedia.org/wikipedia/commons/5/5e/Cadillac_logo.svg";
-    if (team.includes("Racing Bulls")) return "https://upload.wikimedia.org/wikipedia/en/thumb/5/5f/RB_Formula_One_Team_Logo.svg/512px-RB_Formula_One_Team_Logo.svg.png";
-    return "";
-}           
-</div>
-            <div class="row-points">${points}<small>pts</small></div>
-        </div>
-    `;
-}
+            return `
+                <div class="standing-row">
+                    <div class="row-left">
+                        <div class="row-pos">${pos}</div>
+                        <img class="row-avatar" src="${image}" alt="${name}">
+                        <div class="row-stripe ${colorClass}"></div>
+                        <div class="row-number" style="color: var(--${colorClass});">${number}</div>
+                        <div class="row-info">
+                            <div class="row-name">${name}</div>
+                            <div class="row-team">
+                                <span>${team}</span>
+                                <img class="team-logo" src="${getTeamLogo(team)}" alt="${team}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row-points">${points}<small>pts</small></div>
+                </div>
+            `;
+        }
+
+        function getTeamLogo(team) {
+            if (team.includes("Aston")) return "https://upload.wikimedia.org/wikipedia/en/thumb/1/1b/Aston_Martin_F1_Team_Logo.svg/512px-Aston_Martin_F1_Team_Logo.svg.png";
+            if (team.includes("Mercedes")) return "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Mercedes-Logo.svg/512px-Mercedes-Logo.svg.png";
+            if (team.includes("Ferrari")) return "https://upload.wikimedia.org/wikipedia/en/thumb/d/d1/Scuderia_Ferrari_Logo.svg/512px-Scuderia_Ferrari_Logo.svg.png";
+            if (team.includes("McLaren")) return "https://upload.wikimedia.org/wikipedia/en/thumb/6/61/McLaren_Racing_logo.svg/512px-McLaren_Racing_logo.svg.png";
+            if (team.includes("Red Bull")) return "https://upload.wikimedia.org/wikipedia/en/thumb/f/fd/Red_Bull_Racing_logo.svg/512px-Red_Bull_Racing_logo.svg.png";
+            if (team.includes("Alpine")) return "https://upload.wikimedia.org/wikipedia/en/thumb/7/7e/Alpine_F1_Team_Logo.svg/512px-Alpine_F1_Team_Logo.svg.png";
+            if (team.includes("Williams")) return "https://upload.wikimedia.org/wikipedia/en/thumb/3/3e/Williams_Grand_Prix_Engineering_logo.svg/512px-Williams_Grand_Prix_Engineering_logo.svg.png";
+            if (team.includes("Haas")) return "https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Haas_F1_Team_logo.svg/512px-Haas_F1_Team_logo.svg.png";
+            if (team.includes("Audi")) return "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Audi-Logo_2016.svg/512px-Audi-Logo_2016.svg.png";
+            if (team.includes("Cadillac")) return "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Cadillac_logo.svg/512px-Cadillac_logo.svg.png";
+            if (team.includes("Racing Bulls")) return "https://upload.wikimedia.org/wikipedia/en/thumb/5/5f/RB_Formula_One_Team_Logo.svg/512px-RB_Formula_One_Team_Logo.svg.png";
+            return "";
+        }
 
         function teamRow(pos, team, drivers, points, colorClass) {
             return `
@@ -741,7 +744,10 @@ ${driverRow(22, "14", "Fernando Alonso", "Aston Martin", "0", "aston", "https://
                         <div class="row-stripe ${colorClass}"></div>
                         <div class="row-info">
                             <div class="row-name" style="color: var(--${colorClass});">${team}</div>
-                            <div class="row-team">${drivers}</div>
+                            <div class="row-team">
+                                <span>${drivers}</span>
+                                <img class="team-logo" src="${getTeamLogo(team)}" alt="${team}">
+                            </div>
                         </div>
                     </div>
                     <div class="row-points">${points}<small>pts</small></div>
