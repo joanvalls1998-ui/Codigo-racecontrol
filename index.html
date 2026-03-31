@@ -733,24 +733,182 @@ function showNews() {
 }
 function showIA() {
     setActiveNav("nav-ia");
+
+    const simPrompt = `Actúa como ingeniero de estrategia de Fórmula 1 en 2026.
+
+Quiero una simulación realista del próximo Gran Premio teniendo en cuenta:
+- Rendimiento actual de los equipos
+- Resultados de las últimas carreras
+- Fiabilidad de cada equipo
+- Ritmo de carrera vs clasificación
+- Probabilidad de Safety Car
+- Probabilidad de lluvia
+- Estrategias reales usadas en ese circuito
+- Reglamento 2026
+
+Quiero la salida en este formato EXACTO:
+
+SIMULACIÓN GP [CIRCUITO]
+
+Ritmo equipos (%):
+Mercedes:
+Ferrari:
+McLaren:
+Red Bull:
+Aston Martin:
+Alpine:
+Haas:
+Racing Bulls:
+Williams:
+Audi:
+Cadillac:
+
+Predicción clasificación Alonso:
+Predicción carrera Alonso:
+Probabilidad puntos Alonso (%):
+Probabilidad DNF Alonso (%):
+Estrategia más probable Alonso:
+Vuelta parada:
+
+Probabilidad Safety Car (%):
+Probabilidad lluvia (%):
+
+Top 10 estimado carrera:
+1.
+2.
+3.
+4.
+5.
+6.
+7.
+8.
+9.
+10.`;
+
+    const predictPrompt = `Actúa como analista de Fórmula 1.
+
+Haz una predicción realista para la próxima carrera teniendo en cuenta:
+- Forma actual de los equipos
+- Ritmo de clasificación
+- Ritmo de carrera
+- Degradación de neumáticos
+- Historial del circuito
+- Fiabilidad de los equipos
+
+Salida en este formato:
+
+PREDICCIÓN GP [CIRCUITO]
+
+Favorito para la victoria:
+Equipos con más ritmo:
+Equipos con peor ritmo:
+
+Predicción Alonso clasificación:
+Predicción Alonso carrera:
+Probabilidad de puntos Alonso (%):
+
+Probabilidad lluvia (%):
+Probabilidad Safety Car (%):
+
+Estrategia más probable:
+Número de paradas:`;
+
+    const astonPrompt = `Actúa como ingeniero de Aston Martin F1.
+
+Analiza el estado actual del equipo en la temporada 2026 teniendo en cuenta:
+- Rendimiento del coche
+- Motor Honda
+- Fiabilidad
+- Ritmo de clasificación
+- Ritmo de carrera
+- Comparación Alonso vs Stroll
+- Posibilidades de mejora durante la temporada
+
+Salida en este formato:
+
+ASTON MARTIN INFORME
+
+Posición actual del equipo:
+Ritmo del coche:
+Fiabilidad:
+Rendimiento en clasificación:
+Rendimiento en carrera:
+
+Fernando Alonso:
+Rendimiento:
+Probabilidad de puntos próximas carreras (%):
+
+Lance Stroll:
+Rendimiento:
+Probabilidad de puntos (%):
+
+Objetivo del equipo próxima carrera:`;
+
+    const newsPrompt = `Haz un boletín de noticias de Fórmula 1 centrado en:
+- Aston Martin
+- Fernando Alonso
+- Adrian Newey
+- Honda F1
+- Equipos top (Mercedes, Ferrari, McLaren, Red Bull)
+
+Solo noticias relevantes recientes.
+
+Formato:
+
+BOLETÍN F1
+
+Aston Martin:
+-
+
+Fernando Alonso:
+-
+
+Adrian Newey:
+-
+
+Honda:
+-
+
+Situación campeonato:
+-`;
+
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <div class="pill pill-blue">IA</div>
-            <div class="section-title">Modo gratis activo</div>
-            <p>La app copia prompts y guarda las respuestas en tu iPhone. No necesitas API de pago.</p>
+            <div class="pill pill-blue">IA WORKFLOW</div>
+            <div class="section-title">RaceControl + ChatGPT</div>
+            <p>Desde aquí puedes lanzar tus análisis de IA de forma rápida.</p>
+            <p class="small">Flujo: copiar prompt → abrir ChatGPT → pegar → enviar → volver a RaceControl.</p>
         </div>
 
         <div class="card">
-            <h3>Cómo usar RaceControl IA</h3>
-            <p>1. Ve a Sim, Predict, Aston o News</p>
-            <p>2. Pulsa "Copiar prompt"</p>
-            <p>3. Abre ChatGPT y pega el prompt</p>
-            <p>4. Copia la respuesta</p>
-            <p>5. Vuelve a RaceControl, pega y guarda</p>
+            <h3 style="color: var(--mclaren);">SIMULACIÓN IA</h3>
+            <p>Genera una simulación realista del GP con foco en Alonso y Aston Martin.</p>
+            <button class="btn" onclick='openChatGPTWithPrompt(${JSON.stringify(simPrompt)})'>Abrir ChatGPT + copiar prompt</button>
+            <button class="btn-secondary" onclick='copyPrompt(${JSON.stringify(simPrompt)})'>Solo copiar prompt</button>
+        </div>
+
+        <div class="card">
+            <h3 style="color: var(--mclaren);">PREDICCIÓN IA</h3>
+            <p>Predicción previa de carrera con ritmo, lluvia, Safety Car y puntos Alonso.</p>
+            <button class="btn" onclick='openChatGPTWithPrompt(${JSON.stringify(predictPrompt)})'>Abrir ChatGPT + copiar prompt</button>
+            <button class="btn-secondary" onclick='copyPrompt(${JSON.stringify(predictPrompt)})'>Solo copiar prompt</button>
+        </div>
+
+        <div class="card">
+            <h3 style="color: var(--aston);">INFORME ASTON IA</h3>
+            <p>Análisis del estado actual del equipo y comparación Alonso vs Stroll.</p>
+            <button class="btn" onclick='openChatGPTWithPrompt(${JSON.stringify(astonPrompt)})'>Abrir ChatGPT + copiar prompt</button>
+            <button class="btn-secondary" onclick='copyPrompt(${JSON.stringify(astonPrompt)})'>Solo copiar prompt</button>
+        </div>
+
+        <div class="card">
+            <h3 style="color: var(--aston);">NEWS IA</h3>
+            <p>Boletín centrado en Aston Martin, Alonso, Honda y situación del campeonato.</p>
+            <button class="btn" onclick='openChatGPTWithPrompt(${JSON.stringify(newsPrompt)})'>Abrir ChatGPT + copiar prompt</button>
+            <button class="btn-secondary" onclick='copyPrompt(${JSON.stringify(newsPrompt)})'>Solo copiar prompt</button>
         </div>
     `;
 }
-
 showHome();
 </script>
 
