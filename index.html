@@ -481,77 +481,38 @@ function showSim() {
     `;
 }
 
+async function generatePredict() {
+    const output = document.getElementById("predictResult");
+    output.innerText = "Generando predicción con IA...";
+
+    try {
+        const res = await fetch("/api/predict");
+        const data = await res.json();
+
+        if (data.result) {
+            output.innerText = data.result;
+        } else {
+            output.innerText = "Error generando predicción.";
+        }
+    } catch (error) {
+        output.innerText = "Error de conexión con la IA.";
+    }
+}
+
 function showPredict() {
     setActiveNav("nav-predict");
 
-    const winMercedes = Math.floor(52 + Math.random() * 10);
-    const podiumFerrari = Math.floor(58 + Math.random() * 12);
-    const pointsAlonso = Math.floor(18 + Math.random() * 18);
-    const rainProb = Math.floor(12 + Math.random() * 18);
-    const scProb = Math.floor(28 + Math.random() * 18);
-    const alonsoQualy = Math.floor(12 + Math.random() * 4);
-    const alonsoRace = Math.max(10, alonsoQualy - Math.floor(Math.random() * 3));
-
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <h3 style="color: var(--mclaren);">PREDICT · NEXT GP</h3>
-            <p><span class="highlight">Event:</span> Miami Grand Prix</p>
-            <p><span class="highlight">Mode:</span> Pre-race forecast</p>
+            <div class="pill pill-ai">PREDICT · GPT REAL</div>
+            <div class="section-title">Miami GP · Predicción IA</div>
+            <p>Predicción automática del siguiente GP con foco en Alonso y Aston Martin.</p>
+            <button class="btn" onclick="generatePredict()">Generar predicción IA</button>
         </div>
 
         <div class="card">
-            <h3>WIN PROBABILITY</h3>
-
-            <div class="stat">Mercedes win chance <span>${winMercedes}%</span></div>
-            <div class="bar">
-                <div class="bar-fill mercedes" style="width:${winMercedes}%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">Ferrari podium chance <span>${podiumFerrari}%</span></div>
-            <div class="bar">
-                <div class="bar-fill ferrari" style="width:${podiumFerrari}%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">Alonso points chance <span>${pointsAlonso}%</span></div>
-            <div class="bar">
-                <div class="bar-fill aston" style="width:${pointsAlonso}%;"></div>
-            </div>
-        </div>
-
-        <div class="card">
-            <h3>RACE CONDITIONS</h3>
-
-            <div class="stat">Rain probability <span>${rainProb}%</span></div>
-            <div class="bar">
-                <div class="bar-fill alpine" style="width:${rainProb}%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">Safety Car probability <span>${scProb}%</span></div>
-            <div class="bar">
-                <div class="bar-fill mclaren" style="width:${scProb}%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">Strategy trend <span>Medium → Hard</span></div>
-            <div class="stat">Tyre degradation <span>Medium</span></div>
-        </div>
-
-        <div class="card">
-            <h3>ALONSO FORECAST</h3>
-
-            <div class="stat">Qualifying prediction <span>P${alonsoQualy}</span></div>
-            <div class="stat">Race prediction <span>P${alonsoRace}</span></div>
-
-            <div class="stat" style="margin-top:12px;">Weekend confidence <span>63%</span></div>
-            <div class="bar">
-                <div class="bar-fill aston" style="width:63%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">Risk factor <span>Reliability</span></div>
-            <div class="stat">Best case <span>P10</span></div>
-        </div>
-
-        <div class="card">
-            <button class="btn" onclick="showPredict()">Recalculate prediction</button>
+            <h3>AI RESULT</h3>
+            <pre id="predictResult" class="ai-output">Pulsa el botón para generar predicción.</pre>
         </div>
     `;
 }
