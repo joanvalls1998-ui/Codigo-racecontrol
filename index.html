@@ -186,43 +186,84 @@ function showHome() {
     setActiveNav("nav-home");
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <div class="pill">Resumen F1</div>
-            <div class="section-title">Inicio de temporada 2026</div>
-            <p><span class="highlight">Mercedes</span> domina el arranque del campeonato y <span class="highlight">Antonelli</span> llega como referencia tras Japón.</p>
-            <div class="stat-grid">
-                <div class="stat-box">
-                    <div class="stat-label">Líder pilotos</div>
-                    <div class="stat-value">Antonelli</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Líder equipos</div>
-                    <div class="stat-value">Mercedes</div>
-                </div>
+            <h3 style="color: var(--aston);">FERNANDO ALONSO</h3>
+
+            <div class="stat">Puntos <span>0</span></div>
+            <div class="stat">Posición campeonato <span>P22</span></div>
+            <div class="stat">Probabilidad puntos Miami <span>32%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width: 32%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:14px;">Probabilidad DNF <span>28%</span></div>
+            <div class="bar">
+                <div class="bar-fill ferrari" style="width: 28%;"></div>
             </div>
         </div>
 
         <div class="card">
-            <h3>Última carrera</h3>
-            <p>Japanese Grand Prix</p>
-            <p><span class="highlight">Ganador:</span> Kimi Antonelli</p>
-            <p class="small">Suzuka confirmó el gran momento de Mercedes.</p>
+            <h3 style="color: var(--aston);">ASTON MARTIN STATUS</h3>
+
+            <div class="stat">Race pace <span>72%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width: 72%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Qualifying pace <span>68%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width: 68%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Reliability <span>61%</span></div>
+            <div class="bar">
+                <div class="bar-fill mclaren" style="width: 61%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Honda PU status <span>In trouble</span></div>
         </div>
 
         <div class="card">
-            <h3>Próxima carrera</h3>
-            <p>Miami Grand Prix</p>
-            <p class="small">Siguiente cita del calendario 2026.</p>
+            <h3 style="color: var(--mclaren);">NEXT RACE · MIAMI</h3>
+
+            <div class="stat">Safety Car probability <span>42%</span></div>
+            <div class="bar">
+                <div class="bar-fill mclaren" style="width: 42%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Rain probability <span>18%</span></div>
+            <div class="bar">
+                <div class="bar-fill alpine" style="width: 18%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Main objective <span>Finish with both cars</span></div>
         </div>
 
         <div class="card">
-            <h3>Estado Aston Martin</h3>
-            <p><span class="highlight">Puntos:</span> 0</p>
-            <p><span class="highlight">Fiabilidad:</span> Baja</p>
-            <p><span class="highlight">Objetivo Miami:</span> terminar con ambos coches</p>
+            <h3 style="color: var(--aston);">LATEST ASTON NEWS</h3>
+            <p>El equipo sigue centrado en mejorar fiabilidad y completar fines de semana limpios.</p>
+            <p class="small">Foco principal: Alonso, Stroll, motor Honda y ritmo de carrera.</p>
+        </div>
+
+        <div class="card">
+            <h3>TEAM PACE OVERVIEW</h3>
+
+            <div class="stat">Mercedes <span>92%</span></div>
+            <div class="bar"><div class="bar-fill mercedes" style="width:92%;"></div></div>
+
+            <div class="stat" style="margin-top:12px;">Ferrari <span>88%</span></div>
+            <div class="bar"><div class="bar-fill ferrari" style="width:88%;"></div></div>
+
+            <div class="stat" style="margin-top:12px;">McLaren <span>84%</span></div>
+            <div class="bar"><div class="bar-fill mclaren" style="width:84%;"></div></div>
+
+            <div class="stat" style="margin-top:12px;">Red Bull <span>80%</span></div>
+            <div class="bar"><div class="bar-fill redbull" style="width:80%;"></div></div>
+
+            <div class="stat" style="margin-top:12px;">Aston Martin <span>72%</span></div>
+            <div class="bar"><div class="bar-fill aston" style="width:72%;"></div></div>
         </div>
     `;
 }
-
 function showStandings() {
     setActiveNav("nav-standings");
     document.getElementById("content").innerHTML = `
