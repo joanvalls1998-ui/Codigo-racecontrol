@@ -2,19 +2,11 @@ export default async function handler(req, res) {
   const prompt = `
 Actúa como ingeniero de estrategia de Fórmula 1 en 2026.
 
-Quiero una simulación realista del próximo Gran Premio teniendo en cuenta:
-- Rendimiento actual de los equipos
-- Resultados de las últimas carreras
-- Fiabilidad de cada equipo
-- Ritmo de carrera vs clasificación
-- Probabilidad de Safety Car
-- Probabilidad de lluvia
-- Estrategias reales usadas en ese circuito
-- Reglamento 2026
+Simula el próximo Gran Premio con foco en Aston Martin y Fernando Alonso.
 
-Salida en este formato:
+Formato:
 
-SIMULACIÓN GP JAPÓN
+SIMULACIÓN GP
 
 Ritmo equipos (%):
 Mercedes:
@@ -22,34 +14,16 @@ Ferrari:
 McLaren:
 Red Bull:
 Aston Martin:
-Alpine:
-Haas:
-Racing Bulls:
-Williams:
-Audi:
-Cadillac:
 
 Predicción clasificación Alonso:
 Predicción carrera Alonso:
 Probabilidad puntos Alonso (%):
 Probabilidad DNF Alonso (%):
-Estrategia más probable Alonso:
-Vuelta parada:
 
 Probabilidad Safety Car (%):
 Probabilidad lluvia (%):
 
-Top 10 estimado carrera:
-1.
-2.
-3.
-4.
-5.
-6.
-7.
-8.
-9.
-10.
+Top 10 carrera:
 `;
 
   try {
@@ -60,27 +34,17 @@ Top 10 estimado carrera:
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "gpt-4.1-mini",
+        model: "gpt-4o-mini",
         input: prompt
       })
     });
 
     const data = await response.json();
+    const text = data.output?.[0]?.content?.[0]?.text || "Error generando simulación.";
 
-    if (!response.ok) {
-      return res.status(response.status).json({
-        error: "OpenAI error",
-        details: data
-      });
-    }
-
-    const text = data.output?.[0]?.content?.[0]?.text || "No se pudo generar la simulación.";
-    return res.status(200).json({ result: text });
+    res.status(200).json({ result: text });
 
   } catch (error) {
-    return res.status(500).json({
-      error: "Server error",
-      message: error.message
-    });
+    res.status(500).json({ error: error.message });
   }
 }
