@@ -24,26 +24,17 @@
             --rb: #3a86ff;
         }
 
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
         body {
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Arial, sans-serif;
-            background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
+            background: #050505;
             color: var(--text);
         }
 
         .header {
             padding: 20px;
             border-bottom: 1px solid #111;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            background: rgba(8, 8, 8, 0.95);
-            backdrop-filter: blur(8px);
+            background: #080808;
         }
 
         .title {
@@ -77,70 +68,6 @@
             font-size: 16px;
         }
 
-        .card p {
-            margin: 6px 0;
-            line-height: 1.45;
-        }
-
-        .small {
-            color: var(--muted);
-            font-size: 13px;
-        }
-
-        .highlight {
-            font-weight: 700;
-            color: white;
-        }
-
-        .nav {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            background: #0b0b0b;
-            display: flex;
-            justify-content: space-around;
-            padding: 14px 0 calc(14px + env(safe-area-inset-bottom));
-            border-top: 1px solid #1f1f1f;
-            overflow-x: auto;
-            gap: 6px;
-        }
-
-        .nav a {
-            color: #888;
-            text-decoration: none;
-            font-size: 13px;
-            min-width: 52px;
-            text-align: center;
-            padding: 6px 8px;
-            border-radius: 10px;
-        }
-
-        .nav a.active {
-            color: white;
-            background: rgba(255,255,255,0.06);
-        }
-
-        .pill {
-            display: inline-block;
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 700;
-            background: rgba(255,255,255,0.06);
-            margin-bottom: 8px;
-        }
-
-        .pill-ai {
-            color: var(--mclaren);
-            border: 1px solid rgba(255,135,0,0.3);
-        }
-
-        .section-title {
-            font-size: 20px;
-            font-weight: 800;
-            margin: 0 0 10px 0;
-        }
-
         .stat {
             margin-bottom: 10px;
         }
@@ -169,65 +96,26 @@
         .mclaren { background: var(--mclaren); }
         .redbull { background: var(--redbull); }
         .alpine { background: var(--alpine); }
-        .williams { background: var(--williams); }
-        .audi { background: var(--audi); }
-        .cadillac { background: var(--cadillac); }
-        .haas { background: var(--haas); }
-        .rb { background: var(--rb); }
 
-        .sim-grid {
-            display: grid;
-            gap: 10px;
-        }
-
-        .sim-line {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--line);
-            font-size: 14px;
-        }
-
-        .sim-line:last-child {
-            border-bottom: none;
-        }
-
-        table {
+        .nav {
+            position: fixed;
+            bottom: 0;
             width: 100%;
-            border-collapse: collapse;
+            background: #0b0b0b;
+            display: flex;
+            justify-content: space-around;
+            padding: 14px 0;
+            border-top: 1px solid #1f1f1f;
         }
 
-        th, td {
-            padding: 10px 8px;
-            text-align: left;
-            border-bottom: 1px solid var(--line);
-            font-size: 14px;
+        .nav a {
+            color: #888;
+            text-decoration: none;
+            font-size: 13px;
         }
 
-        th {
-            color: var(--muted);
-            font-size: 12px;
-            text-transform: uppercase;
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        .news-item {
-            padding: 10px 0;
-            border-bottom: 1px solid var(--line);
-        }
-
-        .news-item:last-child {
-            border-bottom: none;
-        }
-
-        .news-source {
-            font-size: 12px;
-            color: var(--muted);
-            margin-top: 4px;
+        .nav a.active {
+            color: white;
         }
 
         .btn {
@@ -242,39 +130,20 @@
             margin-top: 12px;
         }
 
-        .menu-link {
-            display: block;
-            padding: 14px 0;
-            border-bottom: 1px solid var(--line);
-            color: white;
-            text-decoration: none;
-            font-weight: 600;
+        table {
+            width: 100%;
+            border-collapse: collapse;
         }
 
-        .menu-link:last-child {
-            border-bottom: none;
+        th, td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #262626;
         }
 
-        pre.ai-output {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            font-family: inherit;
-            font-size: 14px;
-            line-height: 1.5;
-            margin: 0;
-        }
-
-        .segmented {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .segmented .btn {
-            flex: 1;
-            margin-top: 0;
-            padding: 12px;
-            font-size: 14px;
+        th {
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
         }
     </style>
 </head>
@@ -282,145 +151,103 @@
 
 <div class="header">
     <div class="title">RaceControl</div>
-    <div class="subtitle">F1 completa · foco en Alonso y Aston Martin</div>
+    <div class="subtitle">F1 · Alonso · Aston Martin</div>
 </div>
 
 <div class="container" id="content"></div>
 
 <div class="nav">
-    <a href="#" id="nav-home" onclick="showHome(); return false;">Home</a>
-    <a href="#" id="nav-predict" onclick="showPredict(); return false;">Predict</a>
-    <a href="#" id="nav-aston" onclick="showAston(); return false;">Aston</a>
-    <a href="#" id="nav-news" onclick="showNews(); return false;">News</a>
-    <a href="#" id="nav-more" onclick="showMore(); return false;">More</a>
+    <a href="#" id="nav-home" onclick="showHome()">Home</a>
+    <a href="#" id="nav-predict" onclick="showPredict()">Predict</a>
+    <a href="#" id="nav-aston" onclick="showAston()">Aston</a>
+    <a href="#" id="nav-news" onclick="showNews()">News</a>
+    <a href="#" id="nav-more" onclick="showMore()">More</a>
 </div>
 
 <script>
-function setActiveNav(tabId) {
-    const ids = ["nav-home", "nav-predict", "nav-aston", "nav-news", "nav-more"];
-    ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.remove("active");
-    });
-    const active = document.getElementById(tabId);
-    if (active) active.classList.add("active");
+function setActiveNav(tab) {
+    document.querySelectorAll(".nav a").forEach(a => a.classList.remove("active"));
+    document.getElementById(tab).classList.add("active");
 }
 
 function showHome() {
     setActiveNav("nav-home");
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <h3 style="color: var(--aston);">FERNANDO ALONSO</h3>
+            <h3 style="color: var(--aston);">ALONSO STATUS</h3>
+            <div class="stat">Position <span>P22</span></div>
+            <div class="stat">Points <span>0</span></div>
+            <div class="stat">Last race <span>DNF</span></div>
 
-            <div class="stat">Puntos <span>0</span></div>
-            <div class="stat">Posición campeonato <span>P22</span></div>
-            <div class="stat">Probabilidad puntos Miami <span>32%</span></div>
-            <div class="bar">
-                <div class="bar-fill aston" style="width: 32%;"></div>
-            </div>
+            <div class="stat">Points probability <span>32%</span></div>
+            <div class="bar"><div class="bar-fill aston" style="width:32%"></div></div>
 
-            <div class="stat" style="margin-top:14px;">Probabilidad DNF <span>28%</span></div>
-            <div class="bar">
-                <div class="bar-fill ferrari" style="width: 28%;"></div>
-            </div>
+            <div class="stat">DNF risk <span>28%</span></div>
+            <div class="bar"><div class="bar-fill ferrari" style="width:28%"></div></div>
         </div>
 
         <div class="card">
             <h3 style="color: var(--aston);">ASTON MARTIN STATUS</h3>
-
             <div class="stat">Race pace <span>72%</span></div>
-            <div class="bar">
-                <div class="bar-fill aston" style="width: 72%;"></div>
-            </div>
+            <div class="bar"><div class="bar-fill aston" style="width:72%"></div></div>
 
-            <div class="stat" style="margin-top:12px;">Qualifying pace <span>68%</span></div>
-            <div class="bar">
-                <div class="bar-fill aston" style="width: 68%;"></div>
-            </div>
+            <div class="stat">Quali pace <span>68%</span></div>
+            <div class="bar"><div class="bar-fill aston" style="width:68%"></div></div>
 
-            <div class="stat" style="margin-top:12px;">Reliability <span>61%</span></div>
-            <div class="bar">
-                <div class="bar-fill mclaren" style="width: 61%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">Honda PU status <span>In trouble</span></div>
+            <div class="stat">Reliability <span>61%</span></div>
+            <div class="bar"><div class="bar-fill mclaren" style="width:61%"></div></div>
         </div>
 
         <div class="card">
-            <h3 style="color: var(--mclaren);">NEXT RACE · MIAMI</h3>
+            <h3>NEXT RACE · MIAMI</h3>
+            <div class="stat">Safety Car <span>42%</span></div>
+            <div class="bar"><div class="bar-fill mclaren" style="width:42%"></div></div>
 
-            <div class="stat">Safety Car probability <span>42%</span></div>
-            <div class="bar">
-                <div class="bar-fill mclaren" style="width: 42%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">Rain probability <span>18%</span></div>
-            <div class="bar">
-                <div class="bar-fill alpine" style="width: 18%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">Main objective <span>Finish with both cars</span></div>
+            <div class="stat">Rain <span>18%</span></div>
+            <div class="bar"><div class="bar-fill alpine" style="width:18%"></div></div>
         </div>
 
         <div class="card">
-            <h3 style="color: var(--aston);">LATEST ASTON NEWS</h3>
-            <p>El equipo sigue centrado en mejorar fiabilidad y completar fines de semana limpios.</p>
-            <p class="small">Foco principal: Alonso, Stroll, motor Honda y ritmo de carrera.</p>
-        </div>
-
-        <div class="card">
-            <h3>TEAM PACE OVERVIEW</h3>
-
+            <h3>TEAM HIERARCHY</h3>
             <div class="stat">Mercedes <span>92%</span></div>
-            <div class="bar"><div class="bar-fill mercedes" style="width:92%;"></div></div>
+            <div class="bar"><div class="bar-fill mercedes" style="width:92%"></div></div>
 
-            <div class="stat" style="margin-top:12px;">Ferrari <span>88%</span></div>
-            <div class="bar"><div class="bar-fill ferrari" style="width:88%;"></div></div>
+            <div class="stat">Ferrari <span>88%</span></div>
+            <div class="bar"><div class="bar-fill ferrari" style="width:88%"></div></div>
 
-            <div class="stat" style="margin-top:12px;">McLaren <span>84%</span></div>
-            <div class="bar"><div class="bar-fill mclaren" style="width:84%;"></div></div>
+            <div class="stat">McLaren <span>84%</span></div>
+            <div class="bar"><div class="bar-fill mclaren" style="width:84%"></div></div>
 
-            <div class="stat" style="margin-top:12px;">Red Bull <span>80%</span></div>
-            <div class="bar"><div class="bar-fill redbull" style="width:80%;"></div></div>
+            <div class="stat">Red Bull <span>80%</span></div>
+            <div class="bar"><div class="bar-fill redbull" style="width:80%"></div></div>
 
-            <div class="stat" style="margin-top:12px;">Aston Martin <span>72%</span></div>
-            <div class="bar"><div class="bar-fill aston" style="width:72%;"></div></div>
+            <div class="stat">Aston <span>72%</span></div>
+            <div class="bar"><div class="bar-fill aston" style="width:72%"></div></div>
         </div>
     `;
 }
 
 async function generatePredict() {
     const output = document.getElementById("predictResult");
-    output.innerText = "Generando predicción con IA...";
-
+    output.innerText = "Generando predicción...";
     try {
         const res = await fetch("/api/predict");
         const data = await res.json();
-
-        if (data.result) {
-            output.innerText = data.result;
-        } else {
-            output.innerText = "Error generando predicción.";
-        }
-    } catch (error) {
-        output.innerText = "Error de conexión con la IA.";
+        output.innerText = data.result || "Error";
+    } catch {
+        output.innerText = "Error conexión IA";
     }
 }
 
 function showPredict() {
     setActiveNav("nav-predict");
-
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <div class="pill pill-ai">PREDICT · GPT REAL</div>
-            <div class="section-title">Miami GP · Predicción IA</div>
-            <p>Predicción automática del siguiente GP con foco en Alonso y Aston Martin.</p>
-            <button class="btn" onclick="generatePredict()">Generar predicción IA</button>
+            <h3>Predict · IA</h3>
+            <button class="btn" onclick="generatePredict()">Generar predicción</button>
         </div>
-
         <div class="card">
-            <h3>AI RESULT</h3>
-            <pre id="predictResult" class="ai-output">Pulsa el botón para generar predicción.</pre>
+            <pre id="predictResult">Pulsa generar.</pre>
         </div>
     `;
 }
@@ -429,104 +256,15 @@ function showAston() {
     setActiveNav("nav-aston");
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <h3 style="color: var(--aston);">ASTON MARTIN F1 TEAM</h3>
-
-            <div class="stat">Constructors position <span>P11</span></div>
-            <div class="stat">Points <span>0</span></div>
-            <div class="stat">Target next race <span>Finish both cars</span></div>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--aston);">TEAM PERFORMANCE</h3>
-
+            <h3 style="color: var(--aston);">ASTON MARTIN</h3>
             <div class="stat">Race pace <span>72%</span></div>
-            <div class="bar">
-                <div class="bar-fill aston" style="width:72%;"></div>
-            </div>
+            <div class="bar"><div class="bar-fill aston" style="width:72%"></div></div>
 
-            <div class="stat" style="margin-top:12px;">Qualifying pace <span>68%</span></div>
-            <div class="bar">
-                <div class="bar-fill aston" style="width:68%;"></div>
-            </div>
+            <div class="stat">Quali pace <span>68%</span></div>
+            <div class="bar"><div class="bar-fill aston" style="width:68%"></div></div>
 
-            <div class="stat" style="margin-top:12px;">Reliability <span>61%</span></div>
-            <div class="bar">
-                <div class="bar-fill mclaren" style="width:61%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">Pit wall confidence <span>58%</span></div>
-            <div class="bar">
-                <div class="bar-fill alpine" style="width:58%;"></div>
-            </div>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--aston);">POWER UNIT / HONDA</h3>
-
-            <div class="stat">Power delivery <span>70%</span></div>
-            <div class="bar">
-                <div class="bar-fill aston" style="width:70%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">Thermal stability <span>59%</span></div>
-            <div class="bar">
-                <div class="bar-fill ferrari" style="width:59%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">Weekend confidence <span>55%</span></div>
-            <div class="bar">
-                <div class="bar-fill ferrari" style="width:55%;"></div>
-            </div>
-
-            <p class="small" style="margin-top:12px;">La prioridad sigue siendo completar fines de semana limpios y reducir el riesgo de abandono.</p>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--aston);">FERNANDO ALONSO</h3>
-
-            <div class="stat">Championship position <span>P22</span></div>
-            <div class="stat">Points <span>0</span></div>
-
-            <div class="stat" style="margin-top:12px;">Driver performance <span>88%</span></div>
-            <div class="bar">
-                <div class="bar-fill aston" style="width:88%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">Points probability <span>32%</span></div>
-            <div class="bar">
-                <div class="bar-fill aston" style="width:32%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">DNF probability <span>28%</span></div>
-            <div class="bar">
-                <div class="bar-fill ferrari" style="width:28%;"></div>
-            </div>
-
-            <p class="small" style="margin-top:12px;">Perfil actual: rendimiento individual alto, coche limitado.</p>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--aston);">LANCE STROLL</h3>
-
-            <div class="stat">Championship position <span>P21</span></div>
-            <div class="stat">Points <span>0</span></div>
-
-            <div class="stat" style="margin-top:12px;">Driver performance <span>82%</span></div>
-            <div class="bar">
-                <div class="bar-fill aston" style="width:82%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">Points probability <span>24%</span></div>
-            <div class="bar">
-                <div class="bar-fill aston" style="width:24%;"></div>
-            </div>
-
-            <div class="stat" style="margin-top:12px;">DNF probability <span>31%</span></div>
-            <div class="bar">
-                <div class="bar-fill ferrari" style="width:31%;"></div>
-            </div>
-
-            <p class="small" style="margin-top:12px;">Perfil actual: ritmo correcto, menos margen que Alonso.</p>
+            <div class="stat">Reliability <span>61%</span></div>
+            <div class="bar"><div class="bar-fill ferrari" style="width:61%"></div></div>
         </div>
     `;
 }
@@ -535,55 +273,10 @@ function showNews() {
     setActiveNav("nav-news");
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <h3 style="color: var(--aston);">NEWS · ASTON MARTIN / ALONSO</h3>
-            <p><span class="highlight">Focus:</span> Aston Martin, Fernando Alonso, Honda, rivales directos.</p>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--aston);">ASTON MARTIN</h3>
-
-            <div class="news-item">
-                <p><span class="highlight">El equipo sigue centrado en fiabilidad y ejecución limpia de fin de semana.</span></p>
-                <div class="news-source">RaceControl internal briefing</div>
-            </div>
-
-            <div class="news-item">
-                <p><span class="highlight">La prioridad actual sigue siendo completar carreras y acercarse a la zona de puntos.</span></p>
-                <div class="news-source">Performance summary</div>
-            </div>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--aston);">FERNANDO ALONSO</h3>
-
-            <div class="news-item">
-                <p><span class="highlight">Alonso sigue siendo el principal activo competitivo del equipo.</span></p>
-                <div class="news-source">Driver performance model</div>
-            </div>
-
-            <div class="news-item">
-                <p><span class="highlight">El rendimiento individual está por encima del potencial actual del coche.</span></p>
-                <div class="news-source">Driver pace comparison</div>
-            </div>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--mclaren);">RIVALES DIRECTOS</h3>
-
-            <div class="news-item">
-                <p><span class="highlight">Mercedes mantiene la referencia del campeonato tras un inicio dominante.</span></p>
-                <div class="news-source">Championship form</div>
-            </div>
-
-            <div class="news-item">
-                <p><span class="highlight">Ferrari sigue como segunda fuerza más estable en ritmo global.</span></p>
-                <div class="news-source">Team pace trend</div>
-            </div>
-
-            <div class="news-item">
-                <p><span class="highlight">McLaren y Red Bull siguen marcando el listón de la zona alta.</span></p>
-                <div class="news-source">Grid analysis</div>
-            </div>
+            <h3>NEWS</h3>
+            <p>Aston Martin sigue centrado en fiabilidad.</p>
+            <p>Mercedes lidera el campeonato.</p>
+            <p>Ferrari segunda fuerza.</p>
         </div>
     `;
 }
@@ -592,92 +285,63 @@ function showMore() {
     setActiveNav("nav-more");
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <div class="pill">MORE</div>
-            <div class="section-title">Más secciones</div>
-            <a href="#" class="menu-link" onclick="showStandings(); return false;">Standings</a>
-            <a href="#" class="menu-link" onclick="showCalendar(); return false;">Calendar</a>
+            <h3>More</h3>
+            <button class="btn" onclick="showStandings()">Standings</button>
+            <button class="btn" onclick="showCalendar()">Calendar</button>
         </div>
     `;
 }
 
 function showStandings() {
-    setActiveNav("nav-more");
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <div class="pill">MORE · STANDINGS</div>
-            <div class="section-title">Standings</div>
-
-            <div class="segmented">
-                <button class="btn" onclick="showDriversStandings()">Drivers</button>
-                <button class="btn" onclick="showTeamsStandings()">Teams</button>
-            </div>
+            <button class="btn" onclick="showDrivers()">Drivers</button>
+            <button class="btn" onclick="showTeams()">Teams</button>
         </div>
-
-        <div id="standingsContent"></div>
+        <div id="standings"></div>
     `;
-    showDriversStandings();
+    showDrivers();
 }
 
-function showDriversStandings() {
-    document.getElementById("standingsContent").innerHTML = `
+function showDrivers() {
+    document.getElementById("standings").innerHTML = `
         <div class="card">
-            <h3>Drivers Championship</h3>
-            <table>
-                <tr><th>Pos</th><th>Piloto</th><th>Equipo</th><th>Puntos</th></tr>
-                <tr><td>1</td><td>Kimi Antonelli</td><td style="color: var(--mercedes);">Mercedes</td><td>72</td></tr>
-                <tr><td>2</td><td>George Russell</td><td style="color: var(--mercedes);">Mercedes</td><td>63</td></tr>
-                <tr><td>3</td><td>Charles Leclerc</td><td style="color: var(--ferrari);">Ferrari</td><td>49</td></tr>
-                <tr><td>4</td><td>Lewis Hamilton</td><td style="color: var(--ferrari);">Ferrari</td><td>41</td></tr>
-                <tr><td>5</td><td>Lando Norris</td><td style="color: var(--mclaren);">McLaren</td><td>25</td></tr>
-                <tr><td>6</td><td>Oscar Piastri</td><td style="color: var(--mclaren);">McLaren</td><td>21</td></tr>
-                <tr><td>7</td><td>Oliver Bearman</td><td style="color: var(--haas);">Haas</td><td>17</td></tr>
-                <tr><td>8</td><td>Pierre Gasly</td><td style="color: var(--alpine);">Alpine</td><td>15</td></tr>
-                <tr><td>9</td><td>Max Verstappen</td><td style="color: var(--redbull);">Red Bull</td><td>12</td></tr>
-                <tr><td>10</td><td>Liam Lawson</td><td style="color: var(--rb);">Racing Bulls</td><td>10</td></tr>
-                <tr><td>21</td><td style="color: var(--aston);">Lance Stroll</td><td style="color: var(--aston);">Aston Martin</td><td>0</td></tr>
-                <tr><td>22</td><td style="color: var(--aston);">Fernando Alonso</td><td style="color: var(--aston);">Aston Martin</td><td>0</td></tr>
-            </table>
+        <table>
+        <tr><th>Pos</th><th>Piloto</th><th>Puntos</th></tr>
+        <tr><td>1</td><td style="color:var(--mercedes)">Antonelli</td><td>72</td></tr>
+        <tr><td>2</td><td style="color:var(--mercedes)">Russell</td><td>63</td></tr>
+        <tr><td>3</td><td style="color:var(--ferrari)">Leclerc</td><td>49</td></tr>
+        <tr><td>4</td><td style="color:var(--ferrari)">Hamilton</td><td>41</td></tr>
+        <tr><td>21</td><td style="color:var(--aston)">Stroll</td><td>0</td></tr>
+        <tr><td>22</td><td style="color:var(--aston)">Alonso</td><td>0</td></tr>
+        </table>
         </div>
     `;
 }
 
-function showTeamsStandings() {
-    document.getElementById("standingsContent").innerHTML = `
+function showTeams() {
+    document.getElementById("standings").innerHTML = `
         <div class="card">
-            <h3>Constructors Championship</h3>
-            <table>
-                <tr><th>Pos</th><th>Equipo</th><th>Puntos</th></tr>
-                <tr><td>1</td><td style="color: var(--mercedes);">Mercedes</td><td>135</td></tr>
-                <tr><td>2</td><td style="color: var(--ferrari);">Ferrari</td><td>90</td></tr>
-                <tr><td>3</td><td style="color: var(--mclaren);">McLaren</td><td>46</td></tr>
-                <tr><td>4</td><td style="color: var(--haas);">Haas</td><td>18</td></tr>
-                <tr><td>5</td><td style="color: var(--redbull);">Red Bull</td><td>16</td></tr>
-                <tr><td>6</td><td style="color: var(--alpine);">Alpine</td><td>16</td></tr>
-                <tr><td>7</td><td style="color: var(--rb);">Racing Bulls</td><td>14</td></tr>
-                <tr><td>8</td><td style="color: var(--audi);">Audi</td><td>2</td></tr>
-                <tr><td>9</td><td style="color: var(--williams);">Williams</td><td>2</td></tr>
-                <tr><td>10</td><td style="color: var(--cadillac);">Cadillac</td><td>0</td></tr>
-                <tr><td>11</td><td style="color: var(--aston);">Aston Martin</td><td>0</td></tr>
-            </table>
+        <table>
+        <tr><th>Pos</th><th>Equipo</th><th>Puntos</th></tr>
+        <tr><td>1</td><td style="color:var(--mercedes)">Mercedes</td><td>135</td></tr>
+        <tr><td>2</td><td style="color:var(--ferrari)">Ferrari</td><td>90</td></tr>
+        <tr><td>11</td><td style="color:var(--aston)">Aston Martin</td><td>0</td></tr>
+        </table>
         </div>
     `;
 }
 
 function showCalendar() {
-    setActiveNav("nav-more");
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <div class="pill">MORE · CALENDAR</div>
-            <div class="section-title">Calendario</div>
-        </div>
-
-        <div class="card">
-            <p>Australia — Completado</p>
-            <p>China — Completado</p>
-            <p>Japón — Completado</p>
-            <p>Miami — Próximo</p>
-            <p>Canadá — Próximo</p>
-            <p>Mónaco — Próximo</p>
+            <h3>Calendar</h3>
+            <p>Australia — Done</p>
+            <p>China — Done</p>
+            <p>Japan — Done</p>
+            <p>Miami — Next</p>
+            <p>Canada</p>
+            <p>Monaco</p>
         </div>
     `;
 }
