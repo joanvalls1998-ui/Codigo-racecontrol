@@ -97,7 +97,7 @@ export default async function handler(req, res) {
       team: "Racing Bulls",
       points: 4,
       colorClass: "rb",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/lindblad"
+      image: "https://media.formula1.com/image/upload/c_fill,w_720/q_auto/v1740000001/common/f1/2026/racingbulls/arvlin01/2026racingbullsarvlin01right.webp"
     },
     {
       pos: 12,
@@ -142,7 +142,7 @@ export default async function handler(req, res) {
       team: "Alpine",
       points: 1,
       colorClass: "alpine",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/colapinto"
+      image: "https://media.formula1.com/image/upload/c_fill,w_720/q_auto/v1740000001/common/f1/2026/alpine/fracol01/2026alpinefracol01right.webp"
     },
     {
       pos: 17,
@@ -169,7 +169,7 @@ export default async function handler(req, res) {
       team: "Cadillac",
       points: 0,
       colorClass: "cadillac",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/bottas"
+      image: "https://media.formula1.com/image/upload/c_fill,w_720/q_auto/v1740000001/common/f1/2026/cadillac/valbot01/2026cadillacvalbot01right.webp"
     },
     {
       pos: 20,
@@ -178,7 +178,7 @@ export default async function handler(req, res) {
       team: "Cadillac",
       points: 0,
       colorClass: "cadillac",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/perez"
+      image: "https://media.formula1.com/image/upload/c_fill,w_720/q_auto/v1740000001/common/f1/2026/cadillac/serper01/2026cadillacserper01right.webp"
     },
     {
       pos: 21,
