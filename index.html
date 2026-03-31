@@ -94,6 +94,10 @@
             border: 1px solid rgba(0,210,190,0.28);
         }
 
+        .home-hero {
+            background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+        }
+
         .card-title {
             font-size: 15px;
             font-weight: 800;
@@ -267,6 +271,69 @@
         }
 
         .favorite-points-label {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .hero-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .hero-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .hero-avatar {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex: 0 0 auto;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.04);
+        }
+
+        .hero-badge {
+            min-width: 52px;
+            text-align: center;
+            font-size: 28px;
+            font-weight: 800;
+            line-height: 1;
+            flex: 0 0 auto;
+        }
+
+        .hero-name {
+            font-size: 20px;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .hero-sub {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .hero-points {
+            text-align: right;
+            flex: 0 0 auto;
+        }
+
+        .hero-points-value {
+            font-size: 26px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .hero-points-label {
             font-size: 11px;
             color: var(--muted);
             text-transform: uppercase;
@@ -476,7 +543,7 @@
 <body>
     <div class="header">
         <div class="title">RaceControl</div>
-        <div class="subtitle">F1 · Alonso · Aston Martin</div>
+        <div class="subtitle" id="appSubtitle">F1 · Alonso · Aston Martin</div>
     </div>
 
     <div class="container" id="content"></div>
@@ -500,38 +567,167 @@
             if (active) active.classList.add("active");
         }
 
-        function showHome() {
-            setActiveNav("nav-home");
-            document.getElementById("content").innerHTML = `
-                <div class="card">
-                    <div class="card-title" style="color: var(--aston);">ALONSO STATUS</div>
-                    <div class="stat">Championship position <span>P22</span></div>
-                    <div class="stat">Points <span>0</span></div>
-                    <div class="stat">Last race result <span>DNF</span></div>
+        function getDefaultFavorite() {
+            return {
+                type: "driver",
+                name: "Fernando Alonso",
+                team: "Aston Martin",
+                number: "14",
+                points: "0",
+                colorClass: "aston",
+                image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/alonso",
+                pos: "22"
+            };
+        }
 
-                    <div class="stat" style="margin-top:12px;">Points probability (next GP) <span>32%</span></div>
-                    <div class="bar"><div class="bar-fill aston" style="width:32%;"></div></div>
+        function getFavorite() {
+            try {
+                const saved = localStorage.getItem("racecontrolFavorite");
+                return saved ? JSON.parse(saved) : getDefaultFavorite();
+            } catch (e) {
+                return getDefaultFavorite();
+            }
+        }
 
-                    <div class="stat" style="margin-top:12px;">DNF risk <span>28%</span></div>
-                    <div class="bar"><div class="bar-fill ferrari" style="width:28%;"></div></div>
+        function updateSubtitle() {
+            const favorite = getFavorite();
+            const subtitle = document.getElementById("appSubtitle");
+            if (!subtitle) return;
+
+            if (favorite.type === "driver") {
+                subtitle.textContent = `F1 · ${favorite.name} · ${favorite.team}`;
+            } else {
+                subtitle.textContent = `F1 · ${favorite.name}`;
+            }
+        }
+
+        function getFavoriteTeamName() {
+            const favorite = getFavorite();
+            return favorite.type === "driver" ? favorite.team : favorite.name;
+        }
+
+        function getFavoriteColorClass() {
+            return getFavorite().colorClass || "aston";
+        }
+
+        function renderHomeHero() {
+            const favorite = getFavorite();
+            const accent = favorite.colorClass;
+            const badge = favorite.type === "driver" ? favorite.number : "TEAM";
+            const subtitle = favorite.type === "driver"
+                ? `${favorite.team} · P${favorite.pos}`
+                : `${favorite.drivers} · P${favorite.pos}`;
+
+            const avatar = favorite.type === "driver"
+                ? `<img class="hero-avatar" src="${favorite.image}" alt="${favorite.name}">`
+                : `<div class="team-stripe" style="background: var(--${accent}); height: 56px;"></div>`;
+
+            return `
+                <div class="card home-hero">
+                    <div class="card-title" style="color: var(--${accent});">
+                        ${favorite.type === "driver" ? "FAVORITE DRIVER" : "FAVORITE TEAM"}
+                    </div>
+
+                    <div class="hero-main">
+                        <div class="hero-left">
+                            ${avatar}
+                            <div class="hero-badge" style="color: var(--${accent});">${badge}</div>
+                            <div>
+                                <div class="hero-name">${favorite.name}</div>
+                                <div class="hero-sub">${subtitle}</div>
+                            </div>
+                        </div>
+                        <div class="hero-points">
+                            <div class="hero-points-value">${favorite.points}</div>
+                            <div class="hero-points-label">pts</div>
+                        </div>
+                    </div>
+
+                    ${favorite.type === "driver" ? `
+                        <div class="stat" style="margin-top:14px;">Points probability (next GP) <span>32%</span></div>
+                        <div class="bar"><div class="bar-fill ${accent}" style="width:32%;"></div></div>
+
+                        <div class="stat" style="margin-top:12px;">DNF risk <span>28%</span></div>
+                        <div class="bar"><div class="bar-fill ferrari" style="width:28%;"></div></div>
+                    ` : `
+                        <div class="stat" style="margin-top:14px;">Race pace <span>72%</span></div>
+                        <div class="bar"><div class="bar-fill ${accent}" style="width:72%;"></div></div>
+
+                        <div class="stat" style="margin-top:12px;">Reliability <span>61%</span></div>
+                        <div class="bar"><div class="bar-fill mclaren" style="width:61%;"></div></div>
+                    `}
                 </div>
+            `;
+        }
 
+        function renderHomeTeamStatus() {
+            const favorite = getFavorite();
+            const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
+            const accent = favorite.colorClass;
+
+            return `
                 <div class="card">
-                    <div class="card-title" style="color: var(--aston);">ASTON MARTIN STATUS</div>
+                    <div class="card-title" style="color: var(--${accent});">${teamName.toUpperCase()} STATUS</div>
                     <div class="stat">Race pace <span>72%</span></div>
-                    <div class="bar"><div class="bar-fill aston" style="width:72%;"></div></div>
+                    <div class="bar"><div class="bar-fill ${accent}" style="width:72%;"></div></div>
 
                     <div class="stat" style="margin-top:12px;">Qualifying pace <span>68%</span></div>
-                    <div class="bar"><div class="bar-fill aston" style="width:68%;"></div></div>
+                    <div class="bar"><div class="bar-fill ${accent}" style="width:68%;"></div></div>
 
                     <div class="stat" style="margin-top:12px;">Reliability <span>61%</span></div>
                     <div class="bar"><div class="bar-fill mclaren" style="width:61%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Honda PU status <span>Risk</span></div>
+                    <div class="stat" style="margin-top:12px;">Weekend outlook <span>Medium</span></div>
                 </div>
+            `;
+        }
+
+        function renderHomeHierarchy() {
+            const favoriteTeam = getFavoriteTeamName();
+            const favoriteColor = getFavoriteColorClass();
+
+            const rows = [
+                { name: "Mercedes", value: 92, color: "mercedes" },
+                { name: "Ferrari", value: 88, color: "ferrari" },
+                { name: "McLaren", value: 84, color: "mclaren" },
+                { name: "Red Bull", value: 80, color: "redbull" },
+                { name: favoriteTeam, value: 72, color: favoriteColor }
+            ];
+
+            const uniqueRows = [];
+            const seen = new Set();
+
+            rows.forEach(row => {
+                if (!seen.has(row.name)) {
+                    uniqueRows.push(row);
+                    seen.add(row.name);
+                }
+            });
+
+            return `
+                <div class="card">
+                    <div class="card-title">TEAM HIERARCHY</div>
+                    ${uniqueRows.map(row => `
+                        <div class="stat">
+                            <span style="${row.name === favoriteTeam ? `color: var(--${row.color}); font-weight: 700;` : ''}">${row.name}</span>
+                            ${row.value}%
+                        </div>
+                        <div class="bar"><div class="bar-fill ${row.color}" style="width:${row.value}%;"></div></div>
+                    `).join("")}
+                </div>
+            `;
+        }
+
+        function showHome() {
+            setActiveNav("nav-home");
+            updateSubtitle();
+
+            document.getElementById("content").innerHTML = `
+                ${renderHomeHero()}
+                ${renderHomeTeamStatus()}
 
                 <div class="card">
-                    <div class="card-title" style="color: var(--mclaren);">NEXT RACE</div>
+                    <div class="card-title" style="color: var(--${getFavoriteColorClass()});">NEXT RACE</div>
                     <div class="stat">Safety Car probability <span>42%</span></div>
                     <div class="bar"><div class="bar-fill mclaren" style="width:42%;"></div></div>
 
@@ -541,28 +737,14 @@
                     <div class="stat" style="margin-top:12px;">Strategy window <span>Lap 14 - 20</span></div>
                 </div>
 
-                <div class="card">
-                    <div class="card-title">TEAM HIERARCHY</div>
-                    <div class="stat">Mercedes <span>92%</span></div>
-                    <div class="bar"><div class="bar-fill mercedes" style="width:92%;"></div></div>
-
-                    <div class="stat" style="margin-top:12px;">Ferrari <span>88%</span></div>
-                    <div class="bar"><div class="bar-fill ferrari" style="width:88%;"></div></div>
-
-                    <div class="stat" style="margin-top:12px;">McLaren <span>84%</span></div>
-                    <div class="bar"><div class="bar-fill mclaren" style="width:84%;"></div></div>
-
-                    <div class="stat" style="margin-top:12px;">Red Bull <span>80%</span></div>
-                    <div class="bar"><div class="bar-fill redbull" style="width:80%;"></div></div>
-
-                    <div class="stat" style="margin-top:12px;">Aston Martin <span>72%</span></div>
-                    <div class="bar"><div class="bar-fill aston" style="width:72%;"></div></div>
-                </div>
+                ${renderHomeHierarchy()}
             `;
         }
 
         function showPredict() {
             setActiveNav("nav-predict");
+            updateSubtitle();
+
             document.getElementById("content").innerHTML = `
                 <div class="card">
                     <div class="pill">IA · PREPARADO</div>
@@ -582,6 +764,8 @@
 
         function showAston() {
             setActiveNav("nav-aston");
+            updateSubtitle();
+
             document.getElementById("content").innerHTML = `
                 <div class="card">
                     <div class="card-title" style="color: var(--aston);">ASTON MARTIN</div>
@@ -612,6 +796,8 @@
 
         function showNews() {
             setActiveNav("nav-news");
+            updateSubtitle();
+
             document.getElementById("content").innerHTML = `
                 <div class="card">
                     <div class="card-title">NEWS</div>
@@ -636,6 +822,8 @@
 
         function showMore() {
             setActiveNav("nav-more");
+            updateSubtitle();
+
             document.getElementById("content").innerHTML = `
                 <div class="card">
                     <div class="card-title">MORE</div>
@@ -645,8 +833,39 @@
             `;
         }
 
+        function renderFavoriteCard() {
+            const favorite = getFavorite();
+
+            const badge = favorite.type === "driver" ? favorite.number : "TEAM";
+            const subtitle = favorite.type === "driver"
+                ? `${favorite.team} · P${favorite.pos}`
+                : `${favorite.drivers} · P${favorite.pos}`;
+
+            return `
+                <div class="card favorite-card">
+                    <div class="favorite-label">Favorito</div>
+                    <div class="favorite-main">
+                        <div class="favorite-left">
+                            <div class="team-stripe" style="background: var(--${favorite.colorClass});"></div>
+                            <div class="driver-number" style="color: var(--${favorite.colorClass});">${badge}</div>
+                            <div>
+                                <div class="favorite-name">${favorite.name}</div>
+                                <div class="favorite-sub">${subtitle}</div>
+                            </div>
+                        </div>
+                        <div class="favorite-points">
+                            <div class="favorite-points-value">${favorite.points}</div>
+                            <div class="favorite-points-label">pts</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         function showStandings() {
             setActiveNav("nav-more");
+            updateSubtitle();
+
             document.getElementById("content").innerHTML = `
                 ${renderFavoriteCard()}
 
@@ -704,6 +923,16 @@
                     ${teamRow(11, "Aston Martin", "Alonso · Stroll", "0", "aston")}
                 </div>
             `;
+        }
+
+        function isFavoriteDriver(name) {
+            const favorite = getFavorite();
+            return favorite.type === "driver" && favorite.name === name;
+        }
+
+        function isFavoriteTeam(team) {
+            const favorite = getFavorite();
+            return favorite.type === "team" && favorite.name === team;
         }
 
         function driverRow(pos, number, name, team, points, colorClass, image) {
@@ -777,67 +1006,6 @@
             `;
         }
 
-        function getDefaultFavorite() {
-            return {
-                type: "driver",
-                name: "Fernando Alonso",
-                team: "Aston Martin",
-                number: "14",
-                points: "0",
-                colorClass: "aston",
-                image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/alonso",
-                pos: "22"
-            };
-        }
-
-        function getFavorite() {
-            try {
-                const saved = localStorage.getItem("racecontrolFavorite");
-                return saved ? JSON.parse(saved) : getDefaultFavorite();
-            } catch (e) {
-                return getDefaultFavorite();
-            }
-        }
-
-        function isFavoriteDriver(name) {
-            const favorite = getFavorite();
-            return favorite.type === "driver" && favorite.name === name;
-        }
-
-        function isFavoriteTeam(team) {
-            const favorite = getFavorite();
-            return favorite.type === "team" && favorite.name === team;
-        }
-
-        function renderFavoriteCard() {
-            const favorite = getFavorite();
-
-            const badge = favorite.type === "driver" ? favorite.number : "TEAM";
-            const subtitle = favorite.type === "driver"
-                ? `${favorite.team} · P${favorite.pos}`
-                : `${favorite.drivers} · P${favorite.pos}`;
-
-            return `
-                <div class="card favorite-card">
-                    <div class="favorite-label">Favorito</div>
-                    <div class="favorite-main">
-                        <div class="favorite-left">
-                            <div class="team-stripe" style="background: var(--${favorite.colorClass});"></div>
-                            <div class="driver-number" style="color: var(--${favorite.colorClass});">${badge}</div>
-                            <div>
-                                <div class="favorite-name">${favorite.name}</div>
-                                <div class="favorite-sub">${subtitle}</div>
-                            </div>
-                        </div>
-                        <div class="favorite-points">
-                            <div class="favorite-points-value">${favorite.points}</div>
-                            <div class="favorite-points-label">pts</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
         function setFavoriteDriver(name, team, number, points, colorClass, image, pos) {
             const favorite = {
                 type: "driver",
@@ -876,6 +1044,8 @@
 
         function showCalendar() {
             setActiveNav("nav-more");
+            updateSubtitle();
+
             document.getElementById("content").innerHTML = `
                 <div class="card">
                     <div class="card-title">CALENDAR</div>
@@ -891,6 +1061,7 @@
             `;
         }
 
+        updateSubtitle();
         showHome();
     </script>
 </body>
