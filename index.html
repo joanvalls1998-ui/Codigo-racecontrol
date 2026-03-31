@@ -479,7 +479,7 @@
         }
 
         .news-item {
-            padding: 10px 0;
+            padding: 12px 0;
             border-bottom: 1px solid var(--line);
         }
 
@@ -487,10 +487,20 @@
             border-bottom: none;
         }
 
+        .news-link {
+            text-decoration: none;
+            color: white;
+            display: block;
+        }
+
+        .news-link:hover {
+            opacity: 0.92;
+        }
+
         .news-source {
             font-size: 12px;
             color: var(--muted);
-            margin-top: 4px;
+            margin-top: 6px;
         }
 
         .menu-link {
@@ -855,36 +865,6 @@
             }
         }
 
-        function getNewsData() {
-            const favorite = getFavorite();
-            const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
-            const accent = favorite.colorClass;
-
-            if (favorite.type === "driver") {
-                return {
-                    title: `NEWS · ${favorite.name.toUpperCase()}`,
-                    accent,
-                    items: [
-                        { title: `${favorite.name} llega al próximo GP con foco total en clasificación y gestión de neumáticos.`, source: `${teamName} update` },
-                        { title: `${teamName} sigue trabajando en fiabilidad y ejecución de carrera para maximizar opciones de puntos.`, source: `Team briefing` },
-                        { title: `El rendimiento interno de ${favorite.name} se mantiene como referencia dentro de ${teamName}.`, source: `Performance trend` },
-                        { title: `La ventana estratégica del próximo fin de semana podría favorecer un enfoque conservador si hay degradación alta.`, source: `Race outlook` }
-                    ]
-                };
-            }
-
-            return {
-                title: `NEWS · ${favorite.name.toUpperCase()}`,
-                accent,
-                items: [
-                    { title: `${favorite.name} centra su preparación en consolidar ritmo de carrera y clasificación.`, source: `Team briefing` },
-                    { title: `${favorite.drivers} siguen siendo la base del rendimiento esperado para el próximo fin de semana.`, source: `Line-up outlook` },
-                    { title: `La fiabilidad seguirá siendo una variable clave en las aspiraciones de ${favorite.name}.`, source: `Technical focus` },
-                    { title: `${favorite.name} encara el próximo GP con objetivo de ejecución limpia y doble puntuación.`, source: `Weekend target` }
-                ]
-            };
-        }
-
         function formatCalendarDateRange(start, end) {
             const startDate = new Date(`${start}T12:00:00`);
             const endDate = new Date(`${end}T12:00:00`);
@@ -907,6 +887,16 @@
             if (status === "completed") return "Completed";
             if (status === "next") return "Next";
             return "Upcoming";
+        }
+
+        function formatNewsDate(pubDate) {
+            if (!pubDate) return "";
+            const date = new Date(pubDate);
+            if (Number.isNaN(date.getTime())) return "";
+            return date.toLocaleDateString("es-ES", {
+                day: "2-digit",
+                month: "short"
+            });
         }
 
         function showHome() {
@@ -1014,23 +1004,67 @@
             `;
         }
 
-        function showNews() {
+        async function showNews() {
             setActiveNav("nav-news");
             updateSubtitle();
 
-            const news = getNewsData();
+            const favorite = getFavorite();
 
             document.getElementById("content").innerHTML = `
                 <div class="card">
-                    <div class="card-title" style="color: var(--${news.accent});">${news.title}</div>
-                    ${news.items.map(item => `
-                        <div class="news-item">
-                            <div>${item.title}</div>
-                            <div class="news-source">${item.source}</div>
-                        </div>
-                    `).join("")}
+                    <div class="card-title" style="color: var(--${favorite.colorClass});">NEWS · ${favorite.name.toUpperCase()}</div>
+                    <div class="card-sub">Buscando noticias reales…</div>
                 </div>
             `;
+
+            try {
+                const response = await fetch("/api/news", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ favorite })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data?.message || data?.error || "No se pudieron cargar las noticias");
+                }
+
+                const items = Array.isArray(data.items) ? data.items.slice(0, 8) : [];
+
+                document.getElementById("content").innerHTML = `
+                    <div class="card">
+                        <div class="card-title" style="color: var(--${favorite.colorClass});">NEWS · ${favorite.name.toUpperCase()}</div>
+                        <div class="card-sub">Noticias reales adaptadas al favorito actual</div>
+
+                        ${items.length ? items.map(item => `
+                            <div class="news-item">
+                                <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">
+                                    ${item.title}
+                                </a>
+                                <div class="news-source">
+                                    ${item.source || "News"}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}
+                                </div>
+                            </div>
+                        `).join("") : `
+                            <div class="news-item">
+                                <div>No se encontraron noticias ahora mismo.</div>
+                                <div class="news-source">Prueba otra vez en un momento</div>
+                            </div>
+                        `}
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById("content").innerHTML = `
+                    <div class="card">
+                        <div class="card-title" style="color: var(--${favorite.colorClass});">NEWS · ${favorite.name.toUpperCase()}</div>
+                        <div class="card-sub">Error al cargar noticias</div>
+                        <pre class="ai-output">${error.message}</pre>
+                    </div>
+                `;
+            }
         }
 
         function showMore() {
