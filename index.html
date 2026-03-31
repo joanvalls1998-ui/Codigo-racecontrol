@@ -909,7 +909,23 @@ Situación campeonato:
         </div>
     `;
 }
-showHome();
+    function copyPrompt(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        alert("Prompt copiado");
+    });
+}
+
+function openChatGPTWithPrompt(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        window.open("https://chatgpt.com/", "_blank");
+        setTimeout(() => {
+            alert("Prompt copiado. Se ha abierto ChatGPT. Solo tienes que pegarlo y enviarlo.");
+        }, 300);
+    }).catch(() => {
+        window.open("https://chatgpt.com/", "_blank");
+        alert("No se pudo copiar automáticamente. Se ha abierto ChatGPT igualmente.");
+    });
+}showHome();
 </script>
 
 </body>
