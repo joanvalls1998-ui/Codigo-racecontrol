@@ -665,28 +665,14 @@
 
             document.getElementById("standingsContent").innerHTML = `
                 <div class="card">
-                    ${driverRow(1, "12", "Kimi Antonelli", "Mercedes", "72", "mercedes")}
-                    ${driverRow(2, "63", "George Russell", "Mercedes", "63", "mercedes")}
-                    ${driverRow(3, "16", "Charles Leclerc", "Ferrari", "49", "ferrari")}
-                    ${driverRow(4, "44", "Lewis Hamilton", "Ferrari", "41", "ferrari")}
-                    ${driverRow(5, "1", "Lando Norris", "McLaren", "25", "mclaren")}
-                    ${driverRow(6, "81", "Oscar Piastri", "McLaren", "21", "mclaren")}
-                    ${driverRow(7, "87", "Oliver Bearman", "Haas", "17", "haas")}
-                    ${driverRow(8, "10", "Pierre Gasly", "Alpine", "15", "alpine")}
-                    ${driverRow(9, "3", "Max Verstappen", "Red Bull", "12", "redbull")}
-                    ${driverRow(10, "30", "Liam Lawson", "Racing Bulls", "10", "rb")}
-                    ${driverRow(11, "41", "Arvid Lindblad", "Racing Bulls", "4", "rb")}
-                    ${driverRow(12, "6", "Isack Hadjar", "Red Bull", "4", "redbull")}
-                    ${driverRow(13, "5", "Gabriel Bortoleto", "Audi", "2", "audi")}
-                    ${driverRow(14, "55", "Carlos Sainz", "Williams", "2", "williams")}
-                    ${driverRow(15, "31", "Esteban Ocon", "Haas", "1", "haas")}
-                    ${driverRow(16, "43", "Franco Colapinto", "Alpine", "1", "alpine")}
-                    ${driverRow(17, "27", "Nico Hülkenberg", "Audi", "0", "audi")}
-                    ${driverRow(18, "23", "Alexander Albon", "Williams", "0", "williams")}
-                    ${driverRow(19, "77", "Valtteri Bottas", "Cadillac", "0", "cadillac")}
-                    ${driverRow(20, "11", "Sergio Perez", "Cadillac", "0", "cadillac")}
-                    ${driverRow(21, "18", "Lance Stroll", "Aston Martin", "0", "aston")}
-                    ${driverRow(22, "14", "Fernando Alonso", "Aston Martin", "0", "aston")}
+                    ${driverRow(1, "12", "Kimi Antonelli", "Mercedes", "72", "mercedes", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/antonelli")}
+${driverRow(2, "63", "George Russell", "Mercedes", "63", "mercedes", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/russell")}
+${driverRow(3, "16", "Charles Leclerc", "Ferrari", "49", "ferrari", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/leclerc")}
+${driverRow(4, "44", "Lewis Hamilton", "Ferrari", "41", "ferrari", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/hamilton")}
+${driverRow(5, "1", "Lando Norris", "McLaren", "25", "mclaren", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/norris")}
+${driverRow(6, "81", "Oscar Piastri", "McLaren", "21", "mclaren", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/piastri")}
+${driverRow(21, "18", "Lance Stroll", "Aston Martin", "0", "aston", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/stroll")}
+${driverRow(22, "14", "Fernando Alonso", "Aston Martin", "0", "aston", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/alonso")}
                 </div>
             `;
         }
@@ -712,22 +698,23 @@
             `;
         }
 
-        function driverRow(pos, number, name, team, points, colorClass) {
-            return `
-                <div class="standing-row">
-                    <div class="row-left">
-                        <div class="row-pos">${pos}</div>
-                        <div class="row-stripe ${colorClass}"></div>
-                        <div class="row-number" style="color: var(--${colorClass});">${number}</div>
-                        <div class="row-info">
-                            <div class="row-name">${name}</div>
-                            <div class="row-team">${team}</div>
-                        </div>
-                    </div>
-                    <div class="row-points">${points}<small>pts</small></div>
+        function driverRow(pos, number, name, team, points, colorClass, image) {
+    return `
+        <div class="standing-row">
+            <div class="row-left">
+                <div class="row-pos">${pos}</div>
+                <img src="${image}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;">
+                <div class="row-stripe ${colorClass}"></div>
+                <div class="row-number" style="color: var(--${colorClass});">${number}</div>
+                <div class="row-info">
+                    <div class="row-name">${name}</div>
+                    <div class="row-team">${team}</div>
                 </div>
-            `;
-        }
+            </div>
+            <div class="row-points">${points}<small>pts</small></div>
+        </div>
+    `;
+}
 
         function teamRow(pos, team, drivers, points, colorClass) {
             return `
