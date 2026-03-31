@@ -610,6 +610,146 @@
             return getFavorite().colorClass || "aston";
         }
 
+        function getTeamData(team) {
+            const data = {
+                "Mercedes": {
+                    racePace: 92,
+                    qualyPace: 91,
+                    reliability: 83,
+                    outlook: "High",
+                    drivers: ["George Russell", "Kimi Antonelli"],
+                    forms: [90, 88]
+                },
+                "Ferrari": {
+                    racePace: 88,
+                    qualyPace: 87,
+                    reliability: 78,
+                    outlook: "High",
+                    drivers: ["Charles Leclerc", "Lewis Hamilton"],
+                    forms: [89, 87]
+                },
+                "McLaren": {
+                    racePace: 84,
+                    qualyPace: 85,
+                    reliability: 82,
+                    outlook: "High",
+                    drivers: ["Lando Norris", "Oscar Piastri"],
+                    forms: [88, 88]
+                },
+                "Red Bull": {
+                    racePace: 80,
+                    qualyPace: 82,
+                    reliability: 74,
+                    outlook: "Medium",
+                    drivers: ["Max Verstappen", "Isack Hadjar"],
+                    forms: [91, 77]
+                },
+                "Aston Martin": {
+                    racePace: 72,
+                    qualyPace: 68,
+                    reliability: 61,
+                    outlook: "Medium",
+                    drivers: ["Fernando Alonso", "Lance Stroll"],
+                    forms: [88, 82]
+                },
+                "Alpine": {
+                    racePace: 66,
+                    qualyPace: 61,
+                    reliability: 58,
+                    outlook: "Medium",
+                    drivers: ["Pierre Gasly", "Franco Colapinto"],
+                    forms: [82, 76]
+                },
+                "Williams": {
+                    racePace: 64,
+                    qualyPace: 60,
+                    reliability: 63,
+                    outlook: "Medium",
+                    drivers: ["Carlos Sainz", "Alexander Albon"],
+                    forms: [81, 79]
+                },
+                "Audi": {
+                    racePace: 61,
+                    qualyPace: 58,
+                    reliability: 67,
+                    outlook: "Medium",
+                    drivers: ["Nico Hülkenberg", "Gabriel Bortoleto"],
+                    forms: [77, 74]
+                },
+                "Cadillac": {
+                    racePace: 59,
+                    qualyPace: 56,
+                    reliability: 60,
+                    outlook: "Medium",
+                    drivers: ["Sergio Perez", "Valtteri Bottas"],
+                    forms: [78, 75]
+                },
+                "Haas": {
+                    racePace: 63,
+                    qualyPace: 59,
+                    reliability: 64,
+                    outlook: "Medium",
+                    drivers: ["Esteban Ocon", "Oliver Bearman"],
+                    forms: [78, 80]
+                },
+                "Racing Bulls": {
+                    racePace: 68,
+                    qualyPace: 65,
+                    reliability: 66,
+                    outlook: "Medium",
+                    drivers: ["Liam Lawson", "Arvid Lindblad"],
+                    forms: [79, 75]
+                }
+            };
+
+            return data[team] || {
+                racePace: 70,
+                qualyPace: 67,
+                reliability: 62,
+                outlook: "Medium",
+                drivers: ["Driver 1", "Driver 2"],
+                forms: [80, 78]
+            };
+        }
+
+        function sameDriverName(a, b) {
+            if (!a || !b) return false;
+            const aa = a.toLowerCase().trim();
+            const bb = b.toLowerCase().trim();
+            return aa === bb || aa.includes(bb) || bb.includes(aa);
+        }
+
+        function getDriverComparison(team, driverName) {
+            const teamData = getTeamData(team);
+            const [driverA, driverB] = teamData.drivers;
+            const [formA, formB] = teamData.forms;
+
+            if (sameDriverName(driverName, driverA)) {
+                return {
+                    primaryName: driverA,
+                    primaryForm: formA,
+                    secondaryName: driverB,
+                    secondaryForm: formB
+                };
+            }
+
+            if (sameDriverName(driverName, driverB)) {
+                return {
+                    primaryName: driverB,
+                    primaryForm: formB,
+                    secondaryName: driverA,
+                    secondaryForm: formA
+                };
+            }
+
+            return {
+                primaryName: driverA,
+                primaryForm: formA,
+                secondaryName: driverB,
+                secondaryForm: formB
+            };
+        }
+
         function renderHomeHero() {
             const favorite = getFavorite();
             const accent = favorite.colorClass;
@@ -664,20 +804,21 @@
             const favorite = getFavorite();
             const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
             const accent = favorite.colorClass;
+            const teamData = getTeamData(teamName);
 
             return `
                 <div class="card">
                     <div class="card-title" style="color: var(--${accent});">${teamName.toUpperCase()} STATUS</div>
-                    <div class="stat">Race pace <span>72%</span></div>
-                    <div class="bar"><div class="bar-fill ${accent}" style="width:72%;"></div></div>
+                    <div class="stat">Race pace <span>${teamData.racePace}%</span></div>
+                    <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.racePace}%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Qualifying pace <span>68%</span></div>
-                    <div class="bar"><div class="bar-fill ${accent}" style="width:68%;"></div></div>
+                    <div class="stat" style="margin-top:12px;">Qualifying pace <span>${teamData.qualyPace}%</span></div>
+                    <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.qualyPace}%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Reliability <span>61%</span></div>
-                    <div class="bar"><div class="bar-fill mclaren" style="width:61%;"></div></div>
+                    <div class="stat" style="margin-top:12px;">Reliability <span>${teamData.reliability}%</span></div>
+                    <div class="bar"><div class="bar-fill mclaren" style="width:${teamData.reliability}%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Weekend outlook <span>Medium</span></div>
+                    <div class="stat" style="margin-top:12px;">Weekend outlook <span>${teamData.outlook}</span></div>
                 </div>
             `;
         }
@@ -685,13 +826,14 @@
         function renderHomeHierarchy() {
             const favoriteTeam = getFavoriteTeamName();
             const favoriteColor = getFavoriteColorClass();
+            const favoriteData = getTeamData(favoriteTeam);
 
             const rows = [
                 { name: "Mercedes", value: 92, color: "mercedes" },
                 { name: "Ferrari", value: 88, color: "ferrari" },
                 { name: "McLaren", value: 84, color: "mclaren" },
                 { name: "Red Bull", value: 80, color: "redbull" },
-                { name: favoriteTeam, value: 72, color: favoriteColor }
+                { name: favoriteTeam, value: favoriteData.racePace, color: favoriteColor }
             ];
 
             const uniqueRows = [];
@@ -721,14 +863,6 @@
         function renderPredictContent() {
             const favorite = getFavorite();
             const accent = favorite.colorClass;
-
-            if (favorite.type === "driver") {
-                return {
-                    title: `PREDICT · ${favorite.name.toUpperCase()}`,
-                    sub: `Predicción centrada en ${favorite.name} para el próximo GP.`,
-                    accent
-                };
-            }
 
             return {
                 title: `PREDICT · ${favorite.name.toUpperCase()}`,
@@ -817,31 +951,59 @@
             setActiveNav("nav-aston");
             updateSubtitle();
 
+            const favorite = getFavorite();
+            const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
+            const accent = favorite.colorClass;
+            const teamData = getTeamData(teamName);
+
+            let secondaryCard = "";
+
+            if (favorite.type === "driver") {
+                const comparison = getDriverComparison(teamName, favorite.name);
+
+                secondaryCard = `
+                    <div class="card">
+                        <div class="card-title">${comparison.primaryName.toUpperCase()} vs ${comparison.secondaryName.toUpperCase()}</div>
+
+                        <div class="stat">${comparison.primaryName} performance <span>${comparison.primaryForm}%</span></div>
+                        <div class="bar"><div class="bar-fill ${accent}" style="width:${comparison.primaryForm}%;"></div></div>
+
+                        <div class="stat" style="margin-top:12px;">${comparison.secondaryName} performance <span>${comparison.secondaryForm}%</span></div>
+                        <div class="bar"><div class="bar-fill ${accent}" style="width:${comparison.secondaryForm}%; opacity:0.72;"></div></div>
+                    </div>
+                `;
+            } else {
+                secondaryCard = `
+                    <div class="card">
+                        <div class="card-title">${teamName.toUpperCase()} LINE-UP</div>
+
+                        <div class="stat">${teamData.drivers[0]} form <span>${teamData.forms[0]}%</span></div>
+                        <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.forms[0]}%;"></div></div>
+
+                        <div class="stat" style="margin-top:12px;">${teamData.drivers[1]} form <span>${teamData.forms[1]}%</span></div>
+                        <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.forms[1]}%; opacity:0.72;"></div></div>
+                    </div>
+                `;
+            }
+
             document.getElementById("content").innerHTML = `
                 <div class="card">
-                    <div class="card-title" style="color: var(--aston);">ASTON MARTIN</div>
-                    <div class="card-sub">Panel técnico base</div>
+                    <div class="card-title" style="color: var(--${accent});">${teamName.toUpperCase()}</div>
+                    <div class="card-sub">Panel técnico adaptado al favorito actual</div>
 
-                    <div class="stat">Race pace <span>72%</span></div>
-                    <div class="bar"><div class="bar-fill aston" style="width:72%;"></div></div>
+                    <div class="stat">Race pace <span>${teamData.racePace}%</span></div>
+                    <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.racePace}%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Qualifying pace <span>68%</span></div>
-                    <div class="bar"><div class="bar-fill aston" style="width:68%;"></div></div>
+                    <div class="stat" style="margin-top:12px;">Qualifying pace <span>${teamData.qualyPace}%</span></div>
+                    <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.qualyPace}%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Reliability <span>61%</span></div>
-                    <div class="bar"><div class="bar-fill ferrari" style="width:61%;"></div></div>
+                    <div class="stat" style="margin-top:12px;">Reliability <span>${teamData.reliability}%</span></div>
+                    <div class="bar"><div class="bar-fill ferrari" style="width:${teamData.reliability}%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Power unit risk <span>Medium</span></div>
+                    <div class="stat" style="margin-top:12px;">Weekend outlook <span>${teamData.outlook}</span></div>
                 </div>
 
-                <div class="card">
-                    <div class="card-title">ALONSO vs STROLL</div>
-                    <div class="stat">Alonso performance <span>88%</span></div>
-                    <div class="bar"><div class="bar-fill aston" style="width:88%;"></div></div>
-
-                    <div class="stat" style="margin-top:12px;">Stroll performance <span>82%</span></div>
-                    <div class="bar"><div class="bar-fill aston" style="width:82%;"></div></div>
-                </div>
+                ${secondaryCard}
             `;
         }
 
