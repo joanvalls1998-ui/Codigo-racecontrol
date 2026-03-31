@@ -718,6 +718,48 @@
             `;
         }
 
+        function renderPredictContent() {
+            const favorite = getFavorite();
+            const accent = favorite.colorClass;
+
+            if (favorite.type === "driver") {
+                return {
+                    title: `PREDICT · ${favorite.name.toUpperCase()}`,
+                    sub: `Predicción centrada en ${favorite.name} para el próximo GP.`,
+                    output: `Predicción actual para ${favorite.name}
+
+Clasificación estimada: P11
+Carrera estimada: P9
+Probabilidad de puntos: 32%
+Probabilidad de DNF: 28%
+Estrategia más probable: Medium → Hard
+Ventana de parada: Lap 14 - 20
+
+Equipo: ${favorite.team}
+Tendencia general: fin de semana de puntos si la fiabilidad acompaña.`,
+                    accent
+                };
+            }
+
+            return {
+                title: `PREDICT · ${favorite.name.toUpperCase()}`,
+                sub: `Predicción centrada en ${favorite.name} para el próximo GP.`,
+                output: `Predicción actual para ${favorite.name}
+
+Ritmo estimado: competitivo
+Clasificación estimada: Top 5
+Carrera estimada: Top 5
+Probabilidad de podio: 22%
+Probabilidad de doble puntuación: 61%
+Riesgo de fiabilidad: medio
+Tendencia del equipo: positiva
+
+Pilotos: ${favorite.drivers}
+Lectura general: fin de semana sólido si ejecutan bien la estrategia.`,
+                accent
+            };
+        }
+
         function showHome() {
             setActiveNav("nav-home");
             updateSubtitle();
@@ -745,19 +787,21 @@
             setActiveNav("nav-predict");
             updateSubtitle();
 
+            const predict = renderPredictContent();
+
             document.getElementById("content").innerHTML = `
                 <div class="card">
                     <div class="pill">IA · PREPARADO</div>
-                    <div class="card-title">PREDICT</div>
-                    <div class="card-sub">Base estable. Conectaremos GPT en el siguiente paso.</div>
-                    <button class="btn" onclick="document.getElementById('predictOutput').innerText='La integración de IA va en el siguiente paso.'">
+                    <div class="card-title" style="color: var(--${predict.accent});">${predict.title}</div>
+                    <div class="card-sub">${predict.sub}</div>
+                    <button class="btn" onclick="document.getElementById('predictOutput').innerText=${JSON.stringify(predict.output)}">
                         Generar predicción
                     </button>
                 </div>
 
                 <div class="card">
                     <div class="card-title">AI RESULT</div>
-                    <pre id="predictOutput" class="ai-output">Todavía no hay IA conectada en esta base estable.</pre>
+                    <pre id="predictOutput" class="ai-output">Toca en “Generar predicción” para ver la predicción adaptada a tu favorito actual.</pre>
                 </div>
             `;
         }
