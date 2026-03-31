@@ -446,38 +446,88 @@ function showSim() {
 function showPredict() {
     setActiveNav("nav-predict");
 
-    const predictPrompt = `Actúa como analista de Fórmula 1.
+    const winMercedes = Math.floor(52 + Math.random() * 10);
+    const podiumFerrari = Math.floor(58 + Math.random() * 12);
+    const pointsAlonso = Math.floor(18 + Math.random() * 18);
+    const rainProb = Math.floor(12 + Math.random() * 18);
+    const scProb = Math.floor(28 + Math.random() * 18);
+    const alonsoQualy = Math.floor(12 + Math.random() * 4);
+    const alonsoRace = Math.max(10, alonsoQualy - Math.floor(Math.random() * 3));
 
-Haz una predicción realista para la próxima carrera teniendo en cuenta:
-- Forma actual de los equipos
-- Ritmo de clasificación
-- Ritmo de carrera
-- Degradación de neumáticos
-- Historial del circuito
-- Fiabilidad de los equipos
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <h3 style="color: var(--mclaren);">PREDICT · NEXT GP</h3>
+            <p><span class="highlight">Event:</span> Miami Grand Prix</p>
+            <p><span class="highlight">Mode:</span> Pre-race forecast</p>
+        </div>
 
-Salida en este formato:
+        <div class="card">
+            <h3>WIN PROBABILITY</h3>
 
-PREDICCIÓN GP [CIRCUITO]
+            <div class="stat">Mercedes win chance <span>${winMercedes}%</span></div>
+            <div class="bar">
+                <div class="bar-fill mercedes" style="width:${winMercedes}%;"></div>
+            </div>
 
-Favorito para la victoria:
-Equipos con más ritmo:
-Equipos con peor ritmo:
+            <div class="stat" style="margin-top:12px;">Ferrari podium chance <span>${podiumFerrari}%</span></div>
+            <div class="bar">
+                <div class="bar-fill ferrari" style="width:${podiumFerrari}%;"></div>
+            </div>
 
-Predicción Alonso clasificación:
-Predicción Alonso carrera:
-Probabilidad de puntos Alonso (%):
+            <div class="stat" style="margin-top:12px;">Alonso points chance <span>${pointsAlonso}%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:${pointsAlonso}%;"></div>
+            </div>
+        </div>
 
-Probabilidad lluvia (%):
-Probabilidad Safety Car (%):
+        <div class="card">
+            <h3>RACE CONDITIONS</h3>
 
-Estrategia más probable:
-Número de paradas:`;
+            <div class="stat">Rain probability <span>${rainProb}%</span></div>
+            <div class="bar">
+                <div class="bar-fill alpine" style="width:${rainProb}%;"></div>
+            </div>
 
-    document.getElementById("content").innerHTML = renderStorageBlock("Predicción IA", "predictSaved", predictPrompt);
+            <div class="stat" style="margin-top:12px;">Safety Car probability <span>${scProb}%</span></div>
+            <div class="bar">
+                <div class="bar-fill mclaren" style="width:${scProb}%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Strategy trend <span>Medium → Hard</span></div>
+            <div class="stat">Tyre degradation <span>Medium</span></div>
+        </div>
+
+        <div class="card">
+            <h3>ALONSO FORECAST</h3>
+
+            <div class="stat">Qualifying prediction <span>P${alonsoQualy}</span></div>
+            <div class="stat">Race prediction <span>P${alonsoRace}</span></div>
+
+            <div class="stat" style="margin-top:12px;">Weekend confidence <span>63%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:63%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Risk factor <span>Reliability</span></div>
+            <div class="stat">Best case <span>P10</span></div>
+        </div>
+
+        <div class="card">
+            <h3>TEAM OUTLOOK</h3>
+
+            <div class="stat">Mercedes <span>Favourite</span></div>
+            <div class="stat">Ferrari <span>Strong podium candidate</span></div>
+            <div class="stat">McLaren <span>Solid top 5 pace</span></div>
+            <div class="stat">Red Bull <span>Unclear weekend ceiling</span></div>
+            <div class="stat">Aston Martin <span>Fight around P10-P14</span></div>
+        </div>
+
+        <div class="card">
+            <button class="btn" onclick="showPredict()">Recalculate prediction</button>
+        </div>
+    `;
 }
-
-function showAston() {
+    function showAston() {
     setActiveNav("nav-aston");
     document.getElementById("content").innerHTML = `
         <div class="card">
