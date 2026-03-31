@@ -7,7 +7,7 @@ export default async function handler(req, res) {
       team: "Mercedes",
       points: 72,
       colorClass: "mercedes",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/antonelli"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/antonelli"
     },
     {
       pos: 2,
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
       team: "Mercedes",
       points: 63,
       colorClass: "mercedes",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/russell"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/russell"
     },
     {
       pos: 3,
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       team: "Ferrari",
       points: 49,
       colorClass: "ferrari",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/leclerc"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/leclerc"
     },
     {
       pos: 4,
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
       team: "Ferrari",
       points: 41,
       colorClass: "ferrari",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/hamilton"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/hamilton"
     },
     {
       pos: 5,
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
       team: "McLaren",
       points: 25,
       colorClass: "mclaren",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/norris"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/norris"
     },
     {
       pos: 6,
@@ -52,7 +52,7 @@ export default async function handler(req, res) {
       team: "McLaren",
       points: 21,
       colorClass: "mclaren",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/piastri"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/piastri"
     },
     {
       pos: 7,
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
       team: "Haas",
       points: 17,
       colorClass: "haas",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/bearman"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/bearman"
     },
     {
       pos: 8,
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
       team: "Alpine",
       points: 15,
       colorClass: "alpine",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/gasly"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/gasly"
     },
     {
       pos: 9,
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
       team: "Red Bull",
       points: 12,
       colorClass: "redbull",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/verstappen"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/verstappen"
     },
     {
       pos: 10,
@@ -88,7 +88,7 @@ export default async function handler(req, res) {
       team: "Racing Bulls",
       points: 10,
       colorClass: "rb",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/lawson"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/lawson"
     },
     {
       pos: 11,
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
       team: "Racing Bulls",
       points: 4,
       colorClass: "rb",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/lindblad"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/lindblad"
     },
     {
       pos: 12,
@@ -106,7 +106,7 @@ export default async function handler(req, res) {
       team: "Red Bull",
       points: 4,
       colorClass: "redbull",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/hadjar"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/hadjar"
     },
     {
       pos: 13,
@@ -115,7 +115,7 @@ export default async function handler(req, res) {
       team: "Audi",
       points: 2,
       colorClass: "audi",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/bortoleto"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/bortoleto"
     },
     {
       pos: 14,
@@ -124,7 +124,7 @@ export default async function handler(req, res) {
       team: "Williams",
       points: 2,
       colorClass: "williams",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/sainz"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/sainz"
     },
     {
       pos: 15,
@@ -133,7 +133,7 @@ export default async function handler(req, res) {
       team: "Haas",
       points: 1,
       colorClass: "haas",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/ocon"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/ocon"
     },
     {
       pos: 16,
@@ -142,7 +142,7 @@ export default async function handler(req, res) {
       team: "Alpine",
       points: 1,
       colorClass: "alpine",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/colapinto"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/colapinto"
     },
     {
       pos: 17,
@@ -151,7 +151,7 @@ export default async function handler(req, res) {
       team: "Audi",
       points: 0,
       colorClass: "audi",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/hulkenberg"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/hulkenberg"
     },
     {
       pos: 18,
@@ -160,7 +160,7 @@ export default async function handler(req, res) {
       team: "Williams",
       points: 0,
       colorClass: "williams",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/albon"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/albon"
     },
     {
       pos: 19,
@@ -169,7 +169,7 @@ export default async function handler(req, res) {
       team: "Cadillac",
       points: 0,
       colorClass: "cadillac",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/bottas"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/bottas"
     },
     {
       pos: 20,
@@ -178,7 +178,7 @@ export default async function handler(req, res) {
       team: "Cadillac",
       points: 0,
       colorClass: "cadillac",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/perez"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/perez"
     },
     {
       pos: 21,
@@ -187,7 +187,7 @@ export default async function handler(req, res) {
       team: "Aston Martin",
       points: 0,
       colorClass: "aston",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/alonso"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/alonso"
     },
     {
       pos: 22,
@@ -196,7 +196,7 @@ export default async function handler(req, res) {
       team: "Aston Martin",
       points: 0,
       colorClass: "aston",
-      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/stroll"
+      image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/stroll"
     }
   ];
 
