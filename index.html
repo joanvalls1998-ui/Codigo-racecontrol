@@ -1300,26 +1300,83 @@
 
             showStandings();
             if (wasTeams) showTeamsStandings();
+            function formatCalendarDateRange(start, end) {
+    const startDate = new Date(`${start}T12:00:00`);
+    const endDate = new Date(`${end}T12:00:00`);
+
+    const startDay = startDate.getDate();
+    const endDay = endDate.getDate();
+
+    const startMonth = startDate.toLocaleDateString("es-ES", { month: "short" });
+    const endMonth = endDate.toLocaleDateString("es-ES", { month: "short" });
+
+    if (startMonth === endMonth) {
+        return `${startDay}-${endDay} ${startMonth}`;
+    }
+
+    return `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
+}
+
+function getCalendarStatusLabel(status, type) {
+    if (type === "testing" && status === "completed") return "Testing done";
+    if (status === "completed") return "Completed";
+    if (status === "next") return "Next";
+    return "Upcoming";
+}
+
+async function showCalendar() {
+    setActiveNav("nav-more");
+    updateSubtitle();
+
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <div class="card-title">CALENDAR</div>
+            <div class="card-sub">Cargando calendario oficial 2026…</div>
+        </div>
+    `;
+
+    try {
+        const response = await fetch("/api/calendar");
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data?.error || "No se pudo cargar el calendario");
         }
 
-        function showCalendar() {
-            setActiveNav("nav-more");
-            updateSubtitle();
+        const events = Array.isArray(data.events) ? data.events : [];
 
-            document.getElementById("content").innerHTML = `
-                <div class="card">
-                    <div class="card-title">CALENDAR</div>
-                    <div class="card-sub">Base estable del calendario</div>
+        document.getElementById("content").innerHTML = `
+            <div class="card">
+                <div class="card-title">CALENDAR</div>
+                <div class="card-sub">Temporada 2026 · calendario real</div>
 
-                    <div class="list-line"><div class="list-left">Australia</div><div class="list-right">Completed</div></div>
-                    <div class="list-line"><div class="list-left">China</div><div class="list-right">Completed</div></div>
-                    <div class="list-line"><div class="list-left">Japan</div><div class="list-right">Completed</div></div>
-                    <div class="list-line"><div class="list-left">Miami</div><div class="list-right">Next</div></div>
-                    <div class="list-line"><div class="list-left">Canada</div><div class="list-right">Upcoming</div></div>
-                    <div class="list-line"><div class="list-left">Monaco</div><div class="list-right">Upcoming</div></div>
-                </div>
-            `;
+                ${events.map(event => `
+                    <div class="list-line">
+                        <div class="list-left">
+                            ${event.type === "race"
+                                ? `R${event.round} · ${event.venue}`
+                                : `${event.title}`}
+                        </div>
+                        <div class="list-right">
+                            ${getCalendarStatusLabel(event.status, event.type)} · ${formatCalendarDateRange(event.start, event.end)}
+                        </div>
+                    </div>
+                `).join("")}
+            </div>
+        `;
+    } catch (error) {
+        document.getElementById("content").innerHTML = `
+            <div class="card">
+                <div class="card-title">CALENDAR</div>
+                <div class="card-sub">Error al cargar el calendario</div>
+                <pre class="ai-output">${error.message}</pre>
+            </div>
+        `;
+    }
+}
         }
+
+        
 
         updateSubtitle();
         showHome();
