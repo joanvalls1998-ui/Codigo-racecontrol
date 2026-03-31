@@ -901,6 +901,60 @@
             }
         }
 
+        function getNewsData() {
+            const favorite = getFavorite();
+            const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
+            const accent = favorite.colorClass;
+
+            if (favorite.type === "driver") {
+                return {
+                    title: `NEWS · ${favorite.name.toUpperCase()}`,
+                    accent,
+                    items: [
+                        {
+                            title: `${favorite.name} llega al próximo GP con foco total en clasificación y gestión de neumáticos.`,
+                            source: `${teamName} update`
+                        },
+                        {
+                            title: `${teamName} sigue trabajando en fiabilidad y ejecución de carrera para maximizar opciones de puntos.`,
+                            source: `Team briefing`
+                        },
+                        {
+                            title: `El rendimiento interno de ${favorite.name} se mantiene como referencia dentro de ${teamName}.`,
+                            source: `Performance trend`
+                        },
+                        {
+                            title: `La ventana estratégica del próximo fin de semana podría favorecer un enfoque conservador si hay degradación alta.`,
+                            source: `Race outlook`
+                        }
+                    ]
+                };
+            }
+
+            return {
+                title: `NEWS · ${favorite.name.toUpperCase()}`,
+                accent,
+                items: [
+                    {
+                        title: `${favorite.name} centra su preparación en consolidar ritmo de carrera y clasificación.`,
+                        source: `Team briefing`
+                    },
+                    {
+                        title: `${favorite.drivers} siguen siendo la base del rendimiento esperado para el próximo fin de semana.`,
+                        source: `Line-up outlook`
+                    },
+                    {
+                        title: `La fiabilidad seguirá siendo una variable clave en las aspiraciones de ${favorite.name}.`,
+                        source: `Technical focus`
+                    },
+                    {
+                        title: `${favorite.name} encara el próximo GP con objetivo de ejecución limpia y doble puntuación.`,
+                        source: `Weekend target`
+                    }
+                ]
+            };
+        }
+
         function showHome() {
             setActiveNav("nav-home");
             updateSubtitle();
@@ -1011,24 +1065,17 @@
             setActiveNav("nav-news");
             updateSubtitle();
 
+            const news = getNewsData();
+
             document.getElementById("content").innerHTML = `
                 <div class="card">
-                    <div class="card-title">NEWS</div>
-
-                    <div class="news-item">
-                        <div>Aston Martin sigue centrado en fiabilidad y fines de semana limpios.</div>
-                        <div class="news-source">RaceControl briefing</div>
-                    </div>
-
-                    <div class="news-item">
-                        <div>Mercedes mantiene la referencia del campeonato.</div>
-                        <div class="news-source">Championship form</div>
-                    </div>
-
-                    <div class="news-item">
-                        <div>Ferrari sigue como segunda fuerza más estable.</div>
-                        <div class="news-source">Team pace trend</div>
-                    </div>
+                    <div class="card-title" style="color: var(--${news.accent});">${news.title}</div>
+                    ${news.items.map(item => `
+                        <div class="news-item">
+                            <div>${item.title}</div>
+                            <div class="news-source">${item.source}</div>
+                        </div>
+                    `).join("")}
                 </div>
             `;
         }
