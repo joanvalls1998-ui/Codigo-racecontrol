@@ -424,41 +424,133 @@ Número de paradas:`;
 
 function showAston() {
     setActiveNav("nav-aston");
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <h3 style="color: var(--aston);">ASTON MARTIN F1 TEAM</h3>
 
-    const astonPrompt = `Actúa como ingeniero de Aston Martin F1.
+            <div class="stat">Constructors position <span>P11</span></div>
+            <div class="stat">Points <span>0</span></div>
+            <div class="stat">Target next race <span>Finish both cars</span></div>
+        </div>
 
-Analiza el estado actual del equipo en la temporada 2026 teniendo en cuenta:
-- Rendimiento del coche
-- Motor Honda
-- Fiabilidad
-- Ritmo de clasificación
-- Ritmo de carrera
-- Comparación Alonso vs Stroll
-- Posibilidades de mejora durante la temporada
+        <div class="card">
+            <h3 style="color: var(--aston);">TEAM PERFORMANCE</h3>
 
-Salida en este formato:
+            <div class="stat">Race pace <span>72%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:72%;"></div>
+            </div>
 
-ASTON MARTIN INFORME
+            <div class="stat" style="margin-top:12px;">Qualifying pace <span>68%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:68%;"></div>
+            </div>
 
-Posición actual del equipo:
-Ritmo del coche:
-Fiabilidad:
-Rendimiento en clasificación:
-Rendimiento en carrera:
+            <div class="stat" style="margin-top:12px;">Reliability <span>61%</span></div>
+            <div class="bar">
+                <div class="bar-fill mclaren" style="width:61%;"></div>
+            </div>
 
-Fernando Alonso:
-Rendimiento:
-Probabilidad de puntos próximas carreras (%):
+            <div class="stat" style="margin-top:12px;">Pit wall confidence <span>58%</span></div>
+            <div class="bar">
+                <div class="bar-fill alpine" style="width:58%;"></div>
+            </div>
+        </div>
 
-Lance Stroll:
-Rendimiento:
-Probabilidad de puntos (%):
+        <div class="card">
+            <h3 style="color: var(--aston);">POWER UNIT / HONDA</h3>
 
-Objetivo del equipo próxima carrera:`;
+            <div class="stat">Power delivery <span>70%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:70%;"></div>
+            </div>
 
-    document.getElementById("content").innerHTML = renderStorageBlock("Informe Aston Martin IA", "astonSaved", astonPrompt);
+            <div class="stat" style="margin-top:12px;">Thermal stability <span>59%</span></div>
+            <div class="bar">
+                <div class="bar-fill ferrari" style="width:59%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Weekend confidence <span>55%</span></div>
+            <div class="bar">
+                <div class="bar-fill ferrari" style="width:55%;"></div>
+            </div>
+
+            <p class="small" style="margin-top:12px;">La prioridad sigue siendo completar fines de semana limpios y reducir el riesgo de abandono.</p>
+        </div>
+
+        <div class="card">
+            <h3 style="color: var(--aston);">FERNANDO ALONSO</h3>
+
+            <div class="stat">Championship position <span>P22</span></div>
+            <div class="stat">Points <span>0</span></div>
+
+            <div class="stat" style="margin-top:12px;">Driver performance <span>88%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:88%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Points probability <span>32%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:32%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">DNF probability <span>28%</span></div>
+            <div class="bar">
+                <div class="bar-fill ferrari" style="width:28%;"></div>
+            </div>
+
+            <p class="small" style="margin-top:12px;">Perfil actual: rendimiento individual alto, coche limitado.</p>
+        </div>
+
+        <div class="card">
+            <h3 style="color: var(--aston);">LANCE STROLL</h3>
+
+            <div class="stat">Championship position <span>P21</span></div>
+            <div class="stat">Points <span>0</span></div>
+
+            <div class="stat" style="margin-top:12px;">Driver performance <span>82%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:82%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Points probability <span>24%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:24%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">DNF probability <span>31%</span></div>
+            <div class="bar">
+                <div class="bar-fill ferrari" style="width:31%;"></div>
+            </div>
+
+            <p class="small" style="margin-top:12px;">Perfil actual: ritmo correcto, menos margen que Alonso.</p>
+        </div>
+
+        <div class="card">
+            <h3>ALONSO vs STROLL</h3>
+
+            <div class="stat">Race pace Alonso <span>88%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:88%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Race pace Stroll <span>82%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:82%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Qualy potential Alonso <span>84%</span></div>
+            <div class="bar">
+                <div class="bar-fill mercedes" style="width:84%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Qualy potential Stroll <span>78%</span></div>
+            <div class="bar">
+                <div class="bar-fill mercedes" style="width:78%;"></div>
+            </div>
+        </div>
+    `;
 }
-
 function showNews() {
     setActiveNav("nav-news");
 
