@@ -4,321 +4,121 @@
     <title>RaceControl</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        :root {
-            --bg: #060606;
-            --panel: #121212;
-            --text: #f5f5f5;
-            --muted: #a0a0a0;
-            --accent: #e10600;
-            --accent-soft: #ff3b30;
-            --line: #262626;
-            --green-soft: #8de1b1;
-            --blue-soft: #93c5fd;
-        }
+:root {
+    --bg: #060606;
+    --panel: #121212;
+    --text: #f5f5f5;
+    --muted: #9a9a9a;
+    --line: #262626;
 
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+    --aston: #00d2be;
+    --mercedes: #00aaff;
+    --ferrari: #ff3b30;
+    --mclaren: #ff8700;
+    --redbull: #1e3a8a;
+    --alpine: #4cc9f0;
+    --williams: #3a86ff;
+    --audi: #aaaaaa;
+    --cadillac: #c6a300;
+    --haas: #ffffff;
+    --rb: #3a86ff;
+}
 
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Arial, sans-serif;
-            background: radial-gradient(circle at top, #1a1a1a 0%, #0b0b0b 35%, #060606 100%);
-            color: var(--text);
-        }
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Arial;
+    background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
+    color: var(--text);
+}
 
-        .header {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            background: rgba(10, 10, 10, 0.92);
-            backdrop-filter: blur(10px);
-            padding: 18px 20px 16px;
-            border-bottom: 1px solid rgba(225, 6, 0, 0.35);
-        }
+.header {
+    padding: 20px;
+    border-bottom: 1px solid #111;
+}
 
-        .title {
-            font-size: 28px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-        }
+.title {
+    font-size: 26px;
+    font-weight: 800;
+}
 
-        .subtitle {
-            margin-top: 4px;
-            font-size: 13px;
-            color: var(--muted);
-        }
+.subtitle {
+    color: var(--muted);
+    font-size: 13px;
+}
 
-        .container {
-            padding: 18px 16px 110px;
-            max-width: 760px;
-            margin: 0 auto;
-        }
+.container {
+    padding: 16px;
+    padding-bottom: 100px;
+}
 
-        .card {
-            background: linear-gradient(180deg, rgba(28,28,28,0.96) 0%, rgba(18,18,18,0.96) 100%);
-            border: 1px solid rgba(255,255,255,0.04);
-            padding: 16px;
-            margin-bottom: 14px;
-            border-radius: 18px;
-            box-shadow:
-                0 10px 24px rgba(0,0,0,0.28),
-                inset 0 1px 0 rgba(255,255,255,0.03);
-        }
+.card {
+    background: #111;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 14px;
+    border: 1px solid #1f1f1f;
+}
 
-        .card h3 {
-            margin: 0 0 10px 0;
-            color: var(--accent-soft);
-            font-size: 17px;
-            font-weight: 800;
-            letter-spacing: -0.2px;
-        }
+.card h3 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+}
 
-        .card p {
-            margin: 6px 0;
-            color: var(--text);
-            line-height: 1.45;
-            font-size: 15px;
-        }
+.nav {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background: #0b0b0b;
+    display: flex;
+    justify-content: space-around;
+    padding: 14px 0;
+    border-top: 1px solid #1f1f1f;
+}
 
-        .small {
-            font-size: 13px;
-            color: var(--muted);
-        }
+.nav a {
+    color: #888;
+    text-decoration: none;
+    font-size: 13px;
+}
 
-        .highlight {
-            color: white;
-            font-weight: 700;
-        }
+.nav a.active {
+    color: white;
+}
 
-        .nav {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            background: rgba(10, 10, 10, 0.96);
-            backdrop-filter: blur(10px);
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            gap: 4px;
-            padding: 12px 8px calc(14px + env(safe-area-inset-bottom));
-            border-top: 1px solid rgba(225, 6, 0, 0.35);
-            box-shadow: 0 -8px 20px rgba(0,0,0,0.25);
-            overflow-x: auto;
-        }
+.bar {
+    height: 10px;
+    background: #1f1f1f;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 6px;
+}
 
-        .nav a {
-            color: var(--muted);
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 700;
-            padding: 8px 8px;
-            border-radius: 10px;
-            transition: 0.2s ease;
-            min-width: 52px;
-            text-align: center;
-            white-space: nowrap;
-        }
+.bar-fill {
+    height: 100%;
+    border-radius: 10px;
+}
 
-        .nav a.active {
-            color: white;
-            background: rgba(255,255,255,0.07);
-        }
+.aston { background: var(--aston); }
+.mercedes { background: var(--mercedes); }
+.ferrari { background: var(--ferrari); }
+.mclaren { background: var(--mclaren); }
+.redbull { background: var(--redbull); }
+.alpine { background: var(--alpine); }
+.williams { background: var(--williams); }
+.audi { background: var(--audi); }
+.cadillac { background: var(--cadillac); }
+.haas { background: #999; }
+.rb { background: var(--rb); }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            overflow: hidden;
-            border-radius: 12px;
-        }
+.stat {
+    margin-bottom: 10px;
+}
 
-        th, td {
-            padding: 10px 8px;
-            text-align: left;
-            border-bottom: 1px solid var(--line);
-            font-size: 14px;
-        }
-
-        th {
-            color: var(--accent-soft);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.7px;
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        .pill {
-            display: inline-block;
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 700;
-            background: rgba(225, 6, 0, 0.12);
-            color: #ff8a84;
-            border: 1px solid rgba(225, 6, 0, 0.2);
-        }
-
-        .pill-green {
-            background: rgba(15, 157, 88, 0.12);
-            color: var(--green-soft);
-            border: 1px solid rgba(15, 157, 88, 0.25);
-        }
-
-        .pill-blue {
-            background: rgba(59, 130, 246, 0.12);
-            color: var(--blue-soft);
-            border: 1px solid rgba(59, 130, 246, 0.25);
-        }
-
-        .section-title {
-            margin: 4px 0 12px;
-            font-size: 20px;
-            font-weight: 800;
-            letter-spacing: -0.3px;
-        }
-
-        .sim-grid {
-            display: grid;
-            gap: 10px;
-        }
-
-        .sim-line {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--line);
-            font-size: 14px;
-        }
-
-        .sim-line:last-child {
-            border-bottom: none;
-        }
-
-        .stat-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .stat-box {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 14px;
-            padding: 12px;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: var(--muted);
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .stat-value {
-            font-size: 20px;
-            font-weight: 800;
-        }
-
-        .news-item {
-            padding: 10px 0;
-            border-bottom: 1px solid var(--line);
-        }
-
-        .news-item:last-child {
-            border-bottom: none;
-        }
-
-        .news-source {
-            font-size: 12px;
-            color: var(--muted);
-            margin-top: 4px;
-        }
-
-        .bar-wrap {
-            margin-top: 10px;
-        }
-
-        .bar-label {
-            display: flex;
-            justify-content: space-between;
-            font-size: 13px;
-            color: var(--muted);
-            margin-bottom: 6px;
-        }
-
-        .bar {
-            width: 100%;
-            height: 8px;
-            background: #1e1e1e;
-            border-radius: 999px;
-            overflow: hidden;
-        }
-
-        .bar-fill {
-            height: 100%;
-            border-radius: 999px;
-        }
-
-        .bar-red { background: linear-gradient(90deg, #991b1b, #ef4444); }
-        .bar-green { background: linear-gradient(90deg, #166534, #22c55e); }
-        .bar-yellow { background: linear-gradient(90deg, #92400e, #f59e0b); }
-
-        .btn {
-            width: 100%;
-            border: none;
-            border-radius: 14px;
-            padding: 14px;
-            background: linear-gradient(90deg, #e10600, #ff3b30);
-            color: white;
-            font-size: 15px;
-            font-weight: 800;
-            margin-top: 12px;
-        }
-
-        .btn-secondary {
-            width: 100%;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 14px;
-            padding: 14px;
-            background: rgba(255,255,255,0.03);
-            color: white;
-            font-size: 14px;
-            font-weight: 700;
-            margin-top: 10px;
-        }
-
-        textarea {
-            width: 100%;
-            min-height: 180px;
-            margin-top: 12px;
-            padding: 12px;
-            border-radius: 14px;
-            border: 1px solid rgba(255,255,255,0.08);
-            background: rgba(255,255,255,0.03);
-            color: white;
-            font-size: 14px;
-            line-height: 1.45;
-            resize: vertical;
-        }
-
-        pre.saved-output {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            font-family: inherit;
-            font-size: 14px;
-            line-height: 1.5;
-            margin: 0;
-        }
-    </style>
-</head>
+.stat span {
+    float: right;
+    color: var(--muted);
+}
+</style></head>
 <body>
 
 <div class="header">
