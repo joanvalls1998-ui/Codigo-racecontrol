@@ -395,6 +395,24 @@
             margin-top: 3px;
         }
 
+        .fav-btn {
+            margin-top: 6px;
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(255,255,255,0.04);
+            color: #cfcfd2;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .fav-btn.active {
+            color: #ffd54a;
+            border-color: rgba(255,213,74,0.35);
+            background: rgba(255,213,74,0.12);
+        }
+
         .news-item {
             padding: 10px 0;
             border-bottom: 1px solid var(--line);
@@ -630,23 +648,7 @@
         function showStandings() {
             setActiveNav("nav-more");
             document.getElementById("content").innerHTML = `
-                <div class="card favorite-card">
-                    <div class="favorite-label">Favorito</div>
-                    <div class="favorite-main">
-                        <div class="favorite-left">
-                            <div class="team-stripe" style="background: var(--aston);"></div>
-                            <div class="driver-number" style="color: var(--aston);">14</div>
-                            <div>
-                                <div class="favorite-name">Fernando Alonso</div>
-                                <div class="favorite-sub">Aston Martin · P22</div>
-                            </div>
-                        </div>
-                        <div class="favorite-points">
-                            <div class="favorite-points-value">0</div>
-                            <div class="favorite-points-label">pts</div>
-                        </div>
-                    </div>
-                </div>
+                ${renderFavoriteCard()}
 
                 <div class="card">
                     <div class="card-title">Standings</div>
@@ -705,6 +707,8 @@
         }
 
         function driverRow(pos, number, name, team, points, colorClass, image) {
+            const isFav = isFavoriteDriver(name);
+
             return `
                 <div class="standing-row">
                     <div class="row-left">
@@ -720,27 +724,35 @@
                             </div>
                         </div>
                     </div>
-                    <div class="row-points">${points}<small>pts</small></div>
+                    <div class="row-points">
+                        ${points}<small>pts</small>
+                        <button
+                            class="fav-btn ${isFav ? 'active' : ''}"
+                            onclick='setFavoriteDriver(${JSON.stringify(name)}, ${JSON.stringify(team)}, ${JSON.stringify(number)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(image)}, ${JSON.stringify(pos)})'
+                        >★</button>
+                    </div>
                 </div>
             `;
         }
 
         function getTeamLogo(team) {
-    if (team.includes("Aston")) return "assets/logos/aston.png";
-    if (team.includes("Mercedes")) return "assets/logos/mercedes.png";
-    if (team.includes("Ferrari")) return "assets/logos/ferrari.png";
-    if (team.includes("McLaren")) return "assets/logos/mclaren.png";
-    if (team.includes("Red Bull")) return "assets/logos/redbull.png";
-    if (team.includes("Alpine")) return "assets/logos/alpine.png";
-    if (team.includes("Williams")) return "assets/logos/williams.png";
-    if (team.includes("Haas")) return "assets/logos/haas.png";
-    if (team.includes("Audi")) return "assets/logos/audi.png";
-    if (team.includes("Cadillac")) return "assets/logos/cadillac.png";
-    if (team.includes("Racing Bulls")) return "assets/logos/racingbulls.png";
-    return "";
-}
+            if (team.includes("Aston")) return "assets/logos/aston.png";
+            if (team.includes("Mercedes")) return "assets/logos/mercedes.png";
+            if (team.includes("Ferrari")) return "assets/logos/ferrari.png";
+            if (team.includes("McLaren")) return "assets/logos/mclaren.png";
+            if (team.includes("Red Bull")) return "assets/logos/redbull.png";
+            if (team.includes("Alpine")) return "assets/logos/alpine.png";
+            if (team.includes("Williams")) return "assets/logos/williams.png";
+            if (team.includes("Haas")) return "assets/logos/haas.png";
+            if (team.includes("Audi")) return "assets/logos/audi.png";
+            if (team.includes("Cadillac")) return "assets/logos/cadillac.png";
+            if (team.includes("Racing Bulls")) return "assets/logos/racingbulls.png";
+            return "";
+        }
 
         function teamRow(pos, team, drivers, points, colorClass) {
+            const isFav = isFavoriteTeam(team);
+
             return `
                 <div class="standing-row">
                     <div class="row-left">
@@ -754,9 +766,112 @@
                             </div>
                         </div>
                     </div>
-                    <div class="row-points">${points}<small>pts</small></div>
+                    <div class="row-points">
+                        ${points}<small>pts</small>
+                        <button
+                            class="fav-btn ${isFav ? 'active' : ''}"
+                            onclick='setFavoriteTeam(${JSON.stringify(team)}, ${JSON.stringify(drivers)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(pos)})'
+                        >★</button>
+                    </div>
                 </div>
             `;
+        }
+
+        function getDefaultFavorite() {
+            return {
+                type: "driver",
+                name: "Fernando Alonso",
+                team: "Aston Martin",
+                number: "14",
+                points: "0",
+                colorClass: "aston",
+                image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/alonso",
+                pos: "22"
+            };
+        }
+
+        function getFavorite() {
+            try {
+                const saved = localStorage.getItem("racecontrolFavorite");
+                return saved ? JSON.parse(saved) : getDefaultFavorite();
+            } catch (e) {
+                return getDefaultFavorite();
+            }
+        }
+
+        function isFavoriteDriver(name) {
+            const favorite = getFavorite();
+            return favorite.type === "driver" && favorite.name === name;
+        }
+
+        function isFavoriteTeam(team) {
+            const favorite = getFavorite();
+            return favorite.type === "team" && favorite.name === team;
+        }
+
+        function renderFavoriteCard() {
+            const favorite = getFavorite();
+
+            const badge = favorite.type === "driver" ? favorite.number : "TEAM";
+            const subtitle = favorite.type === "driver"
+                ? `${favorite.team} · P${favorite.pos}`
+                : `${favorite.drivers} · P${favorite.pos}`;
+
+            return `
+                <div class="card favorite-card">
+                    <div class="favorite-label">Favorito</div>
+                    <div class="favorite-main">
+                        <div class="favorite-left">
+                            <div class="team-stripe" style="background: var(--${favorite.colorClass});"></div>
+                            <div class="driver-number" style="color: var(--${favorite.colorClass});">${badge}</div>
+                            <div>
+                                <div class="favorite-name">${favorite.name}</div>
+                                <div class="favorite-sub">${subtitle}</div>
+                            </div>
+                        </div>
+                        <div class="favorite-points">
+                            <div class="favorite-points-value">${favorite.points}</div>
+                            <div class="favorite-points-label">pts</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function setFavoriteDriver(name, team, number, points, colorClass, image, pos) {
+            const favorite = {
+                type: "driver",
+                name,
+                team,
+                number,
+                points,
+                colorClass,
+                image,
+                pos
+            };
+
+            const wasTeams = document.getElementById("teamsBtn")?.classList.contains("active");
+            localStorage.setItem("racecontrolFavorite", JSON.stringify(favorite));
+
+            showStandings();
+            if (wasTeams) showTeamsStandings();
+        }
+
+        function setFavoriteTeam(name, drivers, points, colorClass, pos) {
+            const favorite = {
+                type: "team",
+                name,
+                drivers,
+                points,
+                colorClass,
+                pos
+            };
+
+            const wasTeams = document.getElementById("teamsBtn")?.classList.contains("active");
+            localStorage.setItem("racecontrolFavorite", JSON.stringify(favorite));
+
+            showStandings();
+            if (wasTeams) showTeamsStandings();
         }
 
         function showCalendar() {
