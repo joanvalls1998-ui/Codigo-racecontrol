@@ -1,5 +1,107 @@
+function extractResponseText(data) {
+  if (typeof data.output_text === "string" && data.output_text.trim()) {
+    return data.output_text.trim();
+  }
+
+  if (Array.isArray(data.output)) {
+    const parts = [];
+
+    for (const item of data.output) {
+      if (!Array.isArray(item.content)) continue;
+
+      for (const content of item.content) {
+        if (typeof content.text === "string" && content.text.trim()) {
+          parts.push(content.text.trim());
+        }
+      }
+    }
+
+    if (parts.length) return parts.join("\n\n");
+  }
+
+  return "No se pudo generar la predicción.";
+}
+
 export default async function handler(req, res) {
-  const prompt = `
+  if (req.method !== "POST") {
+    return res.status(405).json({
+      error: "Method not allowed"
+    });
+  }
+
+  try {
+    const body =
+      typeof req.body === "string"
+        ? JSON.parse(req.body || "{}")
+        : (req.body || {});
+
+    const favorite = body.favorite || {
+      type: "driver",
+      name: "Fernando Alonso",
+      team: "Aston Martin",
+      number: "14",
+      points: "0",
+      pos: "22",
+      colorClass: "aston"
+    };
+
+    const raceName = body.raceName || "GP Miami";
+
+    const focusBlock =
+      favorite.type === "team"
+        ? `
+Centro principal del análisis: equipo ${favorite.name}.
+Pilotos del equipo: ${favorite.drivers || "No especificados"}.
+No centres la respuesta en Fernando Alonso salvo que el equipo favorito sea Aston Martin.
+`
+        : `
+Centro principal del análisis: piloto ${favorite.name}.
+Equipo del piloto: ${favorite.team || "Desconocido"}.
+Posición actual estimada: P${favorite.pos || "?"}.
+Puntos actuales estimados: ${favorite.points || "0"}.
+`;
+
+    const outputFormat =
+      favorite.type === "team"
+        ? `
+Salida en este formato EXACTO:
+
+PREDICCIÓN ${raceName.toUpperCase()}
+
+Favorito seleccionado:
+Equipo:
+Pilotos:
+Ritmo estimado clasificación:
+Ritmo estimado carrera:
+Probabilidad de puntos dobles (%):
+Probabilidad de podio (%):
+Probabilidad de DNF del equipo (%):
+Probabilidad lluvia (%):
+Probabilidad Safety Car (%):
+Estrategia más probable:
+Número de paradas:
+Resumen:
+`
+        : `
+Salida en este formato EXACTO:
+
+PREDICCIÓN ${raceName.toUpperCase()}
+
+Favorito seleccionado:
+Piloto:
+Equipo:
+Predicción clasificación:
+Predicción carrera:
+Probabilidad de puntos (%):
+Probabilidad de DNF (%):
+Probabilidad lluvia (%):
+Probabilidad Safety Car (%):
+Estrategia más probable:
+Número de paradas:
+Resumen:
+`;
+
+    const prompt = `
 Actúa como analista de Fórmula 1 en 2026.
 
 Haz una predicción realista para la próxima carrera teniendo en cuenta:
@@ -9,29 +111,18 @@ Haz una predicción realista para la próxima carrera teniendo en cuenta:
 - Degradación de neumáticos
 - Historial del circuito
 - Fiabilidad de los equipos
-- Situación actual de Aston Martin y Fernando Alonso
+- Equipos top actuales
+- Situación actual del favorito seleccionado
 
-Salida en este formato:
+${focusBlock}
 
-PREDICCIÓN GP MIAMI
+No inventes certezas absolutas.
+Sé prudente, realista y directo.
+La respuesta debe estar en español.
 
-Favorito para la victoria:
-Equipos con más ritmo:
-Equipos con peor ritmo:
-
-Predicción Alonso clasificación:
-Predicción Alonso carrera:
-Probabilidad de puntos Alonso (%):
-Probabilidad de DNF Alonso (%):
-
-Probabilidad lluvia (%):
-Probabilidad Safety Car (%):
-
-Estrategia más probable:
-Número de paradas:
+${outputFormat}
 `;
 
-  try {
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
@@ -53,9 +144,7 @@ Número de paradas:
       });
     }
 
-    const text =
-      data.output?.[0]?.content?.[0]?.text ||
-      "No se pudo generar la predicción.";
+    const text = extractResponseText(data);
 
     return res.status(200).json({ result: text });
   } catch (error) {
