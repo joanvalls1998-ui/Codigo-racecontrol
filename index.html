@@ -658,38 +658,79 @@ function showPredict() {
 }
 function showNews() {
     setActiveNav("nav-news");
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <h3 style="color: var(--aston);">NEWS · ASTON MARTIN / ALONSO</h3>
+            <p><span class="highlight">Focus:</span> Aston Martin, Fernando Alonso, Honda, rivales directos.</p>
+        </div>
 
-    const newsPrompt = `Haz un boletín de noticias de Fórmula 1 centrado en:
-- Aston Martin
-- Fernando Alonso
-- Adrian Newey
-- Honda F1
-- Equipos top (Mercedes, Ferrari, McLaren, Red Bull)
+        <div class="card">
+            <h3 style="color: var(--aston);">ASTON MARTIN</h3>
 
-Solo noticias relevantes recientes.
+            <div class="news-item">
+                <p><span class="highlight">El equipo sigue centrado en fiabilidad y ejecución limpia de fin de semana.</span></p>
+                <div class="news-source">RaceControl internal briefing</div>
+            </div>
 
-Formato:
+            <div class="news-item">
+                <p><span class="highlight">La prioridad actual sigue siendo completar carreras y acercarse a la zona de puntos.</span></p>
+                <div class="news-source">Performance summary</div>
+            </div>
+        </div>
 
-BOLETÍN F1
+        <div class="card">
+            <h3 style="color: var(--aston);">FERNANDO ALONSO</h3>
 
-Aston Martin:
--
+            <div class="news-item">
+                <p><span class="highlight">Alonso sigue siendo el principal activo competitivo del equipo.</span></p>
+                <div class="news-source">Driver performance model</div>
+            </div>
 
-Fernando Alonso:
--
+            <div class="news-item">
+                <p><span class="highlight">El rendimiento individual está por encima del potencial actual del coche.</span></p>
+                <div class="news-source">Driver pace comparison</div>
+            </div>
+        </div>
 
-Adrian Newey:
--
+        <div class="card">
+            <h3 style="color: var(--mclaren);">RIVALES DIRECTOS</h3>
 
-Honda:
--
+            <div class="news-item">
+                <p><span class="highlight">Mercedes mantiene la referencia del campeonato tras un inicio dominante.</span></p>
+                <div class="news-source">Championship form</div>
+            </div>
 
-Situación campeonato:
--`;
+            <div class="news-item">
+                <p><span class="highlight">Ferrari sigue como segunda fuerza más estable en ritmo global.</span></p>
+                <div class="news-source">Team pace trend</div>
+            </div>
 
-    document.getElementById("content").innerHTML = renderStorageBlock("Noticias IA", "newsSaved", newsPrompt);
+            <div class="news-item">
+                <p><span class="highlight">McLaren y Red Bull siguen marcando el listón de la zona alta detrás de Mercedes y Ferrari.</span></p>
+                <div class="news-source">Grid analysis</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>TEAM IMPACT METER</h3>
+
+            <div class="stat">Aston Martin relevance this week <span>74%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:74%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Alonso media focus <span>81%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:81%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Honda pressure level <span>69%</span></div>
+            <div class="bar">
+                <div class="bar-fill ferrari" style="width:69%;"></div>
+            </div>
+        </div>
+    `;
 }
-
 function showIA() {
     setActiveNav("nav-ia");
     document.getElementById("content").innerHTML = `
