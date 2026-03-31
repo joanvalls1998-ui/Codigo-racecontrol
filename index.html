@@ -1,83 +1,129 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>RaceControl</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <style>
         :root {
             --bg: #050505;
-            --panel: #111111;
-            --panel-2: #151515;
+            --panel: rgba(20, 20, 20, 0.88);
+            --panel-2: rgba(28, 28, 30, 0.88);
             --text: #ffffff;
             --muted: #8e8e93;
-            --line: #262626;
+            --line: rgba(255, 255, 255, 0.08);
 
             --aston: #00d2be;
             --mercedes: #00aaff;
             --ferrari: #ff3b30;
             --mclaren: #ff8700;
-            --redbull: #1e3a8a;
+            --redbull: #2446ff;
             --alpine: #4cc9f0;
             --williams: #3a86ff;
-            --audi: #aaaaaa;
+            --audi: #b8b8b8;
             --cadillac: #c6a300;
-            --haas: #999999;
+            --haas: #c9c9c9;
             --rb: #2a6aff;
+
+            --shadow: 0 12px 28px rgba(0,0,0,0.28);
+            --radius: 22px;
         }
 
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background:
+                radial-gradient(circle at top, rgba(0, 210, 190, 0.08), transparent 28%),
+                linear-gradient(180deg, #060606 0%, #040404 100%);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Arial, sans-serif;
+        }
 
         body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
+            min-height: 100vh;
         }
 
         .header {
-            padding: 22px 18px 14px 18px;
-            border-bottom: 1px solid #111;
-            background: rgba(8,8,8,0.95);
-            backdrop-filter: blur(10px);
             position: sticky;
             top: 0;
+            z-index: 20;
+            padding: 20px 18px 14px 18px;
+            background: rgba(10, 10, 10, 0.72);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
 
         .title {
             font-size: 28px;
             font-weight: 800;
+            letter-spacing: -0.5px;
         }
 
         .subtitle {
-            color: var(--muted);
-            font-size: 13px;
             margin-top: 4px;
+            font-size: 13px;
+            color: var(--muted);
         }
 
         .container {
-            padding: 16px;
-            padding-bottom: 110px;
-            max-width: 760px;
+            max-width: 860px;
             margin: 0 auto;
+            padding: 16px 16px 120px 16px;
         }
 
         .card {
-            background: linear-gradient(180deg, #141414, #101010);
-            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(24,24,24,0.88), rgba(14,14,14,0.88));
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: var(--radius);
             padding: 16px;
             margin-bottom: 14px;
-            border: 1px solid #1f1f1f;
+            box-shadow: var(--shadow);
+        }
+
+        .favorite-card {
+            background: linear-gradient(135deg, rgba(0,210,190,0.18), rgba(255,255,255,0.04));
+            border: 1px solid rgba(0,210,190,0.28);
         }
 
         .card-title {
             font-size: 15px;
-            font-weight: 700;
+            font-weight: 800;
+            letter-spacing: 0.2px;
             margin-bottom: 12px;
+        }
+
+        .card-sub {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--muted);
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.06);
+            margin-bottom: 10px;
         }
 
         .stat {
             font-size: 14px;
             margin-bottom: 10px;
+            line-height: 1.35;
         }
 
         .stat span {
@@ -86,16 +132,17 @@
         }
 
         .bar {
+            width: 100%;
             height: 10px;
-            background: #1f1f1f;
-            border-radius: 10px;
-            overflow: hidden;
             margin-top: 6px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.08);
         }
 
         .bar-fill {
             height: 100%;
-            border-radius: 10px;
+            border-radius: 999px;
         }
 
         .aston { background: var(--aston); }
@@ -104,167 +151,618 @@
         .mclaren { background: var(--mclaren); }
         .redbull { background: var(--redbull); }
         .alpine { background: var(--alpine); }
+        .williams { background: var(--williams); }
+        .audi { background: var(--audi); }
+        .cadillac { background: var(--cadillac); }
+        .haas { background: var(--haas); }
+        .rb { background: var(--rb); }
+
+        .btn {
+            width: 100%;
+            border: 0;
+            border-radius: 16px;
+            padding: 14px 16px;
+            font-size: 15px;
+            font-weight: 800;
+            color: white;
+            background: linear-gradient(90deg, #e10600, #ff3b30);
+            box-shadow: 0 10px 20px rgba(225, 6, 0, 0.22);
+        }
+
+        .btn-secondary {
+            width: 100%;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 13px 16px;
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+            background: rgba(255,255,255,0.04);
+            margin-top: 10px;
+        }
 
         .nav {
             position: fixed;
             bottom: 0;
-            width: 100%;
-            background: rgba(10,10,10,0.95);
-            backdrop-filter: blur(10px);
+            left: 0;
+            right: 0;
+            z-index: 30;
             display: flex;
             justify-content: space-around;
-            padding: 12px 0 22px 0;
-            border-top: 1px solid #1f1f1f;
+            align-items: center;
+            padding: 10px 8px calc(12px + env(safe-area-inset-bottom)) 8px;
+            background: rgba(12, 12, 12, 0.82);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255,255,255,0.08);
         }
 
         .nav a {
-            color: #7a7a7a;
             text-decoration: none;
+            color: #7d7d82;
             font-size: 12px;
+            font-weight: 700;
+            min-width: 56px;
+            text-align: center;
+            padding: 8px 8px;
+            border-radius: 12px;
         }
 
         .nav a.active {
             color: white;
-            font-weight: 600;
+            background: rgba(255,255,255,0.06);
         }
 
-        .btn {
-            width: 100%;
-            border: none;
-            border-radius: 14px;
-            padding: 14px;
-            background: linear-gradient(90deg, #e10600, #ff3b30);
-            color: white;
-            font-size: 15px;
+        .favorite-label {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 10px;
+        }
+
+        .favorite-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .favorite-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .team-stripe {
+            width: 6px;
+            height: 54px;
+            border-radius: 10px;
+            background: var(--aston);
+            flex: 0 0 auto;
+        }
+
+        .driver-number {
+            font-size: 34px;
             font-weight: 800;
-            margin-top: 12px;
+            line-height: 1;
+            min-width: 42px;
+            text-align: center;
+            flex: 0 0 auto;
+        }
+
+        .favorite-name {
+            font-size: 18px;
+            font-weight: 800;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .favorite-sub {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .favorite-points {
+            text-align: right;
+            flex: 0 0 auto;
+        }
+
+        .favorite-points-value {
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .favorite-points-label {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .standings-toggle {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.04);
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 12px;
+            border-radius: 14px;
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(180deg, rgba(58,58,58,0.9), rgba(28,28,28,0.9));
+            border-color: rgba(255,255,255,0.12);
         }
 
         .standing-row {
             display: flex;
+            align-items: center;
             justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #262626;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--line);
         }
 
         .standing-row:last-child {
             border-bottom: none;
         }
 
-        .favorite-card {
-            background: linear-gradient(135deg, rgba(0,210,190,0.18), rgba(255,255,255,0.04));
-            border: 1px solid rgba(0,210,190,0.25);
+        .row-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .row-pos {
+            width: 24px;
+            color: var(--muted);
+            font-size: 13px;
+            flex: 0 0 auto;
+        }
+
+        .row-stripe {
+            width: 4px;
+            height: 44px;
+            border-radius: 8px;
+            flex: 0 0 auto;
+        }
+
+        .row-number {
+            width: 34px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1;
+            flex: 0 0 auto;
+        }
+
+        .row-info {
+            min-width: 0;
+        }
+
+        .row-name {
+            font-size: 15px;
+            font-weight: 800;
+            line-height: 1.15;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .row-team {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .row-points {
+            text-align: right;
+            font-size: 18px;
+            font-weight: 800;
+            flex: 0 0 auto;
+        }
+
+        .row-points small {
+            display: block;
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 500;
+            margin-top: 3px;
+        }
+
+        .news-item {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .news-item:last-child {
+            border-bottom: none;
+        }
+
+        .news-source {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .menu-link {
+            display: block;
+            text-decoration: none;
+            color: white;
+            font-weight: 700;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .menu-link:last-child {
+            border-bottom: none;
+        }
+
+        .list-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .list-line:last-child {
+            border-bottom: none;
+        }
+
+        .list-left {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .list-right {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .highlight {
+            color: white;
+            font-weight: 700;
+        }
+
+        pre.ai-output {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.5;
         }
     </style>
 </head>
 <body>
+    <div class="header">
+        <div class="title">RaceControl</div>
+        <div class="subtitle">F1 · Alonso · Aston Martin</div>
+    </div>
 
-<div class="header">
-    <div class="title">RaceControl</div>
-    <div class="subtitle">F1 · Alonso · Aston Martin</div>
-</div>
+    <div class="container" id="content"></div>
 
-<div class="container" id="content"></div>
+    <div class="nav">
+        <a href="#" id="nav-home" onclick="showHome(); return false;">Home</a>
+        <a href="#" id="nav-predict" onclick="showPredict(); return false;">Predict</a>
+        <a href="#" id="nav-aston" onclick="showAston(); return false;">Aston</a>
+        <a href="#" id="nav-news" onclick="showNews(); return false;">News</a>
+        <a href="#" id="nav-more" onclick="showMore(); return false;">More</a>
+    </div>
 
-<div class="nav">
-    <a href="#" id="nav-home" onclick="showHome()">Home</a>
-    <a href="#" id="nav-predict" onclick="showPredict()">Predict</a>
-    <a href="#" id="nav-aston" onclick="showAston()">Aston</a>
-    <a href="#" id="nav-news" onclick="showNews()">News</a>
-    <a href="#" id="nav-more" onclick="showMore()">More</a>
-</div>
+    <script>
+        function setActiveNav(tabId) {
+            const ids = ["nav-home", "nav-predict", "nav-aston", "nav-news", "nav-more"];
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove("active");
+            });
+            const active = document.getElementById(tabId);
+            if (active) active.classList.add("active");
+        }
 
-<script>
-function setActiveNav(tab) {
-    document.querySelectorAll(".nav a").forEach(el => el.classList.remove("active"));
-    document.getElementById(tab).classList.add("active");
-}
+        function showHome() {
+            setActiveNav("nav-home");
+            document.getElementById("content").innerHTML = `
+                <div class="card">
+                    <div class="card-title" style="color: var(--aston);">ALONSO STATUS</div>
+                    <div class="stat">Championship position <span>P22</span></div>
+                    <div class="stat">Points <span>0</span></div>
+                    <div class="stat">Last race result <span>DNF</span></div>
 
-function showHome() {
-    setActiveNav("nav-home");
-    document.getElementById("content").innerHTML = `
-        <div class="card">
-            <div class="card-title" style="color:#00d2be;">ALONSO STATUS</div>
-            <div class="stat">Championship position <span>P22</span></div>
-            <div class="stat">Points <span>0</span></div>
-            <div class="stat">Last race <span>DNF</span></div>
-        </div>
+                    <div class="stat" style="margin-top:12px;">Points probability (next GP) <span>32%</span></div>
+                    <div class="bar"><div class="bar-fill aston" style="width:32%;"></div></div>
 
-        <div class="card">
-            <div class="card-title">TEAM HIERARCHY</div>
-            <div class="stat">Mercedes <span>92%</span></div>
-            <div class="bar"><div class="bar-fill mercedes" style="width:92%"></div></div>
-            <div class="stat">Ferrari <span>88%</span></div>
-            <div class="bar"><div class="bar-fill ferrari" style="width:88%"></div></div>
-            <div class="stat">McLaren <span>84%</span></div>
-            <div class="bar"><div class="bar-fill mclaren" style="width:84%"></div></div>
-            <div class="stat">Aston Martin <span>72%</span></div>
-            <div class="bar"><div class="bar-fill aston" style="width:72%"></div></div>
-        </div>
-    `;
-}
+                    <div class="stat" style="margin-top:12px;">DNF risk <span>28%</span></div>
+                    <div class="bar"><div class="bar-fill ferrari" style="width:28%;"></div></div>
+                </div>
 
-function showPredict() {
-    setActiveNav("nav-predict");
-    document.getElementById("content").innerHTML = `
-        <div class="card">
-            <div class="card-title">PREDICT</div>
-            <button class="btn">Generar predicción</button>
-        </div>
-    `;
-}
+                <div class="card">
+                    <div class="card-title" style="color: var(--aston);">ASTON MARTIN STATUS</div>
+                    <div class="stat">Race pace <span>72%</span></div>
+                    <div class="bar"><div class="bar-fill aston" style="width:72%;"></div></div>
 
-function showAston() {
-    setActiveNav("nav-aston");
-    document.getElementById("content").innerHTML = `
-        <div class="card">
-            <div class="card-title" style="color:#00d2be;">ASTON MARTIN</div>
-            <div class="stat">Race pace <span>72%</span></div>
-            <div class="bar"><div class="bar-fill aston" style="width:72%"></div></div>
-            <div class="stat">Reliability <span>61%</span></div>
-            <div class="bar"><div class="bar-fill ferrari" style="width:61%"></div></div>
-        </div>
-    `;
-}
+                    <div class="stat" style="margin-top:12px;">Qualifying pace <span>68%</span></div>
+                    <div class="bar"><div class="bar-fill aston" style="width:68%;"></div></div>
 
-function showNews() {
-    setActiveNav("nav-news");
-    document.getElementById("content").innerHTML = `
-        <div class="card">
-            <div class="card-title">NEWS</div>
-            <p>Aston Martin trabajando en mejoras de fiabilidad.</p>
-            <p>Mercedes domina el inicio de temporada.</p>
-        </div>
-    `;
-}
+                    <div class="stat" style="margin-top:12px;">Reliability <span>61%</span></div>
+                    <div class="bar"><div class="bar-fill mclaren" style="width:61%;"></div></div>
 
-function showMore() {
-    setActiveNav("nav-more");
-    document.getElementById("content").innerHTML = `
-        <div class="card favorite-card">
-            <div class="card-title">Fernando Alonso · Favorito</div>
-            <p>Posición: P22</p>
-            <p>Puntos: 0</p>
-        </div>
+                    <div class="stat" style="margin-top:12px;">Honda PU status <span>Risk</span></div>
+                </div>
 
-        <div class="card">
-            <div class="card-title">Standings Top 10</div>
-            <div class="standing-row"><span>1. Antonelli</span><span>72</span></div>
-            <div class="standing-row"><span>2. Russell</span><span>63</span></div>
-            <div class="standing-row"><span>3. Leclerc</span><span>49</span></div>
-            <div class="standing-row"><span>4. Hamilton</span><span>41</span></div>
-            <div class="standing-row"><span>5. Norris</span><span>25</span></div>
-            <div class="standing-row"><span>6. Piastri</span><span>21</span></div>
-            <div class="standing-row"><span>7. Bearman</span><span>17</span></div>
-            <div class="standing-row"><span>8. Gasly</span><span>15</span></div>
-            <div class="standing-row"><span>9. Verstappen</span><span>12</span></div>
-            <div class="standing-row"><span>10. Lawson</span><span>10</span></div>
-        </div>
-    `;
-}
+                <div class="card">
+                    <div class="card-title" style="color: var(--mclaren);">NEXT RACE</div>
+                    <div class="stat">Safety Car probability <span>42%</span></div>
+                    <div class="bar"><div class="bar-fill mclaren" style="width:42%;"></div></div>
 
-showHome();
-</script>
+                    <div class="stat" style="margin-top:12px;">Rain probability <span>18%</span></div>
+                    <div class="bar"><div class="bar-fill alpine" style="width:18%;"></div></div>
 
+                    <div class="stat" style="margin-top:12px;">Strategy window <span>Lap 14 - 20</span></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">TEAM HIERARCHY</div>
+                    <div class="stat">Mercedes <span>92%</span></div>
+                    <div class="bar"><div class="bar-fill mercedes" style="width:92%;"></div></div>
+
+                    <div class="stat" style="margin-top:12px;">Ferrari <span>88%</span></div>
+                    <div class="bar"><div class="bar-fill ferrari" style="width:88%;"></div></div>
+
+                    <div class="stat" style="margin-top:12px;">McLaren <span>84%</span></div>
+                    <div class="bar"><div class="bar-fill mclaren" style="width:84%;"></div></div>
+
+                    <div class="stat" style="margin-top:12px;">Red Bull <span>80%</span></div>
+                    <div class="bar"><div class="bar-fill redbull" style="width:80%;"></div></div>
+
+                    <div class="stat" style="margin-top:12px;">Aston Martin <span>72%</span></div>
+                    <div class="bar"><div class="bar-fill aston" style="width:72%;"></div></div>
+                </div>
+            `;
+        }
+
+        function showPredict() {
+            setActiveNav("nav-predict");
+            document.getElementById("content").innerHTML = `
+                <div class="card">
+                    <div class="pill">IA · PREPARADO</div>
+                    <div class="card-title">PREDICT</div>
+                    <div class="card-sub">Base estable. Conectaremos GPT en el siguiente paso.</div>
+                    <button class="btn" onclick="document.getElementById('predictOutput').innerText='La integración de IA va en el siguiente paso.'">
+                        Generar predicción
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">AI RESULT</div>
+                    <pre id="predictOutput" class="ai-output">Todavía no hay IA conectada en esta base estable.</pre>
+                </div>
+            `;
+        }
+
+        function showAston() {
+            setActiveNav("nav-aston");
+            document.getElementById("content").innerHTML = `
+                <div class="card">
+                    <div class="card-title" style="color: var(--aston);">ASTON MARTIN</div>
+                    <div class="card-sub">Panel técnico base</div>
+
+                    <div class="stat">Race pace <span>72%</span></div>
+                    <div class="bar"><div class="bar-fill aston" style="width:72%;"></div></div>
+
+                    <div class="stat" style="margin-top:12px;">Qualifying pace <span>68%</span></div>
+                    <div class="bar"><div class="bar-fill aston" style="width:68%;"></div></div>
+
+                    <div class="stat" style="margin-top:12px;">Reliability <span>61%</span></div>
+                    <div class="bar"><div class="bar-fill ferrari" style="width:61%;"></div></div>
+
+                    <div class="stat" style="margin-top:12px;">Power unit risk <span>Medium</span></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">ALONSO vs STROLL</div>
+                    <div class="stat">Alonso performance <span>88%</span></div>
+                    <div class="bar"><div class="bar-fill aston" style="width:88%;"></div></div>
+
+                    <div class="stat" style="margin-top:12px;">Stroll performance <span>82%</span></div>
+                    <div class="bar"><div class="bar-fill aston" style="width:82%;"></div></div>
+                </div>
+            `;
+        }
+
+        function showNews() {
+            setActiveNav("nav-news");
+            document.getElementById("content").innerHTML = `
+                <div class="card">
+                    <div class="card-title">NEWS</div>
+
+                    <div class="news-item">
+                        <div>Aston Martin sigue centrado en fiabilidad y fines de semana limpios.</div>
+                        <div class="news-source">RaceControl briefing</div>
+                    </div>
+
+                    <div class="news-item">
+                        <div>Mercedes mantiene la referencia del campeonato.</div>
+                        <div class="news-source">Championship form</div>
+                    </div>
+
+                    <div class="news-item">
+                        <div>Ferrari sigue como segunda fuerza más estable.</div>
+                        <div class="news-source">Team pace trend</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showMore() {
+            setActiveNav("nav-more");
+            document.getElementById("content").innerHTML = `
+                <div class="card">
+                    <div class="card-title">MORE</div>
+                    <a href="#" class="menu-link" onclick="showStandings(); return false;">Standings</a>
+                    <a href="#" class="menu-link" onclick="showCalendar(); return false;">Calendar</a>
+                </div>
+            `;
+        }
+
+        function showStandings() {
+            setActiveNav("nav-more");
+            document.getElementById("content").innerHTML = `
+                <div class="card favorite-card">
+                    <div class="favorite-label">Favorito</div>
+                    <div class="favorite-main">
+                        <div class="favorite-left">
+                            <div class="team-stripe" style="background: var(--aston);"></div>
+                            <div class="driver-number" style="color: var(--aston);">14</div>
+                            <div>
+                                <div class="favorite-name">Fernando Alonso</div>
+                                <div class="favorite-sub">Aston Martin · P22</div>
+                            </div>
+                        </div>
+                        <div class="favorite-points">
+                            <div class="favorite-points-value">0</div>
+                            <div class="favorite-points-label">pts</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Standings</div>
+                    <div class="standings-toggle">
+                        <button class="toggle-btn active" id="driversBtn" onclick="showDriversStandings()">Drivers</button>
+                        <button class="toggle-btn" id="teamsBtn" onclick="showTeamsStandings()">Teams</button>
+                    </div>
+                </div>
+
+                <div id="standingsContent"></div>
+            `;
+            showDriversStandings();
+        }
+
+        function showDriversStandings() {
+            document.getElementById("driversBtn").classList.add("active");
+            document.getElementById("teamsBtn").classList.remove("active");
+
+            document.getElementById("standingsContent").innerHTML = `
+                <div class="card">
+                    ${driverRow(1, "12", "Kimi Antonelli", "Mercedes", "72", "mercedes")}
+                    ${driverRow(2, "63", "George Russell", "Mercedes", "63", "mercedes")}
+                    ${driverRow(3, "16", "Charles Leclerc", "Ferrari", "49", "ferrari")}
+                    ${driverRow(4, "44", "Lewis Hamilton", "Ferrari", "41", "ferrari")}
+                    ${driverRow(5, "1", "Lando Norris", "McLaren", "25", "mclaren")}
+                    ${driverRow(6, "81", "Oscar Piastri", "McLaren", "21", "mclaren")}
+                    ${driverRow(7, "87", "Oliver Bearman", "Haas", "17", "haas")}
+                    ${driverRow(8, "10", "Pierre Gasly", "Alpine", "15", "alpine")}
+                    ${driverRow(9, "3", "Max Verstappen", "Red Bull", "12", "redbull")}
+                    ${driverRow(10, "30", "Liam Lawson", "Racing Bulls", "10", "rb")}
+                    ${driverRow(11, "41", "Arvid Lindblad", "Racing Bulls", "4", "rb")}
+                    ${driverRow(12, "6", "Isack Hadjar", "Red Bull", "4", "redbull")}
+                    ${driverRow(13, "5", "Gabriel Bortoleto", "Audi", "2", "audi")}
+                    ${driverRow(14, "55", "Carlos Sainz", "Williams", "2", "williams")}
+                    ${driverRow(15, "31", "Esteban Ocon", "Haas", "1", "haas")}
+                    ${driverRow(16, "43", "Franco Colapinto", "Alpine", "1", "alpine")}
+                    ${driverRow(17, "27", "Nico Hülkenberg", "Audi", "0", "audi")}
+                    ${driverRow(18, "23", "Alexander Albon", "Williams", "0", "williams")}
+                    ${driverRow(19, "77", "Valtteri Bottas", "Cadillac", "0", "cadillac")}
+                    ${driverRow(20, "11", "Sergio Perez", "Cadillac", "0", "cadillac")}
+                    ${driverRow(21, "18", "Lance Stroll", "Aston Martin", "0", "aston")}
+                    ${driverRow(22, "14", "Fernando Alonso", "Aston Martin", "0", "aston")}
+                </div>
+            `;
+        }
+
+        function showTeamsStandings() {
+            document.getElementById("driversBtn").classList.remove("active");
+            document.getElementById("teamsBtn").classList.add("active");
+
+            document.getElementById("standingsContent").innerHTML = `
+                <div class="card">
+                    ${teamRow(1, "Mercedes", "Russell · Antonelli", "135", "mercedes")}
+                    ${teamRow(2, "Ferrari", "Leclerc · Hamilton", "90", "ferrari")}
+                    ${teamRow(3, "McLaren", "Norris · Piastri", "46", "mclaren")}
+                    ${teamRow(4, "Haas", "Ocon · Bearman", "18", "haas")}
+                    ${teamRow(5, "Alpine", "Gasly · Colapinto", "16", "alpine")}
+                    ${teamRow(6, "Red Bull", "Verstappen · Hadjar", "16", "redbull")}
+                    ${teamRow(7, "Racing Bulls", "Lawson · Lindblad", "14", "rb")}
+                    ${teamRow(8, "Audi", "Hülkenberg · Bortoleto", "2", "audi")}
+                    ${teamRow(9, "Williams", "Sainz · Albon", "2", "williams")}
+                    ${teamRow(10, "Cadillac", "Perez · Bottas", "0", "cadillac")}
+                    ${teamRow(11, "Aston Martin", "Alonso · Stroll", "0", "aston")}
+                </div>
+            `;
+        }
+
+        function driverRow(pos, number, name, team, points, colorClass) {
+            return `
+                <div class="standing-row">
+                    <div class="row-left">
+                        <div class="row-pos">${pos}</div>
+                        <div class="row-stripe ${colorClass}"></div>
+                        <div class="row-number" style="color: var(--${colorClass});">${number}</div>
+                        <div class="row-info">
+                            <div class="row-name">${name}</div>
+                            <div class="row-team">${team}</div>
+                        </div>
+                    </div>
+                    <div class="row-points">${points}<small>pts</small></div>
+                </div>
+            `;
+        }
+
+        function teamRow(pos, team, drivers, points, colorClass) {
+            return `
+                <div class="standing-row">
+                    <div class="row-left">
+                        <div class="row-pos">${pos}</div>
+                        <div class="row-stripe ${colorClass}"></div>
+                        <div class="row-info">
+                            <div class="row-name" style="color: var(--${colorClass});">${team}</div>
+                            <div class="row-team">${drivers}</div>
+                        </div>
+                    </div>
+                    <div class="row-points">${points}<small>pts</small></div>
+                </div>
+            `;
+        }
+
+        function showCalendar() {
+            setActiveNav("nav-more");
+            document.getElementById("content").innerHTML = `
+                <div class="card">
+                    <div class="card-title">CALENDAR</div>
+                    <div class="card-sub">Base estable del calendario</div>
+
+                    <div class="list-line"><div class="list-left">Australia</div><div class="list-right">Completed</div></div>
+                    <div class="list-line"><div class="list-left">China</div><div class="list-right">Completed</div></div>
+                    <div class="list-line"><div class="list-left">Japan</div><div class="list-right">Completed</div></div>
+                    <div class="list-line"><div class="list-left">Miami</div><div class="list-right">Next</div></div>
+                    <div class="list-line"><div class="list-left">Canada</div><div class="list-right">Upcoming</div></div>
+                    <div class="list-line"><div class="list-left">Monaco</div><div class="list-right">Upcoming</div></div>
+                </div>
+            `;
+        }
+
+        showHome();
+    </script>
 </body>
 </html>
