@@ -7,10 +7,15 @@
 
     <style>
         :root {
-            --bg: #050505;
+            --bg: #040506;
+            --bg-2: #071116;
             --text: #ffffff;
-            --muted: #8e8e93;
-            --line: rgba(255, 255, 255, 0.08);
+            --muted: rgba(235, 235, 245, 0.62);
+            --muted-2: rgba(235, 235, 245, 0.42);
+            --line: rgba(255, 255, 255, 0.10);
+            --glass: rgba(255,255,255,0.08);
+            --glass-2: rgba(255,255,255,0.04);
+            --glass-3: rgba(255,255,255,0.12);
 
             --aston: #00d2be;
             --mercedes: #00aaff;
@@ -24,8 +29,14 @@
             --haas: #c9c9c9;
             --rb: #2a6aff;
 
-            --shadow: 0 12px 28px rgba(0,0,0,0.28);
-            --radius: 22px;
+            --radius-xl: 28px;
+            --radius-lg: 24px;
+            --radius-md: 18px;
+            --radius-sm: 14px;
+
+            --shadow-soft: 0 20px 60px rgba(0,0,0,0.34);
+            --shadow-card: 0 18px 40px rgba(0,0,0,0.28);
+            --shadow-nav: 0 18px 50px rgba(0,0,0,0.42);
         }
 
         * {
@@ -36,182 +47,302 @@
         html, body {
             margin: 0;
             padding: 0;
-            background:
-                radial-gradient(circle at top, rgba(0, 210, 190, 0.08), transparent 28%),
-                linear-gradient(180deg, #060606 0%, #040404 100%);
+            min-height: 100%;
             color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Arial, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(0,210,190,0.16), transparent 28%),
+                radial-gradient(circle at top right, rgba(58,134,255,0.12), transparent 24%),
+                radial-gradient(circle at bottom center, rgba(255,255,255,0.04), transparent 30%),
+                linear-gradient(180deg, #06090c 0%, #040506 100%);
         }
 
         body {
-            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before,
+        body::after {
+            content: "";
+            position: fixed;
+            inset: auto;
+            border-radius: 999px;
+            pointer-events: none;
+            filter: blur(80px);
+            opacity: 0.55;
+            z-index: 0;
+        }
+
+        body::before {
+            width: 220px;
+            height: 220px;
+            top: 120px;
+            left: -60px;
+            background: rgba(0,210,190,0.16);
+        }
+
+        body::after {
+            width: 260px;
+            height: 260px;
+            right: -80px;
+            bottom: 120px;
+            background: rgba(58,134,255,0.12);
+        }
+
+        .app {
+            position: relative;
+            z-index: 1;
         }
 
         .header {
             position: sticky;
             top: 0;
-            z-index: 20;
-            padding: 20px 18px 14px 18px;
-            background: rgba(10, 10, 10, 0.72);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            z-index: 30;
+            padding:
+                calc(16px + env(safe-area-inset-top))
+                16px
+                10px
+                16px;
+            background: linear-gradient(180deg, rgba(5,7,9,0.78), rgba(5,7,9,0.42));
+            backdrop-filter: blur(22px) saturate(180%);
+            -webkit-backdrop-filter: blur(22px) saturate(180%);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .header-shell {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 16px 18px;
+            border-radius: 24px;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
+            border: 1px solid rgba(255,255,255,0.10);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.10),
+                0 12px 30px rgba(0,0,0,0.20);
         }
 
         .title {
-            font-size: 28px;
+            font-size: 31px;
             font-weight: 800;
-            letter-spacing: -0.5px;
+            letter-spacing: -0.8px;
+            line-height: 1.02;
         }
 
         .subtitle {
-            margin-top: 4px;
-            font-size: 13px;
+            margin-top: 6px;
+            font-size: 14px;
             color: var(--muted);
+            letter-spacing: -0.1px;
         }
 
         .container {
             max-width: 860px;
             margin: 0 auto;
-            padding: 16px 16px 120px 16px;
+            padding: 16px 16px 132px 16px;
         }
 
         .card {
-            background: linear-gradient(180deg, rgba(24,24,24,0.88), rgba(14,14,14,0.88));
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255,255,255,0.07);
-            border-radius: var(--radius);
-            padding: 16px;
+            position: relative;
+            overflow: hidden;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05));
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: var(--radius-xl);
+            padding: 18px;
             margin-bottom: 14px;
-            box-shadow: var(--shadow);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.08),
+                inset 0 -1px 0 rgba(255,255,255,0.03),
+                var(--shadow-card);
         }
 
+        .card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.12), transparent 30%, transparent 70%, rgba(255,255,255,0.04));
+            pointer-events: none;
+            opacity: 0.55;
+        }
+
+        .home-hero,
         .favorite-card {
-            background: linear-gradient(135deg, rgba(0,210,190,0.18), rgba(255,255,255,0.04));
-            border: 1px solid rgba(0,210,190,0.28);
-        }
-
-        .home-hero {
-            background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+            background:
+                radial-gradient(circle at top left, rgba(0,210,190,0.16), transparent 42%),
+                linear-gradient(180deg, rgba(255,255,255,0.11), rgba(255,255,255,0.05));
+            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.10),
+                0 24px 50px rgba(0,0,0,0.32),
+                0 0 0 1px rgba(0,210,190,0.08);
         }
 
         .card-title {
-            font-size: 15px;
+            position: relative;
+            z-index: 1;
+            font-size: 16px;
             font-weight: 800;
-            letter-spacing: 0.2px;
+            letter-spacing: -0.2px;
             margin-bottom: 12px;
         }
 
         .card-sub {
-            font-size: 12px;
+            position: relative;
+            z-index: 1;
+            font-size: 13px;
             color: var(--muted);
             margin-bottom: 10px;
+            line-height: 1.45;
         }
 
         .pill {
-            display: inline-block;
-            padding: 6px 10px;
+            position: relative;
+            z-index: 1;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 12px;
             border-radius: 999px;
             font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            color: var(--muted);
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.06);
-            margin-bottom: 10px;
+            font-weight: 800;
+            letter-spacing: 0.7px;
+            color: rgba(255,255,255,0.74);
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.10);
+            margin-bottom: 12px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
         }
 
         .stat {
-            font-size: 14px;
+            position: relative;
+            z-index: 1;
+            font-size: 15px;
             margin-bottom: 10px;
             line-height: 1.35;
+            color: rgba(255,255,255,0.94);
         }
 
         .stat span {
             float: right;
-            color: var(--muted);
+            color: rgba(255,255,255,0.76);
+            font-weight: 700;
         }
 
         .bar {
+            position: relative;
+            z-index: 1;
             width: 100%;
-            height: 10px;
-            margin-top: 6px;
+            height: 12px;
+            margin-top: 7px;
             border-radius: 999px;
             overflow: hidden;
             background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.04);
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.25);
         }
 
         .bar-fill {
             height: 100%;
             border-radius: 999px;
+            box-shadow:
+                0 0 14px rgba(255,255,255,0.18),
+                inset 0 1px 0 rgba(255,255,255,0.25);
         }
 
-        .aston { background: var(--aston); }
-        .mercedes { background: var(--mercedes); }
-        .ferrari { background: var(--ferrari); }
-        .mclaren { background: var(--mclaren); }
-        .redbull { background: var(--redbull); }
-        .alpine { background: var(--alpine); }
-        .williams { background: var(--williams); }
-        .audi { background: var(--audi); }
-        .cadillac { background: var(--cadillac); }
-        .haas { background: var(--haas); }
-        .rb { background: var(--rb); }
+        .aston { background: linear-gradient(90deg, rgba(0,210,190,0.9), rgba(132,255,242,0.92)); }
+        .mercedes { background: linear-gradient(90deg, rgba(0,170,255,0.9), rgba(126,226,255,0.95)); }
+        .ferrari { background: linear-gradient(90deg, rgba(255,59,48,0.92), rgba(255,120,98,0.96)); }
+        .mclaren { background: linear-gradient(90deg, rgba(255,135,0,0.92), rgba(255,200,84,0.96)); }
+        .redbull { background: linear-gradient(90deg, rgba(36,70,255,0.9), rgba(93,151,255,0.95)); }
+        .alpine { background: linear-gradient(90deg, rgba(76,201,240,0.9), rgba(161,235,255,0.95)); }
+        .williams { background: linear-gradient(90deg, rgba(58,134,255,0.9), rgba(125,184,255,0.95)); }
+        .audi { background: linear-gradient(90deg, rgba(184,184,184,0.85), rgba(240,240,240,0.96)); }
+        .cadillac { background: linear-gradient(90deg, rgba(198,163,0,0.9), rgba(255,228,114,0.96)); }
+        .haas { background: linear-gradient(90deg, rgba(201,201,201,0.85), rgba(243,243,243,0.95)); }
+        .rb { background: linear-gradient(90deg, rgba(42,106,255,0.9), rgba(121,171,255,0.95)); }
 
         .btn {
+            position: relative;
+            z-index: 1;
             width: 100%;
             border: 0;
-            border-radius: 16px;
-            padding: 14px 16px;
-            font-size: 15px;
+            border-radius: 18px;
+            padding: 16px 18px;
+            font-size: 16px;
             font-weight: 800;
+            letter-spacing: -0.2px;
             color: white;
-            background: linear-gradient(90deg, #e10600, #ff3b30);
-            box-shadow: 0 10px 20px rgba(225, 6, 0, 0.22);
+            background: linear-gradient(90deg, #ff2a20, #ff5b4f);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.18),
+                0 14px 28px rgba(225, 6, 0, 0.28);
+        }
+
+        .btn:active {
+            transform: scale(0.995);
         }
 
         .nav {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 30;
+            left: 12px;
+            right: 12px;
+            bottom: calc(12px + env(safe-area-inset-bottom));
+            z-index: 40;
             display: flex;
             justify-content: space-around;
             align-items: center;
-            padding: 10px 8px calc(12px + env(safe-area-inset-bottom)) 8px;
-            background: rgba(12, 12, 12, 0.82);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(255,255,255,0.08);
+            gap: 6px;
+            padding: 8px;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.11), rgba(255,255,255,0.05));
+            backdrop-filter: blur(26px) saturate(190%);
+            -webkit-backdrop-filter: blur(26px) saturate(190%);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 24px;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.10),
+                var(--shadow-nav);
         }
 
         .nav a {
             text-decoration: none;
-            color: #7d7d82;
-            font-size: 12px;
-            font-weight: 700;
+            color: rgba(255,255,255,0.54);
+            font-size: 13px;
+            font-weight: 800;
             min-width: 56px;
             text-align: center;
-            padding: 8px 8px;
-            border-radius: 12px;
+            padding: 13px 10px;
+            border-radius: 18px;
+            transition: 0.18s ease;
         }
 
         .nav a.active {
             color: white;
-            background: rgba(255,255,255,0.06);
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.08));
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.10),
+                0 10px 20px rgba(0,0,0,0.18);
         }
 
         .favorite-label {
+            position: relative;
+            z-index: 1;
             font-size: 11px;
-            color: var(--muted);
+            color: rgba(255,255,255,0.56);
             text-transform: uppercase;
-            letter-spacing: 0.8px;
-            margin-bottom: 10px;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
         }
 
         .favorite-main {
+            position: relative;
+            z-index: 1;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -221,40 +352,43 @@
         .favorite-left {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
             min-width: 0;
         }
 
         .team-stripe {
-            width: 6px;
-            height: 54px;
-            border-radius: 10px;
+            width: 7px;
+            height: 58px;
+            border-radius: 999px;
             background: var(--aston);
             flex: 0 0 auto;
+            box-shadow: 0 0 18px rgba(0,210,190,0.40);
         }
 
         .driver-number {
-            font-size: 34px;
+            font-size: 38px;
             font-weight: 800;
             line-height: 1;
-            min-width: 42px;
+            min-width: 44px;
             text-align: center;
             flex: 0 0 auto;
+            letter-spacing: -1px;
         }
 
         .favorite-name {
-            font-size: 18px;
+            font-size: 19px;
             font-weight: 800;
-            line-height: 1.1;
+            line-height: 1.08;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            letter-spacing: -0.35px;
         }
 
         .favorite-sub {
             font-size: 13px;
             color: var(--muted);
-            margin-top: 4px;
+            margin-top: 5px;
         }
 
         .favorite-points {
@@ -263,9 +397,10 @@
         }
 
         .favorite-points-value {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: 800;
             line-height: 1;
+            letter-spacing: -0.5px;
         }
 
         .favorite-points-label {
@@ -276,6 +411,8 @@
         }
 
         .hero-main {
+            position: relative;
+            z-index: 1;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -285,39 +422,42 @@
         .hero-left {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
             min-width: 0;
         }
 
         .hero-avatar {
-            width: 54px;
-            height: 54px;
+            width: 58px;
+            height: 58px;
             border-radius: 50%;
             object-fit: cover;
             flex: 0 0 auto;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.10);
             background: rgba(255,255,255,0.04);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.20);
         }
 
         .hero-badge {
             min-width: 52px;
             text-align: center;
-            font-size: 28px;
+            font-size: 30px;
             font-weight: 800;
             line-height: 1;
             flex: 0 0 auto;
+            letter-spacing: -1px;
         }
 
         .hero-name {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 800;
-            line-height: 1.1;
+            line-height: 1.06;
+            letter-spacing: -0.55px;
         }
 
         .hero-sub {
             font-size: 13px;
             color: var(--muted);
-            margin-top: 4px;
+            margin-top: 5px;
         }
 
         .hero-points {
@@ -326,7 +466,7 @@
         }
 
         .hero-points-value {
-            font-size: 26px;
+            font-size: 28px;
             font-weight: 800;
             line-height: 1;
         }
@@ -339,6 +479,8 @@
         }
 
         .standings-toggle {
+            position: relative;
+            z-index: 1;
             display: flex;
             gap: 10px;
             margin-top: 10px;
@@ -346,27 +488,31 @@
 
         .toggle-btn {
             flex: 1;
-            border: 1px solid rgba(255,255,255,0.08);
-            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(255,255,255,0.05);
             color: white;
-            font-size: 14px;
-            font-weight: 700;
-            padding: 12px;
-            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 800;
+            padding: 14px 12px;
+            border-radius: 18px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
         }
 
         .toggle-btn.active {
-            background: linear-gradient(180deg, rgba(58,58,58,0.9), rgba(28,28,28,0.9));
-            border-color: rgba(255,255,255,0.12);
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.07));
+            border-color: rgba(255,255,255,0.14);
         }
 
         .standing-row {
+            position: relative;
+            z-index: 1;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            padding: 12px 0;
-            border-bottom: 1px solid var(--line);
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
         }
 
         .standing-row:last-child {
@@ -388,29 +534,32 @@
         }
 
         .row-avatar {
-            width: 42px;
-            height: 42px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             object-fit: cover;
             flex: 0 0 auto;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.10);
             background: rgba(255,255,255,0.04);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.18);
         }
 
         .row-stripe {
             width: 4px;
-            height: 44px;
-            border-radius: 8px;
+            height: 46px;
+            border-radius: 999px;
             flex: 0 0 auto;
+            box-shadow: 0 0 14px rgba(255,255,255,0.08);
         }
 
         .row-number {
-            width: 34px;
+            width: 38px;
             text-align: center;
-            font-size: 24px;
+            font-size: 27px;
             font-weight: 800;
             line-height: 1;
             flex: 0 0 auto;
+            letter-spacing: -0.8px;
         }
 
         .row-info {
@@ -418,18 +567,19 @@
         }
 
         .row-name {
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 800;
             line-height: 1.15;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            letter-spacing: -0.2px;
         }
 
         .row-team {
-            font-size: 12px;
+            font-size: 13px;
             color: var(--muted);
-            margin-top: 4px;
+            margin-top: 5px;
             display: flex;
             align-items: center;
             gap: 6px;
@@ -447,40 +597,47 @@
 
         .row-points {
             text-align: right;
-            font-size: 18px;
+            font-size: 19px;
             font-weight: 800;
             flex: 0 0 auto;
+            letter-spacing: -0.3px;
         }
 
         .row-points small {
             display: block;
             font-size: 11px;
             color: var(--muted);
-            font-weight: 500;
-            margin-top: 3px;
+            font-weight: 600;
+            margin-top: 4px;
         }
 
         .fav-btn {
-            margin-top: 6px;
-            width: 28px;
-            height: 28px;
+            margin-top: 7px;
+            width: 30px;
+            height: 30px;
             border-radius: 999px;
             border: 1px solid rgba(255,255,255,0.10);
-            background: rgba(255,255,255,0.04);
-            color: #cfcfd2;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+            color: rgba(255,255,255,0.68);
             font-size: 14px;
             line-height: 1;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
         }
 
         .fav-btn.active {
             color: #ffd54a;
-            border-color: rgba(255,213,74,0.35);
-            background: rgba(255,213,74,0.12);
+            border-color: rgba(255,213,74,0.30);
+            background:
+                linear-gradient(180deg, rgba(255,213,74,0.18), rgba(255,213,74,0.08));
+            box-shadow: 0 0 16px rgba(255,213,74,0.14);
         }
 
         .news-item {
-            padding: 12px 0;
-            border-bottom: 1px solid var(--line);
+            position: relative;
+            z-index: 1;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
         }
 
         .news-item:last-child {
@@ -491,25 +648,28 @@
             text-decoration: none;
             color: white;
             display: block;
-        }
-
-        .news-link:hover {
-            opacity: 0.92;
+            line-height: 1.45;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: -0.15px;
         }
 
         .news-source {
             font-size: 12px;
             color: var(--muted);
-            margin-top: 6px;
+            margin-top: 7px;
         }
 
         .menu-link {
+            position: relative;
+            z-index: 1;
             display: block;
             text-decoration: none;
             color: white;
-            font-weight: 700;
-            padding: 14px 0;
-            border-bottom: 1px solid var(--line);
+            font-weight: 800;
+            padding: 16px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            letter-spacing: -0.15px;
         }
 
         .menu-link:last-child {
@@ -517,11 +677,13 @@
         }
 
         .list-line {
+            position: relative;
+            z-index: 1;
             display: flex;
             justify-content: space-between;
             gap: 12px;
-            padding: 12px 0;
-            border-bottom: 1px solid var(--line);
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
         }
 
         .list-line:last-child {
@@ -530,38 +692,72 @@
 
         .list-left {
             font-size: 14px;
-            font-weight: 700;
+            font-weight: 800;
+            letter-spacing: -0.12px;
         }
 
         .list-right {
             font-size: 13px;
             color: var(--muted);
+            text-align: right;
         }
 
         pre.ai-output {
+            position: relative;
+            z-index: 1;
             margin: 0;
             white-space: pre-wrap;
             word-wrap: break-word;
             font-family: inherit;
             font-size: 14px;
-            line-height: 1.5;
+            line-height: 1.55;
+            color: rgba(255,255,255,0.92);
+        }
+
+        @media (max-width: 560px) {
+            .title {
+                font-size: 28px;
+            }
+
+            .hero-name,
+            .favorite-name {
+                font-size: 18px;
+            }
+
+            .hero-badge,
+            .driver-number {
+                font-size: 34px;
+            }
+
+            .container {
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+
+            .card {
+                padding: 16px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="title">RaceControl</div>
-        <div class="subtitle" id="appSubtitle">F1 · Alonso · Aston Martin</div>
-    </div>
+    <div class="app">
+        <div class="header">
+            <div class="header-shell">
+                <div class="title">RaceControl</div>
+                <div class="subtitle" id="appSubtitle">F1 · Alonso · Aston Martin</div>
+            </div>
+        </div>
 
-    <div class="container" id="content"></div>
+        <div class="container" id="content"></div>
 
-    <div class="nav">
-        <a href="#" id="nav-home" onclick="showHome(); return false;">Home</a>
-        <a href="#" id="nav-predict" onclick="showPredict(); return false;">Predict</a>
-        <a href="#" id="nav-aston" onclick="showAston(); return false;">Aston</a>
-        <a href="#" id="nav-news" onclick="showNews(); return false;">News</a>
-        <a href="#" id="nav-more" onclick="showMore(); return false;">More</a>
+        <div class="nav">
+            <a href="#" id="nav-home" onclick="showHome(); return false;">Home</a>
+            <a href="#" id="nav-predict" onclick="showPredict(); return false;">Predict</a>
+            <a href="#" id="nav-aston" onclick="showAston(); return false;">Aston</a>
+            <a href="#" id="nav-news" onclick="showNews(); return false;">News</a>
+            <a href="#" id="nav-more" onclick="showMore(); return false;">More</a>
+        </div>
     </div>
 
     <script>
@@ -585,7 +781,7 @@
                 number: "14",
                 points: "0",
                 colorClass: "aston",
-                image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/alonso",
+                image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/alonso",
                 pos: "21"
             };
         }
@@ -727,7 +923,7 @@
                 : `${favorite.drivers} · P${favorite.pos}`;
 
             const avatar = favorite.type === "driver"
-                ? `<img class="hero-avatar" src="${favorite.image}" alt="${favorite.name}">`
+                ? `<img class="hero-avatar" src="${favorite.image}" alt="${favorite.name}" onerror="this.style.display='none'">`
                 : `<div class="team-stripe" style="background: var(--${accent}); height: 56px;"></div>`;
 
             return `
@@ -752,16 +948,16 @@
                     </div>
 
                     ${favorite.type === "driver" ? `
-                        <div class="stat" style="margin-top:14px;">Points probability (next GP) <span>32%</span></div>
+                        <div class="stat" style="margin-top:16px;">Points probability (next GP) <span>32%</span></div>
                         <div class="bar"><div class="bar-fill ${accent}" style="width:32%;"></div></div>
 
-                        <div class="stat" style="margin-top:12px;">DNF risk <span>28%</span></div>
+                        <div class="stat" style="margin-top:14px;">DNF risk <span>28%</span></div>
                         <div class="bar"><div class="bar-fill ferrari" style="width:28%;"></div></div>
                     ` : `
-                        <div class="stat" style="margin-top:14px;">Race pace <span>72%</span></div>
+                        <div class="stat" style="margin-top:16px;">Race pace <span>72%</span></div>
                         <div class="bar"><div class="bar-fill ${accent}" style="width:72%;"></div></div>
 
-                        <div class="stat" style="margin-top:12px;">Reliability <span>61%</span></div>
+                        <div class="stat" style="margin-top:14px;">Reliability <span>61%</span></div>
                         <div class="bar"><div class="bar-fill mclaren" style="width:61%;"></div></div>
                     `}
                 </div>
@@ -780,13 +976,13 @@
                     <div class="stat">Race pace <span>${teamData.racePace}%</span></div>
                     <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.racePace}%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Qualifying pace <span>${teamData.qualyPace}%</span></div>
+                    <div class="stat" style="margin-top:14px;">Qualifying pace <span>${teamData.qualyPace}%</span></div>
                     <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.qualyPace}%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Reliability <span>${teamData.reliability}%</span></div>
+                    <div class="stat" style="margin-top:14px;">Reliability <span>${teamData.reliability}%</span></div>
                     <div class="bar"><div class="bar-fill mclaren" style="width:${teamData.reliability}%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Weekend outlook <span>${teamData.outlook}</span></div>
+                    <div class="stat" style="margin-top:14px;">Weekend outlook <span>${teamData.outlook}</span></div>
                 </div>
             `;
         }
@@ -911,10 +1107,10 @@
                     <div class="stat">Safety Car probability <span>42%</span></div>
                     <div class="bar"><div class="bar-fill mclaren" style="width:42%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Rain probability <span>18%</span></div>
+                    <div class="stat" style="margin-top:14px;">Rain probability <span>18%</span></div>
                     <div class="bar"><div class="bar-fill alpine" style="width:18%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Strategy window <span>Lap 14 - 20</span></div>
+                    <div class="stat" style="margin-top:14px;">Strategy window <span>Lap 14 - 20</span></div>
                 </div>
 
                 ${renderHomeHierarchy()}
@@ -965,7 +1161,7 @@
                         <div class="stat">${comparison.primaryName} performance <span>${comparison.primaryForm}%</span></div>
                         <div class="bar"><div class="bar-fill ${accent}" style="width:${comparison.primaryForm}%;"></div></div>
 
-                        <div class="stat" style="margin-top:12px;">${comparison.secondaryName} performance <span>${comparison.secondaryForm}%</span></div>
+                        <div class="stat" style="margin-top:14px;">${comparison.secondaryName} performance <span>${comparison.secondaryForm}%</span></div>
                         <div class="bar"><div class="bar-fill ${accent}" style="width:${comparison.secondaryForm}%; opacity:0.72;"></div></div>
                     </div>
                 `;
@@ -977,7 +1173,7 @@
                         <div class="stat">${teamData.drivers[0]} form <span>${teamData.forms[0]}%</span></div>
                         <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.forms[0]}%;"></div></div>
 
-                        <div class="stat" style="margin-top:12px;">${teamData.drivers[1]} form <span>${teamData.forms[1]}%</span></div>
+                        <div class="stat" style="margin-top:14px;">${teamData.drivers[1]} form <span>${teamData.forms[1]}%</span></div>
                         <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.forms[1]}%; opacity:0.72;"></div></div>
                     </div>
                 `;
@@ -991,13 +1187,13 @@
                     <div class="stat">Race pace <span>${teamData.racePace}%</span></div>
                     <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.racePace}%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Qualifying pace <span>${teamData.qualyPace}%</span></div>
+                    <div class="stat" style="margin-top:14px;">Qualifying pace <span>${teamData.qualyPace}%</span></div>
                     <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.qualyPace}%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Reliability <span>${teamData.reliability}%</span></div>
+                    <div class="stat" style="margin-top:14px;">Reliability <span>${teamData.reliability}%</span></div>
                     <div class="bar"><div class="bar-fill ferrari" style="width:${teamData.reliability}%;"></div></div>
 
-                    <div class="stat" style="margin-top:12px;">Weekend outlook <span>${teamData.outlook}</span></div>
+                    <div class="stat" style="margin-top:14px;">Weekend outlook <span>${teamData.outlook}</span></div>
                 </div>
 
                 ${secondaryCard}
@@ -1214,7 +1410,7 @@
                 <div class="standing-row">
                     <div class="row-left">
                         <div class="row-pos">${pos}</div>
-                        <img class="row-avatar" src="${image}" alt="${name}">
+                        <img class="row-avatar" src="${image}" alt="${name}" onerror="this.style.display='none'">
                         <div class="row-stripe ${colorClass}"></div>
                         <div class="row-number" style="color: var(--${colorClass});">${number}</div>
                         <div class="row-info">
