@@ -8,8 +8,6 @@
     <style>
         :root {
             --bg: #050505;
-            --panel: rgba(20, 20, 20, 0.88);
-            --panel-2: rgba(28, 28, 30, 0.88);
             --text: #ffffff;
             --muted: #8e8e93;
             --line: rgba(255, 255, 255, 0.08);
@@ -612,94 +610,17 @@
 
         function getTeamData(team) {
             const data = {
-                "Mercedes": {
-                    racePace: 92,
-                    qualyPace: 91,
-                    reliability: 83,
-                    outlook: "High",
-                    drivers: ["George Russell", "Kimi Antonelli"],
-                    forms: [90, 88]
-                },
-                "Ferrari": {
-                    racePace: 88,
-                    qualyPace: 87,
-                    reliability: 78,
-                    outlook: "High",
-                    drivers: ["Charles Leclerc", "Lewis Hamilton"],
-                    forms: [89, 87]
-                },
-                "McLaren": {
-                    racePace: 84,
-                    qualyPace: 85,
-                    reliability: 82,
-                    outlook: "High",
-                    drivers: ["Lando Norris", "Oscar Piastri"],
-                    forms: [88, 88]
-                },
-                "Red Bull": {
-                    racePace: 80,
-                    qualyPace: 82,
-                    reliability: 74,
-                    outlook: "Medium",
-                    drivers: ["Max Verstappen", "Isack Hadjar"],
-                    forms: [91, 77]
-                },
-                "Aston Martin": {
-                    racePace: 72,
-                    qualyPace: 68,
-                    reliability: 61,
-                    outlook: "Medium",
-                    drivers: ["Fernando Alonso", "Lance Stroll"],
-                    forms: [88, 82]
-                },
-                "Alpine": {
-                    racePace: 66,
-                    qualyPace: 61,
-                    reliability: 58,
-                    outlook: "Medium",
-                    drivers: ["Pierre Gasly", "Franco Colapinto"],
-                    forms: [82, 76]
-                },
-                "Williams": {
-                    racePace: 64,
-                    qualyPace: 60,
-                    reliability: 63,
-                    outlook: "Medium",
-                    drivers: ["Carlos Sainz", "Alexander Albon"],
-                    forms: [81, 79]
-                },
-                "Audi": {
-                    racePace: 61,
-                    qualyPace: 58,
-                    reliability: 67,
-                    outlook: "Medium",
-                    drivers: ["Nico Hülkenberg", "Gabriel Bortoleto"],
-                    forms: [77, 74]
-                },
-                "Cadillac": {
-                    racePace: 59,
-                    qualyPace: 56,
-                    reliability: 60,
-                    outlook: "Medium",
-                    drivers: ["Sergio Perez", "Valtteri Bottas"],
-                    forms: [78, 75]
-                },
-                "Haas": {
-                    racePace: 63,
-                    qualyPace: 59,
-                    reliability: 64,
-                    outlook: "Medium",
-                    drivers: ["Esteban Ocon", "Oliver Bearman"],
-                    forms: [78, 80]
-                },
-                "Racing Bulls": {
-                    racePace: 68,
-                    qualyPace: 65,
-                    reliability: 66,
-                    outlook: "Medium",
-                    drivers: ["Liam Lawson", "Arvid Lindblad"],
-                    forms: [79, 75]
-                }
+                "Mercedes": { racePace: 92, qualyPace: 91, reliability: 83, outlook: "High", drivers: ["George Russell", "Kimi Antonelli"], forms: [90, 88] },
+                "Ferrari": { racePace: 88, qualyPace: 87, reliability: 78, outlook: "High", drivers: ["Charles Leclerc", "Lewis Hamilton"], forms: [89, 87] },
+                "McLaren": { racePace: 84, qualyPace: 85, reliability: 82, outlook: "High", drivers: ["Lando Norris", "Oscar Piastri"], forms: [88, 88] },
+                "Red Bull": { racePace: 80, qualyPace: 82, reliability: 74, outlook: "Medium", drivers: ["Max Verstappen", "Isack Hadjar"], forms: [91, 77] },
+                "Aston Martin": { racePace: 72, qualyPace: 68, reliability: 61, outlook: "Medium", drivers: ["Fernando Alonso", "Lance Stroll"], forms: [88, 82] },
+                "Alpine": { racePace: 66, qualyPace: 61, reliability: 58, outlook: "Medium", drivers: ["Pierre Gasly", "Franco Colapinto"], forms: [82, 76] },
+                "Williams": { racePace: 64, qualyPace: 60, reliability: 63, outlook: "Medium", drivers: ["Carlos Sainz", "Alexander Albon"], forms: [81, 79] },
+                "Audi": { racePace: 61, qualyPace: 58, reliability: 67, outlook: "Medium", drivers: ["Nico Hülkenberg", "Gabriel Bortoleto"], forms: [77, 74] },
+                "Cadillac": { racePace: 59, qualyPace: 56, reliability: 60, outlook: "Medium", drivers: ["Sergio Perez", "Valtteri Bottas"], forms: [78, 75] },
+                "Haas": { racePace: 63, qualyPace: 59, reliability: 64, outlook: "Medium", drivers: ["Esteban Ocon", "Oliver Bearman"], forms: [78, 80] },
+                "Racing Bulls": { racePace: 68, qualyPace: 65, reliability: 66, outlook: "Medium", drivers: ["Liam Lawson", "Arvid Lindblad"], forms: [79, 75] }
             };
 
             return data[team] || {
@@ -725,29 +646,14 @@
             const [formA, formB] = teamData.forms;
 
             if (sameDriverName(driverName, driverA)) {
-                return {
-                    primaryName: driverA,
-                    primaryForm: formA,
-                    secondaryName: driverB,
-                    secondaryForm: formB
-                };
+                return { primaryName: driverA, primaryForm: formA, secondaryName: driverB, secondaryForm: formB };
             }
 
             if (sameDriverName(driverName, driverB)) {
-                return {
-                    primaryName: driverB,
-                    primaryForm: formB,
-                    secondaryName: driverA,
-                    secondaryForm: formA
-                };
+                return { primaryName: driverB, primaryForm: formB, secondaryName: driverA, secondaryForm: formA };
             }
 
-            return {
-                primaryName: driverA,
-                primaryForm: formA,
-                secondaryName: driverB,
-                secondaryForm: formB
-            };
+            return { primaryName: driverA, primaryForm: formA, secondaryName: driverB, secondaryForm: formB };
         }
 
         function renderHomeHero() {
@@ -862,12 +768,10 @@
 
         function renderPredictContent() {
             const favorite = getFavorite();
-            const accent = favorite.colorClass;
-
             return {
                 title: `PREDICT · ${favorite.name.toUpperCase()}`,
                 sub: `Predicción centrada en ${favorite.name} para el próximo GP.`,
-                accent
+                accent: favorite.colorClass
             };
         }
 
@@ -880,9 +784,7 @@
             try {
                 const response = await fetch("/api/predict", {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         favorite,
                         raceName: "GP Miami"
@@ -911,22 +813,10 @@
                     title: `NEWS · ${favorite.name.toUpperCase()}`,
                     accent,
                     items: [
-                        {
-                            title: `${favorite.name} llega al próximo GP con foco total en clasificación y gestión de neumáticos.`,
-                            source: `${teamName} update`
-                        },
-                        {
-                            title: `${teamName} sigue trabajando en fiabilidad y ejecución de carrera para maximizar opciones de puntos.`,
-                            source: `Team briefing`
-                        },
-                        {
-                            title: `El rendimiento interno de ${favorite.name} se mantiene como referencia dentro de ${teamName}.`,
-                            source: `Performance trend`
-                        },
-                        {
-                            title: `La ventana estratégica del próximo fin de semana podría favorecer un enfoque conservador si hay degradación alta.`,
-                            source: `Race outlook`
-                        }
+                        { title: `${favorite.name} llega al próximo GP con foco total en clasificación y gestión de neumáticos.`, source: `${teamName} update` },
+                        { title: `${teamName} sigue trabajando en fiabilidad y ejecución de carrera para maximizar opciones de puntos.`, source: `Team briefing` },
+                        { title: `El rendimiento interno de ${favorite.name} se mantiene como referencia dentro de ${teamName}.`, source: `Performance trend` },
+                        { title: `La ventana estratégica del próximo fin de semana podría favorecer un enfoque conservador si hay degradación alta.`, source: `Race outlook` }
                     ]
                 };
             }
@@ -935,24 +825,36 @@
                 title: `NEWS · ${favorite.name.toUpperCase()}`,
                 accent,
                 items: [
-                    {
-                        title: `${favorite.name} centra su preparación en consolidar ritmo de carrera y clasificación.`,
-                        source: `Team briefing`
-                    },
-                    {
-                        title: `${favorite.drivers} siguen siendo la base del rendimiento esperado para el próximo fin de semana.`,
-                        source: `Line-up outlook`
-                    },
-                    {
-                        title: `La fiabilidad seguirá siendo una variable clave en las aspiraciones de ${favorite.name}.`,
-                        source: `Technical focus`
-                    },
-                    {
-                        title: `${favorite.name} encara el próximo GP con objetivo de ejecución limpia y doble puntuación.`,
-                        source: `Weekend target`
-                    }
+                    { title: `${favorite.name} centra su preparación en consolidar ritmo de carrera y clasificación.`, source: `Team briefing` },
+                    { title: `${favorite.drivers} siguen siendo la base del rendimiento esperado para el próximo fin de semana.`, source: `Line-up outlook` },
+                    { title: `La fiabilidad seguirá siendo una variable clave en las aspiraciones de ${favorite.name}.`, source: `Technical focus` },
+                    { title: `${favorite.name} encara el próximo GP con objetivo de ejecución limpia y doble puntuación.`, source: `Weekend target` }
                 ]
             };
+        }
+
+        function formatCalendarDateRange(start, end) {
+            const startDate = new Date(`${start}T12:00:00`);
+            const endDate = new Date(`${end}T12:00:00`);
+
+            const startDay = startDate.getDate();
+            const endDay = endDate.getDate();
+
+            const startMonth = startDate.toLocaleDateString("es-ES", { month: "short" });
+            const endMonth = endDate.toLocaleDateString("es-ES", { month: "short" });
+
+            if (startMonth === endMonth) {
+                return `${startDay}-${endDay} ${startMonth}`;
+            }
+
+            return `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
+        }
+
+        function getCalendarStatusLabel(status, type) {
+            if (type === "testing" && status === "completed") return "Testing done";
+            if (status === "completed") return "Completed";
+            if (status === "next") return "Next";
+            return "Upcoming";
         }
 
         function showHome() {
@@ -1300,82 +1202,58 @@
 
             showStandings();
             if (wasTeams) showTeamsStandings();
-            function formatCalendarDateRange(start, end) {
-    const startDate = new Date(`${start}T12:00:00`);
-    const endDate = new Date(`${end}T12:00:00`);
-
-    const startDay = startDate.getDate();
-    const endDay = endDate.getDate();
-
-    const startMonth = startDate.toLocaleDateString("es-ES", { month: "short" });
-    const endMonth = endDate.toLocaleDateString("es-ES", { month: "short" });
-
-    if (startMonth === endMonth) {
-        return `${startDay}-${endDay} ${startMonth}`;
-    }
-
-    return `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
-}
-
-function getCalendarStatusLabel(status, type) {
-    if (type === "testing" && status === "completed") return "Testing done";
-    if (status === "completed") return "Completed";
-    if (status === "next") return "Next";
-    return "Upcoming";
-}
-
-async function showCalendar() {
-    setActiveNav("nav-more");
-    updateSubtitle();
-
-    document.getElementById("content").innerHTML = `
-        <div class="card">
-            <div class="card-title">CALENDAR</div>
-            <div class="card-sub">Cargando calendario oficial 2026…</div>
-        </div>
-    `;
-
-    try {
-        const response = await fetch("/api/calendar");
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data?.error || "No se pudo cargar el calendario");
         }
 
-        const events = Array.isArray(data.events) ? data.events : [];
+        async function showCalendar() {
+            setActiveNav("nav-more");
+            updateSubtitle();
 
-        document.getElementById("content").innerHTML = `
-            <div class="card">
-                <div class="card-title">CALENDAR</div>
-                <div class="card-sub">Temporada 2026 · calendario real</div>
+            document.getElementById("content").innerHTML = `
+                <div class="card">
+                    <div class="card-title">CALENDAR</div>
+                    <div class="card-sub">Cargando calendario oficial 2026…</div>
+                </div>
+            `;
 
-                ${events.map(event => `
-                    <div class="list-line">
-                        <div class="list-left">
-                            ${event.type === "race"
-                                ? `R${event.round} · ${event.venue}`
-                                : `${event.title}`}
-                        </div>
-                        <div class="list-right">
-                            ${getCalendarStatusLabel(event.status, event.type)} · ${formatCalendarDateRange(event.start, event.end)}
-                        </div>
+            try {
+                const response = await fetch("/api/calendar");
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data?.error || "No se pudo cargar el calendario");
+                }
+
+                const events = Array.isArray(data.events) ? data.events : [];
+
+                document.getElementById("content").innerHTML = `
+                    <div class="card">
+                        <div class="card-title">CALENDAR</div>
+                        <div class="card-sub">Temporada 2026 · calendario real</div>
+
+                        ${events.map(event => `
+                            <div class="list-line">
+                                <div class="list-left">
+                                    ${event.type === "race"
+                                        ? `R${event.round} · ${event.venue}`
+                                        : `${event.title}`}
+                                </div>
+                                <div class="list-right">
+                                    ${getCalendarStatusLabel(event.status, event.type)} · ${formatCalendarDateRange(event.start, event.end)}
+                                </div>
+                            </div>
+                        `).join("")}
                     </div>
-                `).join("")}
-            </div>
-        `;
-    } catch (error) {
-        document.getElementById("content").innerHTML = `
-            <div class="card">
-                <div class="card-title">CALENDAR</div>
-                <div class="card-sub">Error al cargar el calendario</div>
-                <pre class="ai-output">${error.message}</pre>
-            </div>
-        `;
-    }
+                `;
+            } catch (error) {
+                document.getElementById("content").innerHTML = `
+                    <div class="card">
+                        <div class="card-title">CALENDAR</div>
+                        <div class="card-sub">Error al cargar el calendario</div>
+                        <pre class="ai-output">${error.message}</pre>
+                    </div>
+                `;
+            }
         }
-
-        
 
         updateSubtitle();
         showHome();
