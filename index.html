@@ -725,19 +725,19 @@
         }
 
         function getTeamLogo(team) {
-            if (team.includes("Aston")) return "https://upload.wikimedia.org/wikipedia/en/thumb/1/1b/Aston_Martin_F1_Team_Logo.svg/320px-Aston_Martin_F1_Team_Logo.svg.png";
-            if (team.includes("Mercedes")) return "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Mercedes-Logo.svg/320px-Mercedes-Logo.svg.png";
-            if (team.includes("Ferrari")) return "https://upload.wikimedia.org/wikipedia/en/thumb/d/d1/Scuderia_Ferrari_Logo.svg/320px-Scuderia_Ferrari_Logo.svg.png";
-            if (team.includes("McLaren")) return "https://upload.wikimedia.org/wikipedia/en/thumb/6/61/McLaren_Racing_logo.svg/320px-McLaren_Racing_logo.svg.png";
-            if (team.includes("Red Bull")) return "https://upload.wikimedia.org/wikipedia/en/thumb/f/fd/Red_Bull_Racing_logo.svg/320px-Red_Bull_Racing_logo.svg.png";
-            if (team.includes("Alpine")) return "https://upload.wikimedia.org/wikipedia/en/thumb/7/7e/Alpine_F1_Team_Logo.svg/320px-Alpine_F1_Team_Logo.svg.png";
-            if (team.includes("Williams")) return "https://upload.wikimedia.org/wikipedia/en/thumb/3/3e/Williams_Grand_Prix_Engineering_logo.svg/320px-Williams_Grand_Prix_Engineering_logo.svg.png";
-            if (team.includes("Haas")) return "https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Haas_F1_Team_logo.svg/320px-Haas_F1_Team_logo.svg.png";
-            if (team.includes("Audi")) return "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Audi-Logo_2016.svg/320px-Audi-Logo_2016.svg.png";
-            if (team.includes("Cadillac")) return "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Cadillac_logo.svg/320px-Cadillac_logo.svg.png";
-            if (team.includes("Racing Bulls")) return "https://upload.wikimedia.org/wikipedia/en/thumb/5/5f/RB_Formula_One_Team_Logo.svg/320px-RB_Formula_One_Team_Logo.svg.png";
-            return "";
-        }
+    if (team.includes("Aston")) return "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/astonmartin.svg";
+    if (team.includes("Mercedes")) return "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/mercedes.svg";
+    if (team.includes("Ferrari")) return "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/ferrari.svg";
+    if (team.includes("McLaren")) return "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/mclaren.svg";
+    if (team.includes("Red Bull")) return "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/redbull.svg";
+    if (team.includes("Alpine")) return "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/alpine.svg";
+    if (team.includes("Williams")) return "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/williams.svg";
+    if (team.includes("Haas")) return "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/haas.svg";
+    if (team.includes("Audi")) return "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/audi.svg";
+    if (team.includes("Cadillac")) return "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/cadillac.svg";
+    if (team.includes("Racing Bulls")) return "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/redbull.svg";
+    return "";
+}
 
         function teamRow(pos, team, drivers, points, colorClass) {
             return `
