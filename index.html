@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root {
-            --bg: #060606;
-            --panel: #121212;
-            --text: #f5f5f5;
-            --muted: #9a9a9a;
+            --bg: #050505;
+            --panel: #111111;
+            --panel-2: #151515;
+            --text: #ffffff;
+            --muted: #8e8e93;
             --line: #262626;
 
             --aston: #00d2be;
@@ -21,25 +22,35 @@
             --audi: #aaaaaa;
             --cadillac: #c6a300;
             --haas: #999999;
-            --rb: #3a86ff;
+            --rb: #2a6aff;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Arial, sans-serif;
-            background: #050505;
+            background: var(--bg);
             color: var(--text);
         }
 
         .header {
-            padding: 20px;
+            padding: 22px 18px 14px 18px;
             border-bottom: 1px solid #111;
-            background: #080808;
+            background: rgba(8,8,8,0.95);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         .title {
-            font-size: 26px;
+            font-size: 28px;
             font-weight: 800;
+            letter-spacing: -0.5px;
         }
 
         .subtitle {
@@ -50,25 +61,34 @@
 
         .container {
             padding: 16px;
-            padding-bottom: 100px;
+            padding-bottom: 110px;
             max-width: 760px;
             margin: 0 auto;
         }
 
         .card {
-            background: #111;
-            border-radius: 16px;
+            background: linear-gradient(180deg, #141414, #101010);
+            border-radius: 18px;
             padding: 16px;
             margin-bottom: 14px;
             border: 1px solid #1f1f1f;
         }
 
-        .card h3 {
-            margin: 0 0 10px 0;
-            font-size: 16px;
+        .card-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: 0.3px;
+        }
+
+        .card-sub {
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 6px;
         }
 
         .stat {
+            font-size: 14px;
             margin-bottom: 10px;
         }
 
@@ -96,26 +116,34 @@
         .mclaren { background: var(--mclaren); }
         .redbull { background: var(--redbull); }
         .alpine { background: var(--alpine); }
+        .williams { background: var(--williams); }
+        .audi { background: var(--audi); }
+        .cadillac { background: var(--cadillac); }
+        .haas { background: var(--haas); }
+        .rb { background: var(--rb); }
 
         .nav {
             position: fixed;
             bottom: 0;
             width: 100%;
-            background: #0b0b0b;
+            background: rgba(10,10,10,0.95);
+            backdrop-filter: blur(10px);
             display: flex;
             justify-content: space-around;
-            padding: 14px 0;
+            padding: 12px 0 22px 0;
             border-top: 1px solid #1f1f1f;
         }
 
         .nav a {
-            color: #888;
+            color: #7a7a7a;
             text-decoration: none;
-            font-size: 13px;
+            font-size: 12px;
+            text-align: center;
         }
 
         .nav a.active {
             color: white;
+            font-weight: 600;
         }
 
         .btn {
@@ -130,20 +158,205 @@
             margin-top: 12px;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 10px 8px;
+        .news-item {
+            padding: 10px 0;
             border-bottom: 1px solid #262626;
         }
 
-        th {
-            color: #888;
+        .news-item:last-child {
+            border-bottom: none;
+        }
+
+        .news-source {
             font-size: 12px;
+            color: var(--muted);
+            margin-top: 3px;
+        }
+
+        .menu-link {
+            display: block;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--line);
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .menu-link:last-child {
+            border-bottom: none;
+        }
+
+        pre.ai-output {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .favorite-card {
+            background: linear-gradient(135deg, rgba(0,210,190,0.18), rgba(255,255,255,0.04));
+            border: 1px solid rgba(0,210,190,0.25);
+        }
+
+        .favorite-label {
+            font-size: 11px;
+            color: var(--muted);
             text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 10px;
+        }
+
+        .favorite-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .favorite-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .team-stripe {
+            width: 6px;
+            height: 54px;
+            border-radius: 10px;
+            background: var(--aston);
+        }
+
+        .driver-number {
+            font-size: 34px;
+            font-weight: 800;
+            line-height: 1;
+            min-width: 42px;
+        }
+
+        .favorite-name {
+            font-size: 18px;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .favorite-sub {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .favorite-points {
+            text-align: right;
+        }
+
+        .favorite-points-value {
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .favorite-points-label {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .standings-toggle {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #2a2a2a;
+            background: #151515;
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(180deg, #2a2a2a, #1b1b1b);
+            border-color: #3a3a3a;
+        }
+
+        .standing-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .standing-row:last-child {
+            border-bottom: none;
+        }
+
+        .row-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .row-pos {
+            width: 22px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .row-stripe {
+            width: 4px;
+            height: 44px;
+            border-radius: 8px;
+        }
+
+        .row-number {
+            font-size: 24px;
+            font-weight: 800;
+            width: 34px;
+            text-align: center;
+            line-height: 1;
+        }
+
+        .row-info {
+            min-width: 0;
+        }
+
+        .row-name {
+            font-size: 15px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .row-team {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 3px;
+        }
+
+        .row-points {
+            font-size: 18px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .row-points small {
+            display: block;
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 500;
+            text-align: right;
+            margin-top: 3px;
         }
     </style>
 </head>
@@ -157,72 +370,93 @@
 <div class="container" id="content"></div>
 
 <div class="nav">
-    <a href="#" id="nav-home" onclick="showHome()">Home</a>
-    <a href="#" id="nav-predict" onclick="showPredict()">Predict</a>
-    <a href="#" id="nav-aston" onclick="showAston()">Aston</a>
-    <a href="#" id="nav-news" onclick="showNews()">News</a>
-    <a href="#" id="nav-more" onclick="showMore()">More</a>
+    <a href="#" id="nav-home" onclick="showHome(); return false;">Home</a>
+    <a href="#" id="nav-predict" onclick="showPredict(); return false;">Predict</a>
+    <a href="#" id="nav-aston" onclick="showAston(); return false;">Aston</a>
+    <a href="#" id="nav-news" onclick="showNews(); return false;">News</a>
+    <a href="#" id="nav-more" onclick="showMore(); return false;">More</a>
 </div>
 
 <script>
-function setActiveNav(tab) {
-    document.querySelectorAll(".nav a").forEach(a => a.classList.remove("active"));
-    document.getElementById(tab).classList.add("active");
+function setActiveNav(tabId) {
+    const ids = ["nav-home", "nav-predict", "nav-aston", "nav-news", "nav-more"];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove("active");
+    });
+    const active = document.getElementById(tabId);
+    if (active) active.classList.add("active");
 }
 
 function showHome() {
     setActiveNav("nav-home");
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <h3 style="color: var(--aston);">ALONSO STATUS</h3>
-            <div class="stat">Position <span>P22</span></div>
+            <div class="card-title" style="color: var(--aston);">ALONSO STATUS</div>
+
+            <div class="stat">Championship position <span>P22</span></div>
             <div class="stat">Points <span>0</span></div>
-            <div class="stat">Last race <span>DNF</span></div>
+            <div class="stat">Last race result <span>DNF</span></div>
 
-            <div class="stat">Points probability <span>32%</span></div>
-            <div class="bar"><div class="bar-fill aston" style="width:32%"></div></div>
+            <div class="stat" style="margin-top:12px;">Points probability (Miami) <span>32%</span></div>
+            <div class="bar"><div class="bar-fill aston" style="width:32%;"></div></div>
 
-            <div class="stat">DNF risk <span>28%</span></div>
-            <div class="bar"><div class="bar-fill ferrari" style="width:28%"></div></div>
+            <div class="stat" style="margin-top:12px;">DNF risk <span>28%</span></div>
+            <div class="bar"><div class="bar-fill ferrari" style="width:28%;"></div></div>
         </div>
 
         <div class="card">
-            <h3 style="color: var(--aston);">ASTON MARTIN STATUS</h3>
+            <div class="card-title" style="color: var(--aston);">ASTON MARTIN STATUS</div>
+
             <div class="stat">Race pace <span>72%</span></div>
-            <div class="bar"><div class="bar-fill aston" style="width:72%"></div></div>
+            <div class="bar"><div class="bar-fill aston" style="width:72%;"></div></div>
 
-            <div class="stat">Quali pace <span>68%</span></div>
-            <div class="bar"><div class="bar-fill aston" style="width:68%"></div></div>
+            <div class="stat" style="margin-top:12px;">Qualifying pace <span>68%</span></div>
+            <div class="bar"><div class="bar-fill aston" style="width:68%;"></div></div>
 
-            <div class="stat">Reliability <span>61%</span></div>
-            <div class="bar"><div class="bar-fill mclaren" style="width:61%"></div></div>
+            <div class="stat" style="margin-top:12px;">Reliability <span>61%</span></div>
+            <div class="bar"><div class="bar-fill mclaren" style="width:61%;"></div></div>
+
+            <div class="stat" style="margin-top:12px;">Honda PU status <span>Risk</span></div>
         </div>
 
         <div class="card">
-            <h3>NEXT RACE · MIAMI</h3>
-            <div class="stat">Safety Car <span>42%</span></div>
-            <div class="bar"><div class="bar-fill mclaren" style="width:42%"></div></div>
+            <div class="card-title" style="color: var(--mclaren);">NEXT RACE · MIAMI</div>
 
-            <div class="stat">Rain <span>18%</span></div>
-            <div class="bar"><div class="bar-fill alpine" style="width:18%"></div></div>
+            <div class="stat">Safety Car probability <span>42%</span></div>
+            <div class="bar"><div class="bar-fill mclaren" style="width:42%;"></div></div>
+
+            <div class="stat" style="margin-top:12px;">Rain probability <span>18%</span></div>
+            <div class="bar"><div class="bar-fill alpine" style="width:18%;"></div></div>
+
+            <div class="stat" style="margin-top:12px;">Strategy window <span>Lap 14 - 20</span></div>
         </div>
 
         <div class="card">
-            <h3>TEAM HIERARCHY</h3>
+            <div class="card-title">TEAM HIERARCHY</div>
+
             <div class="stat">Mercedes <span>92%</span></div>
-            <div class="bar"><div class="bar-fill mercedes" style="width:92%"></div></div>
+            <div class="bar"><div class="bar-fill mercedes" style="width:92%;"></div></div>
 
-            <div class="stat">Ferrari <span>88%</span></div>
-            <div class="bar"><div class="bar-fill ferrari" style="width:88%"></div></div>
+            <div class="stat" style="margin-top:12px;">Ferrari <span>88%</span></div>
+            <div class="bar"><div class="bar-fill ferrari" style="width:88%;"></div></div>
 
-            <div class="stat">McLaren <span>84%</span></div>
-            <div class="bar"><div class="bar-fill mclaren" style="width:84%"></div></div>
+            <div class="stat" style="margin-top:12px;">McLaren <span>84%</span></div>
+            <div class="bar"><div class="bar-fill mclaren" style="width:84%;"></div></div>
 
-            <div class="stat">Red Bull <span>80%</span></div>
-            <div class="bar"><div class="bar-fill redbull" style="width:80%"></div></div>
+            <div class="stat" style="margin-top:12px;">Red Bull <span>80%</span></div>
+            <div class="bar"><div class="bar-fill redbull" style="width:80%;"></div></div>
 
-            <div class="stat">Aston <span>72%</span></div>
-            <div class="bar"><div class="bar-fill aston" style="width:72%"></div></div>
+            <div class="stat" style="margin-top:12px;">Aston Martin <span>72%</span></div>
+            <div class="bar"><div class="bar-fill aston" style="width:72%;"></div></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">WEEKEND TARGET</div>
+            <div class="card-sub">Objetivo del equipo</div>
+            <p>Primary: Finish the race with both cars.</p>
+            <p>Secondary: Fight for P10 if race has incidents.</p>
+            <p>Risk level: Medium–High</p>
         </div>
     `;
 }
@@ -230,12 +464,13 @@ function showHome() {
 async function generatePredict() {
     const output = document.getElementById("predictResult");
     output.innerText = "Generando predicción...";
+
     try {
         const res = await fetch("/api/predict");
         const data = await res.json();
-        output.innerText = data.result || "Error";
-    } catch {
-        output.innerText = "Error conexión IA";
+        output.innerText = data.result || "Error generando predicción.";
+    } catch (error) {
+        output.innerText = "Error de conexión con la IA.";
     }
 }
 
@@ -243,11 +478,14 @@ function showPredict() {
     setActiveNav("nav-predict");
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <h3>Predict · IA</h3>
+            <div class="card-title">PREDICT · IA</div>
+            <div class="card-sub">Predicción automática de la próxima carrera</div>
             <button class="btn" onclick="generatePredict()">Generar predicción</button>
         </div>
+
         <div class="card">
-            <pre id="predictResult">Pulsa generar.</pre>
+            <div class="card-title">AI RESULT</div>
+            <pre id="predictResult" class="ai-output">Pulsa generar.</pre>
         </div>
     `;
 }
@@ -256,15 +494,29 @@ function showAston() {
     setActiveNav("nav-aston");
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <h3 style="color: var(--aston);">ASTON MARTIN</h3>
+            <div class="card-title" style="color: var(--aston);">ASTON MARTIN</div>
+            <div class="card-sub">Panel técnico del equipo</div>
+
             <div class="stat">Race pace <span>72%</span></div>
             <div class="bar"><div class="bar-fill aston" style="width:72%"></div></div>
 
-            <div class="stat">Quali pace <span>68%</span></div>
+            <div class="stat" style="margin-top:12px;">Qualifying pace <span>68%</span></div>
             <div class="bar"><div class="bar-fill aston" style="width:68%"></div></div>
 
-            <div class="stat">Reliability <span>61%</span></div>
+            <div class="stat" style="margin-top:12px;">Reliability <span>61%</span></div>
             <div class="bar"><div class="bar-fill ferrari" style="width:61%"></div></div>
+
+            <div class="stat" style="margin-top:12px;">Honda status <span>Risk</span></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">ALONSO vs STROLL</div>
+
+            <div class="stat">Alonso performance <span>88%</span></div>
+            <div class="bar"><div class="bar-fill aston" style="width:88%"></div></div>
+
+            <div class="stat" style="margin-top:12px;">Stroll performance <span>82%</span></div>
+            <div class="bar"><div class="bar-fill aston" style="width:82%"></div></div>
         </div>
     `;
 }
@@ -273,10 +525,22 @@ function showNews() {
     setActiveNav("nav-news");
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <h3>NEWS</h3>
-            <p>Aston Martin sigue centrado en fiabilidad.</p>
-            <p>Mercedes lidera el campeonato.</p>
-            <p>Ferrari segunda fuerza.</p>
+            <div class="card-title">NEWS</div>
+
+            <div class="news-item">
+                <div>ASTON MARTIN sigue centrado en mejorar la fiabilidad.</div>
+                <div class="news-source">RaceControl briefing</div>
+            </div>
+
+            <div class="news-item">
+                <div>MERCEDES mantiene la referencia del campeonato.</div>
+                <div class="news-source">Championship form</div>
+            </div>
+
+            <div class="news-item">
+                <div>FERRARI sigue siendo la segunda fuerza más estable.</div>
+                <div class="news-source">Team pace trend</div>
+            </div>
         </div>
     `;
 }
@@ -285,63 +549,370 @@ function showMore() {
     setActiveNav("nav-more");
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <h3>More</h3>
-            <button class="btn" onclick="showStandings()">Standings</button>
-            <button class="btn" onclick="showCalendar()">Calendar</button>
+            <div class="card-title">MORE</div>
+            <a href="#" class="menu-link" onclick="showStandings(); return false;">Standings</a>
+            <a href="#" class="menu-link" onclick="showCalendar(); return false;">Calendar</a>
         </div>
     `;
 }
 
 function showStandings() {
+    setActiveNav("nav-more");
     document.getElementById("content").innerHTML = `
-        <div class="card">
-            <button class="btn" onclick="showDrivers()">Drivers</button>
-            <button class="btn" onclick="showTeams()">Teams</button>
+        <div class="card favorite-card">
+            <div class="favorite-label">Favorito</div>
+            <div class="favorite-main">
+                <div class="favorite-left">
+                    <div class="team-stripe" style="background: var(--aston);"></div>
+                    <div class="driver-number" style="color: var(--aston);">14</div>
+                    <div>
+                        <div class="favorite-name">Fernando Alonso</div>
+                        <div class="favorite-sub">Aston Martin · P22</div>
+                    </div>
+                </div>
+                <div class="favorite-points">
+                    <div class="favorite-points-value">0</div>
+                    <div class="favorite-points-label">pts</div>
+                </div>
+            </div>
         </div>
-        <div id="standings"></div>
+
+        <div class="card">
+            <div class="card-title">Standings</div>
+            <div class="standings-toggle">
+                <button class="toggle-btn active" id="driversBtn" onclick="showDriversStandings()">Drivers</button>
+                <button class="toggle-btn" id="teamsBtn" onclick="showTeamsStandings()">Teams</button>
+            </div>
+        </div>
+
+        <div id="standingsContent"></div>
     `;
-    showDrivers();
+
+    showDriversStandings();
 }
 
-function showDrivers() {
-    document.getElementById("standings").innerHTML = `
+function showDriversStandings() {
+    const driversBtn = document.getElementById("driversBtn");
+    const teamsBtn = document.getElementById("teamsBtn");
+    if (driversBtn) driversBtn.classList.add("active");
+    if (teamsBtn) teamsBtn.classList.remove("active");
+
+    document.getElementById("standingsContent").innerHTML = `
         <div class="card">
-        <table>
-        <tr><th>Pos</th><th>Piloto</th><th>Puntos</th></tr>
-        <tr><td>1</td><td style="color:var(--mercedes)">Antonelli</td><td>72</td></tr>
-        <tr><td>2</td><td style="color:var(--mercedes)">Russell</td><td>63</td></tr>
-        <tr><td>3</td><td style="color:var(--ferrari)">Leclerc</td><td>49</td></tr>
-        <tr><td>4</td><td style="color:var(--ferrari)">Hamilton</td><td>41</td></tr>
-        <tr><td>21</td><td style="color:var(--aston)">Stroll</td><td>0</td></tr>
-        <tr><td>22</td><td style="color:var(--aston)">Alonso</td><td>0</td></tr>
-        </table>
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">1</div>
+                    <div class="row-stripe" style="background: var(--mercedes);"></div>
+                    <div class="row-number" style="color: var(--mercedes);">12</div>
+                    <div class="row-info">
+                        <div class="row-name">Kimi Antonelli</div>
+                        <div class="row-team">Mercedes</div>
+                    </div>
+                </div>
+                <div class="row-points">72<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">2</div>
+                    <div class="row-stripe" style="background: var(--mercedes);"></div>
+                    <div class="row-number" style="color: var(--mercedes);">63</div>
+                    <div class="row-info">
+                        <div class="row-name">George Russell</div>
+                        <div class="row-team">Mercedes</div>
+                    </div>
+                </div>
+                <div class="row-points">63<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">3</div>
+                    <div class="row-stripe" style="background: var(--ferrari);"></div>
+                    <div class="row-number" style="color: var(--ferrari);">16</div>
+                    <div class="row-info">
+                        <div class="row-name">Charles Leclerc</div>
+                        <div class="row-team">Ferrari</div>
+                    </div>
+                </div>
+                <div class="row-points">49<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">4</div>
+                    <div class="row-stripe" style="background: var(--ferrari);"></div>
+                    <div class="row-number" style="color: var(--ferrari);">44</div>
+                    <div class="row-info">
+                        <div class="row-name">Lewis Hamilton</div>
+                        <div class="row-team">Ferrari</div>
+                    </div>
+                </div>
+                <div class="row-points">41<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">5</div>
+                    <div class="row-stripe" style="background: var(--mclaren);"></div>
+                    <div class="row-number" style="color: var(--mclaren);">1</div>
+                    <div class="row-info">
+                        <div class="row-name">Lando Norris</div>
+                        <div class="row-team">McLaren</div>
+                    </div>
+                </div>
+                <div class="row-points">25<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">6</div>
+                    <div class="row-stripe" style="background: var(--mclaren);"></div>
+                    <div class="row-number" style="color: var(--mclaren);">81</div>
+                    <div class="row-info">
+                        <div class="row-name">Oscar Piastri</div>
+                        <div class="row-team">McLaren</div>
+                    </div>
+                </div>
+                <div class="row-points">21<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">7</div>
+                    <div class="row-stripe" style="background: var(--haas);"></div>
+                    <div class="row-number" style="color: var(--haas);">87</div>
+                    <div class="row-info">
+                        <div class="row-name">Oliver Bearman</div>
+                        <div class="row-team">Haas</div>
+                    </div>
+                </div>
+                <div class="row-points">17<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">8</div>
+                    <div class="row-stripe" style="background: var(--alpine);"></div>
+                    <div class="row-number" style="color: var(--alpine);">10</div>
+                    <div class="row-info">
+                        <div class="row-name">Pierre Gasly</div>
+                        <div class="row-team">Alpine</div>
+                    </div>
+                </div>
+                <div class="row-points">15<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">9</div>
+                    <div class="row-stripe" style="background: var(--redbull);"></div>
+                    <div class="row-number" style="color: var(--redbull);">3</div>
+                    <div class="row-info">
+                        <div class="row-name">Max Verstappen</div>
+                        <div class="row-team">Red Bull</div>
+                    </div>
+                </div>
+                <div class="row-points">12<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">10</div>
+                    <div class="row-stripe" style="background: var(--rb);"></div>
+                    <div class="row-number" style="color: var(--rb);">30</div>
+                    <div class="row-info">
+                        <div class="row-name">Liam Lawson</div>
+                        <div class="row-team">Racing Bulls</div>
+                    </div>
+                </div>
+                <div class="row-points">10<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">21</div>
+                    <div class="row-stripe" style="background: var(--aston);"></div>
+                    <div class="row-number" style="color: var(--aston);">18</div>
+                    <div class="row-info">
+                        <div class="row-name">Lance Stroll</div>
+                        <div class="row-team">Aston Martin</div>
+                    </div>
+                </div>
+                <div class="row-points">0<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">22</div>
+                    <div class="row-stripe" style="background: var(--aston);"></div>
+                    <div class="row-number" style="color: var(--aston);">14</div>
+                    <div class="row-info">
+                        <div class="row-name">Fernando Alonso</div>
+                        <div class="row-team">Aston Martin</div>
+                    </div>
+                </div>
+                <div class="row-points">0<small>pts</small></div>
+            </div>
         </div>
     `;
 }
 
-function showTeams() {
-    document.getElementById("standings").innerHTML = `
+function showTeamsStandings() {
+    const driversBtn = document.getElementById("driversBtn");
+    const teamsBtn = document.getElementById("teamsBtn");
+    if (driversBtn) driversBtn.classList.remove("active");
+    if (teamsBtn) teamsBtn.classList.add("active");
+
+    document.getElementById("standingsContent").innerHTML = `
         <div class="card">
-        <table>
-        <tr><th>Pos</th><th>Equipo</th><th>Puntos</th></tr>
-        <tr><td>1</td><td style="color:var(--mercedes)">Mercedes</td><td>135</td></tr>
-        <tr><td>2</td><td style="color:var(--ferrari)">Ferrari</td><td>90</td></tr>
-        <tr><td>11</td><td style="color:var(--aston)">Aston Martin</td><td>0</td></tr>
-        </table>
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">1</div>
+                    <div class="row-stripe" style="background: var(--mercedes);"></div>
+                    <div class="row-info">
+                        <div class="row-name" style="color: var(--mercedes);">Mercedes</div>
+                        <div class="row-team">Russell · Antonelli</div>
+                    </div>
+                </div>
+                <div class="row-points">135<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">2</div>
+                    <div class="row-stripe" style="background: var(--ferrari);"></div>
+                    <div class="row-info">
+                        <div class="row-name" style="color: var(--ferrari);">Ferrari</div>
+                        <div class="row-team">Leclerc · Hamilton</div>
+                    </div>
+                </div>
+                <div class="row-points">90<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">3</div>
+                    <div class="row-stripe" style="background: var(--mclaren);"></div>
+                    <div class="row-info">
+                        <div class="row-name" style="color: var(--mclaren);">McLaren</div>
+                        <div class="row-team">Norris · Piastri</div>
+                    </div>
+                </div>
+                <div class="row-points">46<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">4</div>
+                    <div class="row-stripe" style="background: var(--haas);"></div>
+                    <div class="row-info">
+                        <div class="row-name" style="color: var(--haas);">Haas</div>
+                        <div class="row-team">Ocon · Bearman</div>
+                    </div>
+                </div>
+                <div class="row-points">18<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">5</div>
+                    <div class="row-stripe" style="background: var(--redbull);"></div>
+                    <div class="row-info">
+                        <div class="row-name" style="color: var(--redbull);">Red Bull</div>
+                        <div class="row-team">Verstappen · Hadjar</div>
+                    </div>
+                </div>
+                <div class="row-points">16<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">6</div>
+                    <div class="row-stripe" style="background: var(--alpine);"></div>
+                    <div class="row-info">
+                        <div class="row-name" style="color: var(--alpine);">Alpine</div>
+                        <div class="row-team">Gasly · Colapinto</div>
+                    </div>
+                </div>
+                <div class="row-points">16<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">7</div>
+                    <div class="row-stripe" style="background: var(--rb);"></div>
+                    <div class="row-info">
+                        <div class="row-name" style="color: var(--rb);">Racing Bulls</div>
+                        <div class="row-team">Lawson · Lindblad</div>
+                    </div>
+                </div>
+                <div class="row-points">14<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">8</div>
+                    <div class="row-stripe" style="background: var(--audi);"></div>
+                    <div class="row-info">
+                        <div class="row-name" style="color: var(--audi);">Audi</div>
+                        <div class="row-team">Hülkenberg · Bortoleto</div>
+                    </div>
+                </div>
+                <div class="row-points">2<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">9</div>
+                    <div class="row-stripe" style="background: var(--williams);"></div>
+                    <div class="row-info">
+                        <div class="row-name" style="color: var(--williams);">Williams</div>
+                        <div class="row-team">Sainz · Albon</div>
+                    </div>
+                </div>
+                <div class="row-points">2<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">10</div>
+                    <div class="row-stripe" style="background: var(--cadillac);"></div>
+                    <div class="row-info">
+                        <div class="row-name" style="color: var(--cadillac);">Cadillac</div>
+                        <div class="row-team">Perez · Bottas</div>
+                    </div>
+                </div>
+                <div class="row-points">0<small>pts</small></div>
+            </div>
+
+            <div class="standing-row">
+                <div class="row-left">
+                    <div class="row-pos">11</div>
+                    <div class="row-stripe" style="background: var(--aston);"></div>
+                    <div class="row-info">
+                        <div class="row-name" style="color: var(--aston);">Aston Martin</div>
+                        <div class="row-team">Alonso · Stroll</div>
+                    </div>
+                </div>
+                <div class="row-points">0<small>pts</small></div>
+            </div>
         </div>
     `;
 }
 
 function showCalendar() {
+    setActiveNav("nav-more");
     document.getElementById("content").innerHTML = `
         <div class="card">
-            <h3>Calendar</h3>
-            <p>Australia — Done</p>
-            <p>China — Done</p>
-            <p>Japan — Done</p>
+            <div class="card-title">CALENDAR</div>
+            <div class="card-sub">Agenda de carreras</div>
+            <p>Australia — Completed</p>
+            <p>China — Completed</p>
+            <p>Japan — Completed</p>
             <p>Miami — Next</p>
-            <p>Canada</p>
-            <p>Monaco</p>
+            <p>Canada — Upcoming</p>
+            <p>Monaco — Upcoming</p>
         </div>
     `;
 }
