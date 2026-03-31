@@ -130,11 +130,6 @@
             margin-bottom: 8px;
         }
 
-        .pill-aston {
-            color: var(--aston);
-            border: 1px solid rgba(0,210,190,0.3);
-        }
-
         .pill-ai {
             color: var(--mclaren);
             border: 1px solid rgba(255,135,0,0.3);
@@ -268,6 +263,19 @@
             line-height: 1.5;
             margin: 0;
         }
+
+        .segmented {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .segmented .btn {
+            flex: 1;
+            margin-top: 0;
+            padding: 12px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -289,13 +297,7 @@
 
 <script>
 function setActiveNav(tabId) {
-    const ids = [
-        "nav-home",
-        "nav-predict",
-        "nav-aston",
-        "nav-news",
-        "nav-more"
-    ];
+    const ids = ["nav-home", "nav-predict", "nav-aston", "nav-news", "nav-more"];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.remove("active");
@@ -594,8 +596,6 @@ function showMore() {
             <div class="section-title">Más secciones</div>
             <a href="#" class="menu-link" onclick="showStandings(); return false;">Standings</a>
             <a href="#" class="menu-link" onclick="showCalendar(); return false;">Calendar</a>
-            <a href="#" class="menu-link" onclick="showDrivers(); return false;">Drivers</a>
-            <a href="#" class="menu-link" onclick="showTeams(); return false;">Teams</a>
         </div>
     `;
 }
@@ -605,36 +605,59 @@ function showStandings() {
     document.getElementById("content").innerHTML = `
         <div class="card">
             <div class="pill">MORE · STANDINGS</div>
-            <div class="section-title">Clasificación</div>
+            <div class="section-title">Standings</div>
+
+            <div class="segmented">
+                <button class="btn" onclick="showDriversStandings()">Drivers</button>
+                <button class="btn" onclick="showTeamsStandings()">Teams</button>
+            </div>
         </div>
 
+        <div id="standingsContent"></div>
+    `;
+    showDriversStandings();
+}
+
+function showDriversStandings() {
+    document.getElementById("standingsContent").innerHTML = `
         <div class="card">
-            <h3>Drivers Standings</h3>
+            <h3>Drivers Championship</h3>
             <table>
                 <tr><th>Pos</th><th>Piloto</th><th>Equipo</th><th>Puntos</th></tr>
-                <tr><td>1</td><td>Kimi Antonelli</td><td>Mercedes</td><td>72</td></tr>
-                <tr><td>2</td><td>George Russell</td><td>Mercedes</td><td>63</td></tr>
-                <tr><td>3</td><td>Charles Leclerc</td><td>Ferrari</td><td>49</td></tr>
-                <tr><td>4</td><td>Lewis Hamilton</td><td>Ferrari</td><td>41</td></tr>
-                <tr><td>5</td><td>Lando Norris</td><td>McLaren</td><td>25</td></tr>
-                <tr><td>6</td><td>Oscar Piastri</td><td>McLaren</td><td>21</td></tr>
-                <tr><td>7</td><td>Oliver Bearman</td><td>Haas</td><td>17</td></tr>
-                <tr><td>8</td><td>Pierre Gasly</td><td>Alpine</td><td>15</td></tr>
-                <tr><td>9</td><td>Max Verstappen</td><td>Red Bull</td><td>12</td></tr>
-                <tr><td>10</td><td>Liam Lawson</td><td>Racing Bulls</td><td>10</td></tr>
-                <tr><td>21</td><td>Lance Stroll</td><td>Aston Martin</td><td>0</td></tr>
-                <tr><td>22</td><td>Fernando Alonso</td><td>Aston Martin</td><td>0</td></tr>
+                <tr><td>1</td><td>Kimi Antonelli</td><td style="color: var(--mercedes);">Mercedes</td><td>72</td></tr>
+                <tr><td>2</td><td>George Russell</td><td style="color: var(--mercedes);">Mercedes</td><td>63</td></tr>
+                <tr><td>3</td><td>Charles Leclerc</td><td style="color: var(--ferrari);">Ferrari</td><td>49</td></tr>
+                <tr><td>4</td><td>Lewis Hamilton</td><td style="color: var(--ferrari);">Ferrari</td><td>41</td></tr>
+                <tr><td>5</td><td>Lando Norris</td><td style="color: var(--mclaren);">McLaren</td><td>25</td></tr>
+                <tr><td>6</td><td>Oscar Piastri</td><td style="color: var(--mclaren);">McLaren</td><td>21</td></tr>
+                <tr><td>7</td><td>Oliver Bearman</td><td style="color: var(--haas);">Haas</td><td>17</td></tr>
+                <tr><td>8</td><td>Pierre Gasly</td><td style="color: var(--alpine);">Alpine</td><td>15</td></tr>
+                <tr><td>9</td><td>Max Verstappen</td><td style="color: var(--redbull);">Red Bull</td><td>12</td></tr>
+                <tr><td>10</td><td>Liam Lawson</td><td style="color: var(--rb);">Racing Bulls</td><td>10</td></tr>
+                <tr><td>21</td><td style="color: var(--aston);">Lance Stroll</td><td style="color: var(--aston);">Aston Martin</td><td>0</td></tr>
+                <tr><td>22</td><td style="color: var(--aston);">Fernando Alonso</td><td style="color: var(--aston);">Aston Martin</td><td>0</td></tr>
             </table>
         </div>
+    `;
+}
 
+function showTeamsStandings() {
+    document.getElementById("standingsContent").innerHTML = `
         <div class="card">
-            <h3>Constructors Standings</h3>
+            <h3>Constructors Championship</h3>
             <table>
                 <tr><th>Pos</th><th>Equipo</th><th>Puntos</th></tr>
-                <tr><td>1</td><td>Mercedes</td><td>135</td></tr>
-                <tr><td>2</td><td>Ferrari</td><td>90</td></tr>
-                <tr><td>3</td><td>McLaren</td><td>46</td></tr>
-                <tr><td>11</td><td>Aston Martin</td><td>0</td></tr>
+                <tr><td>1</td><td style="color: var(--mercedes);">Mercedes</td><td>135</td></tr>
+                <tr><td>2</td><td style="color: var(--ferrari);">Ferrari</td><td>90</td></tr>
+                <tr><td>3</td><td style="color: var(--mclaren);">McLaren</td><td>46</td></tr>
+                <tr><td>4</td><td style="color: var(--haas);">Haas</td><td>18</td></tr>
+                <tr><td>5</td><td style="color: var(--redbull);">Red Bull</td><td>16</td></tr>
+                <tr><td>6</td><td style="color: var(--alpine);">Alpine</td><td>16</td></tr>
+                <tr><td>7</td><td style="color: var(--rb);">Racing Bulls</td><td>14</td></tr>
+                <tr><td>8</td><td style="color: var(--audi);">Audi</td><td>2</td></tr>
+                <tr><td>9</td><td style="color: var(--williams);">Williams</td><td>2</td></tr>
+                <tr><td>10</td><td style="color: var(--cadillac);">Cadillac</td><td>0</td></tr>
+                <tr><td>11</td><td style="color: var(--aston);">Aston Martin</td><td>0</td></tr>
             </table>
         </div>
     `;
@@ -655,95 +678,6 @@ function showCalendar() {
             <p>Miami — Próximo</p>
             <p>Canadá — Próximo</p>
             <p>Mónaco — Próximo</p>
-        </div>
-    `;
-}
-
-function showDrivers() {
-    setActiveNav("nav-more");
-    document.getElementById("content").innerHTML = `
-        <div class="card">
-            <div class="pill">MORE · DRIVERS</div>
-            <div class="section-title">Pilotos</div>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--aston);">Fernando Alonso</h3>
-            <p>Equipo: Aston Martin</p>
-            <p>Puntos: 0</p>
-            <p>Posición: P22</p>
-            <p class="small">Principal referencia competitiva del equipo.</p>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--aston);">Lance Stroll</h3>
-            <p>Equipo: Aston Martin</p>
-            <p>Puntos: 0</p>
-            <p>Posición: P21</p>
-            <p class="small">Ritmo correcto, menos margen que Alonso.</p>
-        </div>
-
-        <div class="card">
-            <h3>Kimi Antonelli</h3>
-            <p>Equipo: Mercedes</p>
-            <p>Puntos: 72</p>
-            <p>Posición: P1</p>
-        </div>
-
-        <div class="card">
-            <h3>George Russell</h3>
-            <p>Equipo: Mercedes</p>
-            <p>Puntos: 63</p>
-            <p>Posición: P2</p>
-        </div>
-
-        <div class="card">
-            <h3>Charles Leclerc</h3>
-            <p>Equipo: Ferrari</p>
-            <p>Puntos: 49</p>
-            <p>Posición: P3</p>
-        </div>
-    `;
-}
-
-function showTeams() {
-    setActiveNav("nav-more");
-    document.getElementById("content").innerHTML = `
-        <div class="card">
-            <div class="pill">MORE · TEAMS</div>
-            <div class="section-title">Equipos</div>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--aston);">Aston Martin</h3>
-            <p>Motor: Honda</p>
-            <p>Ritmo: Medio-bajo</p>
-            <p>Fiabilidad: Baja</p>
-            <p class="small">Foco actual: terminar carreras y acercarse al top 10.</p>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--mercedes);">Mercedes</h3>
-            <p>Ritmo: Muy alto</p>
-            <p>Estado: Referencia actual</p>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--ferrari);">Ferrari</h3>
-            <p>Ritmo: Alto</p>
-            <p>Estado: Segunda fuerza estable</p>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--mclaren);">McLaren</h3>
-            <p>Ritmo: Alto</p>
-            <p>Estado: Zona alta consolidada</p>
-        </div>
-
-        <div class="card">
-            <h3 style="color: var(--redbull);">Red Bull</h3>
-            <p>Ritmo: Alto pero irregular</p>
-            <p>Estado: Competitivo con dudas</p>
         </div>
     `;
 }
