@@ -555,6 +555,8 @@
     </div>
 
     <script>
+        let standingsCache = null;
+
         function setActiveNav(tabId) {
             const ids = ["nav-home", "nav-predict", "nav-aston", "nav-news", "nav-more"];
             ids.forEach(id => {
@@ -573,8 +575,8 @@
                 number: "14",
                 points: "0",
                 colorClass: "aston",
-                image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/alonso",
-                pos: "22"
+                image: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2026Drivers/alonso",
+                pos: "21"
             };
         }
 
@@ -585,6 +587,10 @@
             } catch (e) {
                 return getDefaultFavorite();
             }
+        }
+
+        function saveFavorite(favorite) {
+            localStorage.setItem("racecontrolFavorite", JSON.stringify(favorite));
         }
 
         function updateSubtitle() {
@@ -608,6 +614,52 @@
             return getFavorite().colorClass || "aston";
         }
 
+        async function fetchStandingsData(force = false) {
+            if (standingsCache && !force) return standingsCache;
+
+            const response = await fetch("/api/standings");
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data?.error || "No se pudieron cargar los standings");
+            }
+
+            standingsCache = data;
+            refreshFavoriteFromStandings(data);
+            return data;
+        }
+
+        function refreshFavoriteFromStandings(data) {
+            const favorite = getFavorite();
+
+            if (favorite.type === "driver") {
+                const driver = (data.drivers || []).find(d => d.name === favorite.name);
+                if (!driver) return;
+
+                saveFavorite({
+                    ...favorite,
+                    team: driver.team,
+                    number: driver.number,
+                    points: String(driver.points),
+                    colorClass: driver.colorClass,
+                    image: driver.image,
+                    pos: String(driver.pos)
+                });
+            } else {
+                const team = (data.teams || []).find(t => t.team === favorite.name);
+                if (!team) return;
+
+                saveFavorite({
+                    ...favorite,
+                    name: team.team,
+                    drivers: team.drivers,
+                    points: String(team.points),
+                    colorClass: team.colorClass,
+                    pos: String(team.pos)
+                });
+            }
+        }
+
         function getTeamData(team) {
             const data = {
                 "Mercedes": { racePace: 92, qualyPace: 91, reliability: 83, outlook: "High", drivers: ["George Russell", "Kimi Antonelli"], forms: [90, 88] },
@@ -617,7 +669,7 @@
                 "Aston Martin": { racePace: 72, qualyPace: 68, reliability: 61, outlook: "Medium", drivers: ["Fernando Alonso", "Lance Stroll"], forms: [88, 82] },
                 "Alpine": { racePace: 66, qualyPace: 61, reliability: 58, outlook: "Medium", drivers: ["Pierre Gasly", "Franco Colapinto"], forms: [82, 76] },
                 "Williams": { racePace: 64, qualyPace: 60, reliability: 63, outlook: "Medium", drivers: ["Carlos Sainz", "Alexander Albon"], forms: [81, 79] },
-                "Audi": { racePace: 61, qualyPace: 58, reliability: 67, outlook: "Medium", drivers: ["Nico Hülkenberg", "Gabriel Bortoleto"], forms: [77, 74] },
+                "Audi": { racePace: 61, qualyPace: 58, reliability: 67, outlook: "Medium", drivers: ["Nico Hulkenberg", "Gabriel Bortoleto"], forms: [77, 74] },
                 "Cadillac": { racePace: 59, qualyPace: 56, reliability: 60, outlook: "Medium", drivers: ["Sergio Perez", "Valtteri Bottas"], forms: [78, 75] },
                 "Haas": { racePace: 63, qualyPace: 59, reliability: 64, outlook: "Medium", drivers: ["Esteban Ocon", "Oliver Bearman"], forms: [78, 80] },
                 "Racing Bulls": { racePace: 68, qualyPace: 65, reliability: 66, outlook: "Medium", drivers: ["Liam Lawson", "Arvid Lindblad"], forms: [79, 75] }
@@ -860,7 +912,6 @@
         function showHome() {
             setActiveNav("nav-home");
             updateSubtitle();
-
             document.getElementById("content").innerHTML = `
                 ${renderHomeHero()}
                 ${renderHomeTeamStatus()}
@@ -1024,65 +1075,90 @@
             `;
         }
 
-        function showStandings() {
+        async function showStandings() {
             setActiveNav("nav-more");
             updateSubtitle();
 
             document.getElementById("content").innerHTML = `
-                ${renderFavoriteCard()}
-
                 <div class="card">
                     <div class="card-title">Standings</div>
-                    <div class="standings-toggle">
-                        <button class="toggle-btn active" id="driversBtn" onclick="showDriversStandings()">Drivers</button>
-                        <button class="toggle-btn" id="teamsBtn" onclick="showTeamsStandings()">Teams</button>
-                    </div>
+                    <div class="card-sub">Cargando standings reales…</div>
                 </div>
-
-                <div id="standingsContent"></div>
             `;
-            showDriversStandings();
+
+            try {
+                await fetchStandingsData(true);
+
+                document.getElementById("content").innerHTML = `
+                    ${renderFavoriteCard()}
+
+                    <div class="card">
+                        <div class="card-title">Standings</div>
+                        <div class="standings-toggle">
+                            <button class="toggle-btn active" id="driversBtn" onclick="showDriversStandings()">Drivers</button>
+                            <button class="toggle-btn" id="teamsBtn" onclick="showTeamsStandings()">Teams</button>
+                        </div>
+                    </div>
+
+                    <div id="standingsContent"></div>
+                `;
+
+                showDriversStandings();
+            } catch (error) {
+                document.getElementById("content").innerHTML = `
+                    <div class="card">
+                        <div class="card-title">Standings</div>
+                        <div class="card-sub">Error al cargar standings</div>
+                        <pre class="ai-output">${error.message}</pre>
+                    </div>
+                `;
+            }
         }
 
         function showDriversStandings() {
-            document.getElementById("driversBtn").classList.add("active");
-            document.getElementById("teamsBtn").classList.remove("active");
+            const driversBtn = document.getElementById("driversBtn");
+            const teamsBtn = document.getElementById("teamsBtn");
+            if (driversBtn) driversBtn.classList.add("active");
+            if (teamsBtn) teamsBtn.classList.remove("active");
+
+            const drivers = standingsCache?.drivers || [];
 
             document.getElementById("standingsContent").innerHTML = `
                 <div class="card">
-                    ${driverRow(1, "12", "Kimi Antonelli", "Mercedes", "72", "mercedes", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/antonelli")}
-                    ${driverRow(2, "63", "George Russell", "Mercedes", "63", "mercedes", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/russell")}
-                    ${driverRow(3, "16", "Charles Leclerc", "Ferrari", "49", "ferrari", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/leclerc")}
-                    ${driverRow(4, "44", "Lewis Hamilton", "Ferrari", "41", "ferrari", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/hamilton")}
-                    ${driverRow(5, "1", "Lando Norris", "McLaren", "25", "mclaren", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/norris")}
-                    ${driverRow(6, "81", "Oscar Piastri", "McLaren", "21", "mclaren", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/piastri")}
-                    ${driverRow(7, "87", "Oliver Bearman", "Haas", "17", "haas", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/bearman")}
-                    ${driverRow(8, "10", "Pierre Gasly", "Alpine", "15", "alpine", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/gasly")}
-                    ${driverRow(9, "3", "Max Verstappen", "Red Bull", "12", "redbull", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/verstappen")}
-                    ${driverRow(10, "30", "Liam Lawson", "Racing Bulls", "10", "rb", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/lawson")}
-                    ${driverRow(21, "18", "Lance Stroll", "Aston Martin", "0", "aston", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/stroll")}
-                    ${driverRow(22, "14", "Fernando Alonso", "Aston Martin", "0", "aston", "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/drivers/2025Drivers/alonso")}
+                    ${drivers.map(driver =>
+                        driverRow(
+                            driver.pos,
+                            driver.number,
+                            driver.name,
+                            driver.team,
+                            String(driver.points),
+                            driver.colorClass,
+                            driver.image
+                        )
+                    ).join("")}
                 </div>
             `;
         }
 
         function showTeamsStandings() {
-            document.getElementById("driversBtn").classList.remove("active");
-            document.getElementById("teamsBtn").classList.add("active");
+            const driversBtn = document.getElementById("driversBtn");
+            const teamsBtn = document.getElementById("teamsBtn");
+            if (driversBtn) driversBtn.classList.remove("active");
+            if (teamsBtn) teamsBtn.classList.add("active");
+
+            const teams = standingsCache?.teams || [];
 
             document.getElementById("standingsContent").innerHTML = `
                 <div class="card">
-                    ${teamRow(1, "Mercedes", "Russell · Antonelli", "135", "mercedes")}
-                    ${teamRow(2, "Ferrari", "Leclerc · Hamilton", "90", "ferrari")}
-                    ${teamRow(3, "McLaren", "Norris · Piastri", "46", "mclaren")}
-                    ${teamRow(4, "Haas", "Ocon · Bearman", "18", "haas")}
-                    ${teamRow(5, "Alpine", "Gasly · Colapinto", "16", "alpine")}
-                    ${teamRow(6, "Red Bull", "Verstappen · Hadjar", "16", "redbull")}
-                    ${teamRow(7, "Racing Bulls", "Lawson · Lindblad", "14", "rb")}
-                    ${teamRow(8, "Audi", "Hülkenberg · Bortoleto", "2", "audi")}
-                    ${teamRow(9, "Williams", "Sainz · Albon", "2", "williams")}
-                    ${teamRow(10, "Cadillac", "Perez · Bottas", "0", "cadillac")}
-                    ${teamRow(11, "Aston Martin", "Alonso · Stroll", "0", "aston")}
+                    ${teams.map(team =>
+                        teamRow(
+                            team.pos,
+                            team.team,
+                            team.drivers,
+                            String(team.points),
+                            team.colorClass
+                        )
+                    ).join("")}
                 </div>
             `;
         }
@@ -1169,7 +1245,7 @@
         }
 
         function setFavoriteDriver(name, team, number, points, colorClass, image, pos) {
-            const favorite = {
+            saveFavorite({
                 type: "driver",
                 name,
                 team,
@@ -1178,30 +1254,30 @@
                 colorClass,
                 image,
                 pos
-            };
+            });
 
             const wasTeams = document.getElementById("teamsBtn")?.classList.contains("active");
-            localStorage.setItem("racecontrolFavorite", JSON.stringify(favorite));
-
             showStandings();
-            if (wasTeams) showTeamsStandings();
+            if (wasTeams) {
+                setTimeout(showTeamsStandings, 50);
+            }
         }
 
         function setFavoriteTeam(name, drivers, points, colorClass, pos) {
-            const favorite = {
+            saveFavorite({
                 type: "team",
                 name,
                 drivers,
                 points,
                 colorClass,
                 pos
-            };
+            });
 
             const wasTeams = document.getElementById("teamsBtn")?.classList.contains("active");
-            localStorage.setItem("racecontrolFavorite", JSON.stringify(favorite));
-
             showStandings();
-            if (wasTeams) showTeamsStandings();
+            if (wasTeams) {
+                setTimeout(showTeamsStandings, 50);
+            }
         }
 
         async function showCalendar() {
@@ -1256,6 +1332,7 @@
         }
 
         updateSubtitle();
+        fetchStandingsData().catch(() => {});
         showHome();
     </script>
 </body>
