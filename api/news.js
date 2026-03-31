@@ -19,15 +19,26 @@ export default async function handler(req, res) {
     const allItems = [];
 
     for (const query of queries) {
-      const rssUrl = buildGoogleNewsRssUrl(query);
-      const response = await fetch(rssUrl);
+      try {
+        const rssUrl = buildGoogleNewsRssUrl(query);
 
-      if (!response.ok) continue;
+        const response = await fetch(rssUrl, {
+          method: "GET",
+          headers: {
+            "User-Agent": "Mozilla/5.0 RaceControl/1.0",
+            "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8"
+          },
+          cache: "no-store"
+        });
 
-      const xml = await response.text();
-      const items = parseRssItems(xml);
+        if (!response.ok) continue;
 
-      allItems.push(...items);
+        const xml = await response.text();
+        const items = parseRssItems(xml);
+        allItems.push(...items);
+      } catch (err) {
+        continue;
+      }
     }
 
     const uniqueItems = dedupeNews(allItems).slice(0, 8);
@@ -47,8 +58,8 @@ export default async function handler(req, res) {
 function buildQueries(favorite) {
   if (favorite.type === "team") {
     const queries = [
-      `"${favorite.name}" Formula 1`,
-      `"${favorite.name}" F1`
+      `${favorite.name} Formula 1`,
+      `${favorite.name} F1`
     ];
 
     if (favorite.drivers) {
@@ -58,43 +69,46 @@ function buildQueries(favorite) {
         .filter(Boolean);
 
       driverNames.forEach(name => {
-        queries.push(`"${name}" "${favorite.name}" Formula 1`);
+        queries.push(`${name} ${favorite.name} Formula 1`);
       });
     }
 
-    return queries.slice(0, 4);
+    return queries.slice(0, 5);
   }
 
   return [
-    `"${favorite.name}" Formula 1`,
-    `"${favorite.name}" "${favorite.team}" Formula 1`,
-    `"${favorite.team}" Formula 1`
-  ].slice(0, 4);
+    `${favorite.name} Formula 1`,
+    `${favorite.name} ${favorite.team} Formula 1`,
+    `${favorite.team} Formula 1`,
+    `${favorite.name} F1`
+  ].slice(0, 5);
 }
 
 function buildGoogleNewsRssUrl(query) {
   const encoded = encodeURIComponent(query);
-  return `https://news.google.com/rss/search?q=${encoded}&hl=es-419&gl=ES&ceid=ES:es-419`;
+  return `https://news.google.com/rss/search?q=${encoded}&hl=es&gl=ES&ceid=ES:es`;
 }
 
 function parseRssItems(xml) {
-  const matches = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)];
+  const matches = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
 
-  return matches.map(match => {
-    const block = match[1];
+  return matches
+    .map(match => {
+      const block = match[1];
 
-    const title = cleanText(extractTag(block, "title"));
-    const link = cleanText(extractTag(block, "link"));
-    const pubDate = cleanText(extractTag(block, "pubDate"));
-    const source = extractSource(block) || getDomainFromUrl(link);
+      const title = cleanText(extractTag(block, "title"));
+      const link = cleanText(extractTag(block, "link"));
+      const pubDate = cleanText(extractTag(block, "pubDate"));
+      const source = extractSource(block) || getDomainFromUrl(link);
 
-    return {
-      title,
-      link,
-      pubDate,
-      source
-    };
-  }).filter(item => item.title && item.link);
+      return {
+        title,
+        link,
+        pubDate,
+        source
+      };
+    })
+    .filter(item => item.title && item.link);
 }
 
 function extractTag(block, tag) {
