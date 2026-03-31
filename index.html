@@ -247,6 +247,19 @@
             margin-top: 12px;
         }
 
+        .menu-link {
+            display: block;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--line);
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .menu-link:last-child {
+            border-bottom: none;
+        }
+
         pre.ai-output {
             white-space: pre-wrap;
             word-wrap: break-word;
@@ -268,24 +281,20 @@
 
 <div class="nav">
     <a href="#" id="nav-home" onclick="showHome(); return false;">Home</a>
-    <a href="#" id="nav-standings" onclick="showStandings(); return false;">Standings</a>
-    <a href="#" id="nav-calendar" onclick="showCalendar(); return false;">Calendar</a>
-    <a href="#" id="nav-sim" onclick="showSim(); return false;">Sim</a>
     <a href="#" id="nav-predict" onclick="showPredict(); return false;">Predict</a>
     <a href="#" id="nav-aston" onclick="showAston(); return false;">Aston</a>
     <a href="#" id="nav-news" onclick="showNews(); return false;">News</a>
+    <a href="#" id="nav-more" onclick="showMore(); return false;">More</a>
 </div>
 
 <script>
 function setActiveNav(tabId) {
     const ids = [
         "nav-home",
-        "nav-standings",
-        "nav-calendar",
-        "nav-sim",
         "nav-predict",
         "nav-aston",
-        "nav-news"
+        "nav-news",
+        "nav-more"
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
@@ -374,109 +383,6 @@ function showHome() {
 
             <div class="stat" style="margin-top:12px;">Aston Martin <span>72%</span></div>
             <div class="bar"><div class="bar-fill aston" style="width:72%;"></div></div>
-        </div>
-    `;
-}
-
-function showStandings() {
-    setActiveNav("nav-standings");
-    document.getElementById("content").innerHTML = `
-        <div class="card">
-            <h3>Drivers Standings</h3>
-            <table>
-                <tr><th>Pos</th><th>Piloto</th><th>Equipo</th><th>Puntos</th></tr>
-                <tr><td>1</td><td>Kimi Antonelli</td><td>Mercedes</td><td>72</td></tr>
-                <tr><td>2</td><td>George Russell</td><td>Mercedes</td><td>63</td></tr>
-                <tr><td>3</td><td>Charles Leclerc</td><td>Ferrari</td><td>49</td></tr>
-                <tr><td>4</td><td>Lewis Hamilton</td><td>Ferrari</td><td>41</td></tr>
-                <tr><td>5</td><td>Lando Norris</td><td>McLaren</td><td>25</td></tr>
-                <tr><td>6</td><td>Oscar Piastri</td><td>McLaren</td><td>21</td></tr>
-                <tr><td>7</td><td>Oliver Bearman</td><td>Haas</td><td>17</td></tr>
-                <tr><td>8</td><td>Pierre Gasly</td><td>Alpine</td><td>15</td></tr>
-                <tr><td>9</td><td>Max Verstappen</td><td>Red Bull</td><td>12</td></tr>
-                <tr><td>10</td><td>Liam Lawson</td><td>Racing Bulls</td><td>10</td></tr>
-                <tr><td>11</td><td>Arvid Lindblad</td><td>Racing Bulls</td><td>4</td></tr>
-                <tr><td>12</td><td>Isack Hadjar</td><td>Red Bull</td><td>4</td></tr>
-                <tr><td>13</td><td>Gabriel Bortoleto</td><td>Audi</td><td>2</td></tr>
-                <tr><td>14</td><td>Carlos Sainz</td><td>Williams</td><td>2</td></tr>
-                <tr><td>15</td><td>Esteban Ocon</td><td>Haas</td><td>1</td></tr>
-                <tr><td>16</td><td>Franco Colapinto</td><td>Alpine</td><td>1</td></tr>
-                <tr><td>17</td><td>Nico Hülkenberg</td><td>Audi</td><td>0</td></tr>
-                <tr><td>18</td><td>Alexander Albon</td><td>Williams</td><td>0</td></tr>
-                <tr><td>19</td><td>Valtteri Bottas</td><td>Cadillac</td><td>0</td></tr>
-                <tr><td>20</td><td>Sergio Pérez</td><td>Cadillac</td><td>0</td></tr>
-                <tr><td>21</td><td>Lance Stroll</td><td>Aston Martin</td><td>0</td></tr>
-                <tr><td>22</td><td>Fernando Alonso</td><td>Aston Martin</td><td>0</td></tr>
-            </table>
-        </div>
-
-        <div class="card">
-            <h3>Constructors Standings</h3>
-            <table>
-                <tr><th>Pos</th><th>Equipo</th><th>Puntos</th></tr>
-                <tr><td>1</td><td>Mercedes</td><td>135</td></tr>
-                <tr><td>2</td><td>Ferrari</td><td>90</td></tr>
-                <tr><td>3</td><td>McLaren</td><td>46</td></tr>
-                <tr><td>4</td><td>Haas</td><td>18</td></tr>
-                <tr><td>5</td><td>Red Bull</td><td>16</td></tr>
-                <tr><td>6</td><td>Alpine</td><td>16</td></tr>
-                <tr><td>7</td><td>Racing Bulls</td><td>14</td></tr>
-                <tr><td>8</td><td>Audi</td><td>2</td></tr>
-                <tr><td>9</td><td>Williams</td><td>2</td></tr>
-                <tr><td>10</td><td>Cadillac</td><td>0</td></tr>
-                <tr><td>11</td><td>Aston Martin</td><td>0</td></tr>
-            </table>
-        </div>
-    `;
-}
-
-function showCalendar() {
-    setActiveNav("nav-calendar");
-    document.getElementById("content").innerHTML = `
-        <div class="card">
-            <h3>Calendario</h3>
-            <p>Australia — Completado</p>
-            <p>China — Completado</p>
-            <p>Japón — Completado</p>
-            <p>Miami — Próximo</p>
-            <p>Canadá — Próximo</p>
-            <p>Mónaco — Próximo</p>
-        </div>
-    `;
-}
-
-async function generateSim() {
-    const output = document.getElementById("simResult");
-    output.innerText = "Generando simulación con IA...";
-
-    try {
-        const res = await fetch("/api/sim");
-        const data = await res.json();
-
-        if (data.result) {
-            output.innerText = data.result;
-        } else {
-            output.innerText = "Error generando simulación.";
-        }
-    } catch (error) {
-        output.innerText = "Error de conexión con la IA.";
-    }
-}
-
-function showSim() {
-    setActiveNav("nav-sim");
-
-    document.getElementById("content").innerHTML = `
-        <div class="card">
-            <div class="pill pill-ai">SIM · GPT REAL</div>
-            <div class="section-title">GP de Japón · Simulación IA</div>
-            <p>La simulación se genera dentro de la app con OpenAI.</p>
-            <button class="btn" onclick="generateSim()">Generar simulación IA</button>
-        </div>
-
-        <div class="card">
-            <h3>AI RESULT</h3>
-            <pre id="simResult" class="ai-output">Pulsa el botón para generar simulación.</pre>
         </div>
     `;
 }
@@ -676,6 +582,168 @@ function showNews() {
                 <p><span class="highlight">McLaren y Red Bull siguen marcando el listón de la zona alta.</span></p>
                 <div class="news-source">Grid analysis</div>
             </div>
+        </div>
+    `;
+}
+
+function showMore() {
+    setActiveNav("nav-more");
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <div class="pill">MORE</div>
+            <div class="section-title">Más secciones</div>
+            <a href="#" class="menu-link" onclick="showStandings(); return false;">Standings</a>
+            <a href="#" class="menu-link" onclick="showCalendar(); return false;">Calendar</a>
+            <a href="#" class="menu-link" onclick="showDrivers(); return false;">Drivers</a>
+            <a href="#" class="menu-link" onclick="showTeams(); return false;">Teams</a>
+        </div>
+    `;
+}
+
+function showStandings() {
+    setActiveNav("nav-more");
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <div class="pill">MORE · STANDINGS</div>
+            <div class="section-title">Clasificación</div>
+        </div>
+
+        <div class="card">
+            <h3>Drivers Standings</h3>
+            <table>
+                <tr><th>Pos</th><th>Piloto</th><th>Equipo</th><th>Puntos</th></tr>
+                <tr><td>1</td><td>Kimi Antonelli</td><td>Mercedes</td><td>72</td></tr>
+                <tr><td>2</td><td>George Russell</td><td>Mercedes</td><td>63</td></tr>
+                <tr><td>3</td><td>Charles Leclerc</td><td>Ferrari</td><td>49</td></tr>
+                <tr><td>4</td><td>Lewis Hamilton</td><td>Ferrari</td><td>41</td></tr>
+                <tr><td>5</td><td>Lando Norris</td><td>McLaren</td><td>25</td></tr>
+                <tr><td>6</td><td>Oscar Piastri</td><td>McLaren</td><td>21</td></tr>
+                <tr><td>7</td><td>Oliver Bearman</td><td>Haas</td><td>17</td></tr>
+                <tr><td>8</td><td>Pierre Gasly</td><td>Alpine</td><td>15</td></tr>
+                <tr><td>9</td><td>Max Verstappen</td><td>Red Bull</td><td>12</td></tr>
+                <tr><td>10</td><td>Liam Lawson</td><td>Racing Bulls</td><td>10</td></tr>
+                <tr><td>21</td><td>Lance Stroll</td><td>Aston Martin</td><td>0</td></tr>
+                <tr><td>22</td><td>Fernando Alonso</td><td>Aston Martin</td><td>0</td></tr>
+            </table>
+        </div>
+
+        <div class="card">
+            <h3>Constructors Standings</h3>
+            <table>
+                <tr><th>Pos</th><th>Equipo</th><th>Puntos</th></tr>
+                <tr><td>1</td><td>Mercedes</td><td>135</td></tr>
+                <tr><td>2</td><td>Ferrari</td><td>90</td></tr>
+                <tr><td>3</td><td>McLaren</td><td>46</td></tr>
+                <tr><td>11</td><td>Aston Martin</td><td>0</td></tr>
+            </table>
+        </div>
+    `;
+}
+
+function showCalendar() {
+    setActiveNav("nav-more");
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <div class="pill">MORE · CALENDAR</div>
+            <div class="section-title">Calendario</div>
+        </div>
+
+        <div class="card">
+            <p>Australia — Completado</p>
+            <p>China — Completado</p>
+            <p>Japón — Completado</p>
+            <p>Miami — Próximo</p>
+            <p>Canadá — Próximo</p>
+            <p>Mónaco — Próximo</p>
+        </div>
+    `;
+}
+
+function showDrivers() {
+    setActiveNav("nav-more");
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <div class="pill">MORE · DRIVERS</div>
+            <div class="section-title">Pilotos</div>
+        </div>
+
+        <div class="card">
+            <h3 style="color: var(--aston);">Fernando Alonso</h3>
+            <p>Equipo: Aston Martin</p>
+            <p>Puntos: 0</p>
+            <p>Posición: P22</p>
+            <p class="small">Principal referencia competitiva del equipo.</p>
+        </div>
+
+        <div class="card">
+            <h3 style="color: var(--aston);">Lance Stroll</h3>
+            <p>Equipo: Aston Martin</p>
+            <p>Puntos: 0</p>
+            <p>Posición: P21</p>
+            <p class="small">Ritmo correcto, menos margen que Alonso.</p>
+        </div>
+
+        <div class="card">
+            <h3>Kimi Antonelli</h3>
+            <p>Equipo: Mercedes</p>
+            <p>Puntos: 72</p>
+            <p>Posición: P1</p>
+        </div>
+
+        <div class="card">
+            <h3>George Russell</h3>
+            <p>Equipo: Mercedes</p>
+            <p>Puntos: 63</p>
+            <p>Posición: P2</p>
+        </div>
+
+        <div class="card">
+            <h3>Charles Leclerc</h3>
+            <p>Equipo: Ferrari</p>
+            <p>Puntos: 49</p>
+            <p>Posición: P3</p>
+        </div>
+    `;
+}
+
+function showTeams() {
+    setActiveNav("nav-more");
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <div class="pill">MORE · TEAMS</div>
+            <div class="section-title">Equipos</div>
+        </div>
+
+        <div class="card">
+            <h3 style="color: var(--aston);">Aston Martin</h3>
+            <p>Motor: Honda</p>
+            <p>Ritmo: Medio-bajo</p>
+            <p>Fiabilidad: Baja</p>
+            <p class="small">Foco actual: terminar carreras y acercarse al top 10.</p>
+        </div>
+
+        <div class="card">
+            <h3 style="color: var(--mercedes);">Mercedes</h3>
+            <p>Ritmo: Muy alto</p>
+            <p>Estado: Referencia actual</p>
+        </div>
+
+        <div class="card">
+            <h3 style="color: var(--ferrari);">Ferrari</h3>
+            <p>Ritmo: Alto</p>
+            <p>Estado: Segunda fuerza estable</p>
+        </div>
+
+        <div class="card">
+            <h3 style="color: var(--mclaren);">McLaren</h3>
+            <p>Ritmo: Alto</p>
+            <p>Estado: Zona alta consolidada</p>
+        </div>
+
+        <div class="card">
+            <h3 style="color: var(--redbull);">Red Bull</h3>
+            <p>Ritmo: Alto pero irregular</p>
+            <p>Estado: Competitivo con dudas</p>
         </div>
     `;
 }
