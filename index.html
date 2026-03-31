@@ -334,60 +334,115 @@ function showCalendar() {
 function showSim() {
     setActiveNav("nav-sim");
 
-    const simPrompt = `Actúa como ingeniero de estrategia de Fórmula 1 en 2026.
+    const rainPercent = Math.floor(15 + Math.random() * 26);
+    const scPercent = Math.floor(25 + Math.random() * 26);
+    const alonsoQualy = Math.floor(12 + Math.random() * 4);
+    const alonsoRace = Math.max(10, alonsoQualy - Math.floor(Math.random() * 3));
+    const alonsoPointsProb = Math.floor(18 + Math.random() * 18);
+    const alonsoDnfProb = Math.floor(20 + Math.random() * 15);
+    const strollRace = Math.min(18, alonsoRace + 2 + Math.floor(Math.random() * 2));
 
-Quiero una simulación realista del próximo Gran Premio teniendo en cuenta:
-- Rendimiento actual de los equipos
-- Resultados de las últimas carreras
-- Fiabilidad de cada equipo
-- Ritmo de carrera vs clasificación
-- Probabilidad de Safety Car
-- Probabilidad de lluvia
-- Estrategias reales usadas en ese circuito
-- Reglamento 2026
+    const top10 = [
+        "Antonelli",
+        "Russell",
+        "Leclerc",
+        "Hamilton",
+        "Norris",
+        "Piastri",
+        "Verstappen",
+        "Gasly",
+        "Bearman",
+        "Lawson"
+    ];
 
-Quiero la salida en este formato EXACTO:
+    if (Math.random() < 0.35) {
+        top10[8] = "Alonso";
+    }
 
-SIMULACIÓN GP [CIRCUITO]
+    document.getElementById("content").innerHTML = `
+        <div class="card">
+            <h3 style="color: var(--mclaren);">SIMULATION · JAPAN GP</h3>
+            <p><span class="highlight">Circuit:</span> Suzuka</p>
+            <p><span class="highlight">Mode:</span> Realistic baseline simulation</p>
+        </div>
 
-Ritmo equipos (%):
-Mercedes:
-Ferrari:
-McLaren:
-Red Bull:
-Aston Martin:
-Alpine:
-Haas:
-Racing Bulls:
-Williams:
-Audi:
-Cadillac:
+        <div class="card">
+            <h3>WEEKEND CONDITIONS</h3>
 
-Predicción clasificación Alonso:
-Predicción carrera Alonso:
-Probabilidad puntos Alonso (%):
-Probabilidad DNF Alonso (%):
-Estrategia más probable Alonso:
-Vuelta parada:
+            <div class="stat">Rain probability <span>${rainPercent}%</span></div>
+            <div class="bar">
+                <div class="bar-fill alpine" style="width:${rainPercent}%;"></div>
+            </div>
 
-Probabilidad Safety Car (%):
-Probabilidad lluvia (%):
+            <div class="stat" style="margin-top:12px;">Safety Car probability <span>${scPercent}%</span></div>
+            <div class="bar">
+                <div class="bar-fill mclaren" style="width:${scPercent}%;"></div>
+            </div>
 
-Top 10 estimado carrera:
-1.
-2.
-3.
-4.
-5.
-6.
-7.
-8.
-9.
-10.`;
+            <div class="stat" style="margin-top:12px;">Track evolution <span>High</span></div>
+            <div class="stat">Tyre stress <span>Medium-High</span></div>
+        </div>
 
-    document.getElementById("content").innerHTML = renderStorageBlock("Simulación IA", "simSaved", simPrompt);
-}
+        <div class="card">
+            <h3>TEAM RACE PACE</h3>
 
+            <div class="stat">Mercedes <span>92%</span></div>
+            <div class="bar"><div class="bar-fill mercedes" style="width:92%;"></div></div>
+
+            <div class="stat" style="margin-top:12px;">Ferrari <span>88%</span></div>
+            <div class="bar"><div class="bar-fill ferrari" style="width:88%;"></div></div>
+
+            <div class="stat" style="margin-top:12px;">McLaren <span>84%</span></div>
+            <div class="bar"><div class="bar-fill mclaren" style="width:84%;"></div></div>
+
+            <div class="stat" style="margin-top:12px;">Red Bull <span>80%</span></div>
+            <div class="bar"><div class="bar-fill redbull" style="width:80%;"></div></div>
+
+            <div class="stat" style="margin-top:12px;">Aston Martin <span>72%</span></div>
+            <div class="bar"><div class="bar-fill aston" style="width:72%;"></div></div>
+        </div>
+
+        <div class="card">
+            <h3>ALONSO RACE MODEL</h3>
+
+            <div class="stat">Qualifying estimate <span>P${alonsoQualy}</span></div>
+            <div class="stat">Race estimate <span>P${alonsoRace}</span></div>
+
+            <div class="stat" style="margin-top:12px;">Points probability <span>${alonsoPointsProb}%</span></div>
+            <div class="bar">
+                <div class="bar-fill aston" style="width:${alonsoPointsProb}%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">DNF probability <span>${alonsoDnfProb}%</span></div>
+            <div class="bar">
+                <div class="bar-fill ferrari" style="width:${alonsoDnfProb}%;"></div>
+            </div>
+
+            <div class="stat" style="margin-top:12px;">Strategy <span>Medium → Hard</span></div>
+            <div class="stat">Main risk <span>Reliability / traffic</span></div>
+        </div>
+
+        <div class="card">
+            <h3>STROLL RACE MODEL</h3>
+            <div class="stat">Race estimate <span>P${strollRace}</span></div>
+            <div class="stat">Points probability <span>${Math.max(8, alonsoPointsProb - 8)}%</span></div>
+            <div class="stat">DNF probability <span>${Math.min(55, alonsoDnfProb + 4)}%</span></div>
+        </div>
+
+        <div class="card">
+            <h3>TOP 10 ESTIMATE</h3>
+            <div class="sim-grid">
+                ${top10.map((driver, index) => `
+                    <div class="sim-line"><span>${index + 1}</span><span>${driver}</span></div>
+                `).join("")}
+            </div>
+        </div>
+
+        <div class="card">
+            <button class="btn" onclick="showSim()">Recalculate simulation</button>
+        </div>
+    `;
+}    
 function showPredict() {
     setActiveNav("nav-predict");
 
