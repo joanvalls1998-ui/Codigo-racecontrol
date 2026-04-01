@@ -1,128 +1,65 @@
-function extractResponseText(data) {
-  if (typeof data.output_text === "string" && data.output_text.trim()) {
-    return data.output_text.trim();
-  }
-
-  if (Array.isArray(data.output)) {
-    const parts = [];
-
-    for (const item of data.output) {
-      if (!Array.isArray(item.content)) continue;
-
-      for (const content of item.content) {
-        if (typeof content.text === "string" && content.text.trim()) {
-          parts.push(content.text.trim());
-        }
-      }
-    }
-
-    if (parts.length) return parts.join("\n\n");
-  }
-
-  return "No se pudo generar la predicción.";
-}
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({
-      error: "Method not allowed"
-    });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  try {
-    const body =
-      typeof req.body === "string"
-        ? JSON.parse(req.body || "{}")
-        : (req.body || {});
+  const body =
+    typeof req.body === "string"
+      ? JSON.parse(req.body || "{}")
+      : (req.body || {});
 
-    const favorite = body.favorite || {
-      type: "driver",
-      name: "Fernando Alonso",
-      team: "Aston Martin",
-      number: "14",
-      points: "0",
-      pos: "22",
-      colorClass: "aston"
-    };
+  const favorite = body.favorite || {
+    type: "driver",
+    name: "Fernando Alonso",
+    team: "Aston Martin"
+  };
 
-    const raceName = body.raceName || "GP Miami";
+  const raceName = body.raceName || "GP Miami";
 
-    const focusBlock =
-      favorite.type === "team"
-        ? `
-Centro principal del análisis: equipo ${favorite.name}.
-Pilotos del equipo: ${favorite.drivers || "No especificados"}.
-No centres la respuesta en Fernando Alonso salvo que el equipo favorito sea Aston Martin.
-`
-        : `
-Centro principal del análisis: piloto ${favorite.name}.
-Equipo del piloto: ${favorite.team || "Desconocido"}.
-Posición actual estimada: P${favorite.pos || "?"}.
-Puntos actuales estimados: ${favorite.points || "0"}.
-`;
+  const focusText =
+    favorite.type === "team"
+      ? `El favorito del usuario es el equipo ${favorite.name}.`
+      : `El favorito del usuario es ${favorite.name} (${favorite.team}).`;
 
-    const outputFormat =
-      favorite.type === "team"
-        ? `
-Salida en este formato EXACTO:
-
-PREDICCIÓN ${raceName.toUpperCase()}
-
-Favorito seleccionado:
-Equipo:
-Pilotos:
-Ritmo estimado clasificación:
-Ritmo estimado carrera:
-Probabilidad de puntos dobles (%):
-Probabilidad de podio (%):
-Probabilidad de DNF del equipo (%):
-Probabilidad lluvia (%):
-Probabilidad Safety Car (%):
-Estrategia más probable:
-Número de paradas:
-Resumen:
-`
-        : `
-Salida en este formato EXACTO:
-
-PREDICCIÓN ${raceName.toUpperCase()}
-
-Favorito seleccionado:
-Piloto:
-Equipo:
-Predicción clasificación:
-Predicción carrera:
-Probabilidad de puntos (%):
-Probabilidad de DNF (%):
-Probabilidad lluvia (%):
-Probabilidad Safety Car (%):
-Estrategia más probable:
-Número de paradas:
-Resumen:
-`;
-
-    const prompt = `
+  const prompt = `
 Actúa como analista de Fórmula 1 en 2026.
 
-Haz una predicción realista para la próxima carrera teniendo en cuenta:
+Haz una predicción realista para ${raceName} teniendo en cuenta:
 - Forma actual de los equipos
 - Ritmo de clasificación
 - Ritmo de carrera
 - Degradación de neumáticos
 - Historial del circuito
 - Fiabilidad de los equipos
-- Equipos top actuales
-- Situación actual del favorito seleccionado
+- Posibles coches de seguridad
+- Posibilidad de lluvia
+- Situación del favorito del usuario
 
-${focusBlock}
+${focusText}
 
-No inventes certezas absolutas.
-Sé prudente, realista y directo.
-La respuesta debe estar en español.
+Escribe siempre en español de España.
 
-${outputFormat}
+Salida en este formato exacto:
+
+PREDICCIÓN ${raceName.toUpperCase()}
+
+Favorito para la victoria:
+Equipos con más ritmo:
+Equipos con peor ritmo:
+
+Predicción del favorito en clasificación:
+Predicción del favorito en carrera:
+Probabilidad de puntos del favorito (%):
+Probabilidad de abandono del favorito (%):
+
+Probabilidad de lluvia (%):
+Probabilidad de Safety Car (%):
+
+Estrategia más probable:
+Número de paradas:
 `;
 
+  try {
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
@@ -144,9 +81,16 @@ ${outputFormat}
       });
     }
 
-    const text = extractResponseText(data);
+    const text =
+      data.output_text ||
+      data.output?.[0]?.content?.[0]?.text ||
+      "No se pudo generar la predicción.";
 
-    return res.status(200).json({ result: text });
+    return res.status(200).json({
+      result: text,
+      raceName,
+      favorite
+    });
   } catch (error) {
     return res.status(500).json({
       error: "Server error",
