@@ -1,3 +1,13 @@
+Sí. Te dejo el index.html completo ya actualizado con:
+	•	selector de circuito en Predicción
+	•	circuito guardado en localStorage
+	•	renderPredictContent() adaptado
+	•	runPredict() adaptado
+	•	showPredict() adaptado
+	•	manteniendo Favorito y todo el texto en español de España
+
+Pega esto entero:
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -285,6 +295,30 @@
 
         .btn:active {
             transform: scale(0.995);
+        }
+
+        .select-input {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            margin: 10px 0 14px 0;
+            padding: 15px 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.10);
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05));
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            outline: none;
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+
+        .select-input option {
+            background: #111315;
+            color: white;
         }
 
         .nav {
@@ -799,6 +833,33 @@
             localStorage.setItem("racecontrolFavorite", JSON.stringify(favorite));
         }
 
+        function getPredictRaceOptions() {
+            return [
+                "GP Miami",
+                "GP de Mónaco",
+                "GP de España",
+                "GP de Canadá",
+                "GP de Austria",
+                "GP de Gran Bretaña",
+                "GP de Bélgica",
+                "GP de Italia",
+                "GP de Singapur",
+                "GP de Estados Unidos",
+                "GP de México",
+                "GP de São Paulo",
+                "GP de Las Vegas",
+                "GP de Abu Dabi"
+            ];
+        }
+
+        function getSelectedRace() {
+            return localStorage.getItem("racecontrolSelectedRace") || "GP Miami";
+        }
+
+        function saveSelectedRace(raceName) {
+            localStorage.setItem("racecontrolSelectedRace", raceName);
+        }
+
         function updateSubtitle() {
             const favorite = getFavorite();
             const subtitle = document.getElementById("appSubtitle");
@@ -1026,17 +1087,23 @@
 
         function renderPredictContent() {
             const favorite = getFavorite();
+            const raceName = getSelectedRace();
+
             return {
                 title: `PREDICCIÓN · ${favorite.name.toUpperCase()}`,
-                sub: `Predicción centrada en ${favorite.name} para el próximo GP.`,
-                accent: favorite.colorClass
+                sub: `Predicción centrada en ${favorite.name} para ${raceName}.`,
+                accent: favorite.colorClass,
+                raceName
             };
         }
 
         async function runPredict() {
             const output = document.getElementById("predictOutput");
             const favorite = getFavorite();
+            const raceSelect = document.getElementById("predictRace");
+            const raceName = raceSelect?.value || getSelectedRace();
 
+            saveSelectedRace(raceName);
             output.innerText = "Generando predicción...";
 
             try {
@@ -1045,7 +1112,7 @@
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         favorite,
-                        raceName: "GP Miami"
+                        raceName
                     })
                 });
 
@@ -1122,20 +1189,29 @@
             updateSubtitle();
 
             const predict = renderPredictContent();
+            const selectedRace = getSelectedRace();
 
             document.getElementById("content").innerHTML = `
                 <div class="card">
                     <div class="pill">IA · REAL</div>
                     <div class="card-title" style="color: var(--${predict.accent});">${predict.title}</div>
                     <div class="card-sub">${predict.sub}</div>
+
+                    <div class="card-sub" style="margin-bottom:6px;">Circuito</div>
+                    <select id="predictRace" class="select-input" onchange="saveSelectedRace(this.value)">
+                        ${getPredictRaceOptions().map(race => `
+                            <option value="${race}" ${race === selectedRace ? "selected" : ""}>${race}</option>
+                        `).join("")}
+                    </select>
+
                     <button class="btn" onclick="runPredict()">
                         Generar predicción
                     </button>
                 </div>
 
                 <div class="card">
-                    <div class="card-title">RESULTADO IA</div>
-                    <pre id="predictOutput" class="ai-output">Pulsa en “Generar predicción” para consultar la API real.</pre>
+                    <div class="card-title">Resultado IA</div>
+                    <pre id="predictOutput" class="ai-output">Selecciona un circuito y pulsa en “Generar predicción”.</pre>
                 </div>
             `;
         }
