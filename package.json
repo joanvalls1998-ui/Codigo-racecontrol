@@ -1,0 +1,9 @@
+{
+  "name": "racecontrol",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@vercel/edge-config": "^1.4.0"
+  }
+}
