@@ -1,8 +1,6 @@
 import { drivers2026, driverByName, teamByName } from "../data/grid.js";
-import {
-  getEffectiveDriverPerformance,
-  getEffectiveTeamPerformance
-} from "../data/performance.js";
+import { performanceState } from "../data/performance.js";
+import { manualAdjustmentsState } from "../data/manual-adjustments.js";
 import { getCircuitProfile, raceOptions } from "../data/circuits.js";
 
 function clamp(value, min = 0, max = 100) {
@@ -24,6 +22,51 @@ function parseBody(req) {
     }
   }
   return req.body;
+}
+
+function mergeNumericObjects(base = {}, ...layers) {
+  const result = { ...base };
+
+  for (const layer of layers) {
+    if (!layer) continue;
+
+    for (const [key, value] of Object.entries(layer)) {
+      if (typeof value === "number" && !Number.isNaN(value)) {
+        const previous = typeof result[key] === "number" ? result[key] : 0;
+        result[key] = clamp(previous + value, 0, 100);
+      } else if (!(key in result)) {
+        result[key] = value;
+      }
+    }
+  }
+
+  return result;
+}
+
+function getEffectiveTeamPerformance(teamName) {
+  const base = performanceState?.teams?.[teamName];
+  if (!base) return null;
+
+  const internalAdjustments =
+    performanceState?.manualAdjustments?.teams?.[teamName] || {};
+
+  const externalAdjustments =
+    manualAdjustmentsState?.teams?.[teamName] || {};
+
+  return mergeNumericObjects(base, internalAdjustments, externalAdjustments);
+}
+
+function getEffectiveDriverPerformance(driverName) {
+  const base = performanceState?.drivers?.[driverName];
+  if (!base) return null;
+
+  const internalAdjustments =
+    performanceState?.manualAdjustments?.drivers?.[driverName] || {};
+
+  const externalAdjustments =
+    manualAdjustmentsState?.drivers?.[driverName] || {};
+
+  return mergeNumericObjects(base, internalAdjustments, externalAdjustments);
 }
 
 function getStreetFactor(type) {
@@ -137,7 +180,13 @@ function computeDnfProbability(teamPerf, driverPerf, circuit) {
   return round(clamp(dnf, 6, 45), 1);
 }
 
-function computePointsProbability(predictedRacePosition, teamPerf, driverPerf, circuit, dnfProbability) {
+function computePointsProbability(
+  predictedRacePosition,
+  teamPerf,
+  driverPerf,
+  circuit,
+  dnfProbability
+) {
   const baseByPosition = {
     1: 99, 2: 98, 3: 96, 4: 93, 5: 89,
     6: 84, 7: 78, 8: 72, 9: 65, 10: 56,
@@ -245,7 +294,8 @@ function buildRacePredictions(circuit) {
   const raceSeed = base.map((driver) => {
     const qualyReference = qualyOrder.find((q) => q.name === driver.name);
     const overtakingFactor = circuit.overtaking / 100;
-    const qualyCarry = (23 - qualyReference.position) * 0.18 * (1 - overtakingFactor);
+    const qualyCarry =
+      (23 - qualyReference.position) * 0.18 * (1 - overtakingFactor);
 
     return {
       ...driver,
@@ -300,24 +350,37 @@ function buildTeamSummary(raceOrder, qualyOrder) {
     team: team.team,
     bestQualy: Math.min(...team.qualyPositions),
     bestRace: Math.min(...team.racePositions),
-    averageQualy: round(team.qualyPositions.reduce((a, b) => a + b, 0) / team.qualyPositions.length, 2),
-    averageRace: round(team.racePositions.reduce((a, b) => a + b, 0) / team.racePositions.length, 2),
-    averagePointsProbability: round(team.pointsProbabilities.reduce((a, b) => a + b, 0) / team.pointsProbabilities.length, 1),
+    averageQualy: round(
+      team.qualyPositions.reduce((a, b) => a + b, 0) / team.qualyPositions.length,
+      2
+    ),
+    averageRace: round(
+      team.racePositions.reduce((a, b) => a + b, 0) / team.racePositions.length,
+      2
+    ),
+    averagePointsProbability: round(
+      team.pointsProbabilities.reduce((a, b) => a + b, 0) /
+        team.pointsProbabilities.length,
+      1
+    ),
     atLeastOneDnfProbability: round(
-      100 * (1 - team.dnfProbabilities.reduce((acc, p) => acc * (1 - p / 100), 1)),
+      100 *
+        (1 -
+          team.dnfProbabilities.reduce(
+            (acc, p) => acc * (1 - p / 100),
+            1
+          )),
       1
     ),
     averageRaceScore: round(team.averageRaceScore / team.racePositions.length, 3)
   }));
 
-  const ordered = teams.sort((a, b) => {
+  return teams.sort((a, b) => {
     if (b.averageRaceScore !== a.averageRaceScore) {
       return b.averageRaceScore - a.averageRaceScore;
     }
     return a.team.localeCompare(b.team, "es");
   });
-
-  return ordered;
 }
 
 function resolveFavorite(bodyFavorite) {
@@ -374,21 +437,29 @@ function buildFavoritePrediction(favorite, qualyOrder, raceOrder) {
   const teamQualy = qualyOrder.filter((d) => d.team === favorite.name);
   const teamRace = raceOrder.filter((d) => d.team === favorite.name);
 
-  const pointsAtLeastOneScores = 100 * (1 - teamRace.reduce((acc, d) => acc * (1 - d.pointsProbability / 100), 1));
-  const dnfAtLeastOne = 100 * (1 - teamRace.reduce((acc, d) => acc * (1 - d.dnfProbability / 100), 1));
+  const pointsAtLeastOneScores =
+    100 * (1 - teamRace.reduce((acc, d) => acc * (1 - d.pointsProbability / 100), 1));
+
+  const dnfAtLeastOne =
+    100 * (1 - teamRace.reduce((acc, d) => acc * (1 - d.dnfProbability / 100), 1));
 
   return {
     type: "team",
     name: favorite.name,
     drivers: teamRace.map((d) => ({
       name: d.name,
-      predictedQualyPosition: teamQualy.find((q) => q.name === d.name)?.position ?? null,
+      predictedQualyPosition:
+        teamQualy.find((q) => q.name === d.name)?.position ?? null,
       predictedRacePosition: d.position,
       pointsProbability: d.pointsProbability,
       dnfProbability: d.dnfProbability
     })),
-    bestQualyPosition: teamQualy.length ? Math.min(...teamQualy.map((d) => d.position)) : null,
-    bestRacePosition: teamRace.length ? Math.min(...teamRace.map((d) => d.position)) : null,
+    bestQualyPosition: teamQualy.length
+      ? Math.min(...teamQualy.map((d) => d.position))
+      : null,
+    bestRacePosition: teamRace.length
+      ? Math.min(...teamRace.map((d) => d.position))
+      : null,
     teamPointsProbability: round(pointsAtLeastOneScores, 1),
     teamAtLeastOneDnfProbability: round(dnfAtLeastOne, 1)
   };
@@ -416,13 +487,17 @@ export default async function handler(req, res) {
     const { qualyOrder, raceOrder } = buildRacePredictions(circuit);
     const teamSummary = buildTeamSummary(raceOrder, qualyOrder);
     const strategy = computeStrategy(circuit);
-    const favoritePrediction = buildFavoritePrediction(favorite, qualyOrder, raceOrder);
+    const favoritePrediction = buildFavoritePrediction(
+      favorite,
+      qualyOrder,
+      raceOrder
+    );
 
     const topTeams = teamSummary.slice(0, 3).map((t) => t.team);
     const weakestTeams = teamSummary.slice(-3).map((t) => t.team);
 
     return res.status(200).json({
-      mode: "semideterministic_v1",
+      mode: "semideterministic_v2_with_adjustments",
       generatedAt: new Date().toISOString(),
       raceName,
       circuit: {
@@ -439,6 +514,14 @@ export default async function handler(req, res) {
       },
       favorite,
       favoritePrediction,
+      adjustments: {
+        teams: manualAdjustmentsState?.teams || {},
+        drivers: manualAdjustmentsState?.drivers || {},
+        newsSignalsCount: Array.isArray(manualAdjustmentsState?.newsSignals)
+          ? manualAdjustmentsState.newsSignals.length
+          : 0,
+        updatedAt: manualAdjustmentsState?.meta?.updatedAt || null
+      },
       summary: {
         predictedWinner: raceOrder[0]?.name || null,
         predictedPole: qualyOrder[0]?.name || null,
