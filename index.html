@@ -1094,37 +1094,85 @@
                 raceName
             };
         }
+function formatFavoritePredictionText(favoritePrediction) {
+    if (!favoritePrediction) {
+        return {
+            qualy: "Sin datos",
+            race: "Sin datos",
+            points: "Sin datos",
+            dnf: "Sin datos"
+        };
+    }
 
+    if (favoritePrediction.type === "driver") {
+        return {
+            qualy: favoritePrediction.predictedQualyPosition ? `P${favoritePrediction.predictedQualyPosition}` : "Sin datos",
+            race: favoritePrediction.predictedRacePosition ? `P${favoritePrediction.predictedRacePosition}` : "Sin datos",
+            points: favoritePrediction.pointsProbability != null ? `${favoritePrediction.pointsProbability}%` : "Sin datos",
+            dnf: favoritePrediction.dnfProbability != null ? `${favoritePrediction.dnfProbability}%` : "Sin datos"
+        };
+    }
+
+    return {
+        qualy: favoritePrediction.bestQualyPosition ? `Mejor coche del equipo en P${favoritePrediction.bestQualyPosition}` : "Sin datos",
+        race: favoritePrediction.bestRacePosition ? `Mejor coche del equipo en P${favoritePrediction.bestRacePosition}` : "Sin datos",
+        points: favoritePrediction.teamPointsProbability != null ? `${favoritePrediction.teamPointsProbability}%` : "Sin datos",
+        dnf: favoritePrediction.teamAtLeastOneDnfProbability != null ? `${favoritePrediction.teamAtLeastOneDnfProbability}%` : "Sin datos"
+    };
+}
+
+function formatPredictResponse(data) {
+    const raceName = data?.raceName || "GP";
+    const summary = data?.summary || {};
+    const favoritePrediction = formatFavoritePredictionText(data?.favoritePrediction);
+
+    return `PREDICCIÓN ${raceName.toUpperCase()}
+
+Favorito para la victoria: ${summary.predictedWinner || "Sin datos"}
+Equipos con más ritmo: ${Array.isArray(summary.topTeams) ? summary.topTeams.join(", ") : "Sin datos"}
+Equipos con peor ritmo: ${Array.isArray(summary.weakestTeams) ? summary.weakestTeams.join(", ") : "Sin datos"}
+
+Predicción del favorito en clasificación: ${favoritePrediction.qualy}
+Predicción del favorito en carrera: ${favoritePrediction.race}
+Probabilidad de puntos del favorito (%): ${favoritePrediction.points}
+Probabilidad de abandono del favorito (%): ${favoritePrediction.dnf}
+
+Probabilidad de lluvia (%): ${summary.rainProbability != null ? `${summary.rainProbability}%` : "Sin datos"}
+Probabilidad de Safety Car (%): ${summary.safetyCarProbability != null ? `${summary.safetyCarProbability}%` : "Sin datos"}
+
+Estrategia más probable: ${summary.strategy?.label || "Sin datos"}
+Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
+}
         async function runPredict() {
-            const output = document.getElementById("predictOutput");
-            const favorite = getFavorite();
-            const raceSelect = document.getElementById("predictRace");
-            const raceName = raceSelect?.value || getSelectedRace();
+    const output = document.getElementById("predictOutput");
+    const favorite = getFavorite();
+    const raceSelect = document.getElementById("predictRace");
+    const raceName = raceSelect?.value || getSelectedRace();
 
-            saveSelectedRace(raceName);
-            output.innerText = "Generando predicción...";
+    saveSelectedRace(raceName);
+    output.innerText = "Generando predicción...";
 
-            try {
-                const response = await fetch("/api/predict", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        favorite,
-                        raceName
-                    })
-                });
+    try {
+        const response = await fetch("/api/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                favorite,
+                raceName
+            })
+        });
 
-                const data = await response.json();
+        const data = await response.json();
 
-                if (!response.ok) {
-                    throw new Error(data?.message || data?.error || "Error al generar la predicción");
-                }
-
-                output.innerText = data.result || "No se pudo generar la predicción.";
-            } catch (error) {
-                output.innerText = `Error: ${error.message}`;
-            }
+        if (!response.ok) {
+            throw new Error(data?.message || data?.error || "Error al generar la predicción");
         }
+
+        output.innerText = formatPredictResponse(data);
+    } catch (error) {
+        output.innerText = `Error: ${error.message}`;
+    }
+}
 
         function formatCalendarDateRange(start, end) {
             const startDate = new Date(`${start}T12:00:00`);
