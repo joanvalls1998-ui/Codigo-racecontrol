@@ -752,11 +752,11 @@
         <div class="container" id="content"></div>
 
         <div class="nav">
-            <a href="#" id="nav-home" onclick="showHome(); return false;">Home</a>
-            <a href="#" id="nav-predict" onclick="showPredict(); return false;">Predict</a>
-            <a href="#" id="nav-aston" onclick="showAston(); return false;">Aston</a>
-            <a href="#" id="nav-news" onclick="showNews(); return false;">News</a>
-            <a href="#" id="nav-more" onclick="showMore(); return false;">More</a>
+            <a href="#" id="nav-home" onclick="showHome(); return false;">Inicio</a>
+            <a href="#" id="nav-predict" onclick="showPredict(); return false;">Predicción</a>
+            <a href="#" id="nav-favorito" onclick="showFavorito(); return false;">Favorito</a>
+            <a href="#" id="nav-news" onclick="showNews(); return false;">Noticias</a>
+            <a href="#" id="nav-more" onclick="showMore(); return false;">Más</a>
         </div>
     </div>
 
@@ -764,7 +764,7 @@
         let standingsCache = null;
 
         function setActiveNav(tabId) {
-            const ids = ["nav-home", "nav-predict", "nav-aston", "nav-news", "nav-more"];
+            const ids = ["nav-home", "nav-predict", "nav-favorito", "nav-news", "nav-more"];
             ids.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.classList.remove("active");
@@ -827,7 +827,7 @@
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data?.error || "No se pudieron cargar los standings");
+                throw new Error(data?.error || "No se pudo cargar la clasificación");
             }
 
             standingsCache = data;
@@ -868,25 +868,25 @@
 
         function getTeamData(team) {
             const data = {
-                "Mercedes": { racePace: 92, qualyPace: 91, reliability: 83, outlook: "High", drivers: ["George Russell", "Kimi Antonelli"], forms: [90, 88] },
-                "Ferrari": { racePace: 88, qualyPace: 87, reliability: 78, outlook: "High", drivers: ["Charles Leclerc", "Lewis Hamilton"], forms: [89, 87] },
-                "McLaren": { racePace: 84, qualyPace: 85, reliability: 82, outlook: "High", drivers: ["Lando Norris", "Oscar Piastri"], forms: [88, 88] },
-                "Red Bull": { racePace: 80, qualyPace: 82, reliability: 74, outlook: "Medium", drivers: ["Max Verstappen", "Isack Hadjar"], forms: [91, 77] },
-                "Aston Martin": { racePace: 72, qualyPace: 68, reliability: 61, outlook: "Medium", drivers: ["Fernando Alonso", "Lance Stroll"], forms: [88, 82] },
-                "Alpine": { racePace: 66, qualyPace: 61, reliability: 58, outlook: "Medium", drivers: ["Pierre Gasly", "Franco Colapinto"], forms: [82, 76] },
-                "Williams": { racePace: 64, qualyPace: 60, reliability: 63, outlook: "Medium", drivers: ["Carlos Sainz", "Alexander Albon"], forms: [81, 79] },
-                "Audi": { racePace: 61, qualyPace: 58, reliability: 67, outlook: "Medium", drivers: ["Nico Hulkenberg", "Gabriel Bortoleto"], forms: [77, 74] },
-                "Cadillac": { racePace: 59, qualyPace: 56, reliability: 60, outlook: "Medium", drivers: ["Sergio Perez", "Valtteri Bottas"], forms: [78, 75] },
-                "Haas": { racePace: 63, qualyPace: 59, reliability: 64, outlook: "Medium", drivers: ["Esteban Ocon", "Oliver Bearman"], forms: [78, 80] },
-                "Racing Bulls": { racePace: 68, qualyPace: 65, reliability: 66, outlook: "Medium", drivers: ["Liam Lawson", "Arvid Lindblad"], forms: [79, 75] }
+                "Mercedes": { racePace: 92, qualyPace: 91, reliability: 83, outlook: "Alta", drivers: ["George Russell", "Kimi Antonelli"], forms: [90, 88] },
+                "Ferrari": { racePace: 88, qualyPace: 87, reliability: 78, outlook: "Alta", drivers: ["Charles Leclerc", "Lewis Hamilton"], forms: [89, 87] },
+                "McLaren": { racePace: 84, qualyPace: 85, reliability: 82, outlook: "Alta", drivers: ["Lando Norris", "Oscar Piastri"], forms: [88, 88] },
+                "Red Bull": { racePace: 80, qualyPace: 82, reliability: 74, outlook: "Media", drivers: ["Max Verstappen", "Isack Hadjar"], forms: [91, 77] },
+                "Aston Martin": { racePace: 72, qualyPace: 68, reliability: 61, outlook: "Media", drivers: ["Fernando Alonso", "Lance Stroll"], forms: [88, 82] },
+                "Alpine": { racePace: 66, qualyPace: 61, reliability: 58, outlook: "Media", drivers: ["Pierre Gasly", "Franco Colapinto"], forms: [82, 76] },
+                "Williams": { racePace: 64, qualyPace: 60, reliability: 63, outlook: "Media", drivers: ["Carlos Sainz", "Alexander Albon"], forms: [81, 79] },
+                "Audi": { racePace: 61, qualyPace: 58, reliability: 67, outlook: "Media", drivers: ["Nico Hulkenberg", "Gabriel Bortoleto"], forms: [77, 74] },
+                "Cadillac": { racePace: 59, qualyPace: 56, reliability: 60, outlook: "Media", drivers: ["Sergio Perez", "Valtteri Bottas"], forms: [78, 75] },
+                "Haas": { racePace: 63, qualyPace: 59, reliability: 64, outlook: "Media", drivers: ["Esteban Ocon", "Oliver Bearman"], forms: [78, 80] },
+                "Racing Bulls": { racePace: 68, qualyPace: 65, reliability: 66, outlook: "Media", drivers: ["Liam Lawson", "Arvid Lindblad"], forms: [79, 75] }
             };
 
             return data[team] || {
                 racePace: 70,
                 qualyPace: 67,
                 reliability: 62,
-                outlook: "Medium",
-                drivers: ["Driver 1", "Driver 2"],
+                outlook: "Media",
+                drivers: ["Piloto 1", "Piloto 2"],
                 forms: [80, 78]
             };
         }
@@ -917,7 +917,7 @@
         function renderHomeHero() {
             const favorite = getFavorite();
             const accent = favorite.colorClass;
-            const badge = favorite.type === "driver" ? favorite.number : "TEAM";
+            const badge = favorite.type === "driver" ? favorite.number : "EQ";
             const subtitle = favorite.type === "driver"
                 ? `${favorite.team} · P${favorite.pos}`
                 : `${favorite.drivers} · P${favorite.pos}`;
@@ -929,7 +929,7 @@
             return `
                 <div class="card home-hero">
                     <div class="card-title" style="color: var(--${accent});">
-                        ${favorite.type === "driver" ? "FAVORITE DRIVER" : "FAVORITE TEAM"}
+                        ${favorite.type === "driver" ? "PILOTO FAVORITO" : "EQUIPO FAVORITO"}
                     </div>
 
                     <div class="hero-main">
@@ -948,16 +948,16 @@
                     </div>
 
                     ${favorite.type === "driver" ? `
-                        <div class="stat" style="margin-top:16px;">Points probability (next GP) <span>32%</span></div>
+                        <div class="stat" style="margin-top:16px;">Probabilidad de puntos (próximo GP) <span>32%</span></div>
                         <div class="bar"><div class="bar-fill ${accent}" style="width:32%;"></div></div>
 
-                        <div class="stat" style="margin-top:14px;">DNF risk <span>28%</span></div>
+                        <div class="stat" style="margin-top:14px;">Riesgo de abandono <span>28%</span></div>
                         <div class="bar"><div class="bar-fill ferrari" style="width:28%;"></div></div>
                     ` : `
-                        <div class="stat" style="margin-top:16px;">Race pace <span>72%</span></div>
+                        <div class="stat" style="margin-top:16px;">Ritmo de carrera <span>72%</span></div>
                         <div class="bar"><div class="bar-fill ${accent}" style="width:72%;"></div></div>
 
-                        <div class="stat" style="margin-top:14px;">Reliability <span>61%</span></div>
+                        <div class="stat" style="margin-top:14px;">Fiabilidad <span>61%</span></div>
                         <div class="bar"><div class="bar-fill mclaren" style="width:61%;"></div></div>
                     `}
                 </div>
@@ -972,17 +972,17 @@
 
             return `
                 <div class="card">
-                    <div class="card-title" style="color: var(--${accent});">${teamName.toUpperCase()} STATUS</div>
-                    <div class="stat">Race pace <span>${teamData.racePace}%</span></div>
+                    <div class="card-title" style="color: var(--${accent});">${teamName.toUpperCase()} · ESTADO</div>
+                    <div class="stat">Ritmo de carrera <span>${teamData.racePace}%</span></div>
                     <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.racePace}%;"></div></div>
 
-                    <div class="stat" style="margin-top:14px;">Qualifying pace <span>${teamData.qualyPace}%</span></div>
+                    <div class="stat" style="margin-top:14px;">Ritmo a una vuelta <span>${teamData.qualyPace}%</span></div>
                     <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.qualyPace}%;"></div></div>
 
-                    <div class="stat" style="margin-top:14px;">Reliability <span>${teamData.reliability}%</span></div>
+                    <div class="stat" style="margin-top:14px;">Fiabilidad <span>${teamData.reliability}%</span></div>
                     <div class="bar"><div class="bar-fill mclaren" style="width:${teamData.reliability}%;"></div></div>
 
-                    <div class="stat" style="margin-top:14px;">Weekend outlook <span>${teamData.outlook}</span></div>
+                    <div class="stat" style="margin-top:14px;">Previsión del fin de semana <span>${teamData.outlook}</span></div>
                 </div>
             `;
         }
@@ -1012,7 +1012,7 @@
 
             return `
                 <div class="card">
-                    <div class="card-title">TEAM HIERARCHY</div>
+                    <div class="card-title">JERARQUÍA DE EQUIPOS</div>
                     ${uniqueRows.map(row => `
                         <div class="stat">
                             <span style="${row.name === favoriteTeam ? `color: var(--${row.color}); font-weight: 700;` : ''}">${row.name}</span>
@@ -1027,7 +1027,7 @@
         function renderPredictContent() {
             const favorite = getFavorite();
             return {
-                title: `PREDICT · ${favorite.name.toUpperCase()}`,
+                title: `PREDICCIÓN · ${favorite.name.toUpperCase()}`,
                 sub: `Predicción centrada en ${favorite.name} para el próximo GP.`,
                 accent: favorite.colorClass
             };
@@ -1079,10 +1079,10 @@
         }
 
         function getCalendarStatusLabel(status, type) {
-            if (type === "testing" && status === "completed") return "Testing done";
-            if (status === "completed") return "Completed";
-            if (status === "next") return "Next";
-            return "Upcoming";
+            if (type === "testing" && status === "completed") return "Pretemporada completada";
+            if (status === "completed") return "Completado";
+            if (status === "next") return "Siguiente";
+            return "Próximamente";
         }
 
         function formatNewsDate(pubDate) {
@@ -1103,14 +1103,14 @@
                 ${renderHomeTeamStatus()}
 
                 <div class="card">
-                    <div class="card-title" style="color: var(--${getFavoriteColorClass()});">NEXT RACE</div>
-                    <div class="stat">Safety Car probability <span>42%</span></div>
+                    <div class="card-title" style="color: var(--${getFavoriteColorClass()});">PRÓXIMA CARRERA</div>
+                    <div class="stat">Probabilidad de Safety Car <span>42%</span></div>
                     <div class="bar"><div class="bar-fill mclaren" style="width:42%;"></div></div>
 
-                    <div class="stat" style="margin-top:14px;">Rain probability <span>18%</span></div>
+                    <div class="stat" style="margin-top:14px;">Probabilidad de lluvia <span>18%</span></div>
                     <div class="bar"><div class="bar-fill alpine" style="width:18%;"></div></div>
 
-                    <div class="stat" style="margin-top:14px;">Strategy window <span>Lap 14 - 20</span></div>
+                    <div class="stat" style="margin-top:14px;">Ventana de parada <span>Vuelta 14 - 20</span></div>
                 </div>
 
                 ${renderHomeHierarchy()}
@@ -1134,14 +1134,14 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-title">AI RESULT</div>
-                    <pre id="predictOutput" class="ai-output">Toca en “Generar predicción” para consultar la API real.</pre>
+                    <div class="card-title">RESULTADO IA</div>
+                    <pre id="predictOutput" class="ai-output">Pulsa en “Generar predicción” para consultar la API real.</pre>
                 </div>
             `;
         }
 
-        function showAston() {
-            setActiveNav("nav-aston");
+        function showFavorito() {
+            setActiveNav("nav-favorito");
             updateSubtitle();
 
             const favorite = getFavorite();
@@ -1158,22 +1158,22 @@
                     <div class="card">
                         <div class="card-title">${comparison.primaryName.toUpperCase()} vs ${comparison.secondaryName.toUpperCase()}</div>
 
-                        <div class="stat">${comparison.primaryName} performance <span>${comparison.primaryForm}%</span></div>
+                        <div class="stat">Rendimiento de ${comparison.primaryName} <span>${comparison.primaryForm}%</span></div>
                         <div class="bar"><div class="bar-fill ${accent}" style="width:${comparison.primaryForm}%;"></div></div>
 
-                        <div class="stat" style="margin-top:14px;">${comparison.secondaryName} performance <span>${comparison.secondaryForm}%</span></div>
+                        <div class="stat" style="margin-top:14px;">Rendimiento de ${comparison.secondaryName} <span>${comparison.secondaryForm}%</span></div>
                         <div class="bar"><div class="bar-fill ${accent}" style="width:${comparison.secondaryForm}%; opacity:0.72;"></div></div>
                     </div>
                 `;
             } else {
                 secondaryCard = `
                     <div class="card">
-                        <div class="card-title">${teamName.toUpperCase()} LINE-UP</div>
+                        <div class="card-title">${teamName.toUpperCase()} · ALINEACIÓN</div>
 
-                        <div class="stat">${teamData.drivers[0]} form <span>${teamData.forms[0]}%</span></div>
+                        <div class="stat">Estado de forma de ${teamData.drivers[0]} <span>${teamData.forms[0]}%</span></div>
                         <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.forms[0]}%;"></div></div>
 
-                        <div class="stat" style="margin-top:14px;">${teamData.drivers[1]} form <span>${teamData.forms[1]}%</span></div>
+                        <div class="stat" style="margin-top:14px;">Estado de forma de ${teamData.drivers[1]} <span>${teamData.forms[1]}%</span></div>
                         <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.forms[1]}%; opacity:0.72;"></div></div>
                     </div>
                 `;
@@ -1184,16 +1184,16 @@
                     <div class="card-title" style="color: var(--${accent});">${teamName.toUpperCase()}</div>
                     <div class="card-sub">Panel técnico adaptado al favorito actual</div>
 
-                    <div class="stat">Race pace <span>${teamData.racePace}%</span></div>
+                    <div class="stat">Ritmo de carrera <span>${teamData.racePace}%</span></div>
                     <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.racePace}%;"></div></div>
 
-                    <div class="stat" style="margin-top:14px;">Qualifying pace <span>${teamData.qualyPace}%</span></div>
+                    <div class="stat" style="margin-top:14px;">Ritmo a una vuelta <span>${teamData.qualyPace}%</span></div>
                     <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.qualyPace}%;"></div></div>
 
-                    <div class="stat" style="margin-top:14px;">Reliability <span>${teamData.reliability}%</span></div>
+                    <div class="stat" style="margin-top:14px;">Fiabilidad <span>${teamData.reliability}%</span></div>
                     <div class="bar"><div class="bar-fill ferrari" style="width:${teamData.reliability}%;"></div></div>
 
-                    <div class="stat" style="margin-top:14px;">Weekend outlook <span>${teamData.outlook}</span></div>
+                    <div class="stat" style="margin-top:14px;">Previsión del fin de semana <span>${teamData.outlook}</span></div>
                 </div>
 
                 ${secondaryCard}
@@ -1208,7 +1208,7 @@
 
             document.getElementById("content").innerHTML = `
                 <div class="card">
-                    <div class="card-title" style="color: var(--${favorite.colorClass});">NEWS · ${favorite.name.toUpperCase()}</div>
+                    <div class="card-title" style="color: var(--${favorite.colorClass});">NOTICIAS · ${favorite.name.toUpperCase()}</div>
                     <div class="card-sub">Buscando noticias reales…</div>
                 </div>
             `;
@@ -1232,7 +1232,7 @@
 
                 document.getElementById("content").innerHTML = `
                     <div class="card">
-                        <div class="card-title" style="color: var(--${favorite.colorClass});">NEWS · ${favorite.name.toUpperCase()}</div>
+                        <div class="card-title" style="color: var(--${favorite.colorClass});">NOTICIAS · ${favorite.name.toUpperCase()}</div>
                         <div class="card-sub">Noticias reales adaptadas al favorito actual</div>
 
                         ${items.length ? items.map(item => `
@@ -1241,13 +1241,13 @@
                                     ${item.title}
                                 </a>
                                 <div class="news-source">
-                                    ${item.source || "News"}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}
+                                    ${item.source || "Noticias"}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}
                                 </div>
                             </div>
                         `).join("") : `
                             <div class="news-item">
-                                <div>No se encontraron noticias ahora mismo.</div>
-                                <div class="news-source">Prueba otra vez en un momento</div>
+                                <div>No se han encontrado noticias ahora mismo.</div>
+                                <div class="news-source">Prueba otra vez dentro de un momento</div>
                             </div>
                         `}
                     </div>
@@ -1255,7 +1255,7 @@
             } catch (error) {
                 document.getElementById("content").innerHTML = `
                     <div class="card">
-                        <div class="card-title" style="color: var(--${favorite.colorClass});">NEWS · ${favorite.name.toUpperCase()}</div>
+                        <div class="card-title" style="color: var(--${favorite.colorClass});">NOTICIAS · ${favorite.name.toUpperCase()}</div>
                         <div class="card-sub">Error al cargar noticias</div>
                         <pre class="ai-output">${error.message}</pre>
                     </div>
@@ -1269,9 +1269,9 @@
 
             document.getElementById("content").innerHTML = `
                 <div class="card">
-                    <div class="card-title">MORE</div>
-                    <a href="#" class="menu-link" onclick="showStandings(); return false;">Standings</a>
-                    <a href="#" class="menu-link" onclick="showCalendar(); return false;">Calendar</a>
+                    <div class="card-title">MÁS</div>
+                    <a href="#" class="menu-link" onclick="showStandings(); return false;">Clasificación</a>
+                    <a href="#" class="menu-link" onclick="showCalendar(); return false;">Calendario</a>
                 </div>
             `;
         }
@@ -1279,7 +1279,7 @@
         function renderFavoriteCard() {
             const favorite = getFavorite();
 
-            const badge = favorite.type === "driver" ? favorite.number : "TEAM";
+            const badge = favorite.type === "driver" ? favorite.number : "EQ";
             const subtitle = favorite.type === "driver"
                 ? `${favorite.team} · P${favorite.pos}`
                 : `${favorite.drivers} · P${favorite.pos}`;
@@ -1311,8 +1311,8 @@
 
             document.getElementById("content").innerHTML = `
                 <div class="card">
-                    <div class="card-title">Standings</div>
-                    <div class="card-sub">Cargando standings reales…</div>
+                    <div class="card-title">Clasificación</div>
+                    <div class="card-sub">Cargando clasificación real…</div>
                 </div>
             `;
 
@@ -1323,10 +1323,10 @@
                     ${renderFavoriteCard()}
 
                     <div class="card">
-                        <div class="card-title">Standings</div>
+                        <div class="card-title">Clasificación</div>
                         <div class="standings-toggle">
-                            <button class="toggle-btn active" id="driversBtn" onclick="showDriversStandings()">Drivers</button>
-                            <button class="toggle-btn" id="teamsBtn" onclick="showTeamsStandings()">Teams</button>
+                            <button class="toggle-btn active" id="driversBtn" onclick="showDriversStandings()">Pilotos</button>
+                            <button class="toggle-btn" id="teamsBtn" onclick="showTeamsStandings()">Equipos</button>
                         </div>
                     </div>
 
@@ -1337,8 +1337,8 @@
             } catch (error) {
                 document.getElementById("content").innerHTML = `
                     <div class="card">
-                        <div class="card-title">Standings</div>
-                        <div class="card-sub">Error al cargar standings</div>
+                        <div class="card-title">Clasificación</div>
+                        <div class="card-sub">Error al cargar la clasificación</div>
                         <pre class="ai-output">${error.message}</pre>
                     </div>
                 `;
@@ -1516,7 +1516,7 @@
 
             document.getElementById("content").innerHTML = `
                 <div class="card">
-                    <div class="card-title">CALENDAR</div>
+                    <div class="card-title">Calendario</div>
                     <div class="card-sub">Cargando calendario oficial 2026…</div>
                 </div>
             `;
@@ -1533,7 +1533,7 @@
 
                 document.getElementById("content").innerHTML = `
                     <div class="card">
-                        <div class="card-title">CALENDAR</div>
+                        <div class="card-title">Calendario</div>
                         <div class="card-sub">Temporada 2026 · calendario real</div>
 
                         ${events.map(event => `
@@ -1553,7 +1553,7 @@
             } catch (error) {
                 document.getElementById("content").innerHTML = `
                     <div class="card">
-                        <div class="card-title">CALENDAR</div>
+                        <div class="card-title">Calendario</div>
                         <div class="card-sub">Error al cargar el calendario</div>
                         <pre class="ai-output">${error.message}</pre>
                     </div>
