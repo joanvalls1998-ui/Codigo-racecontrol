@@ -1,3 +1,4 @@
+import { get } from "@vercel/edge-config";
 import { drivers2026, driverByName, teamByName } from "../data/grid.js";
 import { performanceState } from "../data/performance.js";
 import { manualAdjustmentsState } from "../data/manual-adjustments.js";
@@ -24,6 +25,35 @@ function parseBody(req) {
   return req.body;
 }
 
+async function getRuntimeAdjustmentsState() {
+  try {
+    const edgeState = await get("state");
+
+    if (
+      edgeState &&
+      typeof edgeState === "object" &&
+      !Array.isArray(edgeState)
+    ) {
+      return {
+        meta: edgeState.meta || manualAdjustmentsState.meta,
+        limits: manualAdjustmentsState.limits,
+        teams: edgeState.teams || {},
+        drivers: edgeState.drivers || {},
+        newsSignals: Array.isArray(edgeState.newsSignals)
+          ? edgeState.newsSignals
+          : [],
+        weeklySnapshots: Array.isArray(edgeState.weeklySnapshots)
+          ? edgeState.weeklySnapshots
+          : []
+      };
+    }
+
+    return manualAdjustmentsState;
+  } catch (error) {
+    return manualAdjustmentsState;
+  }
+}
+
 function mergeNumericObjects(base = {}, ...layers) {
   const result = { ...base };
 
@@ -43,7 +73,7 @@ function mergeNumericObjects(base = {}, ...layers) {
   return result;
 }
 
-function getEffectiveTeamPerformance(teamName) {
+function getEffectiveTeamPerformance(teamName, runtimeAdjustmentsState) {
   const base = performanceState?.teams?.[teamName];
   if (!base) return null;
 
@@ -51,12 +81,12 @@ function getEffectiveTeamPerformance(teamName) {
     performanceState?.manualAdjustments?.teams?.[teamName] || {};
 
   const externalAdjustments =
-    manualAdjustmentsState?.teams?.[teamName] || {};
+    runtimeAdjustmentsState?.teams?.[teamName] || {};
 
   return mergeNumericObjects(base, internalAdjustments, externalAdjustments);
 }
 
-function getEffectiveDriverPerformance(driverName) {
+function getEffectiveDriverPerformance(driverName, runtimeAdjustmentsState) {
   const base = performanceState?.drivers?.[driverName];
   if (!base) return null;
 
@@ -64,7 +94,7 @@ function getEffectiveDriverPerformance(driverName) {
     performanceState?.manualAdjustments?.drivers?.[driverName] || {};
 
   const externalAdjustments =
-    manualAdjustmentsState?.drivers?.[driverName] || {};
+    runtimeAdjustmentsState?.drivers?.[driverName] || {};
 
   return mergeNumericObjects(base, internalAdjustments, externalAdjustments);
 }
@@ -253,10 +283,10 @@ function computeStrategy(circuit) {
   };
 }
 
-function buildDriverPredictions(circuit) {
+function buildDriverPredictions(circuit, runtimeAdjustmentsState) {
   return drivers2026.map((driver) => {
-    const teamPerf = getEffectiveTeamPerformance(driver.team);
-    const driverPerf = getEffectiveDriverPerformance(driver.name);
+    const teamPerf = getEffectiveTeamPerformance(driver.team, runtimeAdjustmentsState);
+    const driverPerf = getEffectiveDriverPerformance(driver.name, runtimeAdjustmentsState);
 
     return {
       name: driver.name,
@@ -286,8 +316,8 @@ function assignPositions(list, scoreKey) {
   }));
 }
 
-function buildRacePredictions(circuit) {
-  const base = buildDriverPredictions(circuit);
+function buildRacePredictions(circuit, runtimeAdjustmentsState) {
+  const base = buildDriverPredictions(circuit, runtimeAdjustmentsState);
 
   const qualyOrder = assignPositions(base, "qualyScore");
 
@@ -475,6 +505,7 @@ export default async function handler(req, res) {
     const favorite = resolveFavorite(body.favorite);
     const raceName = body.raceName || "GP Miami";
     const circuit = getCircuitProfile(raceName);
+    const runtimeAdjustmentsState = await getRuntimeAdjustmentsState();
 
     if (!circuit) {
       return res.status(400).json({
@@ -484,7 +515,10 @@ export default async function handler(req, res) {
       });
     }
 
-    const { qualyOrder, raceOrder } = buildRacePredictions(circuit);
+    const { qualyOrder, raceOrder } = buildRacePredictions(
+      circuit,
+      runtimeAdjustmentsState
+    );
     const teamSummary = buildTeamSummary(raceOrder, qualyOrder);
     const strategy = computeStrategy(circuit);
     const favoritePrediction = buildFavoritePrediction(
@@ -497,7 +531,7 @@ export default async function handler(req, res) {
     const weakestTeams = teamSummary.slice(-3).map((t) => t.team);
 
     return res.status(200).json({
-      mode: "semideterministic_v2_with_adjustments",
+      mode: "semideterministic_v3_edge_config",
       generatedAt: new Date().toISOString(),
       raceName,
       circuit: {
@@ -515,12 +549,12 @@ export default async function handler(req, res) {
       favorite,
       favoritePrediction,
       adjustments: {
-        teams: manualAdjustmentsState?.teams || {},
-        drivers: manualAdjustmentsState?.drivers || {},
-        newsSignalsCount: Array.isArray(manualAdjustmentsState?.newsSignals)
-          ? manualAdjustmentsState.newsSignals.length
+        teams: runtimeAdjustmentsState?.teams || {},
+        drivers: runtimeAdjustmentsState?.drivers || {},
+        newsSignalsCount: Array.isArray(runtimeAdjustmentsState?.newsSignals)
+          ? runtimeAdjustmentsState.newsSignals.length
           : 0,
-        updatedAt: manualAdjustmentsState?.meta?.updatedAt || null
+        updatedAt: runtimeAdjustmentsState?.meta?.updatedAt || null
       },
       summary: {
         predictedWinner: raceOrder[0]?.name || null,
