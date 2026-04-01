@@ -1,342 +1,482 @@
+import { drivers2026, driverByName, teamByName } from "../data/grid.js";
+import {
+  getEffectiveDriverPerformance,
+  getEffectiveTeamPerformance
+} from "../data/performance.js";
+import { getCircuitProfile, raceOptions } from "../data/circuits.js";
+
+function clamp(value, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function round(value, decimals = 2) {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
+function parseBody(req) {
+  if (!req.body) return {};
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+  return req.body;
+}
+
+function getStreetFactor(type) {
+  if (type === "urbano") return 1;
+  if (type === "semiurbano") return 0.6;
+  return 0;
+}
+
+function getWetFactor(rainChance) {
+  if (rainChance >= 30) return 1;
+  if (rainChance >= 18) return 0.55;
+  return 0;
+}
+
+function getTeamFit(teamPerf, circuit) {
+  const w = circuit.weights;
+  const totalWeight =
+    w.aero +
+    w.topSpeed +
+    w.traction +
+    w.tyreManagement +
+    w.streetTrack;
+
+  if (!totalWeight) return 0;
+
+  const weighted =
+    teamPerf.aero * w.aero +
+    teamPerf.topSpeed * w.topSpeed +
+    teamPerf.traction * w.traction +
+    teamPerf.tyreManagement * w.tyreManagement +
+    teamPerf.streetTrack * w.streetTrack;
+
+  return weighted / totalWeight;
+}
+
+function computeQualyScore(driver, teamPerf, driverPerf, circuit) {
+  const streetFactor = getStreetFactor(circuit.type);
+  const wetFactor = getWetFactor(circuit.baseRainChance);
+  const teamFit = getTeamFit(teamPerf, circuit);
+
+  const streetAdj =
+    streetFactor * ((teamPerf.streetTrack + driverPerf.streetCraft) / 2);
+
+  const wetAdj =
+    wetFactor * ((teamPerf.wetPerformance + driverPerf.wetWeather) / 2);
+
+  const score =
+    teamPerf.qualyPace * 0.46 +
+    teamFit * 0.16 +
+    driverPerf.qualySkill * 0.14 +
+    driverPerf.form * 0.10 +
+    driverPerf.confidence * 0.05 +
+    streetAdj * 0.05 +
+    wetAdj * 0.04 +
+    teamPerf.upgradeMomentum * 0.35 +
+    teamPerf.recentTrend * 0.45 +
+    driverPerf.recentTrend * 0.55;
+
+  return round(score, 3);
+}
+
+function computeRaceScore(driver, teamPerf, driverPerf, circuit) {
+  const streetFactor = getStreetFactor(circuit.type);
+  const wetFactor = getWetFactor(circuit.baseRainChance);
+  const teamFit = getTeamFit(teamPerf, circuit);
+
+  const streetAdj =
+    streetFactor * ((teamPerf.streetTrack + driverPerf.streetCraft) / 2);
+
+  const wetAdj =
+    wetFactor * ((teamPerf.wetPerformance + driverPerf.wetWeather) / 2);
+
+  const score =
+    teamPerf.racePace * 0.34 +
+    teamFit * 0.12 +
+    teamPerf.reliability * 0.14 +
+    teamPerf.tyreManagement * 0.11 +
+    driverPerf.raceSkill * 0.11 +
+    driverPerf.form * 0.06 +
+    driverPerf.consistency * 0.05 +
+    driverPerf.tyreSaving * 0.03 +
+    driverPerf.starts * 0.02 +
+    streetAdj * 0.01 +
+    wetAdj * 0.01 +
+    teamPerf.upgradeMomentum * 0.40 +
+    teamPerf.recentTrend * 0.50 +
+    driverPerf.recentTrend * 0.50;
+
+  return round(score, 3);
+}
+
+function computeDnfProbability(teamPerf, driverPerf, circuit) {
+  const streetFactor = getStreetFactor(circuit.type);
+
+  const mechanicalRisk = 26 - teamPerf.reliability * 0.18;
+  const circuitStress = circuit.weights.reliabilityStress * 7;
+  const driverRisk = (driverPerf.risk - 20) * 0.45;
+  const streetRisk = streetFactor === 1 ? 2.5 : streetFactor > 0 ? 1.2 : 0;
+  const weatherRisk = circuit.baseRainChance * 0.03;
+  const consistencyRelief =
+    driverPerf.consistency > 70 ? (driverPerf.consistency - 70) * 0.12 : 0;
+
+  const dnf =
+    mechanicalRisk +
+    circuitStress +
+    driverRisk +
+    streetRisk +
+    weatherRisk -
+    consistencyRelief;
+
+  return round(clamp(dnf, 6, 45), 1);
+}
+
+function computePointsProbability(predictedRacePosition, teamPerf, driverPerf, circuit, dnfProbability) {
+  const baseByPosition = {
+    1: 99, 2: 98, 3: 96, 4: 93, 5: 89,
+    6: 84, 7: 78, 8: 72, 9: 65, 10: 56,
+    11: 44, 12: 34, 13: 26, 14: 20, 15: 15,
+    16: 11, 17: 8, 18: 6, 19: 5, 20: 4,
+    21: 3, 22: 2
+  };
+
+  let probability = baseByPosition[predictedRacePosition] ?? 2;
+
+  probability -= dnfProbability * 0.35;
+  probability += (teamPerf.reliability - 70) * 0.18;
+  probability += (driverPerf.consistency - 75) * 0.12;
+
+  if (predictedRacePosition >= 11 && predictedRacePosition <= 13) {
+    probability += circuit.overtaking * 0.08;
+    probability += circuit.baseSafetyCarChance * 0.10;
+  }
+
+  return round(clamp(probability, 1, 99), 1);
+}
+
+function computeStrategy(circuit) {
+  const degradation = circuit.degradation;
+  const overtaking = circuit.overtaking;
+  const safetyCar = circuit.baseSafetyCarChance;
+  const rain = circuit.baseRainChance;
+
+  if (rain >= 40) {
+    return {
+      label: "Estrategia abierta por posible lluvia",
+      stops: "Variable"
+    };
+  }
+
+  if (degradation >= 67) {
+    return {
+      label: safetyCar >= 40
+        ? "Dos paradas con ventana flexible por Safety Car"
+        : "Dos paradas buscando proteger neumáticos",
+      stops: 2
+    };
+  }
+
+  if (degradation >= 58 && overtaking >= 45) {
+    return {
+      label: "Dos paradas para aprovechar ritmo y aire limpio",
+      stops: 2
+    };
+  }
+
+  if (overtaking <= 25) {
+    return {
+      label: "Una parada priorizando posición en pista",
+      stops: 1
+    };
+  }
+
+  return {
+    label: safetyCar >= 45
+      ? "Una parada flexible con opción de reaccionar al Safety Car"
+      : "Una parada como estrategia base",
+    stops: 1
+  };
+}
+
+function buildDriverPredictions(circuit) {
+  return drivers2026.map((driver) => {
+    const teamPerf = getEffectiveTeamPerformance(driver.team);
+    const driverPerf = getEffectiveDriverPerformance(driver.name);
+
+    return {
+      name: driver.name,
+      number: driver.number,
+      shortCode: driver.shortCode,
+      team: driver.team,
+      teamKey: driver.teamKey,
+      colorClass: driver.colorClass,
+      qualyScore: computeQualyScore(driver, teamPerf, driverPerf, circuit),
+      raceScore: computeRaceScore(driver, teamPerf, driverPerf, circuit),
+      dnfProbability: computeDnfProbability(teamPerf, driverPerf, circuit),
+      teamPerf,
+      driverPerf
+    };
+  });
+}
+
+function assignPositions(list, scoreKey) {
+  const sorted = [...list].sort((a, b) => {
+    if (b[scoreKey] !== a[scoreKey]) return b[scoreKey] - a[scoreKey];
+    return a.name.localeCompare(b.name, "es");
+  });
+
+  return sorted.map((item, index) => ({
+    ...item,
+    position: index + 1
+  }));
+}
+
+function buildRacePredictions(circuit) {
+  const base = buildDriverPredictions(circuit);
+
+  const qualyOrder = assignPositions(base, "qualyScore");
+
+  const raceSeed = base.map((driver) => {
+    const qualyReference = qualyOrder.find((q) => q.name === driver.name);
+    const overtakingFactor = circuit.overtaking / 100;
+    const qualyCarry = (23 - qualyReference.position) * 0.18 * (1 - overtakingFactor);
+
+    return {
+      ...driver,
+      raceScoreAdjusted: round(driver.raceScore + qualyCarry, 3)
+    };
+  });
+
+  const raceOrder = assignPositions(raceSeed, "raceScoreAdjusted").map((driver) => {
+    const pointsProbability = computePointsProbability(
+      driver.position,
+      driver.teamPerf,
+      driver.driverPerf,
+      circuit,
+      driver.dnfProbability
+    );
+
+    return {
+      ...driver,
+      pointsProbability
+    };
+  });
+
+  return { qualyOrder, raceOrder };
+}
+
+function buildTeamSummary(raceOrder, qualyOrder) {
+  const teamMap = new Map();
+
+  for (const driver of raceOrder) {
+    if (!teamMap.has(driver.team)) {
+      teamMap.set(driver.team, {
+        team: driver.team,
+        racePositions: [],
+        qualyPositions: [],
+        pointsProbabilities: [],
+        dnfProbabilities: [],
+        averageRaceScore: 0
+      });
+    }
+
+    const team = teamMap.get(driver.team);
+    const qualyDriver = qualyOrder.find((q) => q.name === driver.name);
+
+    team.racePositions.push(driver.position);
+    team.qualyPositions.push(qualyDriver?.position || 22);
+    team.pointsProbabilities.push(driver.pointsProbability);
+    team.dnfProbabilities.push(driver.dnfProbability);
+    team.averageRaceScore += driver.raceScoreAdjusted;
+  }
+
+  const teams = [...teamMap.values()].map((team) => ({
+    team: team.team,
+    bestQualy: Math.min(...team.qualyPositions),
+    bestRace: Math.min(...team.racePositions),
+    averageQualy: round(team.qualyPositions.reduce((a, b) => a + b, 0) / team.qualyPositions.length, 2),
+    averageRace: round(team.racePositions.reduce((a, b) => a + b, 0) / team.racePositions.length, 2),
+    averagePointsProbability: round(team.pointsProbabilities.reduce((a, b) => a + b, 0) / team.pointsProbabilities.length, 1),
+    atLeastOneDnfProbability: round(
+      100 * (1 - team.dnfProbabilities.reduce((acc, p) => acc * (1 - p / 100), 1)),
+      1
+    ),
+    averageRaceScore: round(team.averageRaceScore / team.racePositions.length, 3)
+  }));
+
+  const ordered = teams.sort((a, b) => {
+    if (b.averageRaceScore !== a.averageRaceScore) {
+      return b.averageRaceScore - a.averageRaceScore;
+    }
+    return a.team.localeCompare(b.team, "es");
+  });
+
+  return ordered;
+}
+
+function resolveFavorite(bodyFavorite) {
+  const fallbackDriver = driverByName["Fernando Alonso"];
+
+  if (!bodyFavorite || typeof bodyFavorite !== "object") {
+    return {
+      type: "driver",
+      name: fallbackDriver.name,
+      team: fallbackDriver.team
+    };
+  }
+
+  if (bodyFavorite.type === "team" && teamByName[bodyFavorite.name]) {
+    return {
+      type: "team",
+      name: bodyFavorite.name
+    };
+  }
+
+  if (bodyFavorite.type === "driver" && driverByName[bodyFavorite.name]) {
+    return {
+      type: "driver",
+      name: bodyFavorite.name,
+      team: driverByName[bodyFavorite.name].team
+    };
+  }
+
+  return {
+    type: "driver",
+    name: fallbackDriver.name,
+    team: fallbackDriver.team
+  };
+}
+
+function buildFavoritePrediction(favorite, qualyOrder, raceOrder) {
+  if (favorite.type === "driver") {
+    const qualy = qualyOrder.find((d) => d.name === favorite.name);
+    const race = raceOrder.find((d) => d.name === favorite.name);
+
+    return {
+      type: "driver",
+      name: favorite.name,
+      team: race?.team || qualy?.team || favorite.team,
+      predictedQualyPosition: qualy?.position ?? null,
+      predictedRacePosition: race?.position ?? null,
+      pointsProbability: race?.pointsProbability ?? null,
+      dnfProbability: race?.dnfProbability ?? null,
+      qualyScore: qualy?.qualyScore ?? null,
+      raceScore: race?.raceScoreAdjusted ?? null
+    };
+  }
+
+  const teamQualy = qualyOrder.filter((d) => d.team === favorite.name);
+  const teamRace = raceOrder.filter((d) => d.team === favorite.name);
+
+  const pointsAtLeastOneScores = 100 * (1 - teamRace.reduce((acc, d) => acc * (1 - d.pointsProbability / 100), 1));
+  const dnfAtLeastOne = 100 * (1 - teamRace.reduce((acc, d) => acc * (1 - d.dnfProbability / 100), 1));
+
+  return {
+    type: "team",
+    name: favorite.name,
+    drivers: teamRace.map((d) => ({
+      name: d.name,
+      predictedQualyPosition: teamQualy.find((q) => q.name === d.name)?.position ?? null,
+      predictedRacePosition: d.position,
+      pointsProbability: d.pointsProbability,
+      dnfProbability: d.dnfProbability
+    })),
+    bestQualyPosition: teamQualy.length ? Math.min(...teamQualy.map((d) => d.position)) : null,
+    bestRacePosition: teamRace.length ? Math.min(...teamRace.map((d) => d.position)) : null,
+    teamPointsProbability: round(pointsAtLeastOneScores, 1),
+    teamAtLeastOneDnfProbability: round(dnfAtLeastOne, 1)
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Método no permitido" });
   }
 
-  const body =
-    typeof req.body === "string"
-      ? JSON.parse(req.body || "{}")
-      : (req.body || {});
-
-  const favorite = body.favorite || {
-    type: "driver",
-    name: "Fernando Alonso",
-    team: "Aston Martin"
-  };
-
-  const raceName = body.raceName || "GP Miami";
-
-  const raceProfiles = {
-    "GP de Australia": {
-      circuito: "Albert Park",
-      tipo: "urbano semipermanente",
-      claves: [
-        "probabilidad media-alta de Safety Car",
-        "clasificación importante",
-        "muros cercanos",
-        "ventanas estratégicas sensibles"
-      ]
-    },
-    "GP de China": {
-      circuito: "Shanghái",
-      tipo: "circuito permanente",
-      claves: [
-        "recta larga",
-        "alto castigo al neumático delantero izquierdo",
-        "importancia de la tracción",
-        "posibilidad de estrategias variables"
-      ]
-    },
-    "GP de Japón": {
-      circuito: "Suzuka",
-      tipo: "circuito permanente",
-      claves: [
-        "alta exigencia aerodinámica",
-        "curvas enlazadas",
-        "clasificación muy importante",
-        "errores castigados"
-      ]
-    },
-    "GP Miami": {
-      circuito: "Miami International Autodrome",
-      tipo: "urbano semipermanente",
-      claves: [
-        "alta probabilidad de Safety Car",
-        "temperaturas elevadas",
-        "tracción en salidas lentas",
-        "degradación media"
-      ]
-    },
-    "GP de Canadá": {
-      circuito: "Gilles Villeneuve",
-      tipo: "urbano semipermanente",
-      claves: [
-        "muros cercanos",
-        "frenadas fuertes",
-        "Safety Car frecuente",
-        "oportunidades estratégicas"
-      ]
-    },
-    "GP de Mónaco": {
-      circuito: "Montecarlo",
-      tipo: "urbano",
-      claves: [
-        "clasificación decisiva",
-        "adelantar es muy difícil",
-        "ritmo de carrera condicionado por posición",
-        "baja velocidad"
-      ]
-    },
-    "GP de España": {
-      circuito: "Barcelona-Catalunya",
-      tipo: "circuito permanente",
-      claves: [
-        "circuito completo para medir coche",
-        "degradación relevante",
-        "importancia del equilibrio aerodinámico",
-        "ritmo de carrera muy representativo"
-      ]
-    },
-    "GP de Austria": {
-      circuito: "Red Bull Ring",
-      tipo: "circuito permanente",
-      claves: [
-        "vuelta corta",
-        "diferencias pequeñas en clasificación",
-        "tracción y potencia importantes",
-        "posibilidad de estrategias agresivas"
-      ]
-    },
-    "GP de Gran Bretaña": {
-      circuito: "Silverstone",
-      tipo: "circuito permanente",
-      claves: [
-        "alta carga aerodinámica",
-        "curvas rápidas",
-        "viento variable",
-        "sensibilidad al equilibrio del coche"
-      ]
-    },
-    "GP de Bélgica": {
-      circuito: "Spa-Francorchamps",
-      tipo: "circuito permanente",
-      claves: [
-        "meteorología cambiante",
-        "sectores muy distintos",
-        "alta eficiencia aerodinámica importante",
-        "estrategia sensible a Safety Car y lluvia"
-      ]
-    },
-    "GP de Hungría": {
-      circuito: "Hungaroring",
-      tipo: "circuito permanente",
-      claves: [
-        "adelantar complicado",
-        "clasificación muy importante",
-        "degradación térmica",
-        "ritmo constante clave"
-      ]
-    },
-    "GP de Países Bajos": {
-      circuito: "Zandvoort",
-      tipo: "circuito permanente",
-      claves: [
-        "curvas peraltadas",
-        "clasificación muy importante",
-        "pista estrecha",
-        "dificultad para adelantar"
-      ]
-    },
-    "GP de Italia": {
-      circuito: "Monza",
-      tipo: "circuito permanente",
-      claves: [
-        "baja carga aerodinámica",
-        "velocidad punta",
-        "frenadas fuertes",
-        "rebufo determinante"
-      ]
-    },
-    "GP de España (Madrid)": {
-      circuito: "Madrid",
-      tipo: "urbano",
-      claves: [
-        "tramo urbano exigente",
-        "mucha importancia de la confianza en frenada",
-        "probable relevancia de clasificación",
-        "riesgo medio de incidentes"
-      ]
-    },
-    "GP de Azerbaiyán": {
-      circuito: "Bakú",
-      tipo: "urbano",
-      claves: [
-        "recta muy larga",
-        "muros cercanos",
-        "Safety Car probable",
-        "equilibrio entre carga y velocidad punta"
-      ]
-    },
-    "GP de Singapur": {
-      circuito: "Marina Bay",
-      tipo: "urbano",
-      claves: [
-        "alta exigencia física",
-        "probabilidad elevada de Safety Car",
-        "degradación y temperatura importantes",
-        "ritmo de carrera prioritario"
-      ]
-    },
-    "GP de Estados Unidos": {
-      circuito: "Austin",
-      tipo: "circuito permanente",
-      claves: [
-        "sector 1 muy aerodinámico",
-        "fuerte exigencia en neumáticos",
-        "baches",
-        "mezcla de curvas lentas y rápidas"
-      ]
-    },
-    "GP de México": {
-      circuito: "Hermanos Rodríguez",
-      tipo: "circuito permanente en altitud",
-      claves: [
-        "altitud muy alta",
-        "menos carga real por densidad del aire",
-        "refrigeración importante",
-        "recta principal clave"
-      ]
-    },
-    "GP de São Paulo": {
-      circuito: "Interlagos",
-      tipo: "circuito permanente",
-      claves: [
-        "meteorología cambiante",
-        "vuelta corta",
-        "oportunidades estratégicas",
-        "Safety Car posible"
-      ]
-    },
-    "GP de Las Vegas": {
-      circuito: "Las Vegas Strip Circuit",
-      tipo: "urbano",
-      claves: [
-        "temperaturas bajas",
-        "rectas largas",
-        "frenadas fuertes",
-        "graining posible"
-      ]
-    },
-    "GP de Catar": {
-      circuito: "Lusail",
-      tipo: "circuito permanente",
-      claves: [
-        "curvas rápidas",
-        "alta carga lateral",
-        "desgaste relevante",
-        "ritmo sostenido importante"
-      ]
-    },
-    "GP de Abu Dabi": {
-      circuito: "Yas Marina",
-      tipo: "circuito permanente",
-      claves: [
-        "tracción en zonas lentas",
-        "clasificación relevante",
-        "estrategia sensible al tráfico",
-        "degradación media"
-      ]
-    }
-  };
-
-  const profile = raceProfiles[raceName] || {
-    circuito: raceName,
-    tipo: "circuito",
-    claves: ["clasificación importante", "ritmo de carrera importante"]
-  };
-
-  const favoriteText =
-    favorite.type === "team"
-      ? `El favorito del usuario es el equipo ${favorite.name}.`
-      : `El favorito del usuario es el piloto ${favorite.name}, del equipo ${favorite.team}.`;
-
-  const prompt = `
-Actúa como analista experto de Fórmula 1 en 2026.
-
-Tu tarea es hacer una predicción razonada y realista para ${raceName}.
-
-Contexto del circuito:
-- Circuito: ${profile.circuito}
-- Tipo: ${profile.tipo}
-- Factores clave: ${profile.claves.join(", ")}
-
-Contexto del usuario:
-- ${favoriteText}
-
-Instrucciones:
-- Escribe siempre en español de España.
-- Sé realista y prudente.
-- No des certezas absolutas.
-- Ajusta la predicción al tipo de circuito.
-- Si el favorito es un piloto, céntrate en ese piloto.
-- Si el favorito es un equipo, céntrate en el rendimiento general del equipo.
-- Usa porcentajes coherentes y no exagerados.
-- Ten en cuenta:
-  - forma reciente de los equipos
-  - ritmo a una vuelta
-  - ritmo de carrera
-  - degradación de neumáticos
-  - fiabilidad
-  - probabilidad de lluvia
-  - probabilidad de Safety Car
-  - dificultad para adelantar
-  - peso de la clasificación según el circuito
-
-Devuelve la respuesta exactamente en este formato:
-
-PREDICCIÓN ${raceName.toUpperCase()}
-
-Favorito para la victoria:
-Equipos con más ritmo:
-Equipos con peor ritmo:
-
-Predicción del favorito en clasificación:
-Predicción del favorito en carrera:
-Probabilidad de puntos del favorito (%):
-Probabilidad de abandono del favorito (%):
-
-Probabilidad de lluvia (%):
-Probabilidad de Safety Car (%):
-
-Estrategia más probable:
-Número de paradas:
-`;
-
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        input: prompt
-      })
-    });
+    const body = parseBody(req);
+    const favorite = resolveFavorite(body.favorite);
+    const raceName = body.raceName || "GP Miami";
+    const circuit = getCircuitProfile(raceName);
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return res.status(response.status).json({
-        error: "OpenAI error",
-        details: data
+    if (!circuit) {
+      return res.status(400).json({
+        error: "Carrera no reconocida",
+        raceName,
+        availableRaces: raceOptions
       });
     }
 
-    const text =
-      data.output_text ||
-      data.output?.[0]?.content?.[0]?.text ||
-      "No se pudo generar la predicción.";
+    const { qualyOrder, raceOrder } = buildRacePredictions(circuit);
+    const teamSummary = buildTeamSummary(raceOrder, qualyOrder);
+    const strategy = computeStrategy(circuit);
+    const favoritePrediction = buildFavoritePrediction(favorite, qualyOrder, raceOrder);
+
+    const topTeams = teamSummary.slice(0, 3).map((t) => t.team);
+    const weakestTeams = teamSummary.slice(-3).map((t) => t.team);
 
     return res.status(200).json({
-      result: text,
+      mode: "semideterministic_v1",
+      generatedAt: new Date().toISOString(),
       raceName,
-      favorite
+      circuit: {
+        round: circuit.round,
+        venue: circuit.venue,
+        officialVenue: circuit.officialVenue,
+        start: circuit.start,
+        end: circuit.end,
+        type: circuit.type,
+        overtaking: circuit.overtaking,
+        rainProbability: circuit.baseRainChance,
+        safetyCarProbability: circuit.baseSafetyCarChance,
+        degradation: circuit.degradation
+      },
+      favorite,
+      favoritePrediction,
+      summary: {
+        predictedWinner: raceOrder[0]?.name || null,
+        predictedPole: qualyOrder[0]?.name || null,
+        topTeams,
+        weakestTeams,
+        rainProbability: circuit.baseRainChance,
+        safetyCarProbability: circuit.baseSafetyCarChance,
+        strategy
+      },
+      qualyOrder: qualyOrder.map((d) => ({
+        position: d.position,
+        name: d.name,
+        number: d.number,
+        team: d.team,
+        score: round(d.qualyScore, 2)
+      })),
+      raceOrder: raceOrder.map((d) => ({
+        position: d.position,
+        name: d.name,
+        number: d.number,
+        team: d.team,
+        score: round(d.raceScoreAdjusted, 2),
+        pointsProbability: d.pointsProbability,
+        dnfProbability: d.dnfProbability
+      })),
+      teamSummary: teamSummary.map((t) => ({
+        team: t.team,
+        bestQualy: t.bestQualy,
+        bestRace: t.bestRace,
+        averageQualy: t.averageQualy,
+        averageRace: t.averageRace,
+        averagePointsProbability: t.averagePointsProbability,
+        atLeastOneDnfProbability: t.atLeastOneDnfProbability
+      }))
     });
   } catch (error) {
     return res.status(500).json({
-      error: "Server error",
+      error: "Error interno",
       message: error.message
     });
   }
