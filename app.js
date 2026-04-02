@@ -1099,81 +1099,102 @@ function renderPredictPreviewCards(favorite, raceName) {
 }
 
 function showPredict() {
-  setActiveNav("nav-predict");
-  updateSubtitle();
+  try {
+    setActiveNav("nav-predict");
+    updateSubtitle();
 
-  const predict = renderPredictContent();
-  const selectedRace = getSelectedRace();
-  const favorite = getFavorite();
-  const needFreshPredict = shouldAutoGeneratePredict(favorite, selectedRace);
+    const content = document.getElementById("content");
+    if (!content) {
+      throw new Error("No existe #content");
+    }
 
-  document.getElementById("content").innerHTML = `
-    <div class="card highlight-card">
-      <div class="pill">IA · MOTOR + RESUMEN VISUAL</div>
-      <div class="card-title" style="color: var(--${predict.accent});">${predict.title}</div>
-      <div class="card-sub">${predict.sub}</div>
+    const predict = renderPredictContent();
+    const selectedRace = getSelectedRace();
+    const favorite = getFavorite();
+    const needFreshPredict = shouldAutoGeneratePredict(favorite, selectedRace);
 
-      <div class="card-sub" style="margin-bottom:6px;">Circuito</div>
-      <select id="predictRace" class="select-input" onchange="saveSelectedRace(this.value)">
-        ${getPredictRaceOptions().map(race => `
-          <option value="${race}" ${race === selectedRace ? "selected" : ""}>${race}</option>
-        `).join("")}
-      </select>
+    content.innerHTML = `
+      <div class="card highlight-card">
+        <div class="pill">IA · MOTOR + RESUMEN VISUAL</div>
+        <div class="card-title" style="color: var(--${predict.accent});">${predict.title}</div>
+        <div class="card-sub">${predict.sub}</div>
 
-      <div class="action-row">
-        <button class="btn" onclick="runPredict()">Generar predicción</button>
-        <button class="icon-btn" onclick="refreshPredict()">Refrescar</button>
-      </div>
-    </div>
+        <div class="card-sub" style="margin-bottom:6px;">Circuito</div>
+        <select id="predictRace" class="select-input" onchange="saveSelectedRace(this.value)">
+          ${getPredictRaceOptions().map(race => `
+            <option value="${race}" ${race === selectedRace ? "selected" : ""}>${race}</option>
+          `).join("")}
+        </select>
 
-    <div class="card">
-      <div class="card-title">Resumen de predicción</div>
-      <div class="card-sub">Lo importante arriba, el desarrollo completo debajo.</div>
-      <div id="predictSummaryCards">
-        ${
-          !needFreshPredict
-            ? renderPredictSummaryCards(lastPredictData)
-            : renderPredictPreviewCards(favorite, selectedRace)
-        }
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Claves del fin de semana</div>
-      <div id="predictMetaCards">
-        ${
-          !needFreshPredict
-            ? renderPredictMetaCards(lastPredictData)
-            : `<div class="empty-line">Cargando la predicción avanzada para ${selectedRace}…</div>`
-        }
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Texto completo</div>
-      <pre id="predictOutput" class="ai-output">${
-        !needFreshPredict
-          ? formatPredictResponse(lastPredictData)
-          : "Preparando predicción avanzada…"
-      }</pre>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <div class="card-head-left">
-          <div class="card-title">Historial de predicciones</div>
-          <div class="card-sub">Las últimas predicciones generadas se guardan localmente en este dispositivo.</div>
-        </div>
-        <div class="card-head-actions">
-          <button class="icon-btn" onclick="clearPredictionHistory()">Vaciar</button>
+        <div class="action-row">
+          <button class="btn" onclick="runPredict()">Generar predicción</button>
+          <button class="icon-btn" onclick="refreshPredict()">Refrescar</button>
         </div>
       </div>
-      <div id="predictionHistoryBox">${renderPredictionHistory()}</div>
-    </div>
-  `;
 
-  if (needFreshPredict) {
-    setTimeout(() => runPredict(), 80);
+      <div class="card">
+        <div class="card-title">Resumen de predicción</div>
+        <div class="card-sub">Lo importante arriba, el desarrollo completo debajo.</div>
+        <div id="predictSummaryCards">
+          ${
+            !needFreshPredict
+              ? renderPredictSummaryCards(lastPredictData)
+              : renderPredictPreviewCards(favorite, selectedRace)
+          }
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Claves del fin de semana</div>
+        <div id="predictMetaCards">
+          ${
+            !needFreshPredict
+              ? renderPredictMetaCards(lastPredictData)
+              : `<div class="empty-line">Cargando la predicción avanzada para ${selectedRace}…</div>`
+          }
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Texto completo</div>
+        <pre id="predictOutput" class="ai-output">${
+          !needFreshPredict
+            ? formatPredictResponse(lastPredictData)
+            : "Preparando predicción avanzada…"
+        }</pre>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-title">Historial de predicciones</div>
+            <div class="card-sub">Las últimas predicciones generadas se guardan localmente en este dispositivo.</div>
+          </div>
+          <div class="card-head-actions">
+            <button class="icon-btn" onclick="clearPredictionHistory()">Vaciar</button>
+          </div>
+        </div>
+        <div id="predictionHistoryBox">${renderPredictionHistory()}</div>
+      </div>
+    `;
+
+    if (needFreshPredict) {
+      setTimeout(() => {
+        runPredict().catch?.(() => {});
+      }, 80);
+    }
+  } catch (error) {
+    const content = document.getElementById("content");
+    if (content) {
+      content.innerHTML = `
+        <div class="card">
+          <div class="card-title">Predicción</div>
+          <div class="card-sub">La pestaña ha fallado al renderizar.</div>
+          <pre class="ai-output">${error.message}</pre>
+        </div>
+      `;
+    }
+    alert("Error en showPredict: " + error.message);
   }
 }
 
