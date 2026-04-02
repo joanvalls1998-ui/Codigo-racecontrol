@@ -1,14 +1,10 @@
 {
-  "id": "/",
   "name": "RaceControl",
   "short_name": "RaceControl",
-  "description": "F1 · Alonso · Aston Martin · Predicción, noticias y control de carrera.",
   "start_url": "/",
-  "scope": "/",
   "display": "standalone",
-  "background_color": "#04070d",
-  "theme_color": "#0b1621",
-  "lang": "es-ES",
+  "background_color": "#07111a",
+  "theme_color": "#07111a",
   "icons": [
     {
       "src": "/icons/icon-192.png",
