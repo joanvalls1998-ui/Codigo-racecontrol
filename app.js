@@ -959,67 +959,184 @@
     }
 
     function renderPredictContent() {
-      const favorite = getFavorite();
-      const raceName = getSelectedRace();
-      return {
-        title: `PREDICCIÓN · ${favorite.name.toUpperCase()}`,
-        sub: `Predicción centrada en ${favorite.name} para ${raceName}.`,
-        accent: favorite.colorClass,
-        raceName
-      };
-    }
+  const favorite = getFavorite();
+  const raceName = getSelectedRace();
 
-    function renderPredictLoadingState() {
-      return `
-        <div class="predict-grid">
-          <div class="stat-tile"><div class="stat-kicker">Clasificación</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
-          <div class="stat-tile"><div class="stat-kicker">Carrera</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
-          <div class="stat-tile"><div class="stat-kicker">Puntos</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
-          <div class="stat-tile"><div class="stat-kicker">Abandono</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
+  return {
+    title: `PREDICCIÓN · ${favorite.name.toUpperCase()}`,
+    sub: `Predicción centrada en ${favorite.name} para ${raceName}.`,
+    accent: favorite.colorClass,
+    raceName
+  };
+}
+
+function renderPredictLoadingState() {
+  return `
+    <div class="predict-grid">
+      <div class="stat-tile"><div class="stat-kicker">Clasificación</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
+      <div class="stat-tile"><div class="stat-kicker">Carrera</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
+      <div class="stat-tile"><div class="stat-kicker">Puntos</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
+      <div class="stat-tile"><div class="stat-kicker">Abandono</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
+    </div>
+  `;
+}
+
+async function runPredict() {
+  const output = document.getElementById("predictOutput");
+  const favorite = getFavorite();
+  const raceSelect = document.getElementById("predictRace");
+  const raceName = raceSelect?.value || getSelectedRace();
+
+  saveSelectedRace(raceName);
+
+  if (output) {
+    output.innerText = "Generando predicción...";
+  }
+
+  const summaryBox = document.getElementById("predictSummaryCards");
+  const metaBox = document.getElementById("predictMetaCards");
+
+  if (summaryBox) summaryBox.innerHTML = renderPredictLoadingState();
+  if (metaBox) metaBox.innerHTML = `<div class="empty-line">Recalculando ritmo, estrategia y favoritos…</div>`;
+
+  try {
+    const data = await fetchPredictData(favorite, raceName);
+    lastPredictData = data;
+    lastPredictContext = { raceName, favoriteKey: `${favorite.type}:${favorite.name}` };
+    pushPredictionHistory(data, favorite, raceName);
+
+    if (summaryBox) summaryBox.innerHTML = renderPredictSummaryCards(data);
+    if (metaBox) metaBox.innerHTML = renderPredictMetaCards(data);
+    if (output) output.innerText = formatPredictResponse(data);
+
+    const historyBox = document.getElementById("predictionHistoryBox");
+    if (historyBox) historyBox.innerHTML = renderPredictionHistory();
+  } catch (error) {
+    if (output) output.innerText = `Error: ${error.message}`;
+    if (summaryBox) summaryBox.innerHTML = `<div class="empty-line">No se ha podido generar el resumen predictivo.</div>`;
+    if (metaBox) metaBox.innerHTML = "";
+  }
+}
+
+function refreshPredict() {
+  runPredict();
+}
+
+function shouldAutoGeneratePredict(favorite, raceName) {
+  if (!lastPredictData || !lastPredictContext) return true;
+  return lastPredictContext.raceName !== raceName || lastPredictContext.favoriteKey !== `${favorite.type}:${favorite.name}`;
+}
+
+function renderPredictPreviewCards(favorite, raceName) {
+  const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
+  const teamData = getTeamData(teamName);
+  const heuristics = getRaceHeuristics(raceName);
+  const metrics = getFavoriteHomeMetrics(favorite);
+
+  const qualyRange =
+    teamData.qualyPace >= 85 ? "P3-P6" :
+    teamData.qualyPace >= 75 ? "P6-P10" :
+    teamData.qualyPace >= 68 ? "P9-P13" :
+    "P12-P16";
+
+  const raceRange = metrics.expectedWindow || "P10-P14";
+
+  return `
+    <div class="predict-grid">
+      <div class="stat-tile">
+        <div class="stat-kicker">Clasificación</div>
+        <div class="stat-value">${qualyRange}</div>
+        <div class="stat-caption">Estimación rápida previa</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-kicker">Carrera</div>
+        <div class="stat-value">${raceRange}</div>
+        <div class="stat-caption">Ventana competitiva esperada</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-kicker">Puntos</div>
+        <div class="stat-value">${metrics.pointsProbability}%</div>
+        <div class="stat-caption">Probabilidad local aproximada</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-kicker">Safety Car</div>
+        <div class="stat-value">${heuristics.safetyCar}%</div>
+        <div class="stat-caption">Base histórica del circuito</div>
+      </div>
+    </div>
+  `;
+}
+
+function showPredict() {
+  setActiveNav("nav-predict");
+  updateSubtitle();
+
+  const predict = renderPredictContent();
+  const selectedRace = getSelectedRace();
+  const favorite = getFavorite();
+  const needFreshPredict = shouldAutoGeneratePredict(favorite, selectedRace);
+
+  document.getElementById("content").innerHTML = `
+    <div class="card highlight-card">
+      <div class="pill">IA · MOTOR + RESUMEN VISUAL</div>
+      <div class="card-title" style="color: var(--${predict.accent});">${predict.title}</div>
+      <div class="card-sub">${predict.sub}</div>
+
+      <div class="card-sub" style="margin-bottom:6px;">Circuito</div>
+      <select id="predictRace" class="select-input" onchange="saveSelectedRace(this.value)">
+        ${getPredictRaceOptions().map(race => `
+          <option value="${race}" ${race === selectedRace ? "selected" : ""}>${race}</option>
+        `).join("")}
+      </select>
+
+      <div class="action-row">
+        <button class="btn" onclick="runPredict()">Generar predicción</button>
+        <button class="icon-btn" onclick="refreshPredict()">Refrescar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Resumen de predicción</div>
+      <div class="card-sub">Lo importante arriba, el desarrollo completo debajo.</div>
+      <div id="predictSummaryCards">
+        ${!needFreshPredict
+          ? renderPredictSummaryCards(lastPredictData)
+          : renderPredictPreviewCards(favorite, selectedRace)}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Claves del fin de semana</div>
+      <div id="predictMetaCards">
+        ${!needFreshPredict
+          ? renderPredictMetaCards(lastPredictData)
+          : `<div class="empty-line">Cargando la predicción avanzada para ${selectedRace}…</div>`}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Texto completo</div>
+      <pre id="predictOutput" class="ai-output">${!needFreshPredict ? formatPredictResponse(lastPredictData) : "Preparando predicción avanzada…"}</pre>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-head-left">
+          <div class="card-title">Historial de predicciones</div>
+          <div class="card-sub">Las últimas predicciones generadas se guardan localmente en este dispositivo.</div>
         </div>
-      `;
-    }
+        <div class="card-head-actions">
+          <button class="icon-btn" onclick="clearPredictionHistory()">Vaciar</button>
+        </div>
+      </div>
+      <div id="predictionHistoryBox">${renderPredictionHistory()}</div>
+    </div>
+  `;
 
-    async function runPredict() {
-      const output = document.getElementById("predictOutput");
-      const favorite = getFavorite();
-      const raceSelect = document.getElementById("predictRace");
-      const raceName = raceSelect?.value || getSelectedRace();
-
-      saveSelectedRace(raceName);
-      output.innerText = "Generando predicción...";
-
-      const summaryBox = document.getElementById("predictSummaryCards");
-      const metaBox = document.getElementById("predictMetaCards");
-
-      if (summaryBox) summaryBox.innerHTML = renderPredictLoadingState();
-      if (metaBox) metaBox.innerHTML = `<div class="empty-line">Recalculando ritmo, estrategia y favoritos…</div>`;
-
-      try {
-        const data = await fetchPredictData(favorite, raceName);
-        lastPredictData = data;
-        lastPredictContext = { raceName, favoriteKey: `${favorite.type}:${favorite.name}` };
-        pushPredictionHistory(data, favorite, raceName);
-
-        if (summaryBox) summaryBox.innerHTML = renderPredictSummaryCards(data);
-        if (metaBox) metaBox.innerHTML = renderPredictMetaCards(data);
-        output.innerText = formatPredictResponse(data);
-
-        const historyBox = document.getElementById("predictionHistoryBox");
-        if (historyBox) historyBox.innerHTML = renderPredictionHistory();
-      } catch (error) {
-        output.innerText = `Error: ${error.message}`;
-        if (summaryBox) summaryBox.innerHTML = `<div class="empty-line">No se ha podido generar el resumen predictivo.</div>`;
-        if (metaBox) metaBox.innerHTML = "";
-      }
-    }
-
-    function refreshPredict() { runPredict(); }
-
-    function shouldAutoGeneratePredict(favorite, raceName) {
-      if (!lastPredictData || !lastPredictContext) return true;
-      return lastPredictContext.raceName !== raceName || lastPredictContext.favoriteKey !== `${favorite.type}:${favorite.name}`;
-    }
+  if (needFreshPredict) {
+    setTimeout(() => runPredict(), 80);
+  }
+}
 
     function renderPredictPreviewCards(favorite, raceName) {
       const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
