@@ -82,7 +82,7 @@ const RACE_HEURISTICS = {
 };
 
 const TEAM_DATA = {
-  "Mercedes": {
+  Mercedes: {
     racePace: 92,
     qualyPace: 91,
     reliability: 83,
@@ -95,7 +95,7 @@ const TEAM_DATA = {
     tyreManagement: 84,
     recentTrend: 4
   },
-  "Ferrari": {
+  Ferrari: {
     racePace: 88,
     qualyPace: 87,
     reliability: 78,
@@ -108,7 +108,7 @@ const TEAM_DATA = {
     tyreManagement: 80,
     recentTrend: 2
   },
-  "McLaren": {
+  McLaren: {
     racePace: 84,
     qualyPace: 85,
     reliability: 82,
@@ -147,7 +147,7 @@ const TEAM_DATA = {
     tyreManagement: 60,
     recentTrend: -1
   },
-  "Alpine": {
+  Alpine: {
     racePace: 66,
     qualyPace: 61,
     reliability: 58,
@@ -160,7 +160,7 @@ const TEAM_DATA = {
     tyreManagement: 67,
     recentTrend: 1
   },
-  "Williams": {
+  Williams: {
     racePace: 64,
     qualyPace: 60,
     reliability: 63,
@@ -173,7 +173,7 @@ const TEAM_DATA = {
     tyreManagement: 63,
     recentTrend: -1
   },
-  "Audi": {
+  Audi: {
     racePace: 61,
     qualyPace: 58,
     reliability: 67,
@@ -186,7 +186,7 @@ const TEAM_DATA = {
     tyreManagement: 65,
     recentTrend: 0
   },
-  "Cadillac": {
+  Cadillac: {
     racePace: 59,
     qualyPace: 56,
     reliability: 60,
@@ -199,7 +199,7 @@ const TEAM_DATA = {
     tyreManagement: 62,
     recentTrend: 0
   },
-  "Haas": {
+  Haas: {
     racePace: 63,
     qualyPace: 59,
     reliability: 64,
@@ -457,6 +457,7 @@ function getFavoriteInsights(favorite, selectedRace) {
 
   return insights.slice(0, 3);
 }
+
 function getWeekendSignal(favorite, raceName) {
   const metrics = getFavoriteMetrics(favorite);
   const heuristics = getRaceHeuristics(raceName);
@@ -464,7 +465,6 @@ function getWeekendSignal(favorite, raceName) {
   const teamData = getTeamData(teamName);
 
   let score = 0;
-
   score += (metrics.pointsProbability - 50) * 0.45;
   score -= (metrics.dnfRisk - 18) * 0.65;
   score += (teamData.racePace - 70) * 0.55;
@@ -505,7 +505,6 @@ function getWeekendKeyPoints(favorite, raceName) {
   const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
   const teamData = getTeamData(teamName);
   const heuristics = getRaceHeuristics(raceName);
-
   const points = [];
 
   if (teamData.racePace > teamData.qualyPace + 3) {
@@ -558,74 +557,7 @@ function getWeekendSummaryData(nextRace) {
   };
 }
 
-function renderWeekendSummary(nextRace) {
-  const data = getWeekendSummaryData(nextRace);
-
-  return `
-    <div class="card highlight-card">
-      <div class="mini-pill">RESUMEN DEL FIN DE SEMANA</div>
-      <div class="card-title">Qué esperar del próximo GP</div>
-      <div class="card-sub">Lectura rápida para casuals y base de contexto para quien sigue todo el fin de semana.</div>
-
-      <div class="weekend-top">
-        <div class="weekend-top-left">
-          <div class="trend-pill ${data.signal.className}">${data.signal.label}</div>
-          <div class="weekend-top-text">${data.signal.description}</div>
-        </div>
-        <div class="weekend-race-box">
-          <div class="weekend-race-label">Próximo GP</div>
-          <div class="weekend-race-name">${data.raceName}</div>
-        </div>
-      </div>
-
-      <div class="meta-grid" style="margin-top:14px;">
-        <div class="meta-tile">
-          <div class="meta-kicker">Favorito GP</div>
-          <div class="meta-value" style="font-size:18px;">${data.gpFavorite}</div>
-          <div class="meta-caption">Lectura inicial del fin de semana</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Safety Car</div>
-          <div class="meta-value">${data.heuristics.safetyCar}%</div>
-          <div class="meta-caption">Probabilidad base</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Lluvia</div>
-          <div class="meta-value">${data.heuristics.rain}%</div>
-          <div class="meta-caption">Escenario meteorológico</div>
-        </div>
-      </div>
-
-      <div class="grid-stats" style="margin-top:14px;">
-        <div class="stat-tile">
-          <div class="stat-kicker">Ventana esperada</div>
-          <div class="stat-value">${data.metrics.expectedWindow}</div>
-          <div class="stat-caption">Rango competitivo del favorito</div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-kicker">Puntos</div>
-          <div class="stat-value">${data.metrics.pointsProbability}%</div>
-          <div class="stat-caption">Probabilidad estimada de puntuar</div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-kicker">Riesgo</div>
-          <div class="stat-value">${data.metrics.dnfRisk}%</div>
-          <div class="stat-caption">Riesgo aproximado de abandono</div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-kicker">Tendencia</div>
-          <div class="stat-value" style="font-size:18px;">${data.metrics.trendInfo.label}</div>
-          <div class="stat-caption">${data.metrics.trendInfo.description}</div>
-        </div>
-      </div>
-
-      <div class="card-sub" style="margin-top:16px; margin-bottom:10px;">3 claves del fin de semana</div>
-      <div class="insight-list">
-        ${data.keyPoints.map(item => `<div class="insight-item">${item}</div>`).join("")}
-      </div>
-    </div>
-  `;
-}function formatNewsDate(pubDate) {
+function formatNewsDate(pubDate) {
   if (!pubDate) return "";
   const date = new Date(pubDate);
   if (Number.isNaN(date.getTime())) return "";
@@ -1097,6 +1029,75 @@ function renderFavoriteCard() {
   `;
 }
 
+function renderWeekendSummary(nextRace) {
+  const data = getWeekendSummaryData(nextRace);
+
+  return `
+    <div class="card highlight-card">
+      <div class="mini-pill">RESUMEN DEL FIN DE SEMANA</div>
+      <div class="card-title">Qué esperar del próximo GP</div>
+      <div class="card-sub">Lectura rápida para casuals y base de contexto para quien sigue todo el fin de semana.</div>
+
+      <div class="weekend-top">
+        <div class="weekend-top-left">
+          <div class="trend-pill ${data.signal.className}">${data.signal.label}</div>
+          <div class="weekend-top-text">${data.signal.description}</div>
+        </div>
+        <div class="weekend-race-box">
+          <div class="weekend-race-label">Próximo GP</div>
+          <div class="weekend-race-name">${data.raceName}</div>
+        </div>
+      </div>
+
+      <div class="meta-grid" style="margin-top:14px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Favorito GP</div>
+          <div class="meta-value" style="font-size:18px;">${data.gpFavorite}</div>
+          <div class="meta-caption">Lectura inicial del fin de semana</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Safety Car</div>
+          <div class="meta-value">${data.heuristics.safetyCar}%</div>
+          <div class="meta-caption">Probabilidad base</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Lluvia</div>
+          <div class="meta-value">${data.heuristics.rain}%</div>
+          <div class="meta-caption">Escenario meteorológico</div>
+        </div>
+      </div>
+
+      <div class="grid-stats" style="margin-top:14px;">
+        <div class="stat-tile">
+          <div class="stat-kicker">Ventana esperada</div>
+          <div class="stat-value">${data.metrics.expectedWindow}</div>
+          <div class="stat-caption">Rango competitivo del favorito</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-kicker">Puntos</div>
+          <div class="stat-value">${data.metrics.pointsProbability}%</div>
+          <div class="stat-caption">Probabilidad estimada de puntuar</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-kicker">Riesgo</div>
+          <div class="stat-value">${data.metrics.dnfRisk}%</div>
+          <div class="stat-caption">Riesgo aproximado de abandono</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-kicker">Tendencia</div>
+          <div class="stat-value" style="font-size:18px;">${data.metrics.trendInfo.label}</div>
+          <div class="stat-caption">${data.metrics.trendInfo.description}</div>
+        </div>
+      </div>
+
+      <div class="card-sub" style="margin-top:16px; margin-bottom:10px;">3 claves del fin de semana</div>
+      <div class="insight-list">
+        ${data.keyPoints.map(item => `<div class="insight-item">${item}</div>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function renderHomeQuickSummary(nextRace) {
   const favorite = getFavorite();
   const metrics = getFavoriteMetrics(favorite);
@@ -1104,10 +1105,10 @@ function renderHomeQuickSummary(nextRace) {
   const heuristics = getRaceHeuristics(nextRaceName);
 
   return `
-    <div class="card highlight-card">
+    <div class="card">
       <div class="mini-pill">CENTRO DE CONTROL</div>
       <div class="card-title">Resumen rápido del favorito</div>
-      <div class="card-sub">Lectura rápida para abrir la app y tener contexto en pocos segundos.</div>
+      <div class="card-sub">Lectura inmediata para abrir la app y saber en segundos dónde está el favorito.</div>
 
       <div class="grid-stats">
         <div class="stat-tile">
@@ -1132,7 +1133,7 @@ function renderHomeQuickSummary(nextRace) {
         </div>
       </div>
 
-      <div class="quick-row">
+      <div class="quick-row" style="margin-top:14px;">
         <div class="meta-tile">
           <div class="meta-kicker">Safety Car</div>
           <div class="meta-value">${heuristics.safetyCar}%</div>
@@ -2424,6 +2425,7 @@ async function showHome() {
 
     contentEl().innerHTML = `
       ${renderHomeHero()}
+      ${renderWeekendSummary(nextRace)}
       ${renderHomeQuickSummary(nextRace)}
       ${renderHomeNextRace(nextRace)}
       ${renderHomeTeamStatus()}
