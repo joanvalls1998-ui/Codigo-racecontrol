@@ -2,20 +2,21 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+
   <title>RaceControl</title>
+  <meta name="theme-color" content="#07111a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="RaceControl" />
 
-  <meta name="theme-color" content="#0b1621" />
-  <meta name="description" content="RaceControl · F1 · Alonso · Aston Martin · Predicción, noticias y control de carrera." />
-
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/styles.css?v=12" />
-<link rel="manifest" href="/manifest.webmanifest" />
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
-<meta name="theme-color" content="#07111a" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-
-  <link rel="stylesheet" href="styles.css?v=12" />
 </head>
 <body>
   <div class="app">
@@ -46,15 +47,13 @@
     </div>
   </div>
 
-  <script src="app.js?v=12"></script>
+  <script src="/app.js?v=12"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js").catch(err => {
-          console.error("SW error:", err);
-        });
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
       });
     }
-  <script src="/app.js?v=12"></script>
+  </script>
 </body>
 </html>
