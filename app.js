@@ -2073,4 +2073,38 @@ function showPredict() {
     fetchStandingsData().catch(() => {});
     fetchCalendarData().catch(() => {});
     showHome();
+    window.showHome = showHome;
+window.showPredict = showPredict;
+window.showFavorito = showFavorito;
+window.showNews = showNews;
+window.showMore = showMore;
+
+window.showStandings = showStandings;
+window.showCalendar = showCalendar;
+window.showRaceMode = showRaceMode;
+window.showSettingsPanel = showSettingsPanel;
+
+window.runPredict = runPredict;
+window.refreshPredict = refreshPredict;
+window.refreshStandings = refreshStandings;
+window.refreshCalendar = refreshCalendar;
+window.refreshCurrentNews = refreshCurrentNews;
+
+window.clearPredictionHistory = clearPredictionHistory;
+window.clearSelectedRaceSetting = clearSelectedRaceSetting;
+window.resetFavoriteToDefault = resetFavoriteToDefault;
+window.toggleAutoNextRace = toggleAutoNextRace;
+window.switchNewsFilter = switchNewsFilter;
+
+window.setStandingsView = setStandingsView;
+window.setStandingsScope = setStandingsScope;
+
+window.openPredictionHistoryItem = openPredictionHistoryItem;
+window.openDriverDetail = openDriverDetail;
+window.openTeamDetail = openTeamDetail;
+window.openDetailModal = openDetailModal;
+window.closeDetailModal = closeDetailModal;
+
+window.setFavoriteDriver = setFavoriteDriver;
+window.setFavoriteTeam = setFavoriteTeam;
   
