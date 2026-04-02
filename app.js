@@ -2,6 +2,7 @@
     let calendarCache = null;
     let homeNewsCache = {};
     let lastPredictData = null;
+    let lastPredictContext = null;
     let detectedNextRaceName = null;
     let standingsDelta = { drivers: {}, teams: {} };
     let standingsViewType = "drivers";
@@ -997,6 +998,7 @@
       try {
         const data = await fetchPredictData(favorite, raceName);
         lastPredictData = data;
+        lastPredictContext = { raceName, favoriteKey: `${favorite.type}:${favorite.name}` };
         pushPredictionHistory(data, favorite, raceName);
 
         if (summaryBox) summaryBox.innerHTML = renderPredictSummaryCards(data);
@@ -1014,7 +1016,31 @@
 
     function refreshPredict() { runPredict(); }
 
+    function shouldAutoGeneratePredict(favorite, raceName) {
+      if (!lastPredictData || !lastPredictContext) return true;
+      return lastPredictContext.raceName !== raceName || lastPredictContext.favoriteKey !== `${favorite.type}:${favorite.name}`;
+    }
+
+    function renderPredictPreviewCards(favorite, raceName) {
+      const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
+      const teamData = getTeamData(teamName);
+      const heuristics = getRaceHeuristics(raceName);
+      const metrics = getFavoriteHomeMetrics(favorite);
+      const qualyRange = teamData.qualyPace >= 85 ? "P3-P6" : teamData.qualyPace >= 75 ? "P6-P10" : teamData.qualyPace >= 68 ? "P9-P13" : "P12-P16";
+      const raceRange = metrics.expectedWindow || "P10-P14";
+
+      return `
+        <div class="predict-grid">
+          <div class="stat-tile"><div class="stat-kicker">Clasificación</div><div class="stat-value">${qualyRange}</div><div class="stat-caption">Estimación rápida previa</div></div>
+          <div class="stat-tile"><div class="stat-kicker">Carrera</div><div class="stat-value">${raceRange}</div><div class="stat-caption">Ventana competitiva esperada</div></div>
+          <div class="stat-tile"><div class="stat-kicker">Puntos</div><div class="stat-value">${metrics.pointsProbability}%</div><div class="stat-caption">Probabilidad local aproximada</div></div>
+          <div class="stat-tile"><div class="stat-kicker">Safety Car</div><div class="stat-value">${heuristics.safetyCar}%</div><div class="stat-caption">Base histórica del circuito</div></div>
+        </div>
+      `;
+    }
+
     function showPredict() {
+
       setActiveNav("nav-predict");
       updateSubtitle();
 
@@ -1044,27 +1070,24 @@
           <div class="card-title">Resumen de predicción</div>
           <div class="card-sub">Lo importante arriba, el desarrollo completo debajo.</div>
           <div id="predictSummaryCards">
-            ${lastPredictData ? renderPredictSummaryCards(lastPredictData) : `
-              <div class="predict-grid">
-                <div class="stat-tile"><div class="stat-kicker">Clasificación</div><div class="stat-value">—</div><div class="stat-caption">Pendiente de generar</div></div>
-                <div class="stat-tile"><div class="stat-kicker">Carrera</div><div class="stat-value">—</div><div class="stat-caption">Pendiente de generar</div></div>
-                <div class="stat-tile"><div class="stat-kicker">Puntos</div><div class="stat-value">—</div><div class="stat-caption">Pendiente de generar</div></div>
-                <div class="stat-tile"><div class="stat-kicker">Abandono</div><div class="stat-value">—</div><div class="stat-caption">Pendiente de generar</div></div>
-              </div>
-            `}
+            ${lastPredictData && !shouldAutoGeneratePredict(getFavorite(), selectedRace)
+              ? renderPredictSummaryCards(lastPredictData)
+              : renderPredictPreviewCards(getFavorite(), selectedRace)}
           </div>
         </div>
 
         <div class="card">
           <div class="card-title">Claves del fin de semana</div>
           <div id="predictMetaCards">
-            ${lastPredictData ? renderPredictMetaCards(lastPredictData) : `<div class="empty-line">Genera la predicción para ver el ganador estimado, equipos top y estrategia.</div>`}
+            ${lastPredictData && !shouldAutoGeneratePredict(getFavorite(), selectedRace)
+              ? renderPredictMetaCards(lastPredictData)
+              : `<div class="empty-line">Cargando la predicción avanzada para ${selectedRace}…</div>`}
           </div>
         </div>
 
         <div class="card">
           <div class="card-title">Texto completo</div>
-          <pre id="predictOutput" class="ai-output">${lastPredictData ? formatPredictResponse(lastPredictData) : "Selecciona un circuito y pulsa en “Generar predicción”."}</pre>
+          <pre id="predictOutput" class="ai-output">${lastPredictData && !shouldAutoGeneratePredict(getFavorite(), selectedRace) ? formatPredictResponse(lastPredictData) : "Preparando predicción avanzada…"}</pre>
         </div>
 
         <div class="card">
@@ -1080,6 +1103,10 @@
           <div id="predictionHistoryBox">${renderPredictionHistory()}</div>
         </div>
       `;
+
+      if (shouldAutoGeneratePredict(getFavorite(), selectedRace)) {
+        setTimeout(() => runPredict(), 80);
+      }
     }
 
     function renderFavoriteCard() {
