@@ -1161,13 +1161,18 @@ button {
     flex-direction: column;
   }
 
+  .settings-actions .btn-secondary,
+  .settings-actions .danger-btn {
+    width: 100%;
+    min-height: 56px;
+    flex: 0 0 auto;
+  }
+
   .btn,
   .icon-btn,
   .btn-secondary,
   .danger-btn,
-  .toggle-btn,
-  .settings-actions .btn-secondary,
-  .settings-actions .danger-btn {
+  .toggle-btn {
     width: 100%;
   }
 
