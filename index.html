@@ -13,10 +13,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="RaceControl" />
 
-  <link rel="manifest" href="/manifest.webmanifest?v=13" />
+  <link rel="manifest" href="/manifest.webmanifest?v=14" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
-  <link rel="stylesheet" href="/styles.css?v=13" />
+  <link rel="stylesheet" href="/styles.css?v=14" />
 </head>
 <body>
   <div class="app">
@@ -27,7 +27,12 @@
       </div>
     </div>
 
-    <div class="container" id="content"></div>
+    <div class="container" id="content">
+      <div class="card">
+        <div class="card-title">Cargando RaceControl…</div>
+        <div class="card-sub">Inicializando app.</div>
+      </div>
+    </div>
 
     <div class="nav">
       <a href="#" id="nav-home" onclick="showHome(); return false;">Inicio</a>
@@ -47,6 +52,29 @@
     </div>
   </div>
 
-  <script src="/app.js?v=13"></script>
+  <script>
+    function renderBootError(message) {
+      const content = document.getElementById("content");
+      if (!content) return;
+      content.innerHTML = `
+        <div class="card">
+          <div class="card-title">Error de arranque</div>
+          <div class="card-sub">La app no ha podido iniciarse en este modo.</div>
+          <pre class="ai-output">${String(message || "Error desconocido")}</pre>
+        </div>
+      `;
+    }
+
+    window.addEventListener("error", function (event) {
+      renderBootError(event.message || "Error JS");
+    });
+
+    window.addEventListener("unhandledrejection", function (event) {
+      const reason = event.reason && event.reason.message ? event.reason.message : String(event.reason || "Promise rechazada");
+      renderBootError(reason);
+    });
+  </script>
+
+  <script src="/app.js?v=14"></script>
 </body>
 </html>
