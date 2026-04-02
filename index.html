@@ -26,6 +26,10 @@
             --haas: #c9c9c9;
             --rb: #2a6aff;
 
+            --good: #78ffd6;
+            --warn: #ffe28a;
+            --bad: #ff9a91;
+
             --radius-xl: 28px;
             --radius-lg: 24px;
             --radius-md: 18px;
@@ -194,45 +198,132 @@
             line-height: 1.45;
         }
 
-        .pill, .mini-pill, .trend-pill {
+        .card-head {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .card-head-left {
+            min-width: 0;
+        }
+
+        .card-head-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+
+        .pill,
+        .mini-pill,
+        .trend-pill,
+        .chip,
+        .tag {
             position: relative;
             z-index: 1;
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 7px 12px;
             border-radius: 999px;
-            font-size: 11px;
             font-weight: 800;
             letter-spacing: 0.6px;
-            color: rgba(255,255,255,0.74);
-            background: rgba(255,255,255,0.08);
             border: 1px solid rgba(255,255,255,0.10);
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+        }
+
+        .pill {
+            padding: 7px 12px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.74);
+            background: rgba(255,255,255,0.08);
+            margin-bottom: 12px;
         }
 
         .mini-pill {
             padding: 6px 10px;
             font-size: 10px;
+            color: rgba(255,255,255,0.74);
+            background: rgba(255,255,255,0.08);
             margin-bottom: 10px;
         }
 
+        .trend-pill {
+            padding: 7px 12px;
+            font-size: 11px;
+        }
+
         .trend-pill.up {
-            color: #78ffd6;
-            border-color: rgba(120,255,214,0.26);
+            color: var(--good);
+            border-color: rgba(120,255,214,0.24);
             background: rgba(120,255,214,0.10);
         }
 
         .trend-pill.down {
-            color: #ff9a91;
+            color: var(--bad);
             border-color: rgba(255,154,145,0.24);
             background: rgba(255,154,145,0.10);
         }
 
         .trend-pill.neutral {
-            color: #ffe28a;
+            color: var(--warn);
             border-color: rgba(255,226,138,0.20);
             background: rgba(255,226,138,0.10);
+        }
+
+        .chip {
+            padding: 8px 12px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.72);
+            background: rgba(255,255,255,0.06);
+            cursor: pointer;
+        }
+
+        .chip.active {
+            color: white;
+            background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.07));
+            border-color: rgba(255,255,255,0.16);
+        }
+
+        .tag {
+            padding: 5px 9px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.78);
+            background: rgba(255,255,255,0.07);
+        }
+
+        .tag.technical {
+            color: #8ef4ff;
+            border-color: rgba(142,244,255,0.18);
+            background: rgba(142,244,255,0.10);
+        }
+
+        .tag.reliability {
+            color: #ffb28b;
+            border-color: rgba(255,178,139,0.18);
+            background: rgba(255,178,139,0.10);
+        }
+
+        .tag.market {
+            color: #d3b5ff;
+            border-color: rgba(211,181,255,0.20);
+            background: rgba(211,181,255,0.10);
+        }
+
+        .tag.statement {
+            color: #ffe28a;
+            border-color: rgba(255,226,138,0.18);
+            background: rgba(255,226,138,0.10);
+        }
+
+        .tag.general {
+            color: #bcd6ff;
+            border-color: rgba(188,214,255,0.18);
+            background: rgba(188,214,255,0.10);
         }
 
         .stat {
@@ -283,20 +374,22 @@
         .haas { background: linear-gradient(90deg, rgba(201,201,201,0.85), rgba(243,243,243,0.95)); }
         .rb { background: linear-gradient(90deg, rgba(42,106,255,0.9), rgba(121,171,255,0.95)); }
 
-        .btn, .btn-secondary {
+        .btn,
+        .btn-secondary,
+        .icon-btn {
             position: relative;
             z-index: 1;
-            width: 100%;
-            border: 0;
             border-radius: 18px;
-            padding: 16px 18px;
-            font-size: 16px;
+            color: white;
             font-weight: 800;
             letter-spacing: -0.2px;
-            color: white;
         }
 
         .btn {
+            width: 100%;
+            border: 0;
+            padding: 16px 18px;
+            font-size: 16px;
             background: linear-gradient(90deg, #ff2a20, #ff5b4f);
             box-shadow:
                 inset 0 1px 0 rgba(255,255,255,0.18),
@@ -304,8 +397,11 @@
         }
 
         .btn-secondary {
-            background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+            width: 100%;
             border: 1px solid rgba(255,255,255,0.12);
+            padding: 14px 16px;
+            font-size: 14px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
             text-decoration: none;
             display: inline-flex;
@@ -313,9 +409,35 @@
             align-items: center;
         }
 
+        .icon-btn {
+            border: 1px solid rgba(255,255,255,0.12);
+            padding: 11px 14px;
+            font-size: 13px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+        }
+
         .btn:active,
-        .btn-secondary:active {
+        .btn-secondary:active,
+        .icon-btn:active {
             transform: scale(0.995);
+        }
+
+        .action-row {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .action-row > * {
+            flex: 1;
+        }
+
+        .action-row .icon-btn {
+            flex: 0 0 auto;
+            min-width: 96px;
         }
 
         .select-input {
@@ -522,7 +644,9 @@
 
         .stat-tile,
         .meta-tile,
-        .insight-tile {
+        .insight-tile,
+        .history-item,
+        .news-hero {
             background: rgba(255,255,255,0.06);
             border: 1px solid rgba(255,255,255,0.08);
             border-radius: 18px;
@@ -606,12 +730,19 @@
             margin-bottom: 10px;
         }
 
-        .insight-list {
+        .insight-list,
+        .history-list,
+        .filters-row {
             position: relative;
             z-index: 1;
             display: flex;
             flex-direction: column;
             gap: 10px;
+        }
+
+        .filters-row {
+            flex-direction: row;
+            flex-wrap: wrap;
         }
 
         .insight-item {
@@ -623,6 +754,57 @@
             font-size: 14px;
             color: rgba(255,255,255,0.92);
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+
+        .history-item {
+            cursor: pointer;
+        }
+
+        .history-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .history-title {
+            font-size: 15px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .history-sub {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 6px;
+        }
+
+        .history-meta {
+            font-size: 12px;
+            color: rgba(255,255,255,0.72);
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .news-hero-title {
+            font-size: 18px;
+            font-weight: 800;
+            line-height: 1.25;
+            margin-top: 4px;
+        }
+
+        .news-hero-sub {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 8px;
+            line-height: 1.45;
+        }
+
+        .news-meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
         }
 
         .standings-toggle {
@@ -659,6 +841,12 @@
             gap: 12px;
             padding: 14px 0;
             border-bottom: 1px solid rgba(255,255,255,0.07);
+            cursor: pointer;
+            transition: 0.18s ease;
+        }
+
+        .standing-row:hover {
+            transform: translateY(-1px);
         }
 
         .standing-row:last-child,
@@ -666,6 +854,28 @@
         .menu-link:last-child,
         .list-line:last-child {
             border-bottom: none;
+        }
+
+        .standing-row.leader {
+            background: rgba(255,255,255,0.03);
+            border-radius: 18px;
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+
+        .standing-row.favorite-row {
+            background: rgba(255,255,255,0.04);
+            border-radius: 18px;
+            padding-left: 8px;
+            padding-right: 8px;
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.05);
+        }
+
+        .standing-row.teammate-row {
+            background: rgba(255,255,255,0.02);
+            border-radius: 18px;
+            padding-left: 8px;
+            padding-right: 8px;
         }
 
         .row-left {
@@ -679,6 +889,16 @@
             width: 24px;
             color: var(--muted);
             font-size: 13px;
+            flex: 0 0 auto;
+            text-align: center;
+        }
+
+        .row-pos-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            width: 32px;
             flex: 0 0 auto;
         }
 
@@ -755,8 +975,63 @@
             margin-top: 4px;
         }
 
+        .row-badges {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+        }
+
+        .delta-badge,
+        .context-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 26px;
+            height: 20px;
+            padding: 0 7px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 800;
+            border: 1px solid rgba(255,255,255,0.10);
+        }
+
+        .delta-badge.up {
+            color: var(--good);
+            background: rgba(120,255,214,0.10);
+            border-color: rgba(120,255,214,0.18);
+        }
+
+        .delta-badge.down {
+            color: var(--bad);
+            background: rgba(255,154,145,0.10);
+            border-color: rgba(255,154,145,0.18);
+        }
+
+        .delta-badge.flat {
+            color: rgba(255,255,255,0.54);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .context-badge.leader {
+            color: #ffe28a;
+            background: rgba(255,226,138,0.10);
+            border-color: rgba(255,226,138,0.18);
+        }
+
+        .context-badge.favorite {
+            color: #ffd54a;
+            background: rgba(255,213,74,0.10);
+            border-color: rgba(255,213,74,0.20);
+        }
+
+        .context-badge.teammate {
+            color: #bcd6ff;
+            background: rgba(188,214,255,0.10);
+            border-color: rgba(188,214,255,0.18);
+        }
+
         .fav-btn {
-            margin-top: 7px;
             width: 30px;
             height: 30px;
             border-radius: 999px;
@@ -823,6 +1098,61 @@
             text-align: right;
         }
 
+        .calendar-group-title {
+            position: relative;
+            z-index: 1;
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: rgba(255,255,255,0.66);
+            margin: 2px 0 10px 0;
+        }
+
+        .calendar-event-card {
+            position: relative;
+            z-index: 1;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 14px;
+            margin-bottom: 10px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+
+        .calendar-event-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .calendar-event-title {
+            font-size: 16px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .calendar-event-sub {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 6px;
+        }
+
+        .calendar-event-right {
+            text-align: right;
+            font-size: 12px;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .calendar-event-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
         pre.ai-output {
             position: relative;
             z-index: 1;
@@ -840,6 +1170,99 @@
             z-index: 1;
             color: var(--muted);
             font-size: 14px;
+        }
+
+        .skeleton-wrap {
+            position: relative;
+            z-index: 1;
+        }
+
+        .skeleton {
+            position: relative;
+            overflow: hidden;
+            background: rgba(255,255,255,0.06);
+            border-radius: 12px;
+        }
+
+        .skeleton::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            transform: translateX(-100%);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+            animation: shimmer 1.4s infinite;
+        }
+
+        .skeleton-line {
+            height: 14px;
+            margin-bottom: 10px;
+        }
+
+        .skeleton-line.sm { width: 42%; }
+        .skeleton-line.md { width: 66%; }
+        .skeleton-line.lg { width: 100%; }
+        .skeleton-line:last-child { margin-bottom: 0; }
+
+        .skeleton-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .skeleton-tile {
+            height: 92px;
+            border-radius: 18px;
+        }
+
+        @keyframes shimmer {
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 18px;
+        }
+
+        .modal.open {
+            display: flex;
+        }
+
+        .modal-sheet {
+            width: min(860px, 100%);
+            max-height: 82vh;
+            overflow: auto;
+            border-radius: 28px;
+            background: linear-gradient(180deg, rgba(18,20,23,0.96), rgba(10,11,13,0.96));
+            border: 1px solid rgba(255,255,255,0.10);
+            padding: 18px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.42);
+        }
+
+        .modal-close-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+
+        .modal-close {
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.08);
+            color: white;
+            border-radius: 999px;
+            width: 36px;
+            height: 36px;
+            font-size: 18px;
         }
 
         @media (max-width: 640px) {
@@ -869,6 +1292,10 @@
             .meta-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+
+            .card-head {
+                align-items: flex-start;
+            }
         }
     </style>
 </head>
@@ -892,12 +1319,26 @@
         </div>
     </div>
 
+    <div class="modal" id="detailModal" onclick="closeDetailModal(event)">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-close-row">
+                <button class="modal-close" onclick="closeDetailModal()">×</button>
+            </div>
+            <div id="detailModalContent"></div>
+        </div>
+    </div>
+
     <script>
         let standingsCache = null;
         let calendarCache = null;
         let homeNewsCache = {};
         let lastPredictData = null;
         let detectedNextRaceName = null;
+        let standingsDelta = { drivers: {}, teams: {} };
+        let standingsViewType = "drivers";
+        let standingsScope = "top10";
+        let currentNewsFilterKey = "favorite";
+        let currentNewsFilters = [];
 
         function setActiveNav(tabId) {
             const ids = ["nav-home", "nav-predict", "nav-favorito", "nav-news", "nav-more"];
@@ -965,7 +1406,9 @@
         }
 
         function getSelectedRace() {
-            return localStorage.getItem("racecontrolSelectedRace") || detectedNextRaceName || "GP Miami";
+            const stored = localStorage.getItem("racecontrolSelectedRace");
+            if (stored) return stored;
+            return detectedNextRaceName || "GP Miami";
         }
 
         function saveSelectedRace(raceName) {
@@ -993,6 +1436,56 @@
             return getFavorite().colorClass || "aston";
         }
 
+        function safeJsonParse(value, fallback) {
+            try {
+                return JSON.parse(value);
+            } catch {
+                return fallback;
+            }
+        }
+
+        function escapeHtml(str) {
+            return String(str || "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        function saveStandingsSnapshot(data) {
+            const snapshot = {
+                updatedAt: data?.updatedAt || null,
+                drivers: Object.fromEntries((data?.drivers || []).map(d => [d.name, d.pos])),
+                teams: Object.fromEntries((data?.teams || []).map(t => [t.team, t.pos]))
+            };
+            localStorage.setItem("racecontrolStandingsSnapshot", JSON.stringify(snapshot));
+        }
+
+        function computeStandingsDelta(data) {
+            const previous = safeJsonParse(localStorage.getItem("racecontrolStandingsSnapshot"), null);
+
+            const driverDelta = {};
+            const teamDelta = {};
+
+            (data?.drivers || []).forEach(driver => {
+                const prev = previous?.drivers?.[driver.name];
+                driverDelta[driver.name] = typeof prev === "number" ? prev - driver.pos : 0;
+            });
+
+            (data?.teams || []).forEach(team => {
+                const prev = previous?.teams?.[team.team];
+                teamDelta[team.team] = typeof prev === "number" ? prev - team.pos : 0;
+            });
+
+            standingsDelta = {
+                drivers: driverDelta,
+                teams: teamDelta
+            };
+
+            saveStandingsSnapshot(data);
+        }
+
         async function fetchStandingsData(force = false) {
             if (standingsCache && !force) return standingsCache;
 
@@ -1004,6 +1497,7 @@
             }
 
             standingsCache = data;
+            computeStandingsDelta(data);
             refreshFavoriteFromStandings(data);
             return data;
         }
@@ -1026,8 +1520,12 @@
             return data;
         }
 
+        function getNewsCacheKey(favorite) {
+            return `${favorite.type}:${favorite.name}`;
+        }
+
         async function fetchNewsDataForFavorite(favorite, force = false) {
-            const cacheKey = `${favorite.type}:${favorite.name}`;
+            const cacheKey = getNewsCacheKey(favorite);
 
             if (homeNewsCache[cacheKey] && !force) {
                 return homeNewsCache[cacheKey];
@@ -1083,162 +1581,66 @@
         function getTeamData(team) {
             const data = {
                 "Mercedes": {
-                    racePace: 92,
-                    qualyPace: 91,
-                    reliability: 83,
-                    outlook: "Alta",
-                    drivers: ["George Russell", "Kimi Antonelli"],
-                    forms: [90, 88],
-                    aero: 90,
-                    topSpeed: 85,
-                    traction: 88,
-                    tyreManagement: 84,
-                    recentTrend: 4
+                    racePace: 92, qualyPace: 91, reliability: 83, outlook: "Alta",
+                    drivers: ["George Russell", "Kimi Antonelli"], forms: [90, 88],
+                    aero: 90, topSpeed: 85, traction: 88, tyreManagement: 84, recentTrend: 4
                 },
                 "Ferrari": {
-                    racePace: 88,
-                    qualyPace: 87,
-                    reliability: 78,
-                    outlook: "Alta",
-                    drivers: ["Charles Leclerc", "Lewis Hamilton"],
-                    forms: [89, 87],
-                    aero: 86,
-                    topSpeed: 90,
-                    traction: 84,
-                    tyreManagement: 80,
-                    recentTrend: 2
+                    racePace: 88, qualyPace: 87, reliability: 78, outlook: "Alta",
+                    drivers: ["Charles Leclerc", "Lewis Hamilton"], forms: [89, 87],
+                    aero: 86, topSpeed: 90, traction: 84, tyreManagement: 80, recentTrend: 2
                 },
                 "McLaren": {
-                    racePace: 84,
-                    qualyPace: 85,
-                    reliability: 82,
-                    outlook: "Alta",
-                    drivers: ["Lando Norris", "Oscar Piastri"],
-                    forms: [88, 88],
-                    aero: 87,
-                    topSpeed: 82,
-                    traction: 85,
-                    tyreManagement: 84,
-                    recentTrend: 1
+                    racePace: 84, qualyPace: 85, reliability: 82, outlook: "Alta",
+                    drivers: ["Lando Norris", "Oscar Piastri"], forms: [88, 88],
+                    aero: 87, topSpeed: 82, traction: 85, tyreManagement: 84, recentTrend: 1
                 },
                 "Red Bull": {
-                    racePace: 80,
-                    qualyPace: 82,
-                    reliability: 74,
-                    outlook: "Media",
-                    drivers: ["Max Verstappen", "Isack Hadjar"],
-                    forms: [91, 77],
-                    aero: 88,
-                    topSpeed: 84,
-                    traction: 81,
-                    tyreManagement: 75,
-                    recentTrend: -2
+                    racePace: 80, qualyPace: 82, reliability: 74, outlook: "Media",
+                    drivers: ["Max Verstappen", "Isack Hadjar"], forms: [91, 77],
+                    aero: 88, topSpeed: 84, traction: 81, tyreManagement: 75, recentTrend: -2
                 },
                 "Aston Martin": {
-                    racePace: 72,
-                    qualyPace: 68,
-                    reliability: 61,
-                    outlook: "Media",
-                    drivers: ["Fernando Alonso", "Lance Stroll"],
-                    forms: [88, 82],
-                    aero: 60,
-                    topSpeed: 56,
-                    traction: 58,
-                    tyreManagement: 60,
-                    recentTrend: -1
+                    racePace: 72, qualyPace: 68, reliability: 61, outlook: "Media",
+                    drivers: ["Fernando Alonso", "Lance Stroll"], forms: [88, 82],
+                    aero: 60, topSpeed: 56, traction: 58, tyreManagement: 60, recentTrend: -1
                 },
                 "Alpine": {
-                    racePace: 66,
-                    qualyPace: 61,
-                    reliability: 58,
-                    outlook: "Media",
-                    drivers: ["Pierre Gasly", "Franco Colapinto"],
-                    forms: [82, 76],
-                    aero: 70,
-                    topSpeed: 67,
-                    traction: 69,
-                    tyreManagement: 67,
-                    recentTrend: 1
+                    racePace: 66, qualyPace: 61, reliability: 58, outlook: "Media",
+                    drivers: ["Pierre Gasly", "Franco Colapinto"], forms: [82, 76],
+                    aero: 70, topSpeed: 67, traction: 69, tyreManagement: 67, recentTrend: 1
                 },
                 "Williams": {
-                    racePace: 64,
-                    qualyPace: 60,
-                    reliability: 63,
-                    outlook: "Media",
-                    drivers: ["Carlos Sainz", "Alexander Albon"],
-                    forms: [81, 79],
-                    aero: 63,
-                    topSpeed: 68,
-                    traction: 61,
-                    tyreManagement: 63,
-                    recentTrend: -1
+                    racePace: 64, qualyPace: 60, reliability: 63, outlook: "Media",
+                    drivers: ["Carlos Sainz", "Alexander Albon"], forms: [81, 79],
+                    aero: 63, topSpeed: 68, traction: 61, tyreManagement: 63, recentTrend: -1
                 },
                 "Audi": {
-                    racePace: 61,
-                    qualyPace: 58,
-                    reliability: 67,
-                    outlook: "Media",
-                    drivers: ["Nico Hulkenberg", "Gabriel Bortoleto"],
-                    forms: [77, 74],
-                    aero: 64,
-                    topSpeed: 64,
-                    traction: 63,
-                    tyreManagement: 65,
-                    recentTrend: 0
+                    racePace: 61, qualyPace: 58, reliability: 67, outlook: "Media",
+                    drivers: ["Nico Hulkenberg", "Gabriel Bortoleto"], forms: [77, 74],
+                    aero: 64, topSpeed: 64, traction: 63, tyreManagement: 65, recentTrend: 0
                 },
                 "Cadillac": {
-                    racePace: 59,
-                    qualyPace: 56,
-                    reliability: 60,
-                    outlook: "Media",
-                    drivers: ["Sergio Perez", "Valtteri Bottas"],
-                    forms: [78, 75],
-                    aero: 60,
-                    topSpeed: 66,
-                    traction: 60,
-                    tyreManagement: 62,
-                    recentTrend: 0
+                    racePace: 59, qualyPace: 56, reliability: 60, outlook: "Media",
+                    drivers: ["Sergio Perez", "Valtteri Bottas"], forms: [78, 75],
+                    aero: 60, topSpeed: 66, traction: 60, tyreManagement: 62, recentTrend: 0
                 },
                 "Haas": {
-                    racePace: 63,
-                    qualyPace: 59,
-                    reliability: 64,
-                    outlook: "Media",
-                    drivers: ["Esteban Ocon", "Oliver Bearman"],
-                    forms: [78, 80],
-                    aero: 69,
-                    topSpeed: 73,
-                    traction: 70,
-                    tyreManagement: 69,
-                    recentTrend: 2
+                    racePace: 63, qualyPace: 59, reliability: 64, outlook: "Media",
+                    drivers: ["Esteban Ocon", "Oliver Bearman"], forms: [78, 80],
+                    aero: 69, topSpeed: 73, traction: 70, tyreManagement: 69, recentTrend: 2
                 },
                 "Racing Bulls": {
-                    racePace: 68,
-                    qualyPace: 65,
-                    reliability: 66,
-                    outlook: "Media",
-                    drivers: ["Liam Lawson", "Arvid Lindblad"],
-                    forms: [79, 75],
-                    aero: 72,
-                    topSpeed: 70,
-                    traction: 71,
-                    tyreManagement: 68,
-                    recentTrend: 1
+                    racePace: 68, qualyPace: 65, reliability: 66, outlook: "Media",
+                    drivers: ["Liam Lawson", "Arvid Lindblad"], forms: [79, 75],
+                    aero: 72, topSpeed: 70, traction: 71, tyreManagement: 68, recentTrend: 1
                 }
             };
 
             return data[team] || {
-                racePace: 70,
-                qualyPace: 67,
-                reliability: 62,
-                outlook: "Media",
-                drivers: ["Piloto 1", "Piloto 2"],
-                forms: [80, 78],
-                aero: 70,
-                topSpeed: 70,
-                traction: 70,
-                tyreManagement: 70,
-                recentTrend: 0
+                racePace: 70, qualyPace: 67, reliability: 62, outlook: "Media",
+                drivers: ["Piloto 1", "Piloto 2"], forms: [80, 78],
+                aero: 70, topSpeed: 70, traction: 70, tyreManagement: 70, recentTrend: 0
             };
         }
 
@@ -1373,7 +1775,15 @@
 
             if (teamData.reliability < 65) {
                 insights.push("La fiabilidad sigue siendo el principal factor que puede condicionar el fin de semana.");
-            } else if (selectedRace.includes("Mónaco") || selectedRace.includes("Singapur") || selectedRace.includes("Arabia Saudí") || selectedRace.includes("Azerbaiyán") || selectedRace.includes("Miami") || selectedRace.includes("Las Vegas") || selectedRace.includes("Madrid")) {
+            } else if (
+                selectedRace.includes("Mónaco") ||
+                selectedRace.includes("Singapur") ||
+                selectedRace.includes("Arabia Saudí") ||
+                selectedRace.includes("Azerbaiyán") ||
+                selectedRace.includes("Miami") ||
+                selectedRace.includes("Las Vegas") ||
+                selectedRace.includes("Madrid")
+            ) {
                 insights.push("El siguiente circuito exige precisión y confianza cerca de los muros.");
             } else {
                 insights.push("Con un fin de semana limpio, hay base para consolidar un resultado sólido.");
@@ -1485,6 +1895,17 @@
             return date.toLocaleDateString("es-ES", {
                 day: "2-digit",
                 month: "short"
+            });
+        }
+
+        function formatDateTimeShort(dateStr) {
+            const date = new Date(dateStr);
+            if (Number.isNaN(date.getTime())) return "";
+            return date.toLocaleDateString("es-ES", {
+                day: "2-digit",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit"
             });
         }
 
@@ -1607,6 +2028,105 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                         <div class="meta-kicker">Estrategia</div>
                         <div class="meta-value" style="font-size:17px; line-height:1.2;">${summary.strategy?.label || "Sin datos"}</div>
                         <div class="meta-caption">Paradas: ${summary.strategy?.stops ?? "—"}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getPredictionHistory() {
+            return safeJsonParse(localStorage.getItem("racecontrolPredictionHistory"), []);
+        }
+
+        function savePredictionHistory(history) {
+            localStorage.setItem("racecontrolPredictionHistory", JSON.stringify(history));
+        }
+
+        function pushPredictionHistory(data, favorite, raceName) {
+            const entry = {
+                id: Date.now(),
+                createdAt: new Date().toISOString(),
+                raceName,
+                favoriteType: favorite.type,
+                favoriteName: favorite.name,
+                favoriteTeam: favorite.team || favorite.name,
+                summary: {
+                    winner: data?.summary?.predictedWinner || null,
+                    favoritePrediction: formatFavoritePredictionText(data?.favoritePrediction),
+                    strategy: data?.summary?.strategy?.label || null
+                },
+                text: formatPredictResponse(data)
+            };
+
+            const history = getPredictionHistory();
+            const next = [entry, ...history].slice(0, 8);
+            savePredictionHistory(next);
+        }
+
+        function renderPredictionHistory() {
+            const history = getPredictionHistory();
+
+            if (!history.length) {
+                return `<div class="empty-line">Todavía no hay predicciones guardadas.</div>`;
+            }
+
+            return `
+                <div class="history-list">
+                    ${history.map(item => `
+                        <div class="history-item" onclick="openPredictionHistoryItem(${item.id})">
+                            <div class="history-head">
+                                <div>
+                                    <div class="history-title">${escapeHtml(item.raceName)} · ${escapeHtml(item.favoriteName)}</div>
+                                    <div class="history-sub">
+                                        Clasificación: ${escapeHtml(item.summary.favoritePrediction.qualy)} ·
+                                        Carrera: ${escapeHtml(item.summary.favoritePrediction.race)}
+                                    </div>
+                                </div>
+                                <div class="history-meta">${escapeHtml(formatDateTimeShort(item.createdAt))}</div>
+                            </div>
+                        </div>
+                    `).join("")}
+                </div>
+            `;
+        }
+
+        function openPredictionHistoryItem(id) {
+            const item = getPredictionHistory().find(entry => entry.id === id);
+            if (!item) return;
+
+            openDetailModal(`
+                <div class="card" style="margin-bottom:0;">
+                    <div class="card-title">${escapeHtml(item.raceName)} · ${escapeHtml(item.favoriteName)}</div>
+                    <div class="card-sub">${escapeHtml(formatDateTimeShort(item.createdAt))}</div>
+                    <pre class="ai-output">${escapeHtml(item.text)}</pre>
+                </div>
+            `);
+        }
+
+        function openDetailModal(html) {
+            document.getElementById("detailModalContent").innerHTML = html;
+            document.getElementById("detailModal").classList.add("open");
+        }
+
+        function closeDetailModal(evt) {
+            if (evt && evt.target && evt.target.id !== "detailModal") return;
+            document.getElementById("detailModal").classList.remove("open");
+        }
+
+        function renderLoadingCard(title, subtitle, withTiles = false) {
+            return `
+                <div class="card">
+                    <div class="card-title">${title}</div>
+                    <div class="card-sub">${subtitle}</div>
+                    <div class="skeleton-wrap">
+                        <div class="skeleton skeleton-line lg"></div>
+                        <div class="skeleton skeleton-line md"></div>
+                        <div class="skeleton skeleton-line sm"></div>
+                        ${withTiles ? `
+                            <div class="skeleton-grid">
+                                <div class="skeleton skeleton-tile"></div>
+                                <div class="skeleton skeleton-tile"></div>
+                            </div>
+                        ` : ""}
                     </div>
                 </div>
             `;
@@ -1843,10 +2363,7 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
 
             document.getElementById("content").innerHTML = `
                 ${renderHomeHero()}
-                <div class="card">
-                    <div class="card-title">Cargando centro de control…</div>
-                    <div class="card-sub">Preparando próxima carrera, resumen del favorito y noticias principales.</div>
-                </div>
+                ${renderLoadingCard("Cargando centro de control…", "Preparando próxima carrera, resumen del favorito y noticias principales.", true)}
             `;
 
             const favorite = getFavorite();
@@ -1900,6 +2417,17 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
             };
         }
 
+        function renderPredictLoadingState() {
+            return `
+                <div class="predict-grid">
+                    <div class="stat-tile"><div class="stat-kicker">Clasificación</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
+                    <div class="stat-tile"><div class="stat-kicker">Carrera</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
+                    <div class="stat-tile"><div class="stat-kicker">Puntos</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
+                    <div class="stat-tile"><div class="stat-kicker">Abandono</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
+                </div>
+            `;
+        }
+
         async function runPredict() {
             const output = document.getElementById("predictOutput");
             const favorite = getFavorite();
@@ -1912,16 +2440,8 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
             const summaryBox = document.getElementById("predictSummaryCards");
             const metaBox = document.getElementById("predictMetaCards");
 
-            if (summaryBox) {
-                summaryBox.innerHTML = `
-                    <div class="predict-grid">
-                        <div class="stat-tile"><div class="stat-kicker">Clasificación</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
-                        <div class="stat-tile"><div class="stat-kicker">Carrera</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
-                        <div class="stat-tile"><div class="stat-kicker">Puntos</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
-                        <div class="stat-tile"><div class="stat-kicker">Abandono</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
-                    </div>
-                `;
-            }
+            if (summaryBox) summaryBox.innerHTML = renderPredictLoadingState();
+            if (metaBox) metaBox.innerHTML = `<div class="empty-line">Recalculando ritmo, estrategia y favoritos…</div>`;
 
             try {
                 const response = await fetch("/api/predict", {
@@ -1940,16 +2460,24 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 }
 
                 lastPredictData = data;
+                pushPredictionHistory(data, favorite, raceName);
 
                 if (summaryBox) summaryBox.innerHTML = renderPredictSummaryCards(data);
                 if (metaBox) metaBox.innerHTML = renderPredictMetaCards(data);
 
                 output.innerText = formatPredictResponse(data);
+
+                const historyBox = document.getElementById("predictionHistoryBox");
+                if (historyBox) historyBox.innerHTML = renderPredictionHistory();
             } catch (error) {
                 output.innerText = `Error: ${error.message}`;
                 if (summaryBox) summaryBox.innerHTML = `<div class="empty-line">No se ha podido generar el resumen predictivo.</div>`;
                 if (metaBox) metaBox.innerHTML = "";
             }
+        }
+
+        function refreshPredict() {
+            runPredict();
         }
 
         function showPredict() {
@@ -1972,9 +2500,10 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                         `).join("")}
                     </select>
 
-                    <button class="btn" onclick="runPredict()">
-                        Generar predicción
-                    </button>
+                    <div class="action-row">
+                        <button class="btn" onclick="runPredict()">Generar predicción</button>
+                        <button class="icon-btn" onclick="refreshPredict()">Refrescar</button>
+                    </div>
                 </div>
 
                 <div class="card">
@@ -2002,6 +2531,12 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 <div class="card">
                     <div class="card-title">Texto completo</div>
                     <pre id="predictOutput" class="ai-output">${lastPredictData ? formatPredictResponse(lastPredictData) : "Selecciona un circuito y pulsa en “Generar predicción”."}</pre>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Historial de predicciones</div>
+                    <div class="card-sub">Las últimas predicciones generadas se guardan localmente en este dispositivo.</div>
+                    <div id="predictionHistoryBox">${renderPredictionHistory()}</div>
                 </div>
             `;
         }
@@ -2178,50 +2713,228 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
             `;
         }
 
+        function buildNewsFilterPresets() {
+            const favorite = getFavorite();
+            const favoriteFilter = {
+                key: "favorite",
+                label: favorite.name,
+                favoritePayload: favorite
+            };
+
+            const astonFilter = {
+                key: "aston",
+                label: "Aston",
+                favoritePayload: {
+                    type: "team",
+                    name: "Aston Martin",
+                    colorClass: "aston"
+                }
+            };
+
+            const alonsoFilter = {
+                key: "alonso",
+                label: "Alonso",
+                favoritePayload: getDefaultFavorite()
+            };
+
+            const gridFilter = {
+                key: "grid",
+                label: "Parrilla",
+                favoritePayload: {
+                    type: "team",
+                    name: "Formula 1",
+                    colorClass: "ferrari"
+                }
+            };
+
+            return [favoriteFilter, astonFilter, alonsoFilter, gridFilter];
+        }
+
+        function getActiveNewsFilter() {
+            currentNewsFilters = buildNewsFilterPresets();
+            return currentNewsFilters.find(filter => filter.key === currentNewsFilterKey) || currentNewsFilters[0];
+        }
+
+        function switchNewsFilter(key) {
+            currentNewsFilterKey = key;
+            showNews();
+        }
+
+        function categorizeNewsItem(item) {
+            const text = `${item?.title || ""} ${item?.source || ""}`.toLowerCase();
+
+            if (
+                text.includes("upgrade") ||
+                text.includes("mejora") ||
+                text.includes("aerodin") ||
+                text.includes("suelo") ||
+                text.includes("floor") ||
+                text.includes("package")
+            ) {
+                return { key: "technical", label: "Técnica" };
+            }
+
+            if (
+                text.includes("reliability") ||
+                text.includes("fiabilidad") ||
+                text.includes("engine") ||
+                text.includes("power unit") ||
+                text.includes("gearbox") ||
+                text.includes("avería") ||
+                text.includes("problema")
+            ) {
+                return { key: "reliability", label: "Fiabilidad" };
+            }
+
+            if (
+                text.includes("contract") ||
+                text.includes("mercado") ||
+                text.includes("seat") ||
+                text.includes("driver market") ||
+                text.includes("fich") ||
+                text.includes("replace")
+            ) {
+                return { key: "market", label: "Mercado" };
+            }
+
+            if (
+                text.includes("said") ||
+                text.includes("dice") ||
+                text.includes("claims") ||
+                text.includes("cree") ||
+                text.includes("declara") ||
+                text.includes("speaks")
+            ) {
+                return { key: "statement", label: "Declaración" };
+            }
+
+            return { key: "general", label: "General" };
+        }
+
+        function renderNewsFilters() {
+            const filters = buildNewsFilterPresets();
+
+            return `
+                <div class="filters-row">
+                    ${filters.map(filter => `
+                        <button class="chip ${currentNewsFilterKey === filter.key ? "active" : ""}" onclick="switchNewsFilter('${filter.key}')">
+                            ${filter.label}
+                        </button>
+                    `).join("")}
+                </div>
+            `;
+        }
+
+        function renderFeaturedNews(item) {
+            if (!item) return "";
+
+            const category = categorizeNewsItem(item);
+
+            return `
+                <div class="news-hero">
+                    <div class="mini-pill">DESTACADA</div>
+                    <div class="news-hero-title">${item.title}</div>
+                    <div class="news-hero-sub">${item.source || "Noticias"}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
+                    <div class="news-meta-row">
+                        <span class="tag ${category.key}">${category.label}</span>
+                        <a class="btn-secondary" href="${item.link}" target="_blank" rel="noopener noreferrer" style="width:auto; padding:10px 14px;">Abrir noticia</a>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function refreshCurrentNews() {
+            const filter = getActiveNewsFilter();
+            if (!filter) return;
+            const key = getNewsCacheKey(filter.favoritePayload);
+            delete homeNewsCache[key];
+            showNews();
+        }
+
         async function showNews() {
             setActiveNav("nav-news");
             updateSubtitle();
 
-            const favorite = getFavorite();
+            const filter = getActiveNewsFilter();
 
             document.getElementById("content").innerHTML = `
                 <div class="card">
-                    <div class="card-title" style="color: var(--${favorite.colorClass});">NOTICIAS · ${favorite.name.toUpperCase()}</div>
-                    <div class="card-sub">Buscando noticias reales…</div>
+                    <div class="card-head">
+                        <div class="card-head-left">
+                            <div class="card-title">NOTICIAS</div>
+                            <div class="card-sub">Buscando noticias reales y ordenándolas de forma más útil.</div>
+                        </div>
+                        <div class="card-head-actions">
+                            <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
+                        </div>
+                    </div>
+                    ${renderNewsFilters()}
                 </div>
+                ${renderLoadingCard(`Noticias · ${filter.label}`, "Cargando portada principal y artículos relacionados…")}
             `;
 
             try {
-                const data = await fetchNewsDataForFavorite(favorite, true);
-                const items = Array.isArray(data.items) ? data.items.slice(0, 8) : [];
+                const data = await fetchNewsDataForFavorite(filter.favoritePayload, false);
+                const items = Array.isArray(data.items) ? data.items.slice(0, 10) : [];
+                const featured = items[0] || null;
+                const rest = items.slice(1);
 
                 document.getElementById("content").innerHTML = `
                     <div class="card">
-                        <div class="card-title" style="color: var(--${favorite.colorClass});">NOTICIAS · ${favorite.name.toUpperCase()}</div>
-                        <div class="card-sub">Noticias reales adaptadas al favorito actual</div>
+                        <div class="card-head">
+                            <div class="card-head-left">
+                                <div class="card-title">NOTICIAS</div>
+                                <div class="card-sub">Vista mejorada con filtros, noticia principal y etiquetas temáticas.</div>
+                            </div>
+                            <div class="card-head-actions">
+                                <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
+                            </div>
+                        </div>
+                        ${renderNewsFilters()}
+                    </div>
 
-                        ${items.length ? items.map(item => `
-                            <div class="news-item">
-                                <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">
-                                    ${item.title}
-                                </a>
-                                <div class="news-source">
-                                    ${item.source || "Noticias"}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}
+                    <div class="card highlight-card">
+                        <div class="card-title">Portada · ${filter.label}</div>
+                        ${featured ? renderFeaturedNews(featured) : `<div class="empty-line">No hay una noticia destacada disponible ahora mismo.</div>`}
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Más noticias</div>
+                        <div class="card-sub">Artículos relacionados con el filtro activo.</div>
+
+                        ${rest.length ? rest.map(item => {
+                            const category = categorizeNewsItem(item);
+                            return `
+                                <div class="news-item">
+                                    <div class="news-meta-row" style="margin-top:0; margin-bottom:8px;">
+                                        <span class="tag ${category.key}">${category.label}</span>
+                                    </div>
+                                    <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">
+                                        ${item.title}
+                                    </a>
+                                    <div class="news-source">
+                                        ${item.source || "Noticias"}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}
+                                    </div>
                                 </div>
-                            </div>
-                        `).join("") : `
-                            <div class="news-item">
-                                <div>No se han encontrado noticias ahora mismo.</div>
-                                <div class="news-source">Prueba otra vez dentro de un momento</div>
-                            </div>
+                            `;
+                        }).join("") : `
+                            <div class="empty-line">No se han encontrado noticias adicionales ahora mismo.</div>
                         `}
                     </div>
                 `;
             } catch (error) {
                 document.getElementById("content").innerHTML = `
                     <div class="card">
-                        <div class="card-title" style="color: var(--${favorite.colorClass});">NOTICIAS · ${favorite.name.toUpperCase()}</div>
-                        <div class="card-sub">Error al cargar noticias</div>
+                        <div class="card-head">
+                            <div class="card-head-left">
+                                <div class="card-title">NOTICIAS</div>
+                                <div class="card-sub">Error al cargar el panel de noticias.</div>
+                            </div>
+                            <div class="card-head-actions">
+                                <button class="icon-btn" onclick="refreshCurrentNews()">Reintentar</button>
+                            </div>
+                        </div>
+                        ${renderNewsFilters()}
                         <pre class="ai-output">${error.message}</pre>
                     </div>
                 `;
@@ -2241,35 +2954,112 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
             `;
         }
 
-        async function showStandings() {
+        function getDriverContextBadges(name, pos, team) {
+            const favorite = getFavorite();
+            const badges = [];
+
+            if (pos === 1) badges.push(`<span class="context-badge leader">Líder</span>`);
+            if (favorite.type === "driver" && favorite.name === name) badges.push(`<span class="context-badge favorite">Favorito</span>`);
+            if (favorite.type === "driver" && favorite.team === team && favorite.name !== name) badges.push(`<span class="context-badge teammate">Compañero</span>`);
+
+            return badges.join("");
+        }
+
+        function getTeamContextBadges(team, pos) {
+            const favorite = getFavorite();
+            const badges = [];
+
+            if (pos === 1) badges.push(`<span class="context-badge leader">Líder</span>`);
+            if (favorite.type === "team" && favorite.name === team) badges.push(`<span class="context-badge favorite">Favorito</span>`);
+            if (favorite.type === "driver" && favorite.team === team) badges.push(`<span class="context-badge teammate">Equipo fav.</span>`);
+
+            return badges.join("");
+        }
+
+        function renderDeltaBadge(delta) {
+            if (delta > 0) return `<span class="delta-badge up">+${delta}</span>`;
+            if (delta < 0) return `<span class="delta-badge down">${delta}</span>`;
+            return `<span class="delta-badge flat">0</span>`;
+        }
+
+        function renderFavoriteCard() {
+            const favorite = getFavorite();
+
+            const badge = favorite.type === "driver" ? favorite.number : "EQ";
+            const subtitle = favorite.type === "driver"
+                ? `${favorite.team} · P${favorite.pos}`
+                : `${favorite.drivers} · P${favorite.pos}`;
+
+            return `
+                <div class="card favorite-card">
+                    <div class="favorite-label">Favorito</div>
+                    <div class="favorite-main">
+                        <div class="favorite-left">
+                            <div class="team-stripe" style="background: var(--${favorite.colorClass});"></div>
+                            <div class="driver-number" style="color: var(--${favorite.colorClass});">${badge}</div>
+                            <div>
+                                <div class="favorite-name">${favorite.name}</div>
+                                <div class="favorite-sub">${subtitle}</div>
+                            </div>
+                        </div>
+                        <div class="favorite-points">
+                            <div class="favorite-points-value">${favorite.points}</div>
+                            <div class="favorite-points-label">pts</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function refreshStandings() {
+            await showStandings(true);
+        }
+
+        async function showStandings(force = false) {
             setActiveNav("nav-more");
             updateSubtitle();
 
             document.getElementById("content").innerHTML = `
-                <div class="card">
-                    <div class="card-title">Clasificación</div>
-                    <div class="card-sub">Cargando clasificación real…</div>
-                </div>
+                ${renderFavoriteCard()}
+                ${renderLoadingCard("Clasificación", "Cargando clasificación real, cambios y resaltados…", true)}
             `;
 
             try {
-                await fetchStandingsData(true);
+                await fetchStandingsData(force);
 
                 document.getElementById("content").innerHTML = `
                     ${renderFavoriteCard()}
 
                     <div class="card">
-                        <div class="card-title">Clasificación</div>
+                        <div class="card-head">
+                            <div class="card-head-left">
+                                <div class="card-title">Clasificación</div>
+                                <div class="card-sub">Vista premium con líder, favorito, compañero y variación de posición.</div>
+                            </div>
+                            <div class="card-head-actions">
+                                <button class="icon-btn" onclick="refreshStandings()">Refrescar</button>
+                            </div>
+                        </div>
+
                         <div class="standings-toggle">
-                            <button class="toggle-btn active" id="driversBtn" onclick="showDriversStandings()">Pilotos</button>
-                            <button class="toggle-btn" id="teamsBtn" onclick="showTeamsStandings()">Equipos</button>
+                            <button class="toggle-btn ${standingsViewType === "drivers" ? "active" : ""}" id="driversBtn" onclick="setStandingsView('drivers')">Pilotos</button>
+                            <button class="toggle-btn ${standingsViewType === "teams" ? "active" : ""}" id="teamsBtn" onclick="setStandingsView('teams')">Equipos</button>
+                        </div>
+
+                        <div class="standings-toggle">
+                            <button class="toggle-btn ${standingsScope === "top10" ? "active" : ""}" id="top10Btn" onclick="setStandingsScope('top10')">Top 10</button>
+                            <button class="toggle-btn ${standingsScope === "all" ? "active" : ""}" id="allBtn" onclick="setStandingsScope('all')">Todos</button>
                         </div>
                     </div>
 
                     <div id="standingsContent"></div>
                 `;
 
-                showDriversStandings();
+                if (standingsViewType === "teams") {
+                    showTeamsStandings();
+                } else {
+                    showDriversStandings();
+                }
             } catch (error) {
                 document.getElementById("content").innerHTML = `
                     <div class="card">
@@ -2281,17 +3071,31 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
             }
         }
 
-        function showDriversStandings() {
-            const driversBtn = document.getElementById("driversBtn");
-            const teamsBtn = document.getElementById("teamsBtn");
-            if (driversBtn) driversBtn.classList.add("active");
-            if (teamsBtn) teamsBtn.classList.remove("active");
+        function setStandingsView(type) {
+            standingsViewType = type;
+            if (type === "teams") showTeamsStandings();
+            else showDriversStandings();
 
+            document.getElementById("driversBtn")?.classList.toggle("active", type === "drivers");
+            document.getElementById("teamsBtn")?.classList.toggle("active", type === "teams");
+        }
+
+        function setStandingsScope(scope) {
+            standingsScope = scope;
+            document.getElementById("top10Btn")?.classList.toggle("active", scope === "top10");
+            document.getElementById("allBtn")?.classList.toggle("active", scope === "all");
+
+            if (standingsViewType === "teams") showTeamsStandings();
+            else showDriversStandings();
+        }
+
+        function showDriversStandings() {
             const drivers = standingsCache?.drivers || [];
+            const visible = standingsScope === "top10" ? drivers.slice(0, 10) : drivers;
 
             document.getElementById("standingsContent").innerHTML = `
                 <div class="card">
-                    ${drivers.map(driver =>
+                    ${visible.map(driver =>
                         driverRow(
                             driver.pos,
                             driver.number,
@@ -2299,7 +3103,8 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                             driver.team,
                             String(driver.points),
                             driver.colorClass,
-                            driver.image
+                            driver.image,
+                            standingsDelta.drivers?.[driver.name] || 0
                         )
                     ).join("")}
                 </div>
@@ -2307,22 +3112,19 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
         }
 
         function showTeamsStandings() {
-            const driversBtn = document.getElementById("driversBtn");
-            const teamsBtn = document.getElementById("teamsBtn");
-            if (driversBtn) driversBtn.classList.remove("active");
-            if (teamsBtn) teamsBtn.classList.add("active");
-
             const teams = standingsCache?.teams || [];
+            const visible = standingsScope === "top10" ? teams.slice(0, 10) : teams;
 
             document.getElementById("standingsContent").innerHTML = `
                 <div class="card">
-                    ${teams.map(team =>
+                    ${visible.map(team =>
                         teamRow(
                             team.pos,
                             team.team,
                             team.drivers,
                             String(team.points),
-                            team.colorClass
+                            team.colorClass,
+                            standingsDelta.teams?.[team.team] || 0
                         )
                     ).join("")}
                 </div>
@@ -2339,13 +3141,99 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
             return favorite.type === "team" && favorite.name === team;
         }
 
-        function driverRow(pos, number, name, team, points, colorClass, image) {
+        function openDriverDetail(name, team, number, points, colorClass, pos) {
+            const teamData = getTeamData(team);
+            const favorite = getFavorite();
+            const comparison = getDriverComparison(team, name);
+            const isFav = favorite.type === "driver" && favorite.name === name;
+
+            openDetailModal(`
+                <div class="card" style="margin-bottom:0;">
+                    <div class="card-title" style="color: var(--${colorClass});">${escapeHtml(name)} · #${escapeHtml(number)}</div>
+                    <div class="card-sub">${escapeHtml(team)} · P${escapeHtml(pos)} · ${escapeHtml(points)} pts</div>
+
+                    <div class="grid-stats">
+                        <div class="stat-tile">
+                            <div class="stat-kicker">Ritmo carrera</div>
+                            <div class="stat-value">${teamData.racePace}%</div>
+                            <div class="stat-caption">Base del coche</div>
+                        </div>
+                        <div class="stat-tile">
+                            <div class="stat-kicker">Ritmo qualy</div>
+                            <div class="stat-value">${teamData.qualyPace}%</div>
+                            <div class="stat-caption">Vuelta única</div>
+                        </div>
+                    </div>
+
+                    <div class="info-line" style="margin-top:14px;">
+                        ${isFav
+                            ? "Es tu favorito actual. La app adaptará Home, Predicción y Noticias a este piloto."
+                            : `${name} está siendo comparado dentro del equipo con ${comparison.secondaryName}.`}
+                    </div>
+
+                    <div class="stat">Forma frente a su compañero <span>${comparison.primaryForm}%</span></div>
+                    <div class="bar"><div class="bar-fill ${colorClass}" style="width:${comparison.primaryForm}%;"></div></div>
+
+                    <div class="stat" style="margin-top:14px;">Forma del compañero (${comparison.secondaryName}) <span>${comparison.secondaryForm}%</span></div>
+                    <div class="bar"><div class="bar-fill ${colorClass}" style="width:${comparison.secondaryForm}%; opacity:0.68;"></div></div>
+                </div>
+            `);
+        }
+
+        function openTeamDetail(team, drivers, points, colorClass, pos) {
+            const teamData = getTeamData(team);
+            const favorite = getFavorite();
+            const isFav = favorite.type === "team" && favorite.name === team;
+
+            openDetailModal(`
+                <div class="card" style="margin-bottom:0;">
+                    <div class="card-title" style="color: var(--${colorClass});">${escapeHtml(team)}</div>
+                    <div class="card-sub">P${escapeHtml(pos)} · ${escapeHtml(points)} pts · ${escapeHtml(drivers)}</div>
+
+                    <div class="meta-grid">
+                        <div class="meta-tile">
+                            <div class="meta-kicker">Carrera</div>
+                            <div class="meta-value">${teamData.racePace}%</div>
+                            <div class="meta-caption">Ritmo base</div>
+                        </div>
+                        <div class="meta-tile">
+                            <div class="meta-kicker">Qualy</div>
+                            <div class="meta-value">${teamData.qualyPace}%</div>
+                            <div class="meta-caption">Vuelta única</div>
+                        </div>
+                        <div class="meta-tile">
+                            <div class="meta-kicker">Fiabilidad</div>
+                            <div class="meta-value">${teamData.reliability}%</div>
+                            <div class="meta-caption">Riesgo mecánico</div>
+                        </div>
+                    </div>
+
+                    <div class="info-line" style="margin-top:14px;">
+                        ${isFav
+                            ? "Es tu equipo favorito actual. La app adaptará pantallas y predicciones a este equipo."
+                            : "Ficha rápida para leer el nivel actual del equipo."}
+                    </div>
+                </div>
+            `);
+        }
+
+        function driverRow(pos, number, name, team, points, colorClass, image, delta) {
             const isFav = isFavoriteDriver(name);
+            const favorite = getFavorite();
+            const isTeammate = favorite.type === "driver" && favorite.team === team && favorite.name !== name;
+            const rowClass = [
+                pos === 1 ? "leader" : "",
+                isFav ? "favorite-row" : "",
+                isTeammate ? "teammate-row" : ""
+            ].join(" ").trim();
 
             return `
-                <div class="standing-row">
+                <div class="standing-row ${rowClass}" onclick="openDriverDetail(${JSON.stringify(name)}, ${JSON.stringify(team)}, ${JSON.stringify(number)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(pos)})">
                     <div class="row-left">
-                        <div class="row-pos">${pos}</div>
+                        <div class="row-pos-wrap">
+                            <div class="row-pos">${pos}</div>
+                            ${renderDeltaBadge(delta)}
+                        </div>
                         <img class="row-avatar" src="${image}" alt="${name}" onerror="this.style.display='none'">
                         <div class="row-stripe ${colorClass}"></div>
                         <div class="row-number" style="color: var(--${colorClass});">${number}</div>
@@ -2357,11 +3245,14 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                             </div>
                         </div>
                     </div>
-                    <div class="row-points">
-                        ${points}<small>pts</small>
+                    <div class="row-badges">
+                        ${getDriverContextBadges(name, pos, team)}
+                        <div class="row-points">
+                            ${points}<small>pts</small>
+                        </div>
                         <button
                             class="fav-btn ${isFav ? 'active' : ''}"
-                            onclick='setFavoriteDriver(${JSON.stringify(name)}, ${JSON.stringify(team)}, ${JSON.stringify(number)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(image)}, ${JSON.stringify(pos)})'
+                            onclick='event.stopPropagation(); setFavoriteDriver(${JSON.stringify(name)}, ${JSON.stringify(team)}, ${JSON.stringify(number)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(image)}, ${JSON.stringify(pos)})'
                         >★</button>
                     </div>
                 </div>
@@ -2383,13 +3274,24 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
             return "";
         }
 
-        function teamRow(pos, team, drivers, points, colorClass) {
+        function teamRow(pos, team, drivers, points, colorClass, delta) {
             const isFav = isFavoriteTeam(team);
+            const favorite = getFavorite();
+            const isFavoriteDriverTeam = favorite.type === "driver" && favorite.team === team;
+
+            const rowClass = [
+                pos === 1 ? "leader" : "",
+                isFav ? "favorite-row" : "",
+                isFavoriteDriverTeam ? "teammate-row" : ""
+            ].join(" ").trim();
 
             return `
-                <div class="standing-row">
+                <div class="standing-row ${rowClass}" onclick="openTeamDetail(${JSON.stringify(team)}, ${JSON.stringify(drivers)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(pos)})">
                     <div class="row-left">
-                        <div class="row-pos">${pos}</div>
+                        <div class="row-pos-wrap">
+                            <div class="row-pos">${pos}</div>
+                            ${renderDeltaBadge(delta)}
+                        </div>
                         <div class="row-stripe ${colorClass}"></div>
                         <div class="row-info">
                             <div class="row-name" style="color: var(--${colorClass});">${team}</div>
@@ -2399,11 +3301,14 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                             </div>
                         </div>
                     </div>
-                    <div class="row-points">
-                        ${points}<small>pts</small>
+                    <div class="row-badges">
+                        ${getTeamContextBadges(team, pos)}
+                        <div class="row-points">
+                            ${points}<small>pts</small>
+                        </div>
                         <button
                             class="fav-btn ${isFav ? 'active' : ''}"
-                            onclick='setFavoriteTeam(${JSON.stringify(team)}, ${JSON.stringify(drivers)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(pos)})'
+                            onclick='event.stopPropagation(); setFavoriteTeam(${JSON.stringify(team)}, ${JSON.stringify(drivers)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(pos)})'
                         >★</button>
                     </div>
                 </div>
@@ -2422,11 +3327,7 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 pos
             });
 
-            const wasTeams = document.getElementById("teamsBtn")?.classList.contains("active");
             showStandings();
-            if (wasTeams) {
-                setTimeout(showTeamsStandings, 50);
-            }
         }
 
         function setFavoriteTeam(name, drivers, points, colorClass, pos) {
@@ -2439,45 +3340,86 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 pos
             });
 
-            const wasTeams = document.getElementById("teamsBtn")?.classList.contains("active");
             showStandings();
-            if (wasTeams) {
-                setTimeout(showTeamsStandings, 50);
-            }
         }
 
-        async function showCalendar() {
+        async function refreshCalendar() {
+            await showCalendar(true);
+        }
+
+        function renderCalendarEventCard(event) {
+            const isTesting = event.type === "testing";
+            const isRace = event.type === "race";
+            const dateLabel = formatCalendarDateRange(event.start, event.end);
+
+            return `
+                <div class="calendar-event-card">
+                    <div class="calendar-event-top">
+                        <div>
+                            <div class="calendar-event-title">
+                                ${isRace ? `R${event.round} · ${event.title}` : event.title}
+                            </div>
+                            <div class="calendar-event-sub">${event.venue} · ${event.location}</div>
+                        </div>
+                        <div class="calendar-event-right">
+                            ${dateLabel}<br>
+                            ${getCalendarStatusLabel(event.status, event.type)}
+                        </div>
+                    </div>
+
+                    <div class="calendar-event-tags">
+                        <span class="tag general">${isTesting ? "Testing" : "Carrera"}</span>
+                        ${event.sprint ? `<span class="tag market">Sprint</span>` : ""}
+                        ${event.type === "race" && event.status === "next" ? `<span class="tag statement">Siguiente GP</span>` : ""}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function showCalendar(force = false) {
             setActiveNav("nav-more");
             updateSubtitle();
 
             document.getElementById("content").innerHTML = `
-                <div class="card">
-                    <div class="card-title">Calendario</div>
-                    <div class="card-sub">Cargando calendario oficial 2026…</div>
-                </div>
+                ${renderLoadingCard("Calendario", "Cargando calendario oficial 2026 y separando próximas y completadas…", true)}
             `;
 
             try {
-                const data = await fetchCalendarData(true);
+                const data = await fetchCalendarData(force);
                 const events = Array.isArray(data.events) ? data.events : [];
+                const nextRace = getNextRaceFromCalendar(events);
+                const upcoming = events.filter(event => event.status === "next" || event.status === "upcoming");
+                const completed = events.filter(event => event.status === "completed");
 
                 document.getElementById("content").innerHTML = `
                     <div class="card">
-                        <div class="card-title">Calendario</div>
-                        <div class="card-sub">Temporada 2026 · calendario real</div>
+                        <div class="card-head">
+                            <div class="card-head-left">
+                                <div class="card-title">Calendario</div>
+                                <div class="card-sub">Vista mejorada con siguiente carrera destacada y bloques separados.</div>
+                            </div>
+                            <div class="card-head-actions">
+                                <button class="icon-btn" onclick="refreshCalendar()">Refrescar</button>
+                            </div>
+                        </div>
 
-                        ${events.map(event => `
-                            <div class="list-line">
-                                <div class="list-left">
-                                    ${event.type === "race"
-                                        ? `R${event.round} · ${event.venue}`
-                                        : `${event.title}`}
-                                </div>
-                                <div class="list-right">
-                                    ${getCalendarStatusLabel(event.status, event.type)} · ${formatCalendarDateRange(event.start, event.end)}
+                        ${nextRace ? `
+                            <div class="news-hero" style="margin-bottom:12px;">
+                                <div class="mini-pill">SIGUIENTE CITA</div>
+                                <div class="news-hero-title">${nextRace.title}</div>
+                                <div class="news-hero-sub">${nextRace.venue} · ${nextRace.location} · ${formatCalendarDateRange(nextRace.start, nextRace.end)}</div>
+                                <div class="news-meta-row">
+                                    <span class="tag statement">Siguiente GP</span>
+                                    <span class="tag general">${mapCalendarEventToPredictRace(nextRace) || "GP"}</span>
                                 </div>
                             </div>
-                        `).join("")}
+                        ` : ""}
+
+                        <div class="calendar-group-title">Próximas citas</div>
+                        ${upcoming.length ? upcoming.map(renderCalendarEventCard).join("") : `<div class="empty-line">No hay próximas citas cargadas.</div>`}
+
+                        <div class="calendar-group-title" style="margin-top:14px;">Ya completadas</div>
+                        ${completed.length ? completed.map(renderCalendarEventCard).join("") : `<div class="empty-line">No hay citas completadas registradas.</div>`}
                     </div>
                 `;
             } catch (error) {
