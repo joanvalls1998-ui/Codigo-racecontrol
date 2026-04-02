@@ -8,11 +8,9 @@
     <style>
         :root {
             --bg: #040506;
-            --bg-2: #071116;
             --text: #ffffff;
             --muted: rgba(235, 235, 245, 0.62);
-            --muted-2: rgba(235, 235, 245, 0.42);
-            --line: rgba(255, 255, 255, 0.10);
+            --line: rgba(255,255,255,0.10);
 
             --aston: #00d2be;
             --mercedes: #00aaff;
@@ -31,7 +29,7 @@
             --bad: #ff9a91;
 
             --radius-xl: 28px;
-            --radius-lg: 24px;
+            --radius-lg: 22px;
             --radius-md: 18px;
             --radius-sm: 14px;
 
@@ -66,7 +64,6 @@
         body::after {
             content: "";
             position: fixed;
-            inset: auto;
             border-radius: 999px;
             pointer-events: none;
             filter: blur(80px);
@@ -202,9 +199,9 @@
             position: relative;
             z-index: 1;
             display: flex;
-            align-items: center;
             justify-content: space-between;
             gap: 12px;
+            align-items: flex-start;
             margin-bottom: 10px;
         }
 
@@ -214,7 +211,6 @@
 
         .card-head-actions {
             display: flex;
-            align-items: center;
             gap: 8px;
             flex: 0 0 auto;
         }
@@ -259,20 +255,20 @@
 
         .trend-pill.up {
             color: var(--good);
-            border-color: rgba(120,255,214,0.24);
             background: rgba(120,255,214,0.10);
+            border-color: rgba(120,255,214,0.22);
         }
 
         .trend-pill.down {
             color: var(--bad);
-            border-color: rgba(255,154,145,0.24);
             background: rgba(255,154,145,0.10);
+            border-color: rgba(255,154,145,0.22);
         }
 
         .trend-pill.neutral {
             color: var(--warn);
-            border-color: rgba(255,226,138,0.20);
             background: rgba(255,226,138,0.10);
+            border-color: rgba(255,226,138,0.20);
         }
 
         .chip {
@@ -376,7 +372,8 @@
 
         .btn,
         .btn-secondary,
-        .icon-btn {
+        .icon-btn,
+        .danger-btn {
             position: relative;
             z-index: 1;
             border-radius: 18px;
@@ -396,13 +393,18 @@
                 0 14px 28px rgba(225, 6, 0, 0.28);
         }
 
-        .btn-secondary {
-            width: 100%;
+        .btn-secondary,
+        .icon-btn,
+        .danger-btn {
             border: 1px solid rgba(255,255,255,0.12);
-            padding: 14px 16px;
-            font-size: 14px;
             background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+        }
+
+        .btn-secondary {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 14px;
             text-decoration: none;
             display: inline-flex;
             justify-content: center;
@@ -410,16 +412,23 @@
         }
 
         .icon-btn {
-            border: 1px solid rgba(255,255,255,0.12);
             padding: 11px 14px;
             font-size: 13px;
-            background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+        }
+
+        .danger-btn {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 14px;
+            color: #ffb5ae;
+            border-color: rgba(255,105,97,0.20);
+            background: linear-gradient(180deg, rgba(255,105,97,0.14), rgba(255,105,97,0.06));
         }
 
         .btn:active,
         .btn-secondary:active,
-        .icon-btn:active {
+        .icon-btn:active,
+        .danger-btn:active {
             transform: scale(0.995);
         }
 
@@ -629,8 +638,7 @@
 
         .grid-stats,
         .predict-grid,
-        .meta-grid,
-        .insight-grid {
+        .meta-grid {
             position: relative;
             z-index: 1;
             display: grid;
@@ -644,9 +652,10 @@
 
         .stat-tile,
         .meta-tile,
-        .insight-tile,
         .history-item,
-        .news-hero {
+        .news-hero,
+        .settings-line,
+        .mode-race-line {
             background: rgba(255,255,255,0.06);
             border: 1px solid rgba(255,255,255,0.08);
             border-radius: 18px;
@@ -732,7 +741,9 @@
 
         .insight-list,
         .history-list,
-        .filters-row {
+        .filters-row,
+        .settings-actions,
+        .mode-race-top10 {
             position: relative;
             z-index: 1;
             display: flex;
@@ -740,7 +751,8 @@
             gap: 10px;
         }
 
-        .filters-row {
+        .filters-row,
+        .settings-actions {
             flex-direction: row;
             flex-wrap: wrap;
         }
@@ -1153,6 +1165,64 @@
             margin-top: 10px;
         }
 
+        .mode-race-line {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .mode-race-left {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            min-width: 0;
+        }
+
+        .mode-race-pos {
+            width: 22px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--muted);
+            flex: 0 0 auto;
+        }
+
+        .mode-race-name {
+            font-size: 14px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .mode-race-team {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .settings-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .settings-line-left {
+            min-width: 0;
+        }
+
+        .settings-line-title {
+            font-size: 15px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .settings-line-sub {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 6px;
+            line-height: 1.4;
+        }
+
         pre.ai-output {
             position: relative;
             z-index: 1;
@@ -1292,10 +1362,6 @@
             .meta-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
-
-            .card-head {
-                align-items: flex-start;
-            }
         }
     </style>
 </head>
@@ -1346,8 +1412,7 @@
                 const el = document.getElementById(id);
                 if (el) el.classList.remove("active");
             });
-            const active = document.getElementById(tabId);
-            if (active) active.classList.add("active");
+            document.getElementById(tabId)?.classList.add("active");
         }
 
         function getDefaultFavorite() {
@@ -1363,11 +1428,31 @@
             };
         }
 
+        function getDefaultSettings() {
+            return {
+                language: "es-ES",
+                autoSelectNextRace: true
+            };
+        }
+
+        function getSettings() {
+            try {
+                const saved = localStorage.getItem("racecontrolSettings");
+                return saved ? { ...getDefaultSettings(), ...JSON.parse(saved) } : getDefaultSettings();
+            } catch {
+                return getDefaultSettings();
+            }
+        }
+
+        function saveSettings(settings) {
+            localStorage.setItem("racecontrolSettings", JSON.stringify(settings));
+        }
+
         function getFavorite() {
             try {
                 const saved = localStorage.getItem("racecontrolFavorite");
                 return saved ? JSON.parse(saved) : getDefaultFavorite();
-            } catch (e) {
+            } catch {
                 return getDefaultFavorite();
             }
         }
@@ -1406,42 +1491,32 @@
         }
 
         function getSelectedRace() {
+            const settings = getSettings();
             const stored = localStorage.getItem("racecontrolSelectedRace");
+            if (settings.autoSelectNextRace && detectedNextRaceName) return detectedNextRaceName;
             if (stored) return stored;
             return detectedNextRaceName || "GP Miami";
         }
 
         function saveSelectedRace(raceName) {
             localStorage.setItem("racecontrolSelectedRace", raceName);
+            const settings = getSettings();
+            if (settings.autoSelectNextRace) {
+                saveSettings({ ...settings, autoSelectNextRace: false });
+            }
         }
 
         function updateSubtitle() {
             const favorite = getFavorite();
             const subtitle = document.getElementById("appSubtitle");
             if (!subtitle) return;
-
-            if (favorite.type === "driver") {
-                subtitle.textContent = `F1 · ${favorite.name} · ${favorite.team}`;
-            } else {
-                subtitle.textContent = `F1 · ${favorite.name}`;
-            }
-        }
-
-        function getFavoriteTeamName() {
-            const favorite = getFavorite();
-            return favorite.type === "driver" ? favorite.team : favorite.name;
-        }
-
-        function getFavoriteColorClass() {
-            return getFavorite().colorClass || "aston";
+            subtitle.textContent = favorite.type === "driver"
+                ? `F1 · ${favorite.name} · ${favorite.team}`
+                : `F1 · ${favorite.name}`;
         }
 
         function safeJsonParse(value, fallback) {
-            try {
-                return JSON.parse(value);
-            } catch {
-                return fallback;
-            }
+            try { return JSON.parse(value); } catch { return fallback; }
         }
 
         function escapeHtml(str) {
@@ -1451,6 +1526,113 @@
                 .replaceAll(">", "&gt;")
                 .replaceAll('"', "&quot;")
                 .replaceAll("'", "&#039;");
+        }
+
+        function formatNewsDate(pubDate) {
+            if (!pubDate) return "";
+            const date = new Date(pubDate);
+            if (Number.isNaN(date.getTime())) return "";
+            return date.toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
+        }
+
+        function formatDateTimeShort(dateStr) {
+            const date = new Date(dateStr);
+            if (Number.isNaN(date.getTime())) return "";
+            return date.toLocaleDateString("es-ES", {
+                day: "2-digit",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+        }
+
+        function formatCalendarDateRange(start, end) {
+            const startDate = new Date(`${start}T12:00:00`);
+            const endDate = new Date(`${end}T12:00:00`);
+            const startDay = startDate.getDate();
+            const endDay = endDate.getDate();
+            const startMonth = startDate.toLocaleDateString("es-ES", { month: "short" });
+            const endMonth = endDate.toLocaleDateString("es-ES", { month: "short" });
+
+            if (startMonth === endMonth) return `${startDay}-${endDay} ${startMonth}`;
+            return `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
+        }
+
+        function getCalendarStatusLabel(status, type) {
+            if (type === "testing" && status === "completed") return "Pretemporada completada";
+            if (status === "completed") return "Completado";
+            if (status === "next") return "Siguiente";
+            return "Próximamente";
+        }
+
+        function getRaceHeuristics(raceName) {
+            const map = {
+                "GP de Australia": { safetyCar: 42, rain: 24, tag: "semiurbano" },
+                "GP de China": { safetyCar: 28, rain: 20, tag: "permanente" },
+                "GP de Japón": { safetyCar: 24, rain: 26, tag: "permanente" },
+                "GP de Baréin": { safetyCar: 26, rain: 1, tag: "permanente" },
+                "GP de Arabia Saudí": { safetyCar: 47, rain: 1, tag: "urbano" },
+                "GP Miami": { safetyCar: 46, rain: 18, tag: "semiurbano" },
+                "GP de Canadá": { safetyCar: 50, rain: 21, tag: "semiurbano" },
+                "GP de Mónaco": { safetyCar: 38, rain: 16, tag: "urbano" },
+                "GP de España": { safetyCar: 20, rain: 11, tag: "permanente" },
+                "GP de Austria": { safetyCar: 32, rain: 28, tag: "permanente" },
+                "GP de Gran Bretaña": { safetyCar: 24, rain: 29, tag: "permanente" },
+                "GP de Bélgica": { safetyCar: 33, rain: 36, tag: "permanente" },
+                "GP de Hungría": { safetyCar: 27, rain: 19, tag: "permanente" },
+                "GP de Países Bajos": { safetyCar: 25, rain: 23, tag: "permanente" },
+                "GP de Italia": { safetyCar: 26, rain: 18, tag: "permanente" },
+                "GP de España (Madrid)": { safetyCar: 41, rain: 10, tag: "urbano" },
+                "GP de Azerbaiyán": { safetyCar: 48, rain: 9, tag: "urbano" },
+                "GP de Singapur": { safetyCar: 57, rain: 33, tag: "urbano" },
+                "GP de Estados Unidos": { safetyCar: 27, rain: 17, tag: "permanente" },
+                "GP de México": { safetyCar: 29, rain: 8, tag: "altitud" },
+                "GP de São Paulo": { safetyCar: 35, rain: 31, tag: "permanente" },
+                "GP de Las Vegas": { safetyCar: 39, rain: 4, tag: "urbano" },
+                "GP de Catar": { safetyCar: 22, rain: 2, tag: "permanente" },
+                "GP de Abu Dabi": { safetyCar: 23, rain: 1, tag: "permanente" }
+            };
+            return map[raceName] || { safetyCar: 30, rain: 15, tag: "circuito" };
+        }
+
+        function mapCalendarEventToPredictRace(event) {
+            if (!event) return null;
+            const title = event.title || "";
+            const venue = event.venue || "";
+
+            if (title.includes("Australian")) return "GP de Australia";
+            if (title.includes("Chinese")) return "GP de China";
+            if (title.includes("Japanese")) return "GP de Japón";
+            if (title.includes("Bahrain")) return "GP de Baréin";
+            if (title.includes("Saudi")) return "GP de Arabia Saudí";
+            if (title.includes("Miami")) return "GP Miami";
+            if (title.includes("Canadian")) return "GP de Canadá";
+            if (title.includes("Monaco")) return "GP de Mónaco";
+            if (title.includes("Spanish") && venue.includes("Madrid")) return "GP de España (Madrid)";
+            if (title.includes("Spanish")) return "GP de España";
+            if (title.includes("Austrian")) return "GP de Austria";
+            if (title.includes("British")) return "GP de Gran Bretaña";
+            if (title.includes("Belgian")) return "GP de Bélgica";
+            if (title.includes("Hungarian")) return "GP de Hungría";
+            if (title.includes("Dutch")) return "GP de Países Bajos";
+            if (title.includes("Italian")) return "GP de Italia";
+            if (title.includes("Azerbaijan")) return "GP de Azerbaiyán";
+            if (title.includes("Singapore")) return "GP de Singapur";
+            if (title.includes("United States")) return "GP de Estados Unidos";
+            if (title.includes("Mexico")) return "GP de México";
+            if (title.includes("São Paulo")) return "GP de São Paulo";
+            if (title.includes("Las Vegas")) return "GP de Las Vegas";
+            if (title.includes("Qatar")) return "GP de Catar";
+            if (title.includes("Abu Dhabi")) return "GP de Abu Dabi";
+
+            return null;
+        }
+
+        function getNextRaceFromCalendar(events) {
+            if (!Array.isArray(events)) return null;
+            return events.find(event => event.type === "race" && event.status === "next")
+                || events.find(event => event.type === "race" && event.status === "upcoming")
+                || null;
         }
 
         function saveStandingsSnapshot(data) {
@@ -1464,7 +1646,6 @@
 
         function computeStandingsDelta(data) {
             const previous = safeJsonParse(localStorage.getItem("racecontrolStandingsSnapshot"), null);
-
             const driverDelta = {};
             const teamDelta = {};
 
@@ -1478,11 +1659,7 @@
                 teamDelta[team.team] = typeof prev === "number" ? prev - team.pos : 0;
             });
 
-            standingsDelta = {
-                drivers: driverDelta,
-                teams: teamDelta
-            };
-
+            standingsDelta = { drivers: driverDelta, teams: teamDelta };
             saveStandingsSnapshot(data);
         }
 
@@ -1492,9 +1669,7 @@
             const response = await fetch("/api/standings");
             const data = await response.json();
 
-            if (!response.ok) {
-                throw new Error(data?.error || "No se pudo cargar la clasificación");
-            }
+            if (!response.ok) throw new Error(data?.error || "No se pudo cargar la clasificación");
 
             standingsCache = data;
             computeStandingsDelta(data);
@@ -1508,9 +1683,7 @@
             const response = await fetch("/api/calendar");
             const data = await response.json();
 
-            if (!response.ok) {
-                throw new Error(data?.error || "No se pudo cargar el calendario");
-            }
+            if (!response.ok) throw new Error(data?.error || "No se pudo cargar el calendario");
 
             calendarCache = data;
             const nextRace = getNextRaceFromCalendar((data?.events || []));
@@ -1527,9 +1700,7 @@
         async function fetchNewsDataForFavorite(favorite, force = false) {
             const cacheKey = getNewsCacheKey(favorite);
 
-            if (homeNewsCache[cacheKey] && !force) {
-                return homeNewsCache[cacheKey];
-            }
+            if (homeNewsCache[cacheKey] && !force) return homeNewsCache[cacheKey];
 
             const response = await fetch("/api/news", {
                 method: "POST",
@@ -1538,12 +1709,21 @@
             });
 
             const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data?.message || data?.error || "No se pudieron cargar las noticias");
-            }
+            if (!response.ok) throw new Error(data?.message || data?.error || "No se pudieron cargar las noticias");
 
             homeNewsCache[cacheKey] = data;
+            return data;
+        }
+
+        async function fetchPredictData(favorite, raceName) {
+            const response = await fetch("/api/predict", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ favorite, raceName })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data?.message || data?.error || "Error al generar la predicción");
             return data;
         }
 
@@ -1580,67 +1760,31 @@
 
         function getTeamData(team) {
             const data = {
-                "Mercedes": {
-                    racePace: 92, qualyPace: 91, reliability: 83, outlook: "Alta",
-                    drivers: ["George Russell", "Kimi Antonelli"], forms: [90, 88],
-                    aero: 90, topSpeed: 85, traction: 88, tyreManagement: 84, recentTrend: 4
-                },
-                "Ferrari": {
-                    racePace: 88, qualyPace: 87, reliability: 78, outlook: "Alta",
-                    drivers: ["Charles Leclerc", "Lewis Hamilton"], forms: [89, 87],
-                    aero: 86, topSpeed: 90, traction: 84, tyreManagement: 80, recentTrend: 2
-                },
-                "McLaren": {
-                    racePace: 84, qualyPace: 85, reliability: 82, outlook: "Alta",
-                    drivers: ["Lando Norris", "Oscar Piastri"], forms: [88, 88],
-                    aero: 87, topSpeed: 82, traction: 85, tyreManagement: 84, recentTrend: 1
-                },
-                "Red Bull": {
-                    racePace: 80, qualyPace: 82, reliability: 74, outlook: "Media",
-                    drivers: ["Max Verstappen", "Isack Hadjar"], forms: [91, 77],
-                    aero: 88, topSpeed: 84, traction: 81, tyreManagement: 75, recentTrend: -2
-                },
-                "Aston Martin": {
-                    racePace: 72, qualyPace: 68, reliability: 61, outlook: "Media",
-                    drivers: ["Fernando Alonso", "Lance Stroll"], forms: [88, 82],
-                    aero: 60, topSpeed: 56, traction: 58, tyreManagement: 60, recentTrend: -1
-                },
-                "Alpine": {
-                    racePace: 66, qualyPace: 61, reliability: 58, outlook: "Media",
-                    drivers: ["Pierre Gasly", "Franco Colapinto"], forms: [82, 76],
-                    aero: 70, topSpeed: 67, traction: 69, tyreManagement: 67, recentTrend: 1
-                },
-                "Williams": {
-                    racePace: 64, qualyPace: 60, reliability: 63, outlook: "Media",
-                    drivers: ["Carlos Sainz", "Alexander Albon"], forms: [81, 79],
-                    aero: 63, topSpeed: 68, traction: 61, tyreManagement: 63, recentTrend: -1
-                },
-                "Audi": {
-                    racePace: 61, qualyPace: 58, reliability: 67, outlook: "Media",
-                    drivers: ["Nico Hulkenberg", "Gabriel Bortoleto"], forms: [77, 74],
-                    aero: 64, topSpeed: 64, traction: 63, tyreManagement: 65, recentTrend: 0
-                },
-                "Cadillac": {
-                    racePace: 59, qualyPace: 56, reliability: 60, outlook: "Media",
-                    drivers: ["Sergio Perez", "Valtteri Bottas"], forms: [78, 75],
-                    aero: 60, topSpeed: 66, traction: 60, tyreManagement: 62, recentTrend: 0
-                },
-                "Haas": {
-                    racePace: 63, qualyPace: 59, reliability: 64, outlook: "Media",
-                    drivers: ["Esteban Ocon", "Oliver Bearman"], forms: [78, 80],
-                    aero: 69, topSpeed: 73, traction: 70, tyreManagement: 69, recentTrend: 2
-                },
-                "Racing Bulls": {
-                    racePace: 68, qualyPace: 65, reliability: 66, outlook: "Media",
-                    drivers: ["Liam Lawson", "Arvid Lindblad"], forms: [79, 75],
-                    aero: 72, topSpeed: 70, traction: 71, tyreManagement: 68, recentTrend: 1
-                }
+                "Mercedes": { racePace: 92, qualyPace: 91, reliability: 83, outlook: "Alta", drivers: ["George Russell", "Kimi Antonelli"], forms: [90, 88], aero: 90, topSpeed: 85, traction: 88, tyreManagement: 84, recentTrend: 4 },
+                "Ferrari": { racePace: 88, qualyPace: 87, reliability: 78, outlook: "Alta", drivers: ["Charles Leclerc", "Lewis Hamilton"], forms: [89, 87], aero: 86, topSpeed: 90, traction: 84, tyreManagement: 80, recentTrend: 2 },
+                "McLaren": { racePace: 84, qualyPace: 85, reliability: 82, outlook: "Alta", drivers: ["Lando Norris", "Oscar Piastri"], forms: [88, 88], aero: 87, topSpeed: 82, traction: 85, tyreManagement: 84, recentTrend: 1 },
+                "Red Bull": { racePace: 80, qualyPace: 82, reliability: 74, outlook: "Media", drivers: ["Max Verstappen", "Isack Hadjar"], forms: [91, 77], aero: 88, topSpeed: 84, traction: 81, tyreManagement: 75, recentTrend: -2 },
+                "Aston Martin": { racePace: 72, qualyPace: 68, reliability: 61, outlook: "Media", drivers: ["Fernando Alonso", "Lance Stroll"], forms: [88, 82], aero: 60, topSpeed: 56, traction: 58, tyreManagement: 60, recentTrend: -1 },
+                "Alpine": { racePace: 66, qualyPace: 61, reliability: 58, outlook: "Media", drivers: ["Pierre Gasly", "Franco Colapinto"], forms: [82, 76], aero: 70, topSpeed: 67, traction: 69, tyreManagement: 67, recentTrend: 1 },
+                "Williams": { racePace: 64, qualyPace: 60, reliability: 63, outlook: "Media", drivers: ["Carlos Sainz", "Alexander Albon"], forms: [81, 79], aero: 63, topSpeed: 68, traction: 61, tyreManagement: 63, recentTrend: -1 },
+                "Audi": { racePace: 61, qualyPace: 58, reliability: 67, outlook: "Media", drivers: ["Nico Hulkenberg", "Gabriel Bortoleto"], forms: [77, 74], aero: 64, topSpeed: 64, traction: 63, tyreManagement: 65, recentTrend: 0 },
+                "Cadillac": { racePace: 59, qualyPace: 56, reliability: 60, outlook: "Media", drivers: ["Sergio Perez", "Valtteri Bottas"], forms: [78, 75], aero: 60, topSpeed: 66, traction: 60, tyreManagement: 62, recentTrend: 0 },
+                "Haas": { racePace: 63, qualyPace: 59, reliability: 64, outlook: "Media", drivers: ["Esteban Ocon", "Oliver Bearman"], forms: [78, 80], aero: 69, topSpeed: 73, traction: 70, tyreManagement: 69, recentTrend: 2 },
+                "Racing Bulls": { racePace: 68, qualyPace: 65, reliability: 66, outlook: "Media", drivers: ["Liam Lawson", "Arvid Lindblad"], forms: [79, 75], aero: 72, topSpeed: 70, traction: 71, tyreManagement: 68, recentTrend: 1 }
             };
 
             return data[team] || {
-                racePace: 70, qualyPace: 67, reliability: 62, outlook: "Media",
-                drivers: ["Piloto 1", "Piloto 2"], forms: [80, 78],
-                aero: 70, topSpeed: 70, traction: 70, tyreManagement: 70, recentTrend: 0
+                racePace: 70,
+                qualyPace: 67,
+                reliability: 62,
+                outlook: "Media",
+                drivers: ["Piloto 1", "Piloto 2"],
+                forms: [80, 78],
+                aero: 70,
+                topSpeed: 70,
+                traction: 70,
+                tyreManagement: 70,
+                recentTrend: 0
             };
         }
 
@@ -1695,7 +1839,7 @@
             return {
                 label: "Estable",
                 className: "neutral",
-                description: "Rendimiento contenidamente estable, sin cambios drásticos."
+                description: "Rendimiento bastante estable, sin un giro claro todavía."
             };
         }
 
@@ -1770,7 +1914,7 @@
             } else if (teamData.qualyPace > teamData.racePace + 3) {
                 insights.push("Necesita transformar mejor la clasificación en resultado de carrera.");
             } else {
-                insights.push("Qualy y carrera están bastante alineadas, sin una gran debilidad dominante.");
+                insights.push("Qualy y carrera están bastante alineadas, sin una debilidad dominante.");
             }
 
             if (teamData.reliability < 65) {
@@ -1792,131 +1936,9 @@
             return insights.slice(0, 3);
         }
 
-        function mapCalendarEventToPredictRace(event) {
-            if (!event) return null;
-
-            const title = event.title || "";
-            const venue = event.venue || "";
-
-            if (title.includes("Australian")) return "GP de Australia";
-            if (title.includes("Chinese")) return "GP de China";
-            if (title.includes("Japanese")) return "GP de Japón";
-            if (title.includes("Bahrain")) return "GP de Baréin";
-            if (title.includes("Saudi")) return "GP de Arabia Saudí";
-            if (title.includes("Miami")) return "GP Miami";
-            if (title.includes("Canadian")) return "GP de Canadá";
-            if (title.includes("Monaco")) return "GP de Mónaco";
-            if (title.includes("Spanish") && venue.includes("Madrid")) return "GP de España (Madrid)";
-            if (title.includes("Spanish")) return "GP de España";
-            if (title.includes("Austrian")) return "GP de Austria";
-            if (title.includes("British")) return "GP de Gran Bretaña";
-            if (title.includes("Belgian")) return "GP de Bélgica";
-            if (title.includes("Hungarian")) return "GP de Hungría";
-            if (title.includes("Dutch")) return "GP de Países Bajos";
-            if (title.includes("Italian")) return "GP de Italia";
-            if (title.includes("Azerbaijan")) return "GP de Azerbaiyán";
-            if (title.includes("Singapore")) return "GP de Singapur";
-            if (title.includes("United States")) return "GP de Estados Unidos";
-            if (title.includes("Mexico")) return "GP de México";
-            if (title.includes("São Paulo")) return "GP de São Paulo";
-            if (title.includes("Las Vegas")) return "GP de Las Vegas";
-            if (title.includes("Qatar")) return "GP de Catar";
-            if (title.includes("Abu Dhabi")) return "GP de Abu Dabi";
-
-            return null;
-        }
-
-        function getRaceHeuristics(raceName) {
-            const map = {
-                "GP de Australia": { safetyCar: 42, rain: 24, tag: "semiurbano" },
-                "GP de China": { safetyCar: 28, rain: 20, tag: "permanente" },
-                "GP de Japón": { safetyCar: 24, rain: 26, tag: "permanente" },
-                "GP de Baréin": { safetyCar: 26, rain: 1, tag: "permanente" },
-                "GP de Arabia Saudí": { safetyCar: 47, rain: 1, tag: "urbano" },
-                "GP Miami": { safetyCar: 46, rain: 18, tag: "semiurbano" },
-                "GP de Canadá": { safetyCar: 50, rain: 21, tag: "semiurbano" },
-                "GP de Mónaco": { safetyCar: 38, rain: 16, tag: "urbano" },
-                "GP de España": { safetyCar: 20, rain: 11, tag: "permanente" },
-                "GP de Austria": { safetyCar: 32, rain: 28, tag: "permanente" },
-                "GP de Gran Bretaña": { safetyCar: 24, rain: 29, tag: "permanente" },
-                "GP de Bélgica": { safetyCar: 33, rain: 36, tag: "permanente" },
-                "GP de Hungría": { safetyCar: 27, rain: 19, tag: "permanente" },
-                "GP de Países Bajos": { safetyCar: 25, rain: 23, tag: "permanente" },
-                "GP de Italia": { safetyCar: 26, rain: 18, tag: "permanente" },
-                "GP de España (Madrid)": { safetyCar: 41, rain: 10, tag: "urbano" },
-                "GP de Azerbaiyán": { safetyCar: 48, rain: 9, tag: "urbano" },
-                "GP de Singapur": { safetyCar: 57, rain: 33, tag: "urbano" },
-                "GP de Estados Unidos": { safetyCar: 27, rain: 17, tag: "permanente" },
-                "GP de México": { safetyCar: 29, rain: 8, tag: "altitud" },
-                "GP de São Paulo": { safetyCar: 35, rain: 31, tag: "permanente" },
-                "GP de Las Vegas": { safetyCar: 39, rain: 4, tag: "urbano" },
-                "GP de Catar": { safetyCar: 22, rain: 2, tag: "permanente" },
-                "GP de Abu Dabi": { safetyCar: 23, rain: 1, tag: "permanente" }
-            };
-
-            return map[raceName] || { safetyCar: 30, rain: 15, tag: "circuito" };
-        }
-
-        function getNextRaceFromCalendar(events) {
-            if (!Array.isArray(events)) return null;
-            return events.find(event => event.type === "race" && event.status === "next")
-                || events.find(event => event.type === "race" && event.status === "upcoming")
-                || null;
-        }
-
-        function formatCalendarDateRange(start, end) {
-            const startDate = new Date(`${start}T12:00:00`);
-            const endDate = new Date(`${end}T12:00:00`);
-
-            const startDay = startDate.getDate();
-            const endDay = endDate.getDate();
-
-            const startMonth = startDate.toLocaleDateString("es-ES", { month: "short" });
-            const endMonth = endDate.toLocaleDateString("es-ES", { month: "short" });
-
-            if (startMonth === endMonth) {
-                return `${startDay}-${endDay} ${startMonth}`;
-            }
-
-            return `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
-        }
-
-        function getCalendarStatusLabel(status, type) {
-            if (type === "testing" && status === "completed") return "Pretemporada completada";
-            if (status === "completed") return "Completado";
-            if (status === "next") return "Siguiente";
-            return "Próximamente";
-        }
-
-        function formatNewsDate(pubDate) {
-            if (!pubDate) return "";
-            const date = new Date(pubDate);
-            if (Number.isNaN(date.getTime())) return "";
-            return date.toLocaleDateString("es-ES", {
-                day: "2-digit",
-                month: "short"
-            });
-        }
-
-        function formatDateTimeShort(dateStr) {
-            const date = new Date(dateStr);
-            if (Number.isNaN(date.getTime())) return "";
-            return date.toLocaleDateString("es-ES", {
-                day: "2-digit",
-                month: "short",
-                hour: "2-digit",
-                minute: "2-digit"
-            });
-        }
-
         function formatFavoritePredictionText(favoritePrediction) {
             if (!favoritePrediction) {
-                return {
-                    qualy: "Sin datos",
-                    race: "Sin datos",
-                    points: "Sin datos",
-                    dnf: "Sin datos"
-                };
+                return { qualy: "Sin datos", race: "Sin datos", points: "Sin datos", dnf: "Sin datos" };
             }
 
             if (favoritePrediction.type === "driver") {
@@ -1978,12 +2000,12 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                     <div class="stat-tile">
                         <div class="stat-kicker">Puntos</div>
                         <div class="stat-value">${favoritePrediction.points}</div>
-                        <div class="stat-caption">Opción real de entrar en zona de puntos</div>
+                        <div class="stat-caption">Opción real de puntuar</div>
                     </div>
                     <div class="stat-tile">
                         <div class="stat-kicker">Abandono</div>
                         <div class="stat-value">${favoritePrediction.dnf}</div>
-                        <div class="stat-caption">Riesgo aproximado de no terminar</div>
+                        <div class="stat-caption">Riesgo aproximado</div>
                     </div>
                 </div>
 
@@ -2022,7 +2044,7 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                     <div class="meta-tile">
                         <div class="meta-kicker">Equipos más débiles</div>
                         <div class="meta-value" style="font-size:17px; line-height:1.2;">${weakTeams}</div>
-                        <div class="meta-caption">Zona baja estimada del fin de semana</div>
+                        <div class="meta-caption">Zona baja estimada</div>
                     </div>
                     <div class="meta-tile">
                         <div class="meta-kicker">Estrategia</div>
@@ -2087,6 +2109,12 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                     `).join("")}
                 </div>
             `;
+        }
+
+        function clearPredictionHistory() {
+            localStorage.removeItem("racecontrolPredictionHistory");
+            const box = document.getElementById("predictionHistoryBox");
+            if (box) box.innerHTML = renderPredictionHistory();
         }
 
         function openPredictionHistoryItem(id) {
@@ -2178,7 +2206,7 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 <div class="card highlight-card">
                     <div class="mini-pill">CENTRO DE CONTROL</div>
                     <div class="card-title">Resumen rápido del favorito</div>
-                    <div class="card-sub">Lectura rápida para abrir la app y tener el contexto en pocos segundos.</div>
+                    <div class="card-sub">Lectura rápida para abrir la app y tener contexto en pocos segundos.</div>
 
                     <div class="grid-stats">
                         <div class="stat-tile">
@@ -2252,17 +2280,17 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                         <div class="meta-tile">
                             <div class="meta-kicker">Safety Car</div>
                             <div class="meta-value">${heuristics.safetyCar}%</div>
-                            <div class="meta-caption">Probabilidad base del trazado</div>
+                            <div class="meta-caption">Probabilidad base</div>
                         </div>
                         <div class="meta-tile">
                             <div class="meta-kicker">Lluvia</div>
                             <div class="meta-value">${heuristics.rain}%</div>
-                            <div class="meta-caption">Escenario climatológico inicial</div>
+                            <div class="meta-caption">Escenario inicial</div>
                         </div>
                         <div class="meta-tile">
                             <div class="meta-kicker">Circuito</div>
                             <div class="meta-value" style="font-size:18px;">${raceName}</div>
-                            <div class="meta-caption">Se usará por defecto en Predicción</div>
+                            <div class="meta-caption">Se usará por defecto</div>
                         </div>
                     </div>
 
@@ -2297,8 +2325,9 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
         }
 
         function renderHomeHierarchy() {
-            const favoriteTeam = getFavoriteTeamName();
-            const favoriteColor = getFavoriteColorClass();
+            const favorite = getFavorite();
+            const favoriteTeam = favorite.type === "driver" ? favorite.team : favorite.name;
+            const favoriteColor = favorite.colorClass;
             const favoriteData = getTeamData(favoriteTeam);
 
             const rows = [
@@ -2378,7 +2407,7 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
 
                 if (nextRace) {
                     const mappedRace = mapCalendarEventToPredictRace(nextRace);
-                    if (mappedRace && !localStorage.getItem("racecontrolSelectedRace")) {
+                    if (mappedRace && getSettings().autoSelectNextRace) {
                         detectedNextRaceName = mappedRace;
                     }
                 }
@@ -2444,21 +2473,7 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
             if (metaBox) metaBox.innerHTML = `<div class="empty-line">Recalculando ritmo, estrategia y favoritos…</div>`;
 
             try {
-                const response = await fetch("/api/predict", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        favorite,
-                        raceName
-                    })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data?.message || data?.error || "Error al generar la predicción");
-                }
-
+                const data = await fetchPredictData(favorite, raceName);
                 lastPredictData = data;
                 pushPredictionHistory(data, favorite, raceName);
 
@@ -2534,8 +2549,15 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 </div>
 
                 <div class="card">
-                    <div class="card-title">Historial de predicciones</div>
-                    <div class="card-sub">Las últimas predicciones generadas se guardan localmente en este dispositivo.</div>
+                    <div class="card-head">
+                        <div class="card-head-left">
+                            <div class="card-title">Historial de predicciones</div>
+                            <div class="card-sub">Las últimas predicciones generadas se guardan localmente en este dispositivo.</div>
+                        </div>
+                        <div class="card-head-actions">
+                            <button class="icon-btn" onclick="clearPredictionHistory()">Vaciar</button>
+                        </div>
+                    </div>
                     <div id="predictionHistoryBox">${renderPredictionHistory()}</div>
                 </div>
             `;
@@ -2543,7 +2565,6 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
 
         function renderFavoriteCard() {
             const favorite = getFavorite();
-
             const badge = favorite.type === "driver" ? favorite.number : "EQ";
             const subtitle = favorite.type === "driver"
                 ? `${favorite.team} · P${favorite.pos}`
@@ -2715,39 +2736,37 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
 
         function buildNewsFilterPresets() {
             const favorite = getFavorite();
-            const favoriteFilter = {
-                key: "favorite",
-                label: favorite.name,
-                favoritePayload: favorite
-            };
 
-            const astonFilter = {
-                key: "aston",
-                label: "Aston",
-                favoritePayload: {
-                    type: "team",
-                    name: "Aston Martin",
-                    colorClass: "aston"
+            return [
+                {
+                    key: "favorite",
+                    label: favorite.name,
+                    favoritePayload: favorite
+                },
+                {
+                    key: "aston",
+                    label: "Aston",
+                    favoritePayload: {
+                        type: "team",
+                        name: "Aston Martin",
+                        colorClass: "aston"
+                    }
+                },
+                {
+                    key: "alonso",
+                    label: "Alonso",
+                    favoritePayload: getDefaultFavorite()
+                },
+                {
+                    key: "grid",
+                    label: "Parrilla",
+                    favoritePayload: {
+                        type: "team",
+                        name: "Formula 1",
+                        colorClass: "ferrari"
+                    }
                 }
-            };
-
-            const alonsoFilter = {
-                key: "alonso",
-                label: "Alonso",
-                favoritePayload: getDefaultFavorite()
-            };
-
-            const gridFilter = {
-                key: "grid",
-                label: "Parrilla",
-                favoritePayload: {
-                    type: "team",
-                    name: "Formula 1",
-                    colorClass: "ferrari"
-                }
-            };
-
-            return [favoriteFilter, astonFilter, alonsoFilter, gridFilter];
+            ];
         }
 
         function getActiveNewsFilter() {
@@ -2770,9 +2789,7 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 text.includes("suelo") ||
                 text.includes("floor") ||
                 text.includes("package")
-            ) {
-                return { key: "technical", label: "Técnica" };
-            }
+            ) return { key: "technical", label: "Técnica" };
 
             if (
                 text.includes("reliability") ||
@@ -2782,9 +2799,7 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 text.includes("gearbox") ||
                 text.includes("avería") ||
                 text.includes("problema")
-            ) {
-                return { key: "reliability", label: "Fiabilidad" };
-            }
+            ) return { key: "reliability", label: "Fiabilidad" };
 
             if (
                 text.includes("contract") ||
@@ -2793,9 +2808,7 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 text.includes("driver market") ||
                 text.includes("fich") ||
                 text.includes("replace")
-            ) {
-                return { key: "market", label: "Mercado" };
-            }
+            ) return { key: "market", label: "Mercado" };
 
             if (
                 text.includes("said") ||
@@ -2804,16 +2817,13 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 text.includes("cree") ||
                 text.includes("declara") ||
                 text.includes("speaks")
-            ) {
-                return { key: "statement", label: "Declaración" };
-            }
+            ) return { key: "statement", label: "Declaración" };
 
             return { key: "general", label: "General" };
         }
 
         function renderNewsFilters() {
             const filters = buildNewsFilterPresets();
-
             return `
                 <div class="filters-row">
                     ${filters.map(filter => `
@@ -2827,7 +2837,6 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
 
         function renderFeaturedNews(item) {
             if (!item) return "";
-
             const category = categorizeNewsItem(item);
 
             return `
@@ -2950,6 +2959,8 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                     <div class="card-title">MÁS</div>
                     <a href="#" class="menu-link" onclick="showStandings(); return false;">Clasificación</a>
                     <a href="#" class="menu-link" onclick="showCalendar(); return false;">Calendario</a>
+                    <a href="#" class="menu-link" onclick="showRaceMode(); return false;">Modo carrera</a>
+                    <a href="#" class="menu-link" onclick="showSettingsPanel(); return false;">Ajustes</a>
                 </div>
             `;
         }
@@ -2980,165 +2991,6 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
             if (delta > 0) return `<span class="delta-badge up">+${delta}</span>`;
             if (delta < 0) return `<span class="delta-badge down">${delta}</span>`;
             return `<span class="delta-badge flat">0</span>`;
-        }
-
-        function renderFavoriteCard() {
-            const favorite = getFavorite();
-
-            const badge = favorite.type === "driver" ? favorite.number : "EQ";
-            const subtitle = favorite.type === "driver"
-                ? `${favorite.team} · P${favorite.pos}`
-                : `${favorite.drivers} · P${favorite.pos}`;
-
-            return `
-                <div class="card favorite-card">
-                    <div class="favorite-label">Favorito</div>
-                    <div class="favorite-main">
-                        <div class="favorite-left">
-                            <div class="team-stripe" style="background: var(--${favorite.colorClass});"></div>
-                            <div class="driver-number" style="color: var(--${favorite.colorClass});">${badge}</div>
-                            <div>
-                                <div class="favorite-name">${favorite.name}</div>
-                                <div class="favorite-sub">${subtitle}</div>
-                            </div>
-                        </div>
-                        <div class="favorite-points">
-                            <div class="favorite-points-value">${favorite.points}</div>
-                            <div class="favorite-points-label">pts</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        async function refreshStandings() {
-            await showStandings(true);
-        }
-
-        async function showStandings(force = false) {
-            setActiveNav("nav-more");
-            updateSubtitle();
-
-            document.getElementById("content").innerHTML = `
-                ${renderFavoriteCard()}
-                ${renderLoadingCard("Clasificación", "Cargando clasificación real, cambios y resaltados…", true)}
-            `;
-
-            try {
-                await fetchStandingsData(force);
-
-                document.getElementById("content").innerHTML = `
-                    ${renderFavoriteCard()}
-
-                    <div class="card">
-                        <div class="card-head">
-                            <div class="card-head-left">
-                                <div class="card-title">Clasificación</div>
-                                <div class="card-sub">Vista premium con líder, favorito, compañero y variación de posición.</div>
-                            </div>
-                            <div class="card-head-actions">
-                                <button class="icon-btn" onclick="refreshStandings()">Refrescar</button>
-                            </div>
-                        </div>
-
-                        <div class="standings-toggle">
-                            <button class="toggle-btn ${standingsViewType === "drivers" ? "active" : ""}" id="driversBtn" onclick="setStandingsView('drivers')">Pilotos</button>
-                            <button class="toggle-btn ${standingsViewType === "teams" ? "active" : ""}" id="teamsBtn" onclick="setStandingsView('teams')">Equipos</button>
-                        </div>
-
-                        <div class="standings-toggle">
-                            <button class="toggle-btn ${standingsScope === "top10" ? "active" : ""}" id="top10Btn" onclick="setStandingsScope('top10')">Top 10</button>
-                            <button class="toggle-btn ${standingsScope === "all" ? "active" : ""}" id="allBtn" onclick="setStandingsScope('all')">Todos</button>
-                        </div>
-                    </div>
-
-                    <div id="standingsContent"></div>
-                `;
-
-                if (standingsViewType === "teams") {
-                    showTeamsStandings();
-                } else {
-                    showDriversStandings();
-                }
-            } catch (error) {
-                document.getElementById("content").innerHTML = `
-                    <div class="card">
-                        <div class="card-title">Clasificación</div>
-                        <div class="card-sub">Error al cargar la clasificación</div>
-                        <pre class="ai-output">${error.message}</pre>
-                    </div>
-                `;
-            }
-        }
-
-        function setStandingsView(type) {
-            standingsViewType = type;
-            if (type === "teams") showTeamsStandings();
-            else showDriversStandings();
-
-            document.getElementById("driversBtn")?.classList.toggle("active", type === "drivers");
-            document.getElementById("teamsBtn")?.classList.toggle("active", type === "teams");
-        }
-
-        function setStandingsScope(scope) {
-            standingsScope = scope;
-            document.getElementById("top10Btn")?.classList.toggle("active", scope === "top10");
-            document.getElementById("allBtn")?.classList.toggle("active", scope === "all");
-
-            if (standingsViewType === "teams") showTeamsStandings();
-            else showDriversStandings();
-        }
-
-        function showDriversStandings() {
-            const drivers = standingsCache?.drivers || [];
-            const visible = standingsScope === "top10" ? drivers.slice(0, 10) : drivers;
-
-            document.getElementById("standingsContent").innerHTML = `
-                <div class="card">
-                    ${visible.map(driver =>
-                        driverRow(
-                            driver.pos,
-                            driver.number,
-                            driver.name,
-                            driver.team,
-                            String(driver.points),
-                            driver.colorClass,
-                            driver.image,
-                            standingsDelta.drivers?.[driver.name] || 0
-                        )
-                    ).join("")}
-                </div>
-            `;
-        }
-
-        function showTeamsStandings() {
-            const teams = standingsCache?.teams || [];
-            const visible = standingsScope === "top10" ? teams.slice(0, 10) : teams;
-
-            document.getElementById("standingsContent").innerHTML = `
-                <div class="card">
-                    ${visible.map(team =>
-                        teamRow(
-                            team.pos,
-                            team.team,
-                            team.drivers,
-                            String(team.points),
-                            team.colorClass,
-                            standingsDelta.teams?.[team.team] || 0
-                        )
-                    ).join("")}
-                </div>
-            `;
-        }
-
-        function isFavoriteDriver(name) {
-            const favorite = getFavorite();
-            return favorite.type === "driver" && favorite.name === name;
-        }
-
-        function isFavoriteTeam(team) {
-            const favorite = getFavorite();
-            return favorite.type === "team" && favorite.name === team;
         }
 
         function openDriverDetail(name, team, number, points, colorClass, pos) {
@@ -3218,14 +3070,10 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
         }
 
         function driverRow(pos, number, name, team, points, colorClass, image, delta) {
-            const isFav = isFavoriteDriver(name);
+            const isFav = getFavorite().type === "driver" && getFavorite().name === name;
             const favorite = getFavorite();
             const isTeammate = favorite.type === "driver" && favorite.team === team && favorite.name !== name;
-            const rowClass = [
-                pos === 1 ? "leader" : "",
-                isFav ? "favorite-row" : "",
-                isTeammate ? "teammate-row" : ""
-            ].join(" ").trim();
+            const rowClass = [pos === 1 ? "leader" : "", isFav ? "favorite-row" : "", isTeammate ? "teammate-row" : ""].join(" ").trim();
 
             return `
                 <div class="standing-row ${rowClass}" onclick="openDriverDetail(${JSON.stringify(name)}, ${JSON.stringify(team)}, ${JSON.stringify(number)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(pos)})">
@@ -3247,13 +3095,8 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                     </div>
                     <div class="row-badges">
                         ${getDriverContextBadges(name, pos, team)}
-                        <div class="row-points">
-                            ${points}<small>pts</small>
-                        </div>
-                        <button
-                            class="fav-btn ${isFav ? 'active' : ''}"
-                            onclick='event.stopPropagation(); setFavoriteDriver(${JSON.stringify(name)}, ${JSON.stringify(team)}, ${JSON.stringify(number)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(image)}, ${JSON.stringify(pos)})'
-                        >★</button>
+                        <div class="row-points">${points}<small>pts</small></div>
+                        <button class="fav-btn ${isFav ? 'active' : ''}" onclick='event.stopPropagation(); setFavoriteDriver(${JSON.stringify(name)}, ${JSON.stringify(team)}, ${JSON.stringify(number)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(image)}, ${JSON.stringify(pos)})'>★</button>
                     </div>
                 </div>
             `;
@@ -3275,15 +3118,10 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
         }
 
         function teamRow(pos, team, drivers, points, colorClass, delta) {
-            const isFav = isFavoriteTeam(team);
             const favorite = getFavorite();
+            const isFav = favorite.type === "team" && favorite.name === team;
             const isFavoriteDriverTeam = favorite.type === "driver" && favorite.team === team;
-
-            const rowClass = [
-                pos === 1 ? "leader" : "",
-                isFav ? "favorite-row" : "",
-                isFavoriteDriverTeam ? "teammate-row" : ""
-            ].join(" ").trim();
+            const rowClass = [pos === 1 ? "leader" : "", isFav ? "favorite-row" : "", isFavoriteDriverTeam ? "teammate-row" : ""].join(" ").trim();
 
             return `
                 <div class="standing-row ${rowClass}" onclick="openTeamDetail(${JSON.stringify(team)}, ${JSON.stringify(drivers)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(pos)})">
@@ -3303,13 +3141,8 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                     </div>
                     <div class="row-badges">
                         ${getTeamContextBadges(team, pos)}
-                        <div class="row-points">
-                            ${points}<small>pts</small>
-                        </div>
-                        <button
-                            class="fav-btn ${isFav ? 'active' : ''}"
-                            onclick='event.stopPropagation(); setFavoriteTeam(${JSON.stringify(team)}, ${JSON.stringify(drivers)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(pos)})'
-                        >★</button>
+                        <div class="row-points">${points}<small>pts</small></div>
+                        <button class="fav-btn ${isFav ? 'active' : ''}" onclick='event.stopPropagation(); setFavoriteTeam(${JSON.stringify(team)}, ${JSON.stringify(drivers)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(pos)})'>★</button>
                     </div>
                 </div>
             `;
@@ -3326,7 +3159,6 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 image,
                 pos
             });
-
             showStandings();
         }
 
@@ -3339,12 +3171,118 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 colorClass,
                 pos
             });
-
             showStandings();
         }
 
-        async function refreshCalendar() {
-            await showCalendar(true);
+        async function refreshStandings() {
+            await showStandings(true);
+        }
+
+        async function showStandings(force = false) {
+            setActiveNav("nav-more");
+            updateSubtitle();
+
+            document.getElementById("content").innerHTML = `
+                ${renderFavoriteCard()}
+                ${renderLoadingCard("Clasificación", "Cargando clasificación real, cambios y resaltados…", true)}
+            `;
+
+            try {
+                await fetchStandingsData(force);
+
+                document.getElementById("content").innerHTML = `
+                    ${renderFavoriteCard()}
+
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-head-left">
+                                <div class="card-title">Clasificación</div>
+                                <div class="card-sub">Vista premium con líder, favorito, compañero y variación de posición.</div>
+                            </div>
+                            <div class="card-head-actions">
+                                <button class="icon-btn" onclick="refreshStandings()">Refrescar</button>
+                            </div>
+                        </div>
+
+                        <div class="standings-toggle">
+                            <button class="toggle-btn ${standingsViewType === "drivers" ? "active" : ""}" onclick="setStandingsView('drivers')">Pilotos</button>
+                            <button class="toggle-btn ${standingsViewType === "teams" ? "active" : ""}" onclick="setStandingsView('teams')">Equipos</button>
+                        </div>
+
+                        <div class="standings-toggle">
+                            <button class="toggle-btn ${standingsScope === "top10" ? "active" : ""}" onclick="setStandingsScope('top10')">Top 10</button>
+                            <button class="toggle-btn ${standingsScope === "all" ? "active" : ""}" onclick="setStandingsScope('all')">Todos</button>
+                        </div>
+                    </div>
+
+                    <div id="standingsContent"></div>
+                `;
+
+                if (standingsViewType === "teams") showTeamsStandings();
+                else showDriversStandings();
+            } catch (error) {
+                document.getElementById("content").innerHTML = `
+                    <div class="card">
+                        <div class="card-title">Clasificación</div>
+                        <div class="card-sub">Error al cargar la clasificación</div>
+                        <pre class="ai-output">${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        function setStandingsView(type) {
+            standingsViewType = type;
+            if (type === "teams") showTeamsStandings();
+            else showDriversStandings();
+        }
+
+        function setStandingsScope(scope) {
+            standingsScope = scope;
+            if (standingsViewType === "teams") showTeamsStandings();
+            else showDriversStandings();
+        }
+
+        function showDriversStandings() {
+            const drivers = standingsCache?.drivers || [];
+            const visible = standingsScope === "top10" ? drivers.slice(0, 10) : drivers;
+
+            document.getElementById("standingsContent").innerHTML = `
+                <div class="card">
+                    ${visible.map(driver =>
+                        driverRow(
+                            driver.pos,
+                            driver.number,
+                            driver.name,
+                            driver.team,
+                            String(driver.points),
+                            driver.colorClass,
+                            driver.image,
+                            standingsDelta.drivers?.[driver.name] || 0
+                        )
+                    ).join("")}
+                </div>
+            `;
+        }
+
+        function showTeamsStandings() {
+            const teams = standingsCache?.teams || [];
+            const visible = standingsScope === "top10" ? teams.slice(0, 10) : teams;
+
+            document.getElementById("standingsContent").innerHTML = `
+                <div class="card">
+                    ${visible.map(team =>
+                        teamRow(
+                            team.pos,
+                            team.team,
+                            team.drivers,
+                            String(team.points),
+                            team.colorClass,
+                            standingsDelta.teams?.[team.team] || 0
+                        )
+                    ).join("")}
+                </div>
+            `;
         }
 
         function renderCalendarEventCard(event) {
@@ -3374,6 +3312,10 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                     </div>
                 </div>
             `;
+        }
+
+        async function refreshCalendar() {
+            await showCalendar(true);
         }
 
         async function showCalendar(force = false) {
@@ -3432,6 +3374,212 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 `;
             }
         }
+
+        async function showRaceMode() {
+            setActiveNav("nav-more");
+            updateSubtitle();
+
+            document.getElementById("content").innerHTML = `
+                ${renderLoadingCard("Modo carrera", "Preparando la lectura del próximo GP con predicción, top 10 y estrategia…", true)}
+            `;
+
+            try {
+                const favorite = getFavorite();
+                const calendarData = await fetchCalendarData();
+                const nextRaceEvent = getNextRaceFromCalendar(calendarData?.events || []);
+                const raceName = mapCalendarEventToPredictRace(nextRaceEvent) || getSelectedRace();
+                const heuristics = getRaceHeuristics(raceName);
+                const predictData = await fetchPredictData(favorite, raceName);
+                const favoritePrediction = formatFavoritePredictionText(predictData?.favoritePrediction);
+                const top10 = Array.isArray(predictData?.raceOrder) ? predictData.raceOrder.slice(0, 10) : [];
+
+                document.getElementById("content").innerHTML = `
+                    <div class="card highlight-card">
+                        <div class="mini-pill">MODO CARRERA</div>
+                        <div class="card-title">${raceName}</div>
+                        <div class="card-sub">Pantalla rápida para leer el fin de semana completo en una sola vista.</div>
+
+                        <div class="meta-grid">
+                            <div class="meta-tile">
+                                <div class="meta-kicker">Safety Car</div>
+                                <div class="meta-value">${heuristics.safetyCar}%</div>
+                                <div class="meta-caption">Probabilidad base</div>
+                            </div>
+                            <div class="meta-tile">
+                                <div class="meta-kicker">Lluvia</div>
+                                <div class="meta-value">${heuristics.rain}%</div>
+                                <div class="meta-caption">Escenario previsto</div>
+                            </div>
+                            <div class="meta-tile">
+                                <div class="meta-kicker">Circuito</div>
+                                <div class="meta-value" style="font-size:18px;">${heuristics.tag}</div>
+                                <div class="meta-caption">Perfil del trazado</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Resumen del favorito</div>
+                        <div class="predict-grid">
+                            <div class="stat-tile">
+                                <div class="stat-kicker">Clasificación</div>
+                                <div class="stat-value">${favoritePrediction.qualy}</div>
+                                <div class="stat-caption">${favorite.name}</div>
+                            </div>
+                            <div class="stat-tile">
+                                <div class="stat-kicker">Carrera</div>
+                                <div class="stat-value">${favoritePrediction.race}</div>
+                                <div class="stat-caption">${favorite.name}</div>
+                            </div>
+                            <div class="stat-tile">
+                                <div class="stat-kicker">Puntos</div>
+                                <div class="stat-value">${favoritePrediction.points}</div>
+                                <div class="stat-caption">Probabilidad estimada</div>
+                            </div>
+                            <div class="stat-tile">
+                                <div class="stat-kicker">Abandono</div>
+                                <div class="stat-value">${favoritePrediction.dnf}</div>
+                                <div class="stat-caption">Riesgo aproximado</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Estrategia esperada</div>
+                        <div class="info-line">${predictData?.summary?.strategy?.label || "Sin datos"}</div>
+                        <div class="meta-grid">
+                            <div class="meta-tile">
+                                <div class="meta-kicker">Paradas</div>
+                                <div class="meta-value">${predictData?.summary?.strategy?.stops ?? "—"}</div>
+                                <div class="meta-caption">Plan base</div>
+                            </div>
+                            <div class="meta-tile">
+                                <div class="meta-kicker">Ganador estimado</div>
+                                <div class="meta-value" style="font-size:17px;">${predictData?.summary?.predictedWinner || "—"}</div>
+                                <div class="meta-caption">Favorito a la victoria</div>
+                            </div>
+                            <div class="meta-tile">
+                                <div class="meta-kicker">Equipos top</div>
+                                <div class="meta-value" style="font-size:17px;">${Array.isArray(predictData?.summary?.topTeams) ? predictData.summary.topTeams.join(", ") : "—"}</div>
+                                <div class="meta-caption">Ritmo esperado</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Top 10 estimado</div>
+                        <div class="mode-race-top10">
+                            ${top10.length ? top10.map(driver => `
+                                <div class="mode-race-line">
+                                    <div class="mode-race-left">
+                                        <div class="mode-race-pos">${driver.position}</div>
+                                        <div class="row-stripe ${getTeamColorClass(driver.team)}"></div>
+                                        <div>
+                                            <div class="mode-race-name">${driver.name}</div>
+                                            <div class="mode-race-team">${driver.team}</div>
+                                        </div>
+                                    </div>
+                                    <div class="mode-race-team">${driver.pointsProbability != null ? `${driver.pointsProbability}% pts` : ""}</div>
+                                </div>
+                            `).join("") : `<div class="empty-line">No hay top 10 disponible.</div>`}
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById("content").innerHTML = `
+                    <div class="card">
+                        <div class="card-title">Modo carrera</div>
+                        <div class="card-sub">Error al preparar esta pantalla</div>
+                        <pre class="ai-output">${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        function getTeamColorClass(team) {
+            if (team.includes("Aston")) return "aston";
+            if (team.includes("Mercedes")) return "mercedes";
+            if (team.includes("Ferrari")) return "ferrari";
+            if (team.includes("McLaren")) return "mclaren";
+            if (team.includes("Red Bull")) return "redbull";
+            if (team.includes("Alpine")) return "alpine";
+            if (team.includes("Williams")) return "williams";
+            if (team.includes("Audi")) return "audi";
+            if (team.includes("Cadillac")) return "cadillac";
+            if (team.includes("Haas")) return "haas";
+            if (team.includes("Racing Bulls")) return "rb";
+            return "aston";
+        }
+
+        function resetFavoriteToDefault() {
+            saveFavorite(getDefaultFavorite());
+            updateSubtitle();
+            showSettingsPanel();
+        }
+
+        function clearSelectedRaceSetting() {
+            localStorage.removeItem("racecontrolSelectedRace");
+            const settings = getSettings();
+            saveSettings({ ...settings, autoSelectNextRace: true });
+            showSettingsPanel();
+        }
+
+        function showSettingsPanel() {
+            setActiveNav("nav-more");
+            updateSubtitle();
+
+            const settings = getSettings();
+            const favorite = getFavorite();
+
+            document.getElementById("content").innerHTML = `
+                <div class="card">
+                    <div class="card-title">Ajustes</div>
+                    <div class="card-sub">Preferencias básicas de la app y limpieza rápida de datos locales.</div>
+
+                    <div class="settings-line" style="margin-bottom:10px;">
+                        <div class="settings-line-left">
+                            <div class="settings-line-title">Idioma</div>
+                            <div class="settings-line-sub">Actualmente fijado para español de España.</div>
+                        </div>
+                        <div class="tag general">es-ES</div>
+                    </div>
+
+                    <div class="settings-line" style="margin-bottom:10px;">
+                        <div class="settings-line-left">
+                            <div class="settings-line-title">Favorito actual</div>
+                            <div class="settings-line-sub">${favorite.type === "driver" ? `${favorite.name} · ${favorite.team}` : favorite.name}</div>
+                        </div>
+                        <div class="tag statement">${favorite.type === "driver" ? "Piloto" : "Equipo"}</div>
+                    </div>
+
+                    <div class="settings-line">
+                        <div class="settings-line-left">
+                            <div class="settings-line-title">Circuito automático</div>
+                            <div class="settings-line-sub">Usar por defecto la siguiente carrera detectada en el calendario.</div>
+                        </div>
+                        <button class="icon-btn" onclick="toggleAutoNextRace()">
+                            ${settings.autoSelectNextRace ? "Activado" : "Desactivado"}
+                        </button>
+                    </div>
+
+                    <div class="settings-actions" style="margin-top:14px;">
+                        <button class="btn-secondary" onclick="clearPredictionHistory()">Vaciar historial</button>
+                        <button class="btn-secondary" onclick="clearSelectedRaceSetting()">Reset circuito</button>
+                        <button class="danger-btn" onclick="resetFavoriteToDefault()">Reset favorito</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleAutoNextRace() {
+            const settings = getSettings();
+            saveSettings({ ...settings, autoSelectNextRace: !settings.autoSelectNextRace });
+            showSettingsPanel();
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") closeDetailModal();
+        });
 
         updateSubtitle();
         fetchStandingsData().catch(() => {});
