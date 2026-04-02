@@ -2263,11 +2263,36 @@ function closeDetailModal(evt) {
   modalEl().classList.remove("open");
 }
 
-document.addEventListener("keydown", e => {
+document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeDetailModal();
 });
 
-updateSubtitle();
-fetchStandingsData().catch(() => {});
-fetchCalendarData().catch(() => {});
-showHome();
+function renderBootError(message) {
+  const content = document.getElementById("content");
+  if (!content) return;
+  content.innerHTML = `
+    <div class="card">
+      <div class="card-title">Error de arranque</div>
+      <div class="card-sub">La app no ha podido iniciarse correctamente.</div>
+      <pre class="ai-output">${String(message || "Error desconocido")}</pre>
+    </div>
+  `;
+}
+
+function bootRaceControl() {
+  try {
+    updateSubtitle();
+    fetchStandingsData().catch(() => {});
+    fetchCalendarData().catch(() => {});
+    showHome();
+    window.__racecontrolBooted = true;
+  } catch (error) {
+    renderBootError(error && error.message ? error.message : String(error));
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootRaceControl);
+} else {
+  bootRaceControl();
+}
