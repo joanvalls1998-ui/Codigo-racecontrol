@@ -13,9 +13,6 @@
             --muted: rgba(235, 235, 245, 0.62);
             --muted-2: rgba(235, 235, 245, 0.42);
             --line: rgba(255, 255, 255, 0.10);
-            --glass: rgba(255,255,255,0.08);
-            --glass-2: rgba(255,255,255,0.04);
-            --glass-3: rgba(255,255,255,0.12);
 
             --aston: #00d2be;
             --mercedes: #00aaff;
@@ -34,7 +31,6 @@
             --radius-md: 18px;
             --radius-sm: 14px;
 
-            --shadow-soft: 0 20px 60px rgba(0,0,0,0.34);
             --shadow-card: 0 18px 40px rgba(0,0,0,0.28);
             --shadow-nav: 0 18px 50px rgba(0,0,0,0.42);
         }
@@ -115,8 +111,7 @@
             margin: 0 auto;
             padding: 16px 18px;
             border-radius: 24px;
-            background:
-                linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
+            background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
             border: 1px solid rgba(255,255,255,0.10);
             box-shadow:
                 inset 0 1px 0 rgba(255,255,255,0.10),
@@ -146,8 +141,7 @@
         .card {
             position: relative;
             overflow: hidden;
-            background:
-                linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05));
+            background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05));
             backdrop-filter: blur(24px) saturate(180%);
             -webkit-backdrop-filter: blur(24px) saturate(180%);
             border: 1px solid rgba(255,255,255,0.10);
@@ -164,14 +158,14 @@
             content: "";
             position: absolute;
             inset: 0;
-            background:
-                linear-gradient(135deg, rgba(255,255,255,0.12), transparent 30%, transparent 70%, rgba(255,255,255,0.04));
+            background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent 30%, transparent 70%, rgba(255,255,255,0.04));
             pointer-events: none;
             opacity: 0.55;
         }
 
         .home-hero,
-        .favorite-card {
+        .favorite-card,
+        .highlight-card {
             background:
                 radial-gradient(circle at top left, rgba(0,210,190,0.16), transparent 42%),
                 linear-gradient(180deg, rgba(255,255,255,0.11), rgba(255,255,255,0.05));
@@ -200,7 +194,7 @@
             line-height: 1.45;
         }
 
-        .pill {
+        .pill, .mini-pill, .trend-pill {
             position: relative;
             z-index: 1;
             display: inline-flex;
@@ -210,12 +204,35 @@
             border-radius: 999px;
             font-size: 11px;
             font-weight: 800;
-            letter-spacing: 0.7px;
+            letter-spacing: 0.6px;
             color: rgba(255,255,255,0.74);
             background: rgba(255,255,255,0.08);
             border: 1px solid rgba(255,255,255,0.10);
-            margin-bottom: 12px;
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+        }
+
+        .mini-pill {
+            padding: 6px 10px;
+            font-size: 10px;
+            margin-bottom: 10px;
+        }
+
+        .trend-pill.up {
+            color: #78ffd6;
+            border-color: rgba(120,255,214,0.26);
+            background: rgba(120,255,214,0.10);
+        }
+
+        .trend-pill.down {
+            color: #ff9a91;
+            border-color: rgba(255,154,145,0.24);
+            background: rgba(255,154,145,0.10);
+        }
+
+        .trend-pill.neutral {
+            color: #ffe28a;
+            border-color: rgba(255,226,138,0.20);
+            background: rgba(255,226,138,0.10);
         }
 
         .stat {
@@ -266,7 +283,7 @@
         .haas { background: linear-gradient(90deg, rgba(201,201,201,0.85), rgba(243,243,243,0.95)); }
         .rb { background: linear-gradient(90deg, rgba(42,106,255,0.9), rgba(121,171,255,0.95)); }
 
-        .btn {
+        .btn, .btn-secondary {
             position: relative;
             z-index: 1;
             width: 100%;
@@ -277,13 +294,27 @@
             font-weight: 800;
             letter-spacing: -0.2px;
             color: white;
+        }
+
+        .btn {
             background: linear-gradient(90deg, #ff2a20, #ff5b4f);
             box-shadow:
                 inset 0 1px 0 rgba(255,255,255,0.18),
                 0 14px 28px rgba(225, 6, 0, 0.28);
         }
 
-        .btn:active {
+        .btn-secondary {
+            background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+            text-decoration: none;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn:active,
+        .btn-secondary:active {
             transform: scale(0.995);
         }
 
@@ -295,8 +326,7 @@
             padding: 15px 16px;
             border-radius: 18px;
             border: 1px solid rgba(255,255,255,0.10);
-            background:
-                linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05));
+            background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05));
             color: white;
             font-size: 15px;
             font-weight: 700;
@@ -322,8 +352,7 @@
             align-items: center;
             gap: 6px;
             padding: 8px;
-            background:
-                linear-gradient(180deg, rgba(255,255,255,0.11), rgba(255,255,255,0.05));
+            background: linear-gradient(180deg, rgba(255,255,255,0.11), rgba(255,255,255,0.05));
             backdrop-filter: blur(26px) saturate(190%);
             -webkit-backdrop-filter: blur(26px) saturate(190%);
             border: 1px solid rgba(255,255,255,0.12);
@@ -347,8 +376,7 @@
 
         .nav a.active {
             color: white;
-            background:
-                linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.08));
+            background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.08));
             box-shadow:
                 inset 0 1px 0 rgba(255,255,255,0.10),
                 0 10px 20px rgba(0,0,0,0.18);
@@ -364,7 +392,8 @@
             margin-bottom: 12px;
         }
 
-        .favorite-main {
+        .favorite-main,
+        .hero-main {
             position: relative;
             z-index: 1;
             display: flex;
@@ -373,7 +402,8 @@
             gap: 12px;
         }
 
-        .favorite-left {
+        .favorite-left,
+        .hero-left {
             display: flex;
             align-items: center;
             gap: 14px;
@@ -415,50 +445,41 @@
             margin-top: 5px;
         }
 
-        .favorite-points {
+        .favorite-points,
+        .hero-points {
             text-align: right;
             flex: 0 0 auto;
         }
 
-        .favorite-points-value {
+        .favorite-points-value,
+        .hero-points-value {
             font-size: 28px;
             font-weight: 800;
             line-height: 1;
             letter-spacing: -0.5px;
         }
 
-        .favorite-points-label {
+        .favorite-points-label,
+        .hero-points-label {
             font-size: 11px;
             color: var(--muted);
             text-transform: uppercase;
             margin-top: 4px;
         }
 
-        .hero-main {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-        .hero-left {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            min-width: 0;
+        .hero-avatar,
+        .row-avatar {
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(255,255,255,0.04);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.20);
         }
 
         .hero-avatar {
             width: 58px;
             height: 58px;
-            border-radius: 50%;
-            object-fit: cover;
             flex: 0 0 auto;
-            border: 1px solid rgba(255,255,255,0.10);
-            background: rgba(255,255,255,0.04);
-            box-shadow: 0 8px 18px rgba(0,0,0,0.20);
         }
 
         .hero-badge {
@@ -484,22 +505,124 @@
             margin-top: 5px;
         }
 
-        .hero-points {
-            text-align: right;
-            flex: 0 0 auto;
+        .grid-stats,
+        .predict-grid,
+        .meta-grid,
+        .insight-grid {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
         }
 
-        .hero-points-value {
-            font-size: 28px;
+        .meta-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .stat-tile,
+        .meta-tile,
+        .insight-tile {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 14px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+        }
+
+        .stat-kicker,
+        .meta-kicker {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.9px;
+            color: rgba(255,255,255,0.52);
+            margin-bottom: 8px;
+        }
+
+        .stat-value,
+        .meta-value {
+            font-size: 23px;
             font-weight: 800;
             line-height: 1;
+            letter-spacing: -0.6px;
         }
 
-        .hero-points-label {
-            font-size: 11px;
+        .stat-caption,
+        .meta-caption {
+            font-size: 12px;
             color: var(--muted);
-            text-transform: uppercase;
-            margin-top: 4px;
+            margin-top: 8px;
+            line-height: 1.35;
+        }
+
+        .next-race-main {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 14px;
+        }
+
+        .next-race-title {
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1.05;
+            letter-spacing: -0.6px;
+        }
+
+        .next-race-sub {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 6px;
+        }
+
+        .race-date-box {
+            min-width: 108px;
+            text-align: right;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .quick-row {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .quick-row > * {
+            flex: 1;
+        }
+
+        .info-line {
+            position: relative;
+            z-index: 1;
+            font-size: 14px;
+            line-height: 1.45;
+            color: rgba(255,255,255,0.92);
+            margin-bottom: 10px;
+        }
+
+        .insight-list {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .insight-item {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 13px 14px;
+            line-height: 1.45;
+            font-size: 14px;
+            color: rgba(255,255,255,0.92);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
         }
 
         .standings-toggle {
@@ -523,8 +646,7 @@
         }
 
         .toggle-btn.active {
-            background:
-                linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.07));
+            background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.07));
             border-color: rgba(255,255,255,0.14);
         }
 
@@ -539,7 +661,10 @@
             border-bottom: 1px solid rgba(255,255,255,0.07);
         }
 
-        .standing-row:last-child {
+        .standing-row:last-child,
+        .news-item:last-child,
+        .menu-link:last-child,
+        .list-line:last-child {
             border-bottom: none;
         }
 
@@ -560,12 +685,7 @@
         .row-avatar {
             width: 44px;
             height: 44px;
-            border-radius: 50%;
-            object-fit: cover;
             flex: 0 0 auto;
-            border: 1px solid rgba(255,255,255,0.10);
-            background: rgba(255,255,255,0.04);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.18);
         }
 
         .row-stripe {
@@ -641,8 +761,7 @@
             height: 30px;
             border-radius: 999px;
             border: 1px solid rgba(255,255,255,0.10);
-            background:
-                linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
             color: rgba(255,255,255,0.68);
             font-size: 14px;
             line-height: 1;
@@ -652,23 +771,20 @@
         .fav-btn.active {
             color: #ffd54a;
             border-color: rgba(255,213,74,0.30);
-            background:
-                linear-gradient(180deg, rgba(255,213,74,0.18), rgba(255,213,74,0.08));
+            background: linear-gradient(180deg, rgba(255,213,74,0.18), rgba(255,213,74,0.08));
             box-shadow: 0 0 16px rgba(255,213,74,0.14);
         }
 
-        .news-item {
+        .news-item,
+        .list-line {
             position: relative;
             z-index: 1;
             padding: 14px 0;
             border-bottom: 1px solid rgba(255,255,255,0.07);
         }
 
-        .news-item:last-child {
-            border-bottom: none;
-        }
-
-        .news-link {
+        .news-link,
+        .menu-link {
             text-decoration: none;
             color: white;
             display: block;
@@ -685,33 +801,14 @@
         }
 
         .menu-link {
-            position: relative;
-            z-index: 1;
-            display: block;
-            text-decoration: none;
-            color: white;
-            font-weight: 800;
             padding: 16px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.07);
-            letter-spacing: -0.15px;
-        }
-
-        .menu-link:last-child {
-            border-bottom: none;
+            font-weight: 800;
         }
 
         .list-line {
-            position: relative;
-            z-index: 1;
             display: flex;
             justify-content: space-between;
             gap: 12px;
-            padding: 14px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.07);
-        }
-
-        .list-line:last-child {
-            border-bottom: none;
         }
 
         .list-left {
@@ -734,11 +831,18 @@
             word-wrap: break-word;
             font-family: inherit;
             font-size: 14px;
-            line-height: 1.55;
+            line-height: 1.58;
             color: rgba(255,255,255,0.92);
         }
 
-        @media (max-width: 560px) {
+        .empty-line {
+            position: relative;
+            z-index: 1;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        @media (max-width: 640px) {
             .title {
                 font-size: 28px;
             }
@@ -760,6 +864,10 @@
 
             .card {
                 padding: 16px;
+            }
+
+            .meta-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
     </style>
@@ -786,6 +894,10 @@
 
     <script>
         let standingsCache = null;
+        let calendarCache = null;
+        let homeNewsCache = {};
+        let lastPredictData = null;
+        let detectedNextRaceName = null;
 
         function setActiveNav(tabId) {
             const ids = ["nav-home", "nav-predict", "nav-favorito", "nav-news", "nav-more"];
@@ -828,6 +940,8 @@
                 "GP de Australia",
                 "GP de China",
                 "GP de Japón",
+                "GP de Baréin",
+                "GP de Arabia Saudí",
                 "GP Miami",
                 "GP de Canadá",
                 "GP de Mónaco",
@@ -851,7 +965,7 @@
         }
 
         function getSelectedRace() {
-            return localStorage.getItem("racecontrolSelectedRace") || "GP Miami";
+            return localStorage.getItem("racecontrolSelectedRace") || detectedNextRaceName || "GP Miami";
         }
 
         function saveSelectedRace(raceName) {
@@ -894,6 +1008,47 @@
             return data;
         }
 
+        async function fetchCalendarData(force = false) {
+            if (calendarCache && !force) return calendarCache;
+
+            const response = await fetch("/api/calendar");
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data?.error || "No se pudo cargar el calendario");
+            }
+
+            calendarCache = data;
+            const nextRace = getNextRaceFromCalendar((data?.events || []));
+            const mappedRace = mapCalendarEventToPredictRace(nextRace);
+            if (mappedRace) detectedNextRaceName = mappedRace;
+
+            return data;
+        }
+
+        async function fetchNewsDataForFavorite(favorite, force = false) {
+            const cacheKey = `${favorite.type}:${favorite.name}`;
+
+            if (homeNewsCache[cacheKey] && !force) {
+                return homeNewsCache[cacheKey];
+            }
+
+            const response = await fetch("/api/news", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ favorite })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data?.message || data?.error || "No se pudieron cargar las noticias");
+            }
+
+            homeNewsCache[cacheKey] = data;
+            return data;
+        }
+
         function refreshFavoriteFromStandings(data) {
             const favorite = getFavorite();
 
@@ -927,17 +1082,149 @@
 
         function getTeamData(team) {
             const data = {
-                "Mercedes": { racePace: 92, qualyPace: 91, reliability: 83, outlook: "Alta", drivers: ["George Russell", "Kimi Antonelli"], forms: [90, 88] },
-                "Ferrari": { racePace: 88, qualyPace: 87, reliability: 78, outlook: "Alta", drivers: ["Charles Leclerc", "Lewis Hamilton"], forms: [89, 87] },
-                "McLaren": { racePace: 84, qualyPace: 85, reliability: 82, outlook: "Alta", drivers: ["Lando Norris", "Oscar Piastri"], forms: [88, 88] },
-                "Red Bull": { racePace: 80, qualyPace: 82, reliability: 74, outlook: "Media", drivers: ["Max Verstappen", "Isack Hadjar"], forms: [91, 77] },
-                "Aston Martin": { racePace: 72, qualyPace: 68, reliability: 61, outlook: "Media", drivers: ["Fernando Alonso", "Lance Stroll"], forms: [88, 82] },
-                "Alpine": { racePace: 66, qualyPace: 61, reliability: 58, outlook: "Media", drivers: ["Pierre Gasly", "Franco Colapinto"], forms: [82, 76] },
-                "Williams": { racePace: 64, qualyPace: 60, reliability: 63, outlook: "Media", drivers: ["Carlos Sainz", "Alexander Albon"], forms: [81, 79] },
-                "Audi": { racePace: 61, qualyPace: 58, reliability: 67, outlook: "Media", drivers: ["Nico Hulkenberg", "Gabriel Bortoleto"], forms: [77, 74] },
-                "Cadillac": { racePace: 59, qualyPace: 56, reliability: 60, outlook: "Media", drivers: ["Sergio Perez", "Valtteri Bottas"], forms: [78, 75] },
-                "Haas": { racePace: 63, qualyPace: 59, reliability: 64, outlook: "Media", drivers: ["Esteban Ocon", "Oliver Bearman"], forms: [78, 80] },
-                "Racing Bulls": { racePace: 68, qualyPace: 65, reliability: 66, outlook: "Media", drivers: ["Liam Lawson", "Arvid Lindblad"], forms: [79, 75] }
+                "Mercedes": {
+                    racePace: 92,
+                    qualyPace: 91,
+                    reliability: 83,
+                    outlook: "Alta",
+                    drivers: ["George Russell", "Kimi Antonelli"],
+                    forms: [90, 88],
+                    aero: 90,
+                    topSpeed: 85,
+                    traction: 88,
+                    tyreManagement: 84,
+                    recentTrend: 4
+                },
+                "Ferrari": {
+                    racePace: 88,
+                    qualyPace: 87,
+                    reliability: 78,
+                    outlook: "Alta",
+                    drivers: ["Charles Leclerc", "Lewis Hamilton"],
+                    forms: [89, 87],
+                    aero: 86,
+                    topSpeed: 90,
+                    traction: 84,
+                    tyreManagement: 80,
+                    recentTrend: 2
+                },
+                "McLaren": {
+                    racePace: 84,
+                    qualyPace: 85,
+                    reliability: 82,
+                    outlook: "Alta",
+                    drivers: ["Lando Norris", "Oscar Piastri"],
+                    forms: [88, 88],
+                    aero: 87,
+                    topSpeed: 82,
+                    traction: 85,
+                    tyreManagement: 84,
+                    recentTrend: 1
+                },
+                "Red Bull": {
+                    racePace: 80,
+                    qualyPace: 82,
+                    reliability: 74,
+                    outlook: "Media",
+                    drivers: ["Max Verstappen", "Isack Hadjar"],
+                    forms: [91, 77],
+                    aero: 88,
+                    topSpeed: 84,
+                    traction: 81,
+                    tyreManagement: 75,
+                    recentTrend: -2
+                },
+                "Aston Martin": {
+                    racePace: 72,
+                    qualyPace: 68,
+                    reliability: 61,
+                    outlook: "Media",
+                    drivers: ["Fernando Alonso", "Lance Stroll"],
+                    forms: [88, 82],
+                    aero: 60,
+                    topSpeed: 56,
+                    traction: 58,
+                    tyreManagement: 60,
+                    recentTrend: -1
+                },
+                "Alpine": {
+                    racePace: 66,
+                    qualyPace: 61,
+                    reliability: 58,
+                    outlook: "Media",
+                    drivers: ["Pierre Gasly", "Franco Colapinto"],
+                    forms: [82, 76],
+                    aero: 70,
+                    topSpeed: 67,
+                    traction: 69,
+                    tyreManagement: 67,
+                    recentTrend: 1
+                },
+                "Williams": {
+                    racePace: 64,
+                    qualyPace: 60,
+                    reliability: 63,
+                    outlook: "Media",
+                    drivers: ["Carlos Sainz", "Alexander Albon"],
+                    forms: [81, 79],
+                    aero: 63,
+                    topSpeed: 68,
+                    traction: 61,
+                    tyreManagement: 63,
+                    recentTrend: -1
+                },
+                "Audi": {
+                    racePace: 61,
+                    qualyPace: 58,
+                    reliability: 67,
+                    outlook: "Media",
+                    drivers: ["Nico Hulkenberg", "Gabriel Bortoleto"],
+                    forms: [77, 74],
+                    aero: 64,
+                    topSpeed: 64,
+                    traction: 63,
+                    tyreManagement: 65,
+                    recentTrend: 0
+                },
+                "Cadillac": {
+                    racePace: 59,
+                    qualyPace: 56,
+                    reliability: 60,
+                    outlook: "Media",
+                    drivers: ["Sergio Perez", "Valtteri Bottas"],
+                    forms: [78, 75],
+                    aero: 60,
+                    topSpeed: 66,
+                    traction: 60,
+                    tyreManagement: 62,
+                    recentTrend: 0
+                },
+                "Haas": {
+                    racePace: 63,
+                    qualyPace: 59,
+                    reliability: 64,
+                    outlook: "Media",
+                    drivers: ["Esteban Ocon", "Oliver Bearman"],
+                    forms: [78, 80],
+                    aero: 69,
+                    topSpeed: 73,
+                    traction: 70,
+                    tyreManagement: 69,
+                    recentTrend: 2
+                },
+                "Racing Bulls": {
+                    racePace: 68,
+                    qualyPace: 65,
+                    reliability: 66,
+                    outlook: "Media",
+                    drivers: ["Liam Lawson", "Arvid Lindblad"],
+                    forms: [79, 75],
+                    aero: 72,
+                    topSpeed: 70,
+                    traction: 71,
+                    tyreManagement: 68,
+                    recentTrend: 1
+                }
             };
 
             return data[team] || {
@@ -946,7 +1233,12 @@
                 reliability: 62,
                 outlook: "Media",
                 drivers: ["Piloto 1", "Piloto 2"],
-                forms: [80, 78]
+                forms: [80, 78],
+                aero: 70,
+                topSpeed: 70,
+                traction: 70,
+                tyreManagement: 70,
+                recentTrend: 0
             };
         }
 
@@ -971,6 +1263,353 @@
             }
 
             return { primaryName: driverA, primaryForm: formA, secondaryName: driverB, secondaryForm: formB };
+        }
+
+        function getTrendInfo(teamName, favorite) {
+            const teamData = getTeamData(teamName);
+            let score = teamData.recentTrend || 0;
+
+            if (favorite.type === "driver") {
+                const comparison = getDriverComparison(teamName, favorite.name);
+                score += (comparison.primaryForm - comparison.secondaryForm) * 0.12;
+            }
+
+            if (score >= 2) {
+                return {
+                    label: "Al alza",
+                    className: "up",
+                    description: "Llega con señales positivas y mejor lectura del fin de semana."
+                };
+            }
+
+            if (score <= -1.5) {
+                return {
+                    label: "A la baja",
+                    className: "down",
+                    description: "Sigue necesitando un salto claro para estabilizar el rendimiento."
+                };
+            }
+
+            return {
+                label: "Estable",
+                className: "neutral",
+                description: "Rendimiento contenidamente estable, sin cambios drásticos."
+            };
+        }
+
+        function getFavoriteStrengthWindow(favorite, teamData) {
+            let composite = teamData.racePace * 0.62 + teamData.qualyPace * 0.18 + teamData.reliability * 0.20;
+
+            if (favorite.type === "driver") {
+                const comparison = getDriverComparison(favorite.team, favorite.name);
+                composite += (comparison.primaryForm - 80) * 0.25;
+            } else {
+                composite += ((teamData.forms[0] + teamData.forms[1]) / 2 - 80) * 0.15;
+            }
+
+            if (composite >= 90) return "P1-P3";
+            if (composite >= 85) return "P3-P5";
+            if (composite >= 80) return "P5-P7";
+            if (composite >= 75) return "P7-P10";
+            if (composite >= 70) return "P9-P12";
+            if (composite >= 65) return "P11-P14";
+            return "P14-P18";
+        }
+
+        function getFavoriteHomeMetrics(favorite) {
+            const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
+            const teamData = getTeamData(teamName);
+            const trendInfo = getTrendInfo(teamName, favorite);
+            const window = getFavoriteStrengthWindow(favorite, teamData);
+
+            let formBoost = 0;
+            if (favorite.type === "driver") {
+                const comparison = getDriverComparison(teamName, favorite.name);
+                formBoost = (comparison.primaryForm - 80) * 0.5;
+            } else {
+                formBoost = ((teamData.forms[0] + teamData.forms[1]) / 2 - 80) * 0.3;
+            }
+
+            const pointsProbability = Math.round(Math.max(12, Math.min(92, (teamData.racePace - 50) * 1.8 + formBoost)));
+            const dnfRisk = Math.round(Math.max(8, Math.min(45, 34 - teamData.reliability * 0.27 + (100 - teamData.racePace) * 0.06)));
+
+            return {
+                pointsProbability,
+                dnfRisk,
+                trendInfo,
+                expectedWindow: window,
+                teamData
+            };
+        }
+
+        function getFavoriteInsights(favorite, selectedRace) {
+            const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
+            const teamData = getTeamData(teamName);
+            const insights = [];
+
+            if (favorite.type === "driver") {
+                const comparison = getDriverComparison(teamName, favorite.name);
+
+                if (comparison.primaryForm >= comparison.secondaryForm) {
+                    insights.push(`${comparison.primaryName} llega por delante de ${comparison.secondaryName} dentro del equipo.`);
+                } else {
+                    insights.push(`${comparison.primaryName} necesita recortar terreno frente a ${comparison.secondaryName}.`);
+                }
+            } else {
+                if (teamData.forms[0] >= teamData.forms[1]) {
+                    insights.push(`${teamData.drivers[0]} es ahora mismo la referencia interna del equipo.`);
+                } else {
+                    insights.push(`${teamData.drivers[1]} está sosteniendo mejor el rendimiento del equipo.`);
+                }
+            }
+
+            if (teamData.racePace > teamData.qualyPace) {
+                insights.push("El punto fuerte actual está más en ritmo de carrera que en vuelta única.");
+            } else if (teamData.qualyPace > teamData.racePace + 3) {
+                insights.push("Necesita transformar mejor la clasificación en resultado de carrera.");
+            } else {
+                insights.push("Qualy y carrera están bastante alineadas, sin una gran debilidad dominante.");
+            }
+
+            if (teamData.reliability < 65) {
+                insights.push("La fiabilidad sigue siendo el principal factor que puede condicionar el fin de semana.");
+            } else if (selectedRace.includes("Mónaco") || selectedRace.includes("Singapur") || selectedRace.includes("Arabia Saudí") || selectedRace.includes("Azerbaiyán") || selectedRace.includes("Miami") || selectedRace.includes("Las Vegas") || selectedRace.includes("Madrid")) {
+                insights.push("El siguiente circuito exige precisión y confianza cerca de los muros.");
+            } else {
+                insights.push("Con un fin de semana limpio, hay base para consolidar un resultado sólido.");
+            }
+
+            return insights.slice(0, 3);
+        }
+
+        function mapCalendarEventToPredictRace(event) {
+            if (!event) return null;
+
+            const title = event.title || "";
+            const venue = event.venue || "";
+
+            if (title.includes("Australian")) return "GP de Australia";
+            if (title.includes("Chinese")) return "GP de China";
+            if (title.includes("Japanese")) return "GP de Japón";
+            if (title.includes("Bahrain")) return "GP de Baréin";
+            if (title.includes("Saudi")) return "GP de Arabia Saudí";
+            if (title.includes("Miami")) return "GP Miami";
+            if (title.includes("Canadian")) return "GP de Canadá";
+            if (title.includes("Monaco")) return "GP de Mónaco";
+            if (title.includes("Spanish") && venue.includes("Madrid")) return "GP de España (Madrid)";
+            if (title.includes("Spanish")) return "GP de España";
+            if (title.includes("Austrian")) return "GP de Austria";
+            if (title.includes("British")) return "GP de Gran Bretaña";
+            if (title.includes("Belgian")) return "GP de Bélgica";
+            if (title.includes("Hungarian")) return "GP de Hungría";
+            if (title.includes("Dutch")) return "GP de Países Bajos";
+            if (title.includes("Italian")) return "GP de Italia";
+            if (title.includes("Azerbaijan")) return "GP de Azerbaiyán";
+            if (title.includes("Singapore")) return "GP de Singapur";
+            if (title.includes("United States")) return "GP de Estados Unidos";
+            if (title.includes("Mexico")) return "GP de México";
+            if (title.includes("São Paulo")) return "GP de São Paulo";
+            if (title.includes("Las Vegas")) return "GP de Las Vegas";
+            if (title.includes("Qatar")) return "GP de Catar";
+            if (title.includes("Abu Dhabi")) return "GP de Abu Dabi";
+
+            return null;
+        }
+
+        function getRaceHeuristics(raceName) {
+            const map = {
+                "GP de Australia": { safetyCar: 42, rain: 24, tag: "semiurbano" },
+                "GP de China": { safetyCar: 28, rain: 20, tag: "permanente" },
+                "GP de Japón": { safetyCar: 24, rain: 26, tag: "permanente" },
+                "GP de Baréin": { safetyCar: 26, rain: 1, tag: "permanente" },
+                "GP de Arabia Saudí": { safetyCar: 47, rain: 1, tag: "urbano" },
+                "GP Miami": { safetyCar: 46, rain: 18, tag: "semiurbano" },
+                "GP de Canadá": { safetyCar: 50, rain: 21, tag: "semiurbano" },
+                "GP de Mónaco": { safetyCar: 38, rain: 16, tag: "urbano" },
+                "GP de España": { safetyCar: 20, rain: 11, tag: "permanente" },
+                "GP de Austria": { safetyCar: 32, rain: 28, tag: "permanente" },
+                "GP de Gran Bretaña": { safetyCar: 24, rain: 29, tag: "permanente" },
+                "GP de Bélgica": { safetyCar: 33, rain: 36, tag: "permanente" },
+                "GP de Hungría": { safetyCar: 27, rain: 19, tag: "permanente" },
+                "GP de Países Bajos": { safetyCar: 25, rain: 23, tag: "permanente" },
+                "GP de Italia": { safetyCar: 26, rain: 18, tag: "permanente" },
+                "GP de España (Madrid)": { safetyCar: 41, rain: 10, tag: "urbano" },
+                "GP de Azerbaiyán": { safetyCar: 48, rain: 9, tag: "urbano" },
+                "GP de Singapur": { safetyCar: 57, rain: 33, tag: "urbano" },
+                "GP de Estados Unidos": { safetyCar: 27, rain: 17, tag: "permanente" },
+                "GP de México": { safetyCar: 29, rain: 8, tag: "altitud" },
+                "GP de São Paulo": { safetyCar: 35, rain: 31, tag: "permanente" },
+                "GP de Las Vegas": { safetyCar: 39, rain: 4, tag: "urbano" },
+                "GP de Catar": { safetyCar: 22, rain: 2, tag: "permanente" },
+                "GP de Abu Dabi": { safetyCar: 23, rain: 1, tag: "permanente" }
+            };
+
+            return map[raceName] || { safetyCar: 30, rain: 15, tag: "circuito" };
+        }
+
+        function getNextRaceFromCalendar(events) {
+            if (!Array.isArray(events)) return null;
+            return events.find(event => event.type === "race" && event.status === "next")
+                || events.find(event => event.type === "race" && event.status === "upcoming")
+                || null;
+        }
+
+        function formatCalendarDateRange(start, end) {
+            const startDate = new Date(`${start}T12:00:00`);
+            const endDate = new Date(`${end}T12:00:00`);
+
+            const startDay = startDate.getDate();
+            const endDay = endDate.getDate();
+
+            const startMonth = startDate.toLocaleDateString("es-ES", { month: "short" });
+            const endMonth = endDate.toLocaleDateString("es-ES", { month: "short" });
+
+            if (startMonth === endMonth) {
+                return `${startDay}-${endDay} ${startMonth}`;
+            }
+
+            return `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
+        }
+
+        function getCalendarStatusLabel(status, type) {
+            if (type === "testing" && status === "completed") return "Pretemporada completada";
+            if (status === "completed") return "Completado";
+            if (status === "next") return "Siguiente";
+            return "Próximamente";
+        }
+
+        function formatNewsDate(pubDate) {
+            if (!pubDate) return "";
+            const date = new Date(pubDate);
+            if (Number.isNaN(date.getTime())) return "";
+            return date.toLocaleDateString("es-ES", {
+                day: "2-digit",
+                month: "short"
+            });
+        }
+
+        function formatFavoritePredictionText(favoritePrediction) {
+            if (!favoritePrediction) {
+                return {
+                    qualy: "Sin datos",
+                    race: "Sin datos",
+                    points: "Sin datos",
+                    dnf: "Sin datos"
+                };
+            }
+
+            if (favoritePrediction.type === "driver") {
+                return {
+                    qualy: favoritePrediction.predictedQualyPosition ? `P${favoritePrediction.predictedQualyPosition}` : "Sin datos",
+                    race: favoritePrediction.predictedRacePosition ? `P${favoritePrediction.predictedRacePosition}` : "Sin datos",
+                    points: favoritePrediction.pointsProbability != null ? `${favoritePrediction.pointsProbability}%` : "Sin datos",
+                    dnf: favoritePrediction.dnfProbability != null ? `${favoritePrediction.dnfProbability}%` : "Sin datos"
+                };
+            }
+
+            return {
+                qualy: favoritePrediction.bestQualyPosition ? `P${favoritePrediction.bestQualyPosition}` : "Sin datos",
+                race: favoritePrediction.bestRacePosition ? `P${favoritePrediction.bestRacePosition}` : "Sin datos",
+                points: favoritePrediction.teamPointsProbability != null ? `${favoritePrediction.teamPointsProbability}%` : "Sin datos",
+                dnf: favoritePrediction.teamAtLeastOneDnfProbability != null ? `${favoritePrediction.teamAtLeastOneDnfProbability}%` : "Sin datos"
+            };
+        }
+
+        function formatPredictResponse(data) {
+            const raceName = data?.raceName || "GP";
+            const summary = data?.summary || {};
+            const favoritePrediction = formatFavoritePredictionText(data?.favoritePrediction);
+
+            return `PREDICCIÓN ${raceName.toUpperCase()}
+
+Favorito para la victoria: ${summary.predictedWinner || "Sin datos"}
+Equipos con más ritmo: ${Array.isArray(summary.topTeams) ? summary.topTeams.join(", ") : "Sin datos"}
+Equipos con peor ritmo: ${Array.isArray(summary.weakestTeams) ? summary.weakestTeams.join(", ") : "Sin datos"}
+
+Predicción del favorito en clasificación: ${favoritePrediction.qualy}
+Predicción del favorito en carrera: ${favoritePrediction.race}
+Probabilidad de puntos del favorito (%): ${favoritePrediction.points}
+Probabilidad de abandono del favorito (%): ${favoritePrediction.dnf}
+
+Probabilidad de lluvia (%): ${summary.rainProbability != null ? `${summary.rainProbability}%` : "Sin datos"}
+Probabilidad de Safety Car (%): ${summary.safetyCarProbability != null ? `${summary.safetyCarProbability}%` : "Sin datos"}
+
+Estrategia más probable: ${summary.strategy?.label || "Sin datos"}
+Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
+        }
+
+        function renderPredictSummaryCards(data) {
+            const summary = data?.summary || {};
+            const favoritePrediction = formatFavoritePredictionText(data?.favoritePrediction);
+
+            return `
+                <div class="predict-grid">
+                    <div class="stat-tile">
+                        <div class="stat-kicker">Clasificación</div>
+                        <div class="stat-value">${favoritePrediction.qualy}</div>
+                        <div class="stat-caption">Posición estimada del favorito</div>
+                    </div>
+                    <div class="stat-tile">
+                        <div class="stat-kicker">Carrera</div>
+                        <div class="stat-value">${favoritePrediction.race}</div>
+                        <div class="stat-caption">Resultado previsto el domingo</div>
+                    </div>
+                    <div class="stat-tile">
+                        <div class="stat-kicker">Puntos</div>
+                        <div class="stat-value">${favoritePrediction.points}</div>
+                        <div class="stat-caption">Opción real de entrar en zona de puntos</div>
+                    </div>
+                    <div class="stat-tile">
+                        <div class="stat-kicker">Abandono</div>
+                        <div class="stat-value">${favoritePrediction.dnf}</div>
+                        <div class="stat-caption">Riesgo aproximado de no terminar</div>
+                    </div>
+                </div>
+
+                <div class="meta-grid" style="margin-top:12px;">
+                    <div class="meta-tile">
+                        <div class="meta-kicker">Favorito</div>
+                        <div class="meta-value" style="font-size:18px;">${summary.predictedWinner || "—"}</div>
+                        <div class="meta-caption">Victoria estimada</div>
+                    </div>
+                    <div class="meta-tile">
+                        <div class="meta-kicker">Safety Car</div>
+                        <div class="meta-value">${summary.safetyCarProbability != null ? `${summary.safetyCarProbability}%` : "—"}</div>
+                        <div class="meta-caption">Probabilidad base</div>
+                    </div>
+                    <div class="meta-tile">
+                        <div class="meta-kicker">Lluvia</div>
+                        <div class="meta-value">${summary.rainProbability != null ? `${summary.rainProbability}%` : "—"}</div>
+                        <div class="meta-caption">Condición prevista</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPredictMetaCards(data) {
+            const summary = data?.summary || {};
+            const topTeams = Array.isArray(summary.topTeams) ? summary.topTeams.join(", ") : "Sin datos";
+            const weakTeams = Array.isArray(summary.weakestTeams) ? summary.weakestTeams.join(", ") : "Sin datos";
+
+            return `
+                <div class="meta-grid">
+                    <div class="meta-tile">
+                        <div class="meta-kicker">Equipos top</div>
+                        <div class="meta-value" style="font-size:17px; line-height:1.2;">${topTeams}</div>
+                        <div class="meta-caption">Los coches con más ritmo esperado</div>
+                    </div>
+                    <div class="meta-tile">
+                        <div class="meta-kicker">Equipos más débiles</div>
+                        <div class="meta-value" style="font-size:17px; line-height:1.2;">${weakTeams}</div>
+                        <div class="meta-caption">Zona baja estimada del fin de semana</div>
+                    </div>
+                    <div class="meta-tile">
+                        <div class="meta-kicker">Estrategia</div>
+                        <div class="meta-value" style="font-size:17px; line-height:1.2;">${summary.strategy?.label || "Sin datos"}</div>
+                        <div class="meta-caption">Paradas: ${summary.strategy?.stops ?? "—"}</div>
+                    </div>
+                </div>
+            `;
         }
 
         function renderHomeHero() {
@@ -1005,20 +1644,111 @@
                             <div class="hero-points-label">pts</div>
                         </div>
                     </div>
+                </div>
+            `;
+        }
 
-                    ${favorite.type === "driver" ? `
-                        <div class="stat" style="margin-top:16px;">Probabilidad de puntos (próximo GP) <span>32%</span></div>
-                        <div class="bar"><div class="bar-fill ${accent}" style="width:32%;"></div></div>
+        function renderHomeQuickSummary(nextRace) {
+            const favorite = getFavorite();
+            const metrics = getFavoriteHomeMetrics(favorite);
+            const nextRaceName = mapCalendarEventToPredictRace(nextRace) || getSelectedRace();
+            const heuristics = getRaceHeuristics(nextRaceName);
 
-                        <div class="stat" style="margin-top:14px;">Riesgo de abandono <span>28%</span></div>
-                        <div class="bar"><div class="bar-fill ferrari" style="width:28%;"></div></div>
-                    ` : `
-                        <div class="stat" style="margin-top:16px;">Ritmo de carrera <span>72%</span></div>
-                        <div class="bar"><div class="bar-fill ${accent}" style="width:72%;"></div></div>
+            return `
+                <div class="card highlight-card">
+                    <div class="mini-pill">CENTRO DE CONTROL</div>
+                    <div class="card-title">Resumen rápido del favorito</div>
+                    <div class="card-sub">Lectura rápida para abrir la app y tener el contexto en pocos segundos.</div>
 
-                        <div class="stat" style="margin-top:14px;">Fiabilidad <span>61%</span></div>
-                        <div class="bar"><div class="bar-fill mclaren" style="width:61%;"></div></div>
-                    `}
+                    <div class="grid-stats">
+                        <div class="stat-tile">
+                            <div class="stat-kicker">Puntos</div>
+                            <div class="stat-value">${metrics.pointsProbability}%</div>
+                            <div class="stat-caption">Probabilidad aproximada para el próximo GP</div>
+                        </div>
+                        <div class="stat-tile">
+                            <div class="stat-kicker">Ventana esperada</div>
+                            <div class="stat-value">${metrics.expectedWindow}</div>
+                            <div class="stat-caption">Rango competitivo estimado</div>
+                        </div>
+                        <div class="stat-tile">
+                            <div class="stat-kicker">Riesgo</div>
+                            <div class="stat-value">${metrics.dnfRisk}%</div>
+                            <div class="stat-caption">Riesgo aproximado de abandono</div>
+                        </div>
+                        <div class="stat-tile">
+                            <div class="stat-kicker">Tendencia</div>
+                            <div class="stat-value" style="font-size:18px;">${metrics.trendInfo.label}</div>
+                            <div class="stat-caption">${metrics.trendInfo.description}</div>
+                        </div>
+                    </div>
+
+                    <div class="quick-row">
+                        <div class="meta-tile">
+                            <div class="meta-kicker">Safety Car</div>
+                            <div class="meta-value">${heuristics.safetyCar}%</div>
+                            <div class="meta-caption">${nextRaceName}</div>
+                        </div>
+                        <div class="meta-tile">
+                            <div class="meta-kicker">Lluvia</div>
+                            <div class="meta-value">${heuristics.rain}%</div>
+                            <div class="meta-caption">Condición base del circuito</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderHomeNextRace(nextRace) {
+            const raceName = mapCalendarEventToPredictRace(nextRace) || getSelectedRace();
+            const heuristics = getRaceHeuristics(raceName);
+
+            if (!nextRace) {
+                return `
+                    <div class="card">
+                        <div class="card-title">Próxima carrera</div>
+                        <div class="empty-line">No se ha podido detectar la siguiente carrera ahora mismo.</div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="card">
+                    <div class="mini-pill">SIGUIENTE GP</div>
+
+                    <div class="next-race-main">
+                        <div>
+                            <div class="next-race-title">${nextRace.title}</div>
+                            <div class="next-race-sub">${nextRace.venue} · ${nextRace.location}</div>
+                            <div class="next-race-sub">${heuristics.tag} · ritmo y estrategia condicionados por el circuito</div>
+                        </div>
+                        <div class="race-date-box">
+                            ${formatCalendarDateRange(nextRace.start, nextRace.end)}<br>
+                            <span style="color:rgba(255,255,255,0.52);">${getCalendarStatusLabel(nextRace.status, nextRace.type)}</span>
+                        </div>
+                    </div>
+
+                    <div class="meta-grid">
+                        <div class="meta-tile">
+                            <div class="meta-kicker">Safety Car</div>
+                            <div class="meta-value">${heuristics.safetyCar}%</div>
+                            <div class="meta-caption">Probabilidad base del trazado</div>
+                        </div>
+                        <div class="meta-tile">
+                            <div class="meta-kicker">Lluvia</div>
+                            <div class="meta-value">${heuristics.rain}%</div>
+                            <div class="meta-caption">Escenario climatológico inicial</div>
+                        </div>
+                        <div class="meta-tile">
+                            <div class="meta-kicker">Circuito</div>
+                            <div class="meta-value" style="font-size:18px;">${raceName}</div>
+                            <div class="meta-caption">Se usará por defecto en Predicción</div>
+                        </div>
+                    </div>
+
+                    <div class="quick-row">
+                        <a href="#" class="btn-secondary" onclick="saveSelectedRace('${raceName.replace(/'/g, "\\'")}'); showPredict(); return false;">Abrir predicción</a>
+                    </div>
                 </div>
             `;
         }
@@ -1071,7 +1801,7 @@
 
             return `
                 <div class="card">
-                    <div class="card-title">JERARQUÍA DE EQUIPOS</div>
+                    <div class="card-title">Jerarquía de equipos</div>
                     ${uniqueRows.map(row => `
                         <div class="stat">
                             <span style="${row.name === favoriteTeam ? `color: var(--${row.color}); font-weight: 700;` : ''}">${row.name}</span>
@@ -1081,6 +1811,81 @@
                     `).join("")}
                 </div>
             `;
+        }
+
+        function renderHomeNewsPreview(items, favorite) {
+            const previewItems = Array.isArray(items) ? items.slice(0, 3) : [];
+
+            return `
+                <div class="card">
+                    <div class="card-title">Noticias clave · ${favorite.name}</div>
+                    <div class="card-sub">Las 3 noticias más útiles para no ir a ciegas antes del próximo GP.</div>
+
+                    ${previewItems.length ? previewItems.map(item => `
+                        <div class="news-item">
+                            <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">
+                                ${item.title}
+                            </a>
+                            <div class="news-source">
+                                ${item.source || "Noticias"}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}
+                            </div>
+                        </div>
+                    `).join("") : `
+                        <div class="empty-line">No se han podido cargar noticias destacadas ahora mismo.</div>
+                    `}
+                </div>
+            `;
+        }
+
+        async function showHome() {
+            setActiveNav("nav-home");
+            updateSubtitle();
+
+            document.getElementById("content").innerHTML = `
+                ${renderHomeHero()}
+                <div class="card">
+                    <div class="card-title">Cargando centro de control…</div>
+                    <div class="card-sub">Preparando próxima carrera, resumen del favorito y noticias principales.</div>
+                </div>
+            `;
+
+            const favorite = getFavorite();
+
+            try {
+                const [calendarData, newsData] = await Promise.all([
+                    fetchCalendarData(),
+                    fetchNewsDataForFavorite(favorite)
+                ]);
+
+                const nextRace = getNextRaceFromCalendar(calendarData?.events || []);
+
+                if (nextRace) {
+                    const mappedRace = mapCalendarEventToPredictRace(nextRace);
+                    if (mappedRace && !localStorage.getItem("racecontrolSelectedRace")) {
+                        detectedNextRaceName = mappedRace;
+                    }
+                }
+
+                document.getElementById("content").innerHTML = `
+                    ${renderHomeHero()}
+                    ${renderHomeQuickSummary(nextRace)}
+                    ${renderHomeNextRace(nextRace)}
+                    ${renderHomeTeamStatus()}
+                    ${renderHomeNewsPreview(newsData?.items || [], favorite)}
+                    ${renderHomeHierarchy()}
+                `;
+            } catch (error) {
+                document.getElementById("content").innerHTML = `
+                    ${renderHomeHero()}
+                    <div class="card">
+                        <div class="card-title">Inicio</div>
+                        <div class="card-sub">Error al cargar el centro de control</div>
+                        <pre class="ai-output">${error.message}</pre>
+                    </div>
+                    ${renderHomeTeamStatus()}
+                    ${renderHomeHierarchy()}
+                `;
+            }
         }
 
         function renderPredictContent() {
@@ -1094,140 +1899,57 @@
                 raceName
             };
         }
-function formatFavoritePredictionText(favoritePrediction) {
-    if (!favoritePrediction) {
-        return {
-            qualy: "Sin datos",
-            race: "Sin datos",
-            points: "Sin datos",
-            dnf: "Sin datos"
-        };
-    }
 
-    if (favoritePrediction.type === "driver") {
-        return {
-            qualy: favoritePrediction.predictedQualyPosition ? `P${favoritePrediction.predictedQualyPosition}` : "Sin datos",
-            race: favoritePrediction.predictedRacePosition ? `P${favoritePrediction.predictedRacePosition}` : "Sin datos",
-            points: favoritePrediction.pointsProbability != null ? `${favoritePrediction.pointsProbability}%` : "Sin datos",
-            dnf: favoritePrediction.dnfProbability != null ? `${favoritePrediction.dnfProbability}%` : "Sin datos"
-        };
-    }
-
-    return {
-        qualy: favoritePrediction.bestQualyPosition ? `Mejor coche del equipo en P${favoritePrediction.bestQualyPosition}` : "Sin datos",
-        race: favoritePrediction.bestRacePosition ? `Mejor coche del equipo en P${favoritePrediction.bestRacePosition}` : "Sin datos",
-        points: favoritePrediction.teamPointsProbability != null ? `${favoritePrediction.teamPointsProbability}%` : "Sin datos",
-        dnf: favoritePrediction.teamAtLeastOneDnfProbability != null ? `${favoritePrediction.teamAtLeastOneDnfProbability}%` : "Sin datos"
-    };
-}
-
-function formatPredictResponse(data) {
-    const raceName = data?.raceName || "GP";
-    const summary = data?.summary || {};
-    const favoritePrediction = formatFavoritePredictionText(data?.favoritePrediction);
-
-    return `PREDICCIÓN ${raceName.toUpperCase()}
-
-Favorito para la victoria: ${summary.predictedWinner || "Sin datos"}
-Equipos con más ritmo: ${Array.isArray(summary.topTeams) ? summary.topTeams.join(", ") : "Sin datos"}
-Equipos con peor ritmo: ${Array.isArray(summary.weakestTeams) ? summary.weakestTeams.join(", ") : "Sin datos"}
-
-Predicción del favorito en clasificación: ${favoritePrediction.qualy}
-Predicción del favorito en carrera: ${favoritePrediction.race}
-Probabilidad de puntos del favorito (%): ${favoritePrediction.points}
-Probabilidad de abandono del favorito (%): ${favoritePrediction.dnf}
-
-Probabilidad de lluvia (%): ${summary.rainProbability != null ? `${summary.rainProbability}%` : "Sin datos"}
-Probabilidad de Safety Car (%): ${summary.safetyCarProbability != null ? `${summary.safetyCarProbability}%` : "Sin datos"}
-
-Estrategia más probable: ${summary.strategy?.label || "Sin datos"}
-Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
-}
         async function runPredict() {
-    const output = document.getElementById("predictOutput");
-    const favorite = getFavorite();
-    const raceSelect = document.getElementById("predictRace");
-    const raceName = raceSelect?.value || getSelectedRace();
+            const output = document.getElementById("predictOutput");
+            const favorite = getFavorite();
+            const raceSelect = document.getElementById("predictRace");
+            const raceName = raceSelect?.value || getSelectedRace();
 
-    saveSelectedRace(raceName);
-    output.innerText = "Generando predicción...";
+            saveSelectedRace(raceName);
+            output.innerText = "Generando predicción...";
 
-    try {
-        const response = await fetch("/api/predict", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                favorite,
-                raceName
-            })
-        });
+            const summaryBox = document.getElementById("predictSummaryCards");
+            const metaBox = document.getElementById("predictMetaCards");
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data?.message || data?.error || "Error al generar la predicción");
-        }
-
-        output.innerText = formatPredictResponse(data);
-    } catch (error) {
-        output.innerText = `Error: ${error.message}`;
-    }
-}
-
-        function formatCalendarDateRange(start, end) {
-            const startDate = new Date(`${start}T12:00:00`);
-            const endDate = new Date(`${end}T12:00:00`);
-
-            const startDay = startDate.getDate();
-            const endDay = endDate.getDate();
-
-            const startMonth = startDate.toLocaleDateString("es-ES", { month: "short" });
-            const endMonth = endDate.toLocaleDateString("es-ES", { month: "short" });
-
-            if (startMonth === endMonth) {
-                return `${startDay}-${endDay} ${startMonth}`;
+            if (summaryBox) {
+                summaryBox.innerHTML = `
+                    <div class="predict-grid">
+                        <div class="stat-tile"><div class="stat-kicker">Clasificación</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
+                        <div class="stat-tile"><div class="stat-kicker">Carrera</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
+                        <div class="stat-tile"><div class="stat-kicker">Puntos</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
+                        <div class="stat-tile"><div class="stat-kicker">Abandono</div><div class="stat-value">…</div><div class="stat-caption">Calculando</div></div>
+                    </div>
+                `;
             }
 
-            return `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
-        }
+            try {
+                const response = await fetch("/api/predict", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        favorite,
+                        raceName
+                    })
+                });
 
-        function getCalendarStatusLabel(status, type) {
-            if (type === "testing" && status === "completed") return "Pretemporada completada";
-            if (status === "completed") return "Completado";
-            if (status === "next") return "Siguiente";
-            return "Próximamente";
-        }
+                const data = await response.json();
 
-        function formatNewsDate(pubDate) {
-            if (!pubDate) return "";
-            const date = new Date(pubDate);
-            if (Number.isNaN(date.getTime())) return "";
-            return date.toLocaleDateString("es-ES", {
-                day: "2-digit",
-                month: "short"
-            });
-        }
+                if (!response.ok) {
+                    throw new Error(data?.message || data?.error || "Error al generar la predicción");
+                }
 
-        function showHome() {
-            setActiveNav("nav-home");
-            updateSubtitle();
-            document.getElementById("content").innerHTML = `
-                ${renderHomeHero()}
-                ${renderHomeTeamStatus()}
+                lastPredictData = data;
 
-                <div class="card">
-                    <div class="card-title" style="color: var(--${getFavoriteColorClass()});">PRÓXIMA CARRERA</div>
-                    <div class="stat">Probabilidad de Safety Car <span>42%</span></div>
-                    <div class="bar"><div class="bar-fill mclaren" style="width:42%;"></div></div>
+                if (summaryBox) summaryBox.innerHTML = renderPredictSummaryCards(data);
+                if (metaBox) metaBox.innerHTML = renderPredictMetaCards(data);
 
-                    <div class="stat" style="margin-top:14px;">Probabilidad de lluvia <span>18%</span></div>
-                    <div class="bar"><div class="bar-fill alpine" style="width:18%;"></div></div>
-
-                    <div class="stat" style="margin-top:14px;">Ventana de parada <span>Vuelta 14 - 20</span></div>
-                </div>
-
-                ${renderHomeHierarchy()}
-            `;
+                output.innerText = formatPredictResponse(data);
+            } catch (error) {
+                output.innerText = `Error: ${error.message}`;
+                if (summaryBox) summaryBox.innerHTML = `<div class="empty-line">No se ha podido generar el resumen predictivo.</div>`;
+                if (metaBox) metaBox.innerHTML = "";
+            }
         }
 
         function showPredict() {
@@ -1238,8 +1960,8 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
             const selectedRace = getSelectedRace();
 
             document.getElementById("content").innerHTML = `
-                <div class="card">
-                    <div class="pill">IA · REAL</div>
+                <div class="card highlight-card">
+                    <div class="pill">IA · MOTOR + RESUMEN VISUAL</div>
                     <div class="card-title" style="color: var(--${predict.accent});">${predict.title}</div>
                     <div class="card-sub">${predict.sub}</div>
 
@@ -1256,8 +1978,184 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                 </div>
 
                 <div class="card">
-                    <div class="card-title">Resultado IA</div>
-                    <pre id="predictOutput" class="ai-output">Selecciona un circuito y pulsa en “Generar predicción”.</pre>
+                    <div class="card-title">Resumen de predicción</div>
+                    <div class="card-sub">Lo importante arriba, el desarrollo completo debajo.</div>
+                    <div id="predictSummaryCards">
+                        ${lastPredictData ? renderPredictSummaryCards(lastPredictData) : `
+                            <div class="predict-grid">
+                                <div class="stat-tile"><div class="stat-kicker">Clasificación</div><div class="stat-value">—</div><div class="stat-caption">Pendiente de generar</div></div>
+                                <div class="stat-tile"><div class="stat-kicker">Carrera</div><div class="stat-value">—</div><div class="stat-caption">Pendiente de generar</div></div>
+                                <div class="stat-tile"><div class="stat-kicker">Puntos</div><div class="stat-value">—</div><div class="stat-caption">Pendiente de generar</div></div>
+                                <div class="stat-tile"><div class="stat-kicker">Abandono</div><div class="stat-value">—</div><div class="stat-caption">Pendiente de generar</div></div>
+                            </div>
+                        `}
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Claves del fin de semana</div>
+                    <div id="predictMetaCards">
+                        ${lastPredictData ? renderPredictMetaCards(lastPredictData) : `<div class="empty-line">Genera la predicción para ver el ganador estimado, equipos top y estrategia.</div>`}
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Texto completo</div>
+                    <pre id="predictOutput" class="ai-output">${lastPredictData ? formatPredictResponse(lastPredictData) : "Selecciona un circuito y pulsa en “Generar predicción”."}</pre>
+                </div>
+            `;
+        }
+
+        function renderFavoriteCard() {
+            const favorite = getFavorite();
+
+            const badge = favorite.type === "driver" ? favorite.number : "EQ";
+            const subtitle = favorite.type === "driver"
+                ? `${favorite.team} · P${favorite.pos}`
+                : `${favorite.drivers} · P${favorite.pos}`;
+
+            return `
+                <div class="card favorite-card">
+                    <div class="favorite-label">Favorito</div>
+                    <div class="favorite-main">
+                        <div class="favorite-left">
+                            <div class="team-stripe" style="background: var(--${favorite.colorClass});"></div>
+                            <div class="driver-number" style="color: var(--${favorite.colorClass});">${badge}</div>
+                            <div>
+                                <div class="favorite-name">${favorite.name}</div>
+                                <div class="favorite-sub">${subtitle}</div>
+                            </div>
+                        </div>
+                        <div class="favorite-points">
+                            <div class="favorite-points-value">${favorite.points}</div>
+                            <div class="favorite-points-label">pts</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFavoritoTechnicalCard(favorite, teamName, teamData, accent) {
+            return `
+                <div class="card highlight-card">
+                    <div class="mini-pill">PANEL TÉCNICO</div>
+                    <div class="card-title" style="color: var(--${accent});">${teamName.toUpperCase()}</div>
+                    <div class="card-sub">Lectura rápida del rendimiento actual del favorito y de su entorno competitivo.</div>
+
+                    <div class="stat">Ritmo de carrera <span>${teamData.racePace}%</span></div>
+                    <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.racePace}%;"></div></div>
+
+                    <div class="stat" style="margin-top:14px;">Ritmo a una vuelta <span>${teamData.qualyPace}%</span></div>
+                    <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.qualyPace}%;"></div></div>
+
+                    <div class="stat" style="margin-top:14px;">Fiabilidad <span>${teamData.reliability}%</span></div>
+                    <div class="bar"><div class="bar-fill ferrari" style="width:${teamData.reliability}%;"></div></div>
+
+                    <div class="meta-grid" style="margin-top:14px;">
+                        <div class="meta-tile">
+                            <div class="meta-kicker">Aero</div>
+                            <div class="meta-value">${teamData.aero}%</div>
+                            <div class="meta-caption">Carga y apoyo</div>
+                        </div>
+                        <div class="meta-tile">
+                            <div class="meta-kicker">Tracción</div>
+                            <div class="meta-value">${teamData.traction}%</div>
+                            <div class="meta-caption">Salida de curva</div>
+                        </div>
+                        <div class="meta-tile">
+                            <div class="meta-kicker">Velocidad punta</div>
+                            <div class="meta-value">${teamData.topSpeed}%</div>
+                            <div class="meta-caption">Recta y eficiencia</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFavoritoTrendCard(favorite, teamName) {
+            const trendInfo = getTrendInfo(teamName, favorite);
+            const metrics = getFavoriteHomeMetrics(favorite);
+
+            return `
+                <div class="card">
+                    <div class="card-title">Momento actual</div>
+                    <div class="card-sub">Lectura rápida de tendencia para no mirar solo un número aislado.</div>
+
+                    <div class="trend-pill ${trendInfo.className}" style="margin-bottom:12px;">${trendInfo.label}</div>
+                    <div class="info-line">${trendInfo.description}</div>
+
+                    <div class="grid-stats">
+                        <div class="stat-tile">
+                            <div class="stat-kicker">Ventana esperada</div>
+                            <div class="stat-value">${metrics.expectedWindow}</div>
+                            <div class="stat-caption">Rango competitivo actual</div>
+                        </div>
+                        <div class="stat-tile">
+                            <div class="stat-kicker">Puntos</div>
+                            <div class="stat-value">${metrics.pointsProbability}%</div>
+                            <div class="stat-caption">Opción estimada de puntuar</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFavoritoComparisonCard(favorite, teamName, teamData, accent) {
+            if (favorite.type === "driver") {
+                const comparison = getDriverComparison(teamName, favorite.name);
+                const gap = comparison.primaryForm - comparison.secondaryForm;
+
+                return `
+                    <div class="card">
+                        <div class="card-title">${comparison.primaryName.toUpperCase()} vs ${comparison.secondaryName.toUpperCase()}</div>
+                        <div class="card-sub">Comparación más clara con su compañero para leer el contexto interno del equipo.</div>
+
+                        <div class="stat">Rendimiento de ${comparison.primaryName} <span>${comparison.primaryForm}%</span></div>
+                        <div class="bar"><div class="bar-fill ${accent}" style="width:${comparison.primaryForm}%;"></div></div>
+
+                        <div class="stat" style="margin-top:14px;">Rendimiento de ${comparison.secondaryName} <span>${comparison.secondaryForm}%</span></div>
+                        <div class="bar"><div class="bar-fill ${accent}" style="width:${comparison.secondaryForm}%; opacity:0.68;"></div></div>
+
+                        <div class="info-line" style="margin-top:14px;">
+                            ${gap >= 0
+                                ? `${comparison.primaryName} llega con una ventaja interna aproximada de ${gap} puntos de forma.`
+                                : `${comparison.primaryName} está por detrás en forma y necesita recortar ${Math.abs(gap)} puntos.`}
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="card">
+                    <div class="card-title">${teamName.toUpperCase()} · ALINEACIÓN</div>
+                    <div class="card-sub">Comparación directa entre los dos pilotos del equipo favorito.</div>
+
+                    <div class="stat">Estado de forma de ${teamData.drivers[0]} <span>${teamData.forms[0]}%</span></div>
+                    <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.forms[0]}%;"></div></div>
+
+                    <div class="stat" style="margin-top:14px;">Estado de forma de ${teamData.drivers[1]} <span>${teamData.forms[1]}%</span></div>
+                    <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.forms[1]}%; opacity:0.68;"></div></div>
+
+                    <div class="info-line" style="margin-top:14px;">
+                        ${teamData.forms[0] >= teamData.forms[1]
+                            ? `${teamData.drivers[0]} está liderando actualmente la referencia interna.`
+                            : `${teamData.drivers[1]} está sosteniendo mejor el nivel competitivo del equipo.`}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFavoritoInsightsCard(favorite) {
+            const insights = getFavoriteInsights(favorite, getSelectedRace());
+
+            return `
+                <div class="card">
+                    <div class="card-title">Lectura rápida</div>
+                    <div class="card-sub">Tres ideas útiles para entender el favorito sin perderse en demasiados datos.</div>
+
+                    <div class="insight-list">
+                        ${insights.map(item => `<div class="insight-item">${item}</div>`).join("")}
+                    </div>
                 </div>
             `;
         }
@@ -1271,54 +2169,12 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
             const accent = favorite.colorClass;
             const teamData = getTeamData(teamName);
 
-            let secondaryCard = "";
-
-            if (favorite.type === "driver") {
-                const comparison = getDriverComparison(teamName, favorite.name);
-
-                secondaryCard = `
-                    <div class="card">
-                        <div class="card-title">${comparison.primaryName.toUpperCase()} vs ${comparison.secondaryName.toUpperCase()}</div>
-
-                        <div class="stat">Rendimiento de ${comparison.primaryName} <span>${comparison.primaryForm}%</span></div>
-                        <div class="bar"><div class="bar-fill ${accent}" style="width:${comparison.primaryForm}%;"></div></div>
-
-                        <div class="stat" style="margin-top:14px;">Rendimiento de ${comparison.secondaryName} <span>${comparison.secondaryForm}%</span></div>
-                        <div class="bar"><div class="bar-fill ${accent}" style="width:${comparison.secondaryForm}%; opacity:0.72;"></div></div>
-                    </div>
-                `;
-            } else {
-                secondaryCard = `
-                    <div class="card">
-                        <div class="card-title">${teamName.toUpperCase()} · ALINEACIÓN</div>
-
-                        <div class="stat">Estado de forma de ${teamData.drivers[0]} <span>${teamData.forms[0]}%</span></div>
-                        <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.forms[0]}%;"></div></div>
-
-                        <div class="stat" style="margin-top:14px;">Estado de forma de ${teamData.drivers[1]} <span>${teamData.forms[1]}%</span></div>
-                        <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.forms[1]}%; opacity:0.72;"></div></div>
-                    </div>
-                `;
-            }
-
             document.getElementById("content").innerHTML = `
-                <div class="card">
-                    <div class="card-title" style="color: var(--${accent});">${teamName.toUpperCase()}</div>
-                    <div class="card-sub">Panel técnico adaptado al favorito actual</div>
-
-                    <div class="stat">Ritmo de carrera <span>${teamData.racePace}%</span></div>
-                    <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.racePace}%;"></div></div>
-
-                    <div class="stat" style="margin-top:14px;">Ritmo a una vuelta <span>${teamData.qualyPace}%</span></div>
-                    <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.qualyPace}%;"></div></div>
-
-                    <div class="stat" style="margin-top:14px;">Fiabilidad <span>${teamData.reliability}%</span></div>
-                    <div class="bar"><div class="bar-fill ferrari" style="width:${teamData.reliability}%;"></div></div>
-
-                    <div class="stat" style="margin-top:14px;">Previsión del fin de semana <span>${teamData.outlook}</span></div>
-                </div>
-
-                ${secondaryCard}
+                ${renderFavoriteCard()}
+                ${renderFavoritoTechnicalCard(favorite, teamName, teamData, accent)}
+                ${renderFavoritoTrendCard(favorite, teamName)}
+                ${renderFavoritoComparisonCard(favorite, teamName, teamData, accent)}
+                ${renderFavoritoInsightsCard(favorite)}
             `;
         }
 
@@ -1336,20 +2192,7 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
             `;
 
             try {
-                const response = await fetch("/api/news", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({ favorite })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data?.message || data?.error || "No se pudieron cargar las noticias");
-                }
-
+                const data = await fetchNewsDataForFavorite(favorite, true);
                 const items = Array.isArray(data.items) ? data.items.slice(0, 8) : [];
 
                 document.getElementById("content").innerHTML = `
@@ -1394,35 +2237,6 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
                     <div class="card-title">MÁS</div>
                     <a href="#" class="menu-link" onclick="showStandings(); return false;">Clasificación</a>
                     <a href="#" class="menu-link" onclick="showCalendar(); return false;">Calendario</a>
-                </div>
-            `;
-        }
-
-        function renderFavoriteCard() {
-            const favorite = getFavorite();
-
-            const badge = favorite.type === "driver" ? favorite.number : "EQ";
-            const subtitle = favorite.type === "driver"
-                ? `${favorite.team} · P${favorite.pos}`
-                : `${favorite.drivers} · P${favorite.pos}`;
-
-            return `
-                <div class="card favorite-card">
-                    <div class="favorite-label">Favorito</div>
-                    <div class="favorite-main">
-                        <div class="favorite-left">
-                            <div class="team-stripe" style="background: var(--${favorite.colorClass});"></div>
-                            <div class="driver-number" style="color: var(--${favorite.colorClass});">${badge}</div>
-                            <div>
-                                <div class="favorite-name">${favorite.name}</div>
-                                <div class="favorite-sub">${subtitle}</div>
-                            </div>
-                        </div>
-                        <div class="favorite-points">
-                            <div class="favorite-points-value">${favorite.points}</div>
-                            <div class="favorite-points-label">pts</div>
-                        </div>
-                    </div>
                 </div>
             `;
         }
@@ -1644,13 +2458,7 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
             `;
 
             try {
-                const response = await fetch("/api/calendar");
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data?.error || "No se pudo cargar el calendario");
-                }
-
+                const data = await fetchCalendarData(true);
                 const events = Array.isArray(data.events) ? data.events : [];
 
                 document.getElementById("content").innerHTML = `
@@ -1685,6 +2493,7 @@ Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
 
         updateSubtitle();
         fetchStandingsData().catch(() => {});
+        fetchCalendarData().catch(() => {});
         showHome();
     </script>
 </body>
