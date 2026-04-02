@@ -1,4 +1,5 @@
 window.__racecontrolScriptLoaded = true;
+
 const state = {
   standingsCache: null,
   calendarCache: null,
@@ -50,6 +51,44 @@ function getDefaultSettings() {
   };
 }
 
+function normalizeFavorite(favorite) {
+  const defaultDriver = getDefaultFavorite();
+
+  if (!favorite || typeof favorite !== "object") {
+    return defaultDriver;
+  }
+
+  if (favorite.type !== "driver" && favorite.type !== "team") {
+    return defaultDriver;
+  }
+
+  if (!favorite.name) {
+    return defaultDriver;
+  }
+
+  if (favorite.type === "driver") {
+    return {
+      type: "driver",
+      name: favorite.name || defaultDriver.name,
+      team: favorite.team || defaultDriver.team,
+      number: String(favorite.number ?? defaultDriver.number),
+      points: String(favorite.points ?? defaultDriver.points),
+      colorClass: favorite.colorClass || defaultDriver.colorClass,
+      image: favorite.image || defaultDriver.image,
+      pos: String(favorite.pos ?? defaultDriver.pos)
+    };
+  }
+
+  return {
+    type: "team",
+    name: favorite.name,
+    drivers: favorite.drivers || "",
+    points: String(favorite.points ?? "0"),
+    colorClass: favorite.colorClass || "aston",
+    pos: String(favorite.pos ?? "10")
+  };
+}
+
 function safeJsonParse(value, fallback) {
   try {
     return JSON.parse(value);
@@ -77,11 +116,19 @@ function saveSettings(settings) {
 }
 
 function getFavorite() {
-  return safeJsonParse(localStorage.getItem("racecontrolFavorite"), getDefaultFavorite());
+  try {
+    const saved = localStorage.getItem("racecontrolFavorite");
+    if (!saved) return getDefaultFavorite();
+
+    const parsed = JSON.parse(saved);
+    return normalizeFavorite(parsed);
+  } catch {
+    return getDefaultFavorite();
+  }
 }
 
 function saveFavorite(favorite) {
-  localStorage.setItem("racecontrolFavorite", JSON.stringify(favorite));
+  localStorage.setItem("racecontrolFavorite", JSON.stringify(normalizeFavorite(favorite)));
 }
 
 function getPredictRaceOptions() {
@@ -2282,6 +2329,9 @@ function renderBootError(message) {
 
 function bootRaceControl() {
   try {
+    const repairedFavorite = getFavorite();
+    saveFavorite(repairedFavorite);
+
     updateSubtitle();
     fetchStandingsData().catch(() => {});
     fetchCalendarData().catch(() => {});
