@@ -139,7 +139,7 @@ button {
 
 .header {
   padding:
-    calc(env(safe-area-inset-top, 0px) + 16px)
+    calc(env(safe-area-inset-top, 0px) + 14px)
     16px
     8px;
 }
@@ -147,7 +147,7 @@ button {
 .header-shell {
   max-width: 860px;
   margin: 0 auto;
-  padding: 24px 28px 22px;
+  padding: 22px 24px 20px;
   border-radius: 34px;
   background: var(--header-grad);
   border: 1px solid var(--border);
@@ -176,7 +176,7 @@ button {
   font-weight: 780;
   letter-spacing: -0.05em;
   color: #f7fbff;
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
 }
 
@@ -192,14 +192,14 @@ button {
 .container {
   max-width: 860px;
   margin: 0 auto;
-  padding: 16px 16px 190px 16px;
+  padding: 14px 16px 150px 16px;
 }
 
 .card {
   position: relative;
   overflow: hidden;
-  margin-bottom: 18px;
-  padding: 26px;
+  margin-bottom: 16px;
+  padding: 22px;
   border-radius: var(--radius-xl);
   background: var(--card-grad);
   border: 1px solid var(--border);
@@ -225,7 +225,7 @@ button {
 
 .home-hero,
 .favorite-card {
-  padding: 28px;
+  padding: 24px 22px;
 }
 
 .card-title {
@@ -242,7 +242,7 @@ button {
 .card-sub {
   position: relative;
   z-index: 1;
-  margin: 0 0 18px;
+  margin: 0 0 16px;
   font-size: 1rem;
   line-height: 1.45;
   color: var(--text-3);
@@ -277,7 +277,7 @@ button {
 
 .mini-pill,
 .favorite-label {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   font-size: 0.74rem;
 }
 
@@ -317,8 +317,8 @@ button {
 
 .hero-avatar,
 .row-avatar {
-  width: 78px;
-  height: 78px;
+  width: 74px;
+  height: 74px;
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -433,8 +433,8 @@ button {
 
 .stat-tile,
 .meta-tile {
-  min-height: 142px;
-  padding: 20px 22px;
+  min-height: 132px;
+  padding: 18px 20px;
 }
 
 .stat-kicker,
@@ -490,7 +490,7 @@ button {
 .bar {
   position: relative;
   z-index: 1;
-  height: 22px;
+  height: 20px;
   border-radius: var(--radius-pill);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
@@ -642,7 +642,7 @@ button {
 .toggle-btn {
   position: relative;
   z-index: 1;
-  min-height: 52px;
+  min-height: 48px;
   border-radius: var(--radius-pill);
   border: 1px solid rgba(255, 255, 255, 0.10);
   background:
@@ -688,8 +688,8 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 46px;
-  padding: 0 18px;
+  min-height: 42px;
+  padding: 0 16px;
   border-radius: var(--radius-pill);
   border: 1px solid rgba(255, 255, 255, 0.10);
   background:
@@ -732,7 +732,7 @@ button {
 
 .select-input {
   width: 100%;
-  min-height: 56px;
+  min-height: 52px;
   padding: 0 18px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.10);
@@ -742,7 +742,7 @@ button {
   color: var(--text);
   outline: none;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .select-input option {
@@ -985,7 +985,7 @@ button {
 }
 
 .calendar-group-title {
-  margin: 20px 0 12px;
+  margin: 18px 0 10px;
   font-size: 0.82rem;
 }
 
@@ -1015,7 +1015,7 @@ button {
 .menu-link {
   display: block;
   width: 100%;
-  padding: 18px 0;
+  padding: 14px 0;
   font-size: 1.12rem;
   line-height: 1.3;
   font-weight: 700;
@@ -1072,15 +1072,15 @@ button {
   position: fixed;
   left: 16px;
   right: 16px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
   z-index: 70;
   max-width: 860px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-  padding: 12px;
-  border-radius: 32px;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 30px;
   background:
     linear-gradient(180deg, rgba(22, 28, 40, 0.78), rgba(13, 19, 29, 0.76)),
     rgba(8, 12, 18, 0.72);
@@ -1094,10 +1094,10 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 52px;
-  border-radius: 22px;
+  min-height: 46px;
+  border-radius: 20px;
   color: var(--text-3);
-  font-size: 1.02rem;
+  font-size: 0.98rem;
   font-weight: 680;
   letter-spacing: -0.02em;
 }
@@ -1148,7 +1148,7 @@ button {
 }
 
 .card-head {
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .history-list {
@@ -1212,29 +1212,28 @@ button {
 
 @media (max-width: 640px) {
   .header {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
   }
 
   .header-shell {
-    padding: 20px 20px 18px;
+    padding: 18px 18px 16px;
   }
 
   .container {
-    padding: 14px 14px 190px 14px;
+    padding: 12px 12px 144px 12px;
   }
 
   .card {
-    padding: 22px 18px;
+    padding: 20px 16px;
   }
 
   .home-hero,
   .favorite-card {
-    padding: 24px 18px;
+    padding: 20px 16px;
   }
 
   .grid-stats,
   .predict-grid,
-  .meta-grid,
   .skeleton-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -1244,7 +1243,6 @@ button {
   }
 
   .hero-main,
-  .favorite-main,
   .next-race-main,
   .card-head,
   .history-head,
@@ -1255,15 +1253,30 @@ button {
   }
 
   .hero-main,
-  .favorite-main,
   .next-race-main,
   .settings-line,
   .history-head {
     flex-direction: column;
   }
 
-  .hero-points,
+  .favorite-main {
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: nowrap;
+  }
+
+  .favorite-left {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
   .favorite-points {
+    margin-left: auto;
+    text-align: right;
+    width: auto;
+  }
+
+  .hero-points {
     width: 100%;
     text-align: left;
   }
@@ -1279,14 +1292,15 @@ button {
   }
 
   .nav {
-    gap: 6px;
-    padding: 10px;
-    border-radius: 28px;
+    gap: 4px;
+    padding: 7px;
+    border-radius: 26px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
   }
 
   .nav a {
-    min-height: 48px;
-    font-size: 0.95rem;
+    min-height: 44px;
+    font-size: 0.94rem;
   }
 
   .action-row,
@@ -1302,6 +1316,21 @@ button {
   .danger-btn,
   .toggle-btn {
     width: 100%;
+    min-height: 46px;
+  }
+
+  .select-input {
+    min-height: 50px;
+  }
+
+  .stat-tile,
+  .meta-tile {
+    min-height: 120px;
+    padding: 16px 18px;
+  }
+
+  .menu-link {
+    padding: 12px 0;
   }
 }
 
@@ -1321,33 +1350,37 @@ button {
 
   .hero-avatar,
   .row-avatar {
-    width: 60px;
-    height: 60px;
+    width: 58px;
+    height: 58px;
   }
 
   .hero-badge,
   .driver-number {
-    font-size: 2.6rem;
+    font-size: 2.4rem;
   }
 
   .hero-name,
   .favorite-name {
-    font-size: 1.7rem;
+    font-size: 1.6rem;
   }
 
   .hero-points-value,
   .favorite-points-value {
-    font-size: 2.8rem;
+    font-size: 2.6rem;
   }
 
   .stat-tile,
   .meta-tile {
-    min-height: 128px;
-    padding: 18px;
+    min-height: 114px;
+    padding: 16px;
   }
 
   .stat-value,
   .meta-value {
-    font-size: 2.2rem;
+    font-size: 2.05rem;
+  }
+
+  .nav a {
+    font-size: 0.9rem;
   }
 }
