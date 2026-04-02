@@ -1,4 +1,4 @@
-const CACHE_NAME = "racecontrol-v1";
+const CACHE_NAME = "racecontrol-v12";
 const APP_SHELL = [
   "/",
   "/index.html",
