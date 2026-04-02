@@ -10,6 +10,4 @@ self.addEventListener("activate", event => {
   );
 });
 
-self.addEventListener("fetch", () => {
-  // Service worker neutralizado a propósito
-});
+self.addEventListener("fetch", () => {});
