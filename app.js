@@ -1,3 +1,4 @@
+window.__racecontrolScriptLoaded = true;
 const state = {
   standingsCache: null,
   calendarCache: null,
