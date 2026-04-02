@@ -1,4 +1,4 @@
-self.addEventListener("install", event => {
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
@@ -8,4 +8,8 @@ self.addEventListener("activate", event => {
       .then(keys => Promise.all(keys.map(key => caches.delete(key))))
       .then(() => self.registration.unregister())
   );
+});
+
+self.addEventListener("fetch", () => {
+  // Service worker neutralizado a propósito
 });
