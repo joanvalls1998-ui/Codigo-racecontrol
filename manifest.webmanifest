@@ -1,7 +1,7 @@
 {
   "name": "RaceControl",
   "short_name": "RaceControl",
-  "start_url": "/",
+  "start_url": "/?source=pwa-v13",
   "display": "standalone",
   "background_color": "#07111a",
   "theme_color": "#07111a",
