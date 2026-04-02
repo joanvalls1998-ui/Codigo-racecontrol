@@ -1,9 +1,9 @@
-const CACHE_NAME = "racecontrol-v12";
+const CACHE_NAME = "racecontrol-v13";
 const APP_SHELL = [
   "/",
   "/index.html",
-  "/styles.css",
-  "/app.js",
+  "/styles.css?v=12",
+  "/app.js?v=12",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
@@ -26,8 +26,9 @@ self.addEventListener("activate", event => {
           .filter(key => key !== CACHE_NAME)
           .map(key => caches.delete(key))
       )
-    ).then(() => self.clients.claim())
+    )
   );
+  self.clients.claim();
 });
 
 self.addEventListener("fetch", event => {
@@ -36,46 +37,18 @@ self.addEventListener("fetch", event => {
 
   if (request.method !== "GET") return;
 
-  if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(request).catch(() => {
-        return new Response(
-          JSON.stringify({
-            ok: false,
-            offline: true,
-            message: "Sin conexión"
-          }),
-          {
-            headers: { "Content-Type": "application/json" }
-          }
-        );
-      })
-    );
-    return;
-  }
-
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put("/index.html", copy));
-          return response;
-        })
-        .catch(() => caches.match("/index.html"))
+      fetch(request).catch(() => caches.match("/index.html"))
     );
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached;
-
-      return fetch(request).then(response => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-        return response;
-      });
-    })
-  );
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      caches.match(request).then(cached => {
+        return cached || fetch(request);
+      })
+    );
+  }
 });
