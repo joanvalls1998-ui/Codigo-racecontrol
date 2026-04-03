@@ -2610,6 +2610,7 @@ function showMore() {
       <a href="#" class="menu-link" onclick="showStandings(); return false;">Clasificación</a>
       <a href="#" class="menu-link" onclick="showCalendar(); return false;">Calendario</a>
       <a href="#" class="menu-link" onclick="showRaceMode(); return false;">Modo carrera</a>
+      <a href="#" class="menu-link" onclick="showGlossary(); return false;">Glosario F1</a>
       <a href="#" class="menu-link" onclick="showSettingsPanel(); return false;">Ajustes</a>
     </div>
   `;
