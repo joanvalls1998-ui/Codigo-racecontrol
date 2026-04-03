@@ -2616,6 +2616,280 @@ function showMore() {
   `;
 }
 
+function getGlossarySections() {
+  return [
+    {
+      id: "strategy",
+      title: "Estrategia",
+      subtitle: "Términos que salen mucho cuando se habla de paradas, ritmo y gestión de carrera.",
+      items: [
+        {
+          term: "Undercut",
+          level: "muy usado",
+          short: "Parar antes que el rival para intentar adelantarle con neumáticos más frescos.",
+          easy: "En fácil: entras antes al pit, ruedas más rápido y buscas salir por delante cuando el otro pare."
+        },
+        {
+          term: "Overcut",
+          level: "muy usado",
+          short: "Parar más tarde que el rival para ganar tiempo mientras él ya está en boxes o calentando neumáticos.",
+          easy: "En fácil: te quedas fuera más tiempo e intentas que ese aire limpio te dé la posición."
+        },
+        {
+          term: "Stint",
+          level: "básico",
+          short: "Tramo de carrera entre una parada y la siguiente, o entre la salida y la primera parada.",
+          easy: "Cada vez que un piloto rueda con el mismo juego de neumáticos, está haciendo un stint."
+        },
+        {
+          term: "Delta",
+          level: "muy usado",
+          short: "Diferencia de tiempo respecto a otra referencia.",
+          easy: "Puede ser la diferencia con otro piloto, con tu vuelta anterior o con el tiempo objetivo."
+        },
+        {
+          term: "Ventana de parada",
+          level: "básico",
+          short: "Rango de vueltas en el que una parada tiene más sentido estratégico.",
+          easy: "Es el momento en el que parar suele salir mejor que parar mucho antes o mucho después."
+        },
+        {
+          term: "Track position",
+          level: "muy usado",
+          short: "La importancia de la posición en pista respecto al ritmo puro.",
+          easy: "A veces no gana el más rápido, sino el que va delante y no se queda atrapado."
+        }
+      ]
+    },
+    {
+      id: "race",
+      title: "Carrera",
+      subtitle: "Conceptos que ayudan a entender lo que pasa en pista y por qué cambia una carrera.",
+      items: [
+        {
+          term: "Safety Car",
+          level: "básico",
+          short: "Coche de seguridad que neutraliza la carrera cuando hay un incidente importante.",
+          easy: "Agrupa la parrilla, baja el ritmo y puede cambiar la estrategia de todos."
+        },
+        {
+          term: "VSC",
+          level: "muy usado",
+          short: "Virtual Safety Car: obliga a los pilotos a respetar un ritmo mínimo sin sacar el Safety Car físico.",
+          easy: "Se va más lento, no se puede adelantar y las diferencias suelen mantenerse más que con un Safety Car normal."
+        },
+        {
+          term: "Dirty air",
+          level: "muy usado",
+          short: "Aire turbulento que recibe el coche de detrás al seguir de cerca a otro.",
+          easy: "Cuando vas pegado a otro coche, pierdes carga y te cuesta más girar y cuidar neumáticos."
+        },
+        {
+          term: "Tráfico",
+          level: "básico",
+          short: "Rodar detrás de coches más lentos o en medio de un grupo que te hace perder tiempo.",
+          easy: "Aunque tengas ritmo, si sales detrás de varios coches te quedas atrapado."
+        },
+        {
+          term: "Lift and coast",
+          level: "muy usado",
+          short: "Levantar el pie antes de la frenada y dejar correr el coche para ahorrar combustible o gestionar energía.",
+          easy: "El piloto deja de acelerar un poco antes para gastar menos y castigar menos el coche."
+        }
+      ]
+    },
+    {
+      id: "performance",
+      title: "Rendimiento",
+      subtitle: "Palabras típicas cuando se analiza si un coche va mejor el sábado o el domingo.",
+      items: [
+        {
+          term: "Ritmo de carrera",
+          level: "básico",
+          short: "Velocidad media que un coche puede sostener durante tandas largas.",
+          easy: "No es una vuelta brillante; es lo rápido que eres de verdad cuando la carrera se alarga."
+        },
+        {
+          term: "Ritmo a una vuelta",
+          level: "básico",
+          short: "Potencial del coche para hacer una vuelta rápida, especialmente en clasificación.",
+          easy: "Es el ritmo del sábado: sacar todo durante una sola vuelta."
+        },
+        {
+          term: "Degradación",
+          level: "muy usado",
+          short: "Pérdida de rendimiento del neumático con el uso.",
+          easy: "Cuanto más se degrada una goma, más cae el ritmo del piloto."
+        },
+        {
+          term: "Graining",
+          level: "avanzado",
+          short: "Fenómeno en el que se forman pequeñas bolitas de goma sobre la superficie del neumático.",
+          easy: "La rueda deja de agarrar bien durante unas vueltas porque su superficie se ensucia y se rompe."
+        },
+        {
+          term: "Overheating",
+          level: "muy usado",
+          short: "Exceso de temperatura en neumáticos, frenos, motor o batería.",
+          easy: "Cuando todo se calienta demasiado, el coche pierde rendimiento y a veces también fiabilidad."
+        },
+        {
+          term: "Package / paquete de mejoras",
+          level: "muy usado",
+          short: "Conjunto de piezas nuevas o cambios que un equipo trae a un Gran Premio.",
+          easy: "No es una pieza suelta: es un bloque de mejoras para intentar dar un salto."
+        }
+      ]
+    },
+    {
+      id: "ers",
+      title: "ERS / motor / energía",
+      subtitle: "Términos modernos de F1 que cada vez salen más en análisis técnicos y retransmisiones.",
+      items: [
+        {
+          term: "Overtake mode",
+          level: "actual 2026",
+          short: "Modo de adelantamiento de 2026 que sustituye al DRS y solo puede activarse si vas a menos de un segundo del coche de delante en el punto de detección.",
+          easy: "Te da un empujón extra para atacar, pero no está siempre disponible y hay que usarlo con cabeza."
+        },
+        {
+          term: "Harvesting",
+          level: "muy usado",
+          short: "Recuperación de energía para recargar la batería del coche.",
+          easy: "El coche guarda energía mientras frena o en otras fases para usarla más tarde."
+        },
+        {
+          term: "Deployment",
+          level: "muy usado",
+          short: "Momento en que el coche gasta o libera la energía eléctrica acumulada.",
+          easy: "Es cuando usa esa batería para empujar más y ganar velocidad."
+        },
+        {
+          term: "Clipping",
+          level: "avanzado",
+          short: "Momento en el que el coche deja de empujar con toda la energía eléctrica disponible al final de una recta.",
+          easy: "Lo notas cuando parece que el coche ya no sigue acelerando igual porque se le acaba ese extra eléctrico."
+        },
+        {
+          term: "Super clipping",
+          level: "actual 2026",
+          short: "En 2026, parte de la recarga puede producirse incluso al final de recta y a fondo, según el mapa motor y el circuito.",
+          easy: "Es una forma más avanzada de gestionar energía: el coche empieza a recuperar antes de lo que parecería normal."
+        }
+      ]
+    },
+    {
+      id: "weekend",
+      title: "Fin de semana F1",
+      subtitle: "Conceptos que ayudan a leer mejor libres, quali y carrera.",
+      items: [
+        {
+          term: "Parc fermé",
+          level: "muy usado",
+          short: "Periodo regulado en el que el equipo ya no puede cambiar libremente la configuración del coche.",
+          easy: "Cuando entra en parc fermé, el coche queda casi congelado para que no lo transformen entre quali y carrera."
+        },
+        {
+          term: "Quali sim",
+          level: "básico",
+          short: "Simulación de clasificación: tanda corta buscando mostrar el potencial a una vuelta.",
+          easy: "Es el típico intento de libres que parece una vuelta de quali."
+        },
+        {
+          term: "Race sim",
+          level: "básico",
+          short: "Simulación de carrera: tanda larga para medir ritmo, degradación y consistencia.",
+          easy: "Sirve para ver quién aguanta mejor muchas vueltas seguidas."
+        },
+        {
+          term: "Setup",
+          level: "muy usado",
+          short: "Configuración del coche: alerones, alturas, suspensión, frenos, diferencial y más.",
+          easy: "Es cómo ajustan el coche para ese circuito y para ese piloto."
+        },
+        {
+          term: "Out-lap",
+          level: "básico",
+          short: "Vuelta de salida de boxes antes de empezar a empujar de verdad.",
+          easy: "Se usa para calentar neumáticos, frenos y preparar la vuelta rápida."
+        },
+        {
+          term: "In-lap",
+          level: "básico",
+          short: "Vuelta en la que el piloto vuelve a boxes.",
+          easy: "Puede ser para parar en carrera o para terminar una tanda en libres o quali."
+        }
+      ]
+    }
+  ];
+}
+
+function getGlossaryLevelTagClass(level) {
+  if (level === "básico") return "general";
+  if (level === "muy usado") return "market";
+  if (level === "actual 2026") return "statement";
+  return "technical";
+}
+
+function renderGlossarySection(section) {
+  return `
+    <div class="card">
+      <div class="card-title">${escapeHtml(section.title)}</div>
+      <div class="card-sub">${escapeHtml(section.subtitle)}</div>
+
+      <div class="insight-list" style="margin-top:12px;">
+        ${section.items.map(item => `
+          <div class="insight-item">
+            <div class="news-meta-row" style="margin-bottom:8px;">
+              <span class="tag ${getGlossaryLevelTagClass(item.level)}">${escapeHtml(item.level)}</span>
+            </div>
+            <strong>${escapeHtml(item.term)}</strong><br>
+            <span style="color: rgba(255,255,255,0.92);">${escapeHtml(item.short)}</span><br>
+            <span style="color: rgba(255,255,255,0.62);">${escapeHtml(item.easy)}</span>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function showGlossary() {
+  setActiveNav("nav-more");
+  updateSubtitle();
+
+  const sections = getGlossarySections();
+
+  contentEl().innerHTML = `
+    <div class="card highlight-card">
+      <div class="mini-pill">CASUAL FRIENDLY</div>
+      <div class="card-title">Glosario F1</div>
+      <div class="card-sub">
+        Términos actuales de Fórmula 1 explicados en corto y en fácil, para que la app se entienda mejor aunque no sigas todo el año.
+      </div>
+
+      <div class="meta-grid" style="margin-top:14px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Básico</div>
+          <div class="meta-value" style="font-size:18px;">Esencial</div>
+          <div class="meta-caption">Para entender retransmisiones y titulares</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Muy usado</div>
+          <div class="meta-value" style="font-size:18px;">Habitual</div>
+          <div class="meta-caption">Sale mucho en análisis y radios</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Actual 2026</div>
+          <div class="meta-value" style="font-size:18px;">Nuevo</div>
+          <div class="meta-caption">Términos del reglamento moderno</div>
+        </div>
+      </div>
+    </div>
+
+    ${sections.map(renderGlossarySection).join("")}
+  `;
+}
+
 function getDriverContextBadges(name, pos, team) {
   const favorite = getFavorite();
   const badges = [];
