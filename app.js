@@ -2005,7 +2005,7 @@ function getRaceWeekendStage(event) {
     key: "sunday",
     label: "Domingo",
     description: "Domingo de carrera: salida, estrategia y neutralizaciones pueden decidir por completo el resultado."
-  };
+    };
 }
 
 function getRaceModeQuickRead(favorite, raceName, predictData, stage) {
@@ -2672,17 +2672,212 @@ async function showHome() {
   }
 }
 
+/* ===== FASE 4 v1.2 · PREDICCIÓN ADAPTATIVA ===== */
+
+function getPredictContextForRace(raceName) {
+  const context = getHomeWeekendContext();
+  if (!context) {
+    return { context: null, phase: "pre_weekend", sameRace: false };
+  }
+
+  const sameRace = context.raceName === raceName;
+  return {
+    context: sameRace ? context : null,
+    phase: sameRace ? context.phase : "pre_weekend",
+    sameRace
+  };
+}
+
+function getPredictPhaseCopy(phase, context, favorite, raceName) {
+  const favoriteName = favorite?.name || "tu favorito";
+  const nextSessionLabel = context?.nextSession?.label || "la siguiente sesión";
+  const currentSessionLabel = context?.currentSession?.label || "la sesión actual";
+
+  const base = {
+    phaseLabel: "Previa",
+    phaseTagClass: "technical",
+    heroSub: `Predicción centrada en ${favoriteName} para ${raceName}.`,
+    heroFocus: "Lectura previa del GP",
+    heroFocusText: "Antes de que hablen las sesiones, lo más útil es entender el guion general del fin de semana.",
+    guidanceTitle: "Qué mirar en esta fase",
+    guidanceSub: "La pantalla cambia según el momento del fin de semana para que la lectura sea más útil.",
+    summaryTitle: "Resumen instantáneo",
+    summarySub: "Lo importante arriba, para saber en segundos dónde está el favorito.",
+    scenariosTitle: "Escenarios",
+    scenariosSub: "Una lectura más realista del fin de semana: mejor caso, base y escenario complicado.",
+    factorsTitle: "Claves del fin de semana",
+    factorsSub: "Dónde puede aparecer el rendimiento y qué puede torcer el guion.",
+    qualyTitle: "Qualy vs carrera",
+    qualySub: "Cómo debería comportarse el coche a una vuelta y en stint largo.",
+    strategyTitle: "Estrategia esperada",
+    strategySub: "Plan base, ventana de parada y principal factor que puede alterar la carrera.",
+    gridTitle: "Lectura de parrilla",
+    gridSub: "Quién llega como referencia y cómo debería repartirse la parrilla.",
+    textTitle: "Texto completo",
+    textSub: "Resumen extendido del escenario actual."
+  };
+
+  if (phase === "friday") {
+    return {
+      ...base,
+      phaseLabel: "Viernes",
+      phaseTagClass: "general",
+      heroSub: `${favoriteName} entra en fase de referencias. El foco pasa a ritmo largo, consistencia y lectura real del coche.`,
+      heroFocus: "Viernes de referencias",
+      heroFocusText: context?.currentSession
+        ? `${currentSessionLabel} está en marcha. Hoy importa más separar ruido de tabla y ritmo real.`
+        : `La siguiente referencia útil será ${nextSessionLabel}. FP2 o la sesión larga del día suele pesar más que un tiempo aislado.`,
+      guidanceTitle: "Qué mirar hoy",
+      guidanceSub: "Viernes sirve para entender si el coche tiene base real o solo una buena vuelta suelta.",
+      summaryTitle: "Lectura rápida del viernes",
+      summarySub: "Predicción base con foco extra en referencias de tanda larga y consistencia.",
+      scenariosSub: "Los escenarios importan más por base de ritmo que por posición final cerrada.",
+      factorsSub: "Qué señales del viernes deberían hacerte confiar más o menos en la predicción.",
+      qualySub: "Todavía es pronto para dar por cerrada la qualy; hoy manda más el comportamiento del coche.",
+      strategySub: "La estrategia sigue siendo preliminar: el viernes ayuda a detectar degradación y margen real."
+    };
+  }
+
+  if (phase === "saturday") {
+    return {
+      ...base,
+      phaseLabel: "Sábado",
+      phaseTagClass: "market",
+      heroSub: `${favoriteName} entra en el día que más puede cambiar su techo real. La qualy y la posición en pista mandan mucho más.`,
+      heroFocus: "Sábado decisivo",
+      heroFocusText: context?.currentSession
+        ? `${currentSessionLabel} está en marcha. Hoy la ejecución a una vuelta puede cambiar por completo el domingo.`
+        : `La siguiente sesión clave es ${nextSessionLabel}. El sábado suele decidir más de lo que parece.`,
+      guidanceTitle: "Qué mirar hoy",
+      guidanceSub: "Sábado significa tráfico, vuelta final, orden de salida y margen real para el domingo.",
+      summaryTitle: "Resumen clave del sábado",
+      summarySub: "Predicción con foco principal en qualy, salida y ventana real de carrera.",
+      scenariosSub: "Hoy el mejor y peor caso dependen mucho más de la posición en pista.",
+      factorsSub: "Qué puede hacer despegar o hundir el fin de semana del favorito durante el sábado.",
+      qualySub: "Ahora esta comparación pesa más: una buena o mala qualy cambia por completo el GP.",
+      strategySub: "La estrategia ya importa, pero la casilla de salida puede condicionarla casi toda."
+    };
+  }
+
+  if (phase === "sunday") {
+    return {
+      ...base,
+      phaseLabel: "Domingo",
+      phaseTagClass: "statement",
+      heroSub: `${favoriteName} entra en fase de carrera. Ahora manda la ejecución: salida, estrategia, tráfico y neutralizaciones.`,
+      heroFocus: "Domingo de carrera",
+      heroFocusText: context?.currentSession
+        ? `${currentSessionLabel} está en curso. La predicción se interpreta sobre todo en clave de estrategia y ejecución.`
+        : `La siguiente referencia será ${nextSessionLabel}. A estas alturas, la salida y la primera ventana de parada pesan muchísimo.`,
+      guidanceTitle: "Qué mirar hoy",
+      guidanceSub: "Domingo es menos teoría y más ejecución: aire limpio, stint inicial y reacción a Safety Car.",
+      summaryTitle: "Resumen de carrera",
+      summarySub: "Predicción con foco máximo en estrategia, tráfico y conversión real del resultado.",
+      scenariosSub: "El mejor y peor caso del domingo suelen decidirse por salida, tráfico y neutralizaciones.",
+      factorsSub: "Qué elementos pueden romper el guion incluso si la base del coche parecía clara.",
+      qualySub: "La qualy sigue pesando, pero ahora importa sobre todo cómo se transforma en carrera.",
+      strategySub: "Esta es la parte más importante del día: plan base, ventanas y factores que rompen el guion."
+    };
+  }
+
+  if (phase === "post_race") {
+    return {
+      ...base,
+      phaseLabel: "Post GP",
+      phaseTagClass: "technical",
+      heroSub: `${favoriteName} ya deja esta predicción como lectura de contexto. Sirve para comparar lo esperado con lo que debía venir.`,
+      heroFocus: "Transición al siguiente GP",
+      heroFocusText: "La carrera ya ha pasado. Esta pantalla queda como referencia del guion previo antes del próximo evento.",
+      guidanceTitle: "Cómo usar esta pantalla ahora",
+      guidanceSub: "Después del GP, esta predicción sirve más como contexto que como lectura operativa del momento.",
+      summaryTitle: "Lectura guardada del GP",
+      summarySub: "Usa esta predicción como referencia de cómo llegaba el fin de semana.",
+      scenariosSub: "Los escenarios ahora se leen como marco previo, no como pronóstico activo.",
+      factorsSub: "Qué variables explicaban el guion esperado antes de la carrera.",
+      qualySub: "Esta comparación ya sirve más para contextualizar que para decidir el próximo paso.",
+      strategySub: "La estrategia queda como marco teórico del GP ya disputado."
+    };
+  }
+
+  return base;
+}
+
+function getPredictGuidanceItems(predict) {
+  const contextItems = predict?.context?.whatToWatch;
+  if (Array.isArray(contextItems) && contextItems.length) {
+    return contextItems;
+  }
+
+  const favoriteName = predict?.favorite?.name || "tu favorito";
+
+  if (predict?.phase === "friday") {
+    return [
+      "Fíjate más en tanda larga y consistencia que en una vuelta aislada.",
+      `Compara a ${favoriteName} con su compañero para medir la referencia real interna.`,
+      "No cierres demasiado la predicción de carrera todavía: el viernes sirve sobre todo para filtrar ruido."
+    ];
+  }
+
+  if (predict?.phase === "saturday") {
+    return [
+      "La qualy pesa muchísimo: tráfico, ejecución y última vuelta cambian por completo el GP.",
+      "Una posición de salida mala puede recortar mucho el techo real del domingo.",
+      "Hoy importa mucho más posición en pista que narrativa previa."
+    ];
+  }
+
+  if (predict?.phase === "sunday") {
+    return [
+      "Mira salida, primer stint y ventana de parada.",
+      "Un Safety Car puede romper por completo el escenario base.",
+      `Aunque ${favoriteName} tenga ritmo, el tráfico puede cambiar la lectura real de carrera.`
+    ];
+  }
+
+  if (predict?.phase === "post_race") {
+    return [
+      "Usa esta pantalla como referencia de contexto, no como pronóstico activo.",
+      "Compara el guion esperado con lo que realmente ocurrió.",
+      "Te servirá para ajustar mejor la lectura del siguiente GP."
+    ];
+  }
+
+  return [
+    "Antes de que hablen las sesiones, manda más el potencial global que un detalle suelto.",
+    "La jerarquía de equipos, fiabilidad y tipo de circuito siguen siendo la base.",
+    `La primera sesión útil te dirá si ${favoriteName} confirma o no esta lectura previa.`
+  ];
+}
+
+function renderPredictPhaseGuideCard(predict) {
+  const items = getPredictGuidanceItems(predict);
+
+  return `
+    <div class="insight-list">
+      ${items.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
+    </div>
+  `;
+}
+
 function renderPredictContent() {
   const favorite = getFavorite();
   const raceName = getSelectedRace();
+  const predictContext = getPredictContextForRace(raceName);
+  const copy = getPredictPhaseCopy(predictContext.phase, predictContext.context, favorite, raceName);
 
   return {
     title: `PREDICCIÓN · ${favorite.name.toUpperCase()}`,
-    sub: `Predicción centrada en ${favorite.name} para ${raceName}.`,
+    sub: copy.heroSub,
     accent: favorite.colorClass,
-    raceName
+    raceName,
+    phase: predictContext.phase,
+    context: predictContext.context,
+    copy,
+    favorite
   };
 }
+
+/* ===== FIN FASE 4 ===== */
 
 function renderPredictLoadingState() {
   return `
@@ -3029,7 +3224,17 @@ function showPredict() {
       <div class="card-title" style="color: var(--${predict.accent});">${escapeHtml(predict.title)}</div>
       <div class="card-sub">${escapeHtml(predict.sub)}</div>
 
-      <div class="card-sub" style="margin-bottom:6px;">Circuito</div>
+      <div class="news-meta-row" style="margin-top:10px;">
+        <span class="tag ${predict.copy.phaseTagClass}">${escapeHtml(predict.copy.phaseLabel)}</span>
+        ${predict.context ? `<span class="tag ${predict.context.isSprint ? "statement" : "general"}">${predict.context.isSprint ? "Sprint weekend" : "Formato normal"}</span>` : ""}
+      </div>
+
+      <div class="info-line" style="margin-top:12px;">
+        <strong>${escapeHtml(predict.copy.heroFocus)}</strong><br>
+        ${escapeHtml(predict.copy.heroFocusText)}
+      </div>
+
+      <div class="card-sub" style="margin-top:14px; margin-bottom:6px;">Circuito</div>
       <select id="predictRace" class="select-input" onchange="saveSelectedRace(this.value)">
         ${getPredictRaceOptions().map(race => `
           <option value="${race}" ${race === selectedRace ? "selected" : ""}>${race}</option>
@@ -3043,8 +3248,14 @@ function showPredict() {
     </div>
 
     <div class="card">
-      <div class="card-title">Resumen instantáneo</div>
-      <div class="card-sub">Lo importante arriba, para saber en segundos dónde está el favorito.</div>
+      <div class="card-title">${escapeHtml(predict.copy.guidanceTitle)}</div>
+      <div class="card-sub">${escapeHtml(predict.copy.guidanceSub)}</div>
+      ${renderPredictPhaseGuideCard(predict)}
+    </div>
+
+    <div class="card">
+      <div class="card-title">${escapeHtml(predict.copy.summaryTitle)}</div>
+      <div class="card-sub">${escapeHtml(predict.copy.summarySub)}</div>
       <div id="predictSummaryCards">
         ${activePredictData
           ? renderPredictSummaryCards(activePredictData)
@@ -3053,47 +3264,48 @@ function showPredict() {
     </div>
 
     <div class="card">
-      <div class="card-title">Escenarios</div>
-      <div class="card-sub">Una lectura más realista del fin de semana: mejor caso, base y escenario complicado.</div>
+      <div class="card-title">${escapeHtml(predict.copy.scenariosTitle)}</div>
+      <div class="card-sub">${escapeHtml(predict.copy.scenariosSub)}</div>
       <div id="predictScenarioCards">
         ${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">Claves del fin de semana</div>
-      <div class="card-sub">Dónde puede aparecer el rendimiento y qué puede torcer el guion.</div>
+      <div class="card-title">${escapeHtml(predict.copy.factorsTitle)}</div>
+      <div class="card-sub">${escapeHtml(predict.copy.factorsSub)}</div>
       <div id="predictKeyFactors">
         ${renderPredictKeyFactors(favorite, selectedRace, activePredictData)}
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">Qualy vs carrera</div>
-      <div class="card-sub">Cómo debería comportarse el coche a una vuelta y en stint largo.</div>
+      <div class="card-title">${escapeHtml(predict.copy.qualyTitle)}</div>
+      <div class="card-sub">${escapeHtml(predict.copy.qualySub)}</div>
       <div id="predictQualyRace">
         ${renderPredictQualyRaceCard(favorite, selectedRace, activePredictData)}
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">Estrategia esperada</div>
-      <div class="card-sub">Plan base, ventana de parada y principal factor que puede alterar la carrera.</div>
+      <div class="card-title">${escapeHtml(predict.copy.strategyTitle)}</div>
+      <div class="card-sub">${escapeHtml(predict.copy.strategySub)}</div>
       <div id="predictStrategyDetail">
         ${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">Lectura de parrilla</div>
-      <div class="card-sub">Quién llega como referencia y cómo debería repartirse la parrilla.</div>
+      <div class="card-title">${escapeHtml(predict.copy.gridTitle)}</div>
+      <div class="card-sub">${escapeHtml(predict.copy.gridSub)}</div>
       <div id="predictGridRead">
         ${renderPredictGridRead(favorite, selectedRace, activePredictData)}
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">Texto completo</div>
+      <div class="card-title">${escapeHtml(predict.copy.textTitle)}</div>
+      <div class="card-sub">${escapeHtml(predict.copy.textSub)}</div>
       <pre id="predictOutput" class="ai-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción avanzada..."}</pre>
     </div>
 
