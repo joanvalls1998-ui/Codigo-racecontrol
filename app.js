@@ -106,6 +106,10 @@ function escapeHtml(str) {
     .replaceAll("'", "&#039;");
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 function getSettings() {
   const saved = safeJsonParse(localStorage.getItem("racecontrolSettings"), null);
   return saved ? { ...getDefaultSettings(), ...saved } : getDefaultSettings();
@@ -706,6 +710,266 @@ Estrategia más probable: ${summary.strategy?.label || "Sin datos"}
 Número de paradas: ${summary.strategy?.stops ?? "Sin datos"}`;
 }
 
+function getPredictLocalEstimate(favorite, raceName) {
+  const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
+  const teamData = getTeamData(teamName);
+  const heuristics = getRaceHeuristics(raceName);
+  const metrics = getFavoriteMetrics(favorite);
+
+  const qualyRange =
+    teamData.qualyPace >= 88 ? "P2-P5" :
+    teamData.qualyPace >= 82 ? "P4-P7" :
+    teamData.qualyPace >= 75 ? "P6-P10" :
+    teamData.qualyPace >= 68 ? "P9-P13" :
+    "P12-P16";
+
+  const raceRange = metrics.expectedWindow || "P10-P14";
+
+  return {
+    teamName,
+    teamData,
+    heuristics,
+    metrics,
+    qualyRange,
+    raceRange,
+    pointsProbability: metrics.pointsProbability,
+    dnfRisk: metrics.dnfRisk
+  };
+}
+
+function shiftPositionLabel(label, delta) {
+  if (!label || label === "Sin datos") return label;
+
+  const exactMatch = /^P(\d+)$/.exec(label);
+  if (exactMatch) {
+    const pos = clamp(parseInt(exactMatch[1], 10) + delta, 1, 20);
+    return `P${pos}`;
+  }
+
+  const rangeMatch = /^P(\d+)-P(\d+)$/.exec(label);
+  if (rangeMatch) {
+    const start = clamp(parseInt(rangeMatch[1], 10) + delta, 1, 20);
+    const end = clamp(parseInt(rangeMatch[2], 10) + delta, 1, 20);
+    return `P${Math.min(start, end)}-P${Math.max(start, end)}`;
+  }
+
+  return label;
+}
+
+function getPredictScenarios(favorite, raceName, data = null) {
+  const local = getPredictLocalEstimate(favorite, raceName);
+  const favoritePrediction = data ? formatFavoritePredictionText(data?.favoritePrediction) : null;
+  const baseRace = favoritePrediction?.race && favoritePrediction.race !== "Sin datos" ? favoritePrediction.race : local.raceRange;
+  const baseQualy = favoritePrediction?.qualy && favoritePrediction.qualy !== "Sin datos" ? favoritePrediction.qualy : local.qualyRange;
+  const favorableRace = shiftPositionLabel(baseRace, -2);
+  const difficultRace = shiftPositionLabel(baseRace, 2);
+  const safetyCarText = local.heuristics.safetyCar >= 45 ? "y aparece una neutralización útil" : "y ejecuta bien la estrategia";
+  const reliabilityRisk = local.teamData.reliability < 65 ? "o aparece la fiabilidad" : "o pierde posición en tráfico";
+  const pointsText = favoritePrediction?.points && favoritePrediction.points !== "Sin datos"
+    ? favoritePrediction.points
+    : `${local.pointsProbability}%`;
+
+  if (favorite.type === "driver") {
+    return [
+      {
+        kicker: "Escenario favorable",
+        value: favorableRace,
+        text: `${favorite.name} puede moverse hacia ${favorableRace} si sale cerca de ${baseQualy} ${safetyCarText}.`
+      },
+      {
+        kicker: "Escenario base",
+        value: baseRace,
+        text: `La lectura más estable ahora mismo sitúa a ${favorite.name} alrededor de ${baseRace}, con ${pointsText} de opciones de puntos.`
+      },
+      {
+        kicker: "Escenario difícil",
+        value: difficultRace,
+        text: `Si cae en tráfico ${reliabilityRisk}, el domingo puede irse hacia ${difficultRace}.`
+      }
+    ];
+  }
+
+  return [
+    {
+      kicker: "Escenario favorable",
+      value: favorableRace,
+      text: `${favorite.name} puede cerrar un GP fuerte y meter sus coches delante si el sábado acompaña.`
+    },
+    {
+      kicker: "Escenario base",
+      value: baseRace,
+      text: `Lo más razonable es esperar una ventana alrededor de ${baseRace}, con presencia en zona media-alta.`
+    },
+    {
+      kicker: "Escenario difícil",
+      value: difficultRace,
+      text: `Si el ritmo no aparece desde el viernes o la estrategia se complica, el equipo puede caer hacia ${difficultRace}.`
+    }
+  ];
+}
+
+function getPredictKeyFactors(favorite, raceName, data = null) {
+  const local = getPredictLocalEstimate(favorite, raceName);
+  const heuristics = local.heuristics;
+  const teamData = local.teamData;
+  const points = [];
+
+  if (teamData.racePace > teamData.qualyPace + 3) {
+    points.push({
+      title: "Ritmo largo",
+      text: "El coche debería defenderse mejor en tandas largas que en pura vuelta de clasificación."
+    });
+  } else if (teamData.qualyPace > teamData.racePace + 3) {
+    points.push({
+      title: "Sábado clave",
+      text: "La posición de salida pesa mucho porque el rendimiento parece más fuerte a una vuelta."
+    });
+  } else {
+    points.push({
+      title: "Equilibrio general",
+      text: "No hay una diferencia enorme entre sábado y domingo; la ejecución manda."
+    });
+  }
+
+  if (teamData.reliability < 65) {
+    points.push({
+      title: "Fiabilidad",
+      text: "El principal riesgo sigue siendo completar un fin de semana limpio sin sobresaltos."
+    });
+  } else {
+    points.push({
+      title: "Consistencia",
+      text: "La base del coche permite pensar en un fin de semana ordenado si no cae en tráfico."
+    });
+  }
+
+  if (heuristics.safetyCar >= 45) {
+    points.push({
+      title: "Neutralizaciones",
+      text: "La probabilidad alta de Safety Car puede abrir una ventana estratégica importante."
+    });
+  } else if (heuristics.rain >= 28) {
+    points.push({
+      title: "Meteorología",
+      text: "La lluvia o la pista cambiante pueden mezclar más la carrera de lo normal."
+    });
+  } else if (heuristics.tag === "urbano") {
+    points.push({
+      title: "Posición en pista",
+      text: "En este trazado importa mucho clasificar bien y evitar quedar atrapado detrás."
+    });
+  } else {
+    points.push({
+      title: "Ritmo puro",
+      text: "Sin demasiados factores externos, la carrera debería decidirse sobre todo por ritmo real."
+    });
+  }
+
+  if (data?.summary?.predictedWinner) {
+    points.push({
+      title: "Referencia del GP",
+      text: `${data.summary.predictedWinner} parte como referencia global del fin de semana.`
+    });
+  }
+
+  return points.slice(0, 3);
+}
+
+function getQualyRaceBalance(favorite, raceName, data = null) {
+  const local = getPredictLocalEstimate(favorite, raceName);
+  const favoritePrediction = data ? formatFavoritePredictionText(data?.favoritePrediction) : null;
+  const qualy = favoritePrediction?.qualy && favoritePrediction.qualy !== "Sin datos" ? favoritePrediction.qualy : local.qualyRange;
+  const race = favoritePrediction?.race && favoritePrediction.race !== "Sin datos" ? favoritePrediction.race : local.raceRange;
+
+  let label = "Equilibrado";
+  let description = "No hay una diferencia muy marcada entre sábado y domingo; lo decisivo será ejecutar bien todo el fin de semana.";
+
+  if (local.teamData.racePace > local.teamData.qualyPace + 3) {
+    label = "Mejor en carrera";
+    description = "El coche debería tener mejor lectura de stint largo que de una vuelta pura. El domingo puede ofrecer más que el sábado.";
+  } else if (local.teamData.qualyPace > local.teamData.racePace + 3) {
+    label = "Mejor a una vuelta";
+    description = "El potencial en clasificación parece algo más fuerte que el ritmo largo. Convertir bien la salida será clave.";
+  }
+
+  return { label, description, qualy, race };
+}
+
+function getStrategyWindow(raceName, stops) {
+  const heuristics = getRaceHeuristics(raceName);
+  const tag = heuristics.tag;
+
+  if (stops >= 2) {
+    if (tag === "urbano") return "V10-16 y V28-36";
+    if (tag === "semiurbano") return "V12-18 y V30-38";
+    return "V14-20 y V32-40";
+  }
+
+  if (tag === "urbano") return "V18-28";
+  if (tag === "semiurbano") return "V16-24";
+  if (tag === "altitud") return "V17-25";
+  return "V18-26";
+}
+
+function getStrategyNarrative(favorite, raceName, data = null) {
+  const local = getPredictLocalEstimate(favorite, raceName);
+  const summaryStrategy = data?.summary?.strategy || null;
+  const heuristics = local.heuristics;
+  const stops = Number.isFinite(summaryStrategy?.stops) ? summaryStrategy.stops : (heuristics.safetyCar >= 45 ? 2 : 1);
+  const label = summaryStrategy?.label || (stops >= 2 ? "Estrategia flexible a dos paradas" : "Una parada como base");
+  const window = getStrategyWindow(raceName, stops);
+
+  let factor = "Track position";
+  let note = "La lectura base es de carrera relativamente ordenada, donde el ritmo puro tendrá bastante peso.";
+
+  if (heuristics.safetyCar >= 45) {
+    factor = "Safety Car";
+    note = "La estrategia puede romperse con una neutralización. Conviene mantener margen para reaccionar rápido.";
+  } else if (heuristics.rain >= 28) {
+    factor = "Meteorología";
+    note = "La ventana estratégica puede abrirse o cerrarse rápido si cambia la pista.";
+  } else if (heuristics.tag === "urbano") {
+    factor = "Posición en pista";
+    note = "Aquí adelantar suele costar más, así que la salida y la primera parada condicionan casi todo.";
+  } else if (local.teamData.tyreManagement < 68) {
+    factor = "Gestión de neumáticos";
+    note = "El mayor punto de vigilancia es no pasarse de degrado en el stint medio.";
+  }
+
+  return { label, stops, window, factor, note };
+}
+
+function getPredictGridRead(favorite, raceName, data = null) {
+  if (data?.summary) {
+    const summary = data.summary;
+    return {
+      winner: summary.predictedWinner || "Sin datos",
+      topTeams: Array.isArray(summary.topTeams) ? summary.topTeams.join(", ") : "Sin datos",
+      weakestTeams: Array.isArray(summary.weakestTeams) ? summary.weakestTeams.join(", ") : "Sin datos"
+    };
+  }
+
+  const ranking = [
+    { team: "Mercedes", pace: getTeamData("Mercedes").racePace },
+    { team: "Ferrari", pace: getTeamData("Ferrari").racePace },
+    { team: "McLaren", pace: getTeamData("McLaren").racePace },
+    { team: "Red Bull", pace: getTeamData("Red Bull").racePace },
+    { team: "Aston Martin", pace: getTeamData("Aston Martin").racePace },
+    { team: "Racing Bulls", pace: getTeamData("Racing Bulls").racePace },
+    { team: "Alpine", pace: getTeamData("Alpine").racePace },
+    { team: "Williams", pace: getTeamData("Williams").racePace },
+    { team: "Haas", pace: getTeamData("Haas").racePace },
+    { team: "Audi", pace: getTeamData("Audi").racePace },
+    { team: "Cadillac", pace: getTeamData("Cadillac").racePace }
+  ].sort((a, b) => b.pace - a.pace);
+
+  const winner = ranking[0]?.team || "Sin datos";
+  const topTeams = ranking.slice(0, 3).map(item => item.team).join(", ");
+  const weakestTeams = ranking.slice(-3).map(item => item.team).join(", ");
+
+  return { winner, topTeams, weakestTeams };
+}
+
 function renderErrorCard(title, subtitle, message) {
   return `
     <div class="card">
@@ -939,7 +1203,7 @@ function renderHomeNextRace(nextRace) {
       </div>
 
       <div class="quick-row">
-        <a href="#" class="btn-secondary" onclick="saveSelectedRace('${escapeHtml(raceName).replace(/'/g, "\\'")}'); showPredict(); return false;">Abrir predicción</a>
+        <a href="#" class="btn-secondary" onclick="saveSelectedRace('${raceName.replace(/'/g, "\\'")}'); showPredict(); return false;">Abrir predicción</a>
       </div>
     </div>
   `;
@@ -1141,27 +1405,133 @@ function renderPredictSummaryCards(data) {
   `;
 }
 
-function renderPredictMetaCards(data) {
-  const summary = data?.summary || {};
-  const topTeams = Array.isArray(summary.topTeams) ? summary.topTeams.join(", ") : "Sin datos";
-  const weakTeams = Array.isArray(summary.weakestTeams) ? summary.weakestTeams.join(", ") : "Sin datos";
+function renderPredictPreviewCards(favorite, raceName) {
+  const preview = getPredictLocalEstimate(favorite, raceName);
+
+  return `
+    <div class="predict-grid">
+      <div class="stat-tile">
+        <div class="stat-kicker">Clasificación</div>
+        <div class="stat-value">${preview.qualyRange}</div>
+        <div class="stat-caption">Estimación rápida previa</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-kicker">Carrera</div>
+        <div class="stat-value">${preview.raceRange}</div>
+        <div class="stat-caption">Ventana competitiva esperada</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-kicker">Puntos</div>
+        <div class="stat-value">${preview.pointsProbability}%</div>
+        <div class="stat-caption">Probabilidad local aproximada</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-kicker">Safety Car</div>
+        <div class="stat-value">${preview.heuristics.safetyCar}%</div>
+        <div class="stat-caption">Base histórica del circuito</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPredictScenarioCards(favorite, raceName, data = null) {
+  const scenarios = getPredictScenarios(favorite, raceName, data);
+
+  return `
+    <div class="grid-stats">
+      ${scenarios.map(item => `
+        <div class="stat-tile">
+          <div class="stat-kicker">${escapeHtml(item.kicker)}</div>
+          <div class="stat-value" style="font-size:22px;">${escapeHtml(item.value)}</div>
+          <div class="stat-caption">${escapeHtml(item.text)}</div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderPredictKeyFactors(favorite, raceName, data = null) {
+  const factors = getPredictKeyFactors(favorite, raceName, data);
+  return `
+    <div class="insight-list">
+      ${factors.map(item => `
+        <div class="insight-item">
+          <strong>${escapeHtml(item.title)}</strong><br>
+          ${escapeHtml(item.text)}
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderPredictQualyRaceCard(favorite, raceName, data = null) {
+  const balance = getQualyRaceBalance(favorite, raceName, data);
 
   return `
     <div class="meta-grid">
       <div class="meta-tile">
+        <div class="meta-kicker">Qualy esperada</div>
+        <div class="meta-value">${escapeHtml(balance.qualy)}</div>
+        <div class="meta-caption">Referencia del sábado</div>
+      </div>
+      <div class="meta-tile">
+        <div class="meta-kicker">Carrera esperada</div>
+        <div class="meta-value">${escapeHtml(balance.race)}</div>
+        <div class="meta-caption">Ventana del domingo</div>
+      </div>
+      <div class="meta-tile">
+        <div class="meta-kicker">Lectura</div>
+        <div class="meta-value" style="font-size:18px;">${escapeHtml(balance.label)}</div>
+        <div class="meta-caption">${escapeHtml(balance.description)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPredictStrategyDetail(favorite, raceName, data = null) {
+  const strategy = getStrategyNarrative(favorite, raceName, data);
+
+  return `
+    <div class="info-line" style="margin-bottom:14px;">${escapeHtml(strategy.note)}</div>
+    <div class="meta-grid">
+      <div class="meta-tile">
+        <div class="meta-kicker">Plan base</div>
+        <div class="meta-value" style="font-size:18px;">${escapeHtml(strategy.label)}</div>
+        <div class="meta-caption">Paradas: ${strategy.stops}</div>
+      </div>
+      <div class="meta-tile">
+        <div class="meta-kicker">Ventana</div>
+        <div class="meta-value" style="font-size:18px;">${escapeHtml(strategy.window)}</div>
+        <div class="meta-caption">Momento probable</div>
+      </div>
+      <div class="meta-tile">
+        <div class="meta-kicker">Factor crítico</div>
+        <div class="meta-value" style="font-size:18px;">${escapeHtml(strategy.factor)}</div>
+        <div class="meta-caption">Lo que más puede cambiar el guion</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPredictGridRead(favorite, raceName, data = null) {
+  const gridRead = getPredictGridRead(favorite, raceName, data);
+
+  return `
+    <div class="meta-grid">
+      <div class="meta-tile">
+        <div class="meta-kicker">Favorito del GP</div>
+        <div class="meta-value" style="font-size:18px;">${escapeHtml(gridRead.winner)}</div>
+        <div class="meta-caption">Lectura general del fin de semana</div>
+      </div>
+      <div class="meta-tile">
         <div class="meta-kicker">Equipos top</div>
-        <div class="meta-value" style="font-size:17px; line-height:1.2;">${escapeHtml(topTeams)}</div>
-        <div class="meta-caption">Los coches con más ritmo esperado</div>
+        <div class="meta-value" style="font-size:17px; line-height:1.2;">${escapeHtml(gridRead.topTeams)}</div>
+        <div class="meta-caption">La zona alta esperada</div>
       </div>
       <div class="meta-tile">
-        <div class="meta-kicker">Equipos más débiles</div>
-        <div class="meta-value" style="font-size:17px; line-height:1.2;">${escapeHtml(weakTeams)}</div>
-        <div class="meta-caption">Zona baja estimada</div>
-      </div>
-      <div class="meta-tile">
-        <div class="meta-kicker">Estrategia</div>
-        <div class="meta-value" style="font-size:17px; line-height:1.2;">${escapeHtml(summary.strategy?.label || "Sin datos")}</div>
-        <div class="meta-caption">Paradas: ${summary.strategy?.stops ?? "—"}</div>
+        <div class="meta-kicker">Zona baja</div>
+        <div class="meta-value" style="font-size:17px; line-height:1.2;">${escapeHtml(gridRead.weakestTeams)}</div>
+        <div class="meta-caption">Equipos con menos base</div>
       </div>
     </div>
   `;
@@ -1248,10 +1618,18 @@ async function runPredict() {
   if (output) output.innerText = "Generando predicción...";
 
   const summaryBox = document.getElementById("predictSummaryCards");
-  const metaBox = document.getElementById("predictMetaCards");
+  const scenariosBox = document.getElementById("predictScenarioCards");
+  const factorsBox = document.getElementById("predictKeyFactors");
+  const qualyRaceBox = document.getElementById("predictQualyRace");
+  const strategyBox = document.getElementById("predictStrategyDetail");
+  const gridBox = document.getElementById("predictGridRead");
 
   if (summaryBox) summaryBox.innerHTML = renderPredictLoadingState();
-  if (metaBox) metaBox.innerHTML = `<div class="empty-line">Recalculando ritmo, estrategia y favoritos…</div>`;
+  if (scenariosBox) scenariosBox.innerHTML = `<div class="empty-line">Recalculando escenarios del fin de semana…</div>`;
+  if (factorsBox) factorsBox.innerHTML = `<div class="empty-line">Releyendo fortalezas, riesgos y contexto…</div>`;
+  if (qualyRaceBox) qualyRaceBox.innerHTML = `<div class="empty-line">Comparando comportamiento a una vuelta y ritmo largo…</div>`;
+  if (strategyBox) strategyBox.innerHTML = `<div class="empty-line">Actualizando estrategia prevista…</div>`;
+  if (gridBox) gridBox.innerHTML = `<div class="empty-line">Reordenando lectura global de la parrilla…</div>`;
 
   try {
     const data = await fetchPredictData(favorite, raceName);
@@ -1264,7 +1642,11 @@ async function runPredict() {
     pushPredictionHistory(data, favorite, raceName);
 
     if (summaryBox) summaryBox.innerHTML = renderPredictSummaryCards(data);
-    if (metaBox) metaBox.innerHTML = renderPredictMetaCards(data);
+    if (scenariosBox) scenariosBox.innerHTML = renderPredictScenarioCards(favorite, raceName, data);
+    if (factorsBox) factorsBox.innerHTML = renderPredictKeyFactors(favorite, raceName, data);
+    if (qualyRaceBox) qualyRaceBox.innerHTML = renderPredictQualyRaceCard(favorite, raceName, data);
+    if (strategyBox) strategyBox.innerHTML = renderPredictStrategyDetail(favorite, raceName, data);
+    if (gridBox) gridBox.innerHTML = renderPredictGridRead(favorite, raceName, data);
     if (output) output.innerText = formatPredictResponse(data);
 
     const historyBox = document.getElementById("predictionHistoryBox");
@@ -1272,7 +1654,11 @@ async function runPredict() {
   } catch (error) {
     if (output) output.innerText = `Error: ${error.message}`;
     if (summaryBox) summaryBox.innerHTML = `<div class="empty-line">No se ha podido generar el resumen predictivo.</div>`;
-    if (metaBox) metaBox.innerHTML = "";
+    if (scenariosBox) scenariosBox.innerHTML = renderPredictScenarioCards(favorite, raceName, null);
+    if (factorsBox) factorsBox.innerHTML = renderPredictKeyFactors(favorite, raceName, null);
+    if (qualyRaceBox) qualyRaceBox.innerHTML = renderPredictQualyRaceCard(favorite, raceName, null);
+    if (strategyBox) strategyBox.innerHTML = renderPredictStrategyDetail(favorite, raceName, null);
+    if (gridBox) gridBox.innerHTML = renderPredictGridRead(favorite, raceName, null);
   }
 }
 
@@ -1289,46 +1675,6 @@ function shouldAutoGeneratePredict(favorite, raceName) {
   );
 }
 
-function renderPredictPreviewCards(favorite, raceName) {
-  const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
-  const teamData = getTeamData(teamName);
-  const heuristics = getRaceHeuristics(raceName);
-  const metrics = getFavoriteMetrics(favorite);
-
-  const qualyRange =
-    teamData.qualyPace >= 85 ? "P3-P6" :
-    teamData.qualyPace >= 75 ? "P6-P10" :
-    teamData.qualyPace >= 68 ? "P9-P13" :
-    "P12-P16";
-
-  const raceRange = metrics.expectedWindow || "P10-P14";
-
-  return `
-    <div class="predict-grid">
-      <div class="stat-tile">
-        <div class="stat-kicker">Clasificación</div>
-        <div class="stat-value">${qualyRange}</div>
-        <div class="stat-caption">Estimación rápida previa</div>
-      </div>
-      <div class="stat-tile">
-        <div class="stat-kicker">Carrera</div>
-        <div class="stat-value">${raceRange}</div>
-        <div class="stat-caption">Ventana competitiva esperada</div>
-      </div>
-      <div class="stat-tile">
-        <div class="stat-kicker">Puntos</div>
-        <div class="stat-value">${metrics.pointsProbability}%</div>
-        <div class="stat-caption">Probabilidad local aproximada</div>
-      </div>
-      <div class="stat-tile">
-        <div class="stat-kicker">Safety Car</div>
-        <div class="stat-value">${heuristics.safetyCar}%</div>
-        <div class="stat-caption">Base histórica del circuito</div>
-      </div>
-    </div>
-  `;
-}
-
 function showPredict() {
   setActiveNav("nav-predict");
   updateSubtitle();
@@ -1337,6 +1683,7 @@ function showPredict() {
   const selectedRace = getSelectedRace();
   const favorite = getFavorite();
   const needFreshPredict = shouldAutoGeneratePredict(favorite, selectedRace);
+  const activePredictData = !needFreshPredict ? state.lastPredictData : null;
 
   contentEl().innerHTML = `
     <div class="card highlight-card">
@@ -1358,27 +1705,58 @@ function showPredict() {
     </div>
 
     <div class="card">
-      <div class="card-title">Resumen de predicción</div>
-      <div class="card-sub">Lo importante arriba, el desarrollo completo debajo.</div>
+      <div class="card-title">Resumen instantáneo</div>
+      <div class="card-sub">Lo importante arriba, para saber en segundos dónde está el favorito.</div>
       <div id="predictSummaryCards">
-        ${!needFreshPredict
-          ? renderPredictSummaryCards(state.lastPredictData)
+        ${activePredictData
+          ? renderPredictSummaryCards(activePredictData)
           : renderPredictPreviewCards(favorite, selectedRace)}
       </div>
     </div>
 
     <div class="card">
+      <div class="card-title">Escenarios</div>
+      <div class="card-sub">Una lectura más realista del fin de semana: mejor caso, base y escenario complicado.</div>
+      <div id="predictScenarioCards">
+        ${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-title">Claves del fin de semana</div>
-      <div id="predictMetaCards">
-        ${!needFreshPredict
-          ? renderPredictMetaCards(state.lastPredictData)
-          : `<div class="empty-line">Cargando la predicción avanzada para ${escapeHtml(selectedRace)}…</div>`}
+      <div class="card-sub">Dónde puede aparecer el rendimiento y qué puede torcer el guion.</div>
+      <div id="predictKeyFactors">
+        ${renderPredictKeyFactors(favorite, selectedRace, activePredictData)}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Qualy vs carrera</div>
+      <div class="card-sub">Cómo debería comportarse el coche a una vuelta y en stint largo.</div>
+      <div id="predictQualyRace">
+        ${renderPredictQualyRaceCard(favorite, selectedRace, activePredictData)}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Estrategia esperada</div>
+      <div class="card-sub">Plan base, ventana de parada y principal factor que puede alterar la carrera.</div>
+      <div id="predictStrategyDetail">
+        ${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Lectura de parrilla</div>
+      <div class="card-sub">Quién llega como referencia y cómo debería repartirse la parrilla.</div>
+      <div id="predictGridRead">
+        ${renderPredictGridRead(favorite, selectedRace, activePredictData)}
       </div>
     </div>
 
     <div class="card">
       <div class="card-title">Texto completo</div>
-      <pre id="predictOutput" class="ai-output">${!needFreshPredict ? escapeHtml(formatPredictResponse(state.lastPredictData)) : "Preparando predicción avanzada..."}</pre>
+      <pre id="predictOutput" class="ai-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción avanzada..."}</pre>
     </div>
 
     <div class="card">
