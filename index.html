@@ -1,80 +1,39 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
   <title>RaceControl</title>
-  <meta name="theme-color" content="#07111a" />
+  <meta name="description" content="RaceControl · F1 · Predicción, noticias, favorito y modo carrera." />
+  <meta name="theme-color" content="#06070a" />
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png" />
+
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="RaceControl" />
 
-  <link rel="manifest" href="/manifest.webmanifest?v=14" />
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
-  <link rel="stylesheet" href="/styles.css?v=14" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="app">
-    <div class="header">
-      <div class="header-shell">
-        <div class="title">RaceControl</div>
-        <div class="subtitle" id="appSubtitle">F1 · Alonso · Aston Martin</div>
-      </div>
-    </div>
+  <main id="app">
+    <div id="content"></div>
+  </main>
 
-    <div class="container" id="content">
-      <div class="card">
-        <div class="card-title">Cargando RaceControl…</div>
-        <div class="card-sub">Inicializando app.</div>
-      </div>
-    </div>
+  <nav id="bottomNav">
+    <a href="#" id="nav-home" onclick="showHome(); return false;">Inicio</a>
+    <a href="#" id="nav-predict" onclick="showPredict(); return false;">Predicción</a>
+    <a href="#" id="nav-favorito" onclick="showFavorito(); return false;">Favorito</a>
+    <a href="#" id="nav-news" onclick="showNews(); return false;">Noticias</a>
+    <a href="#" id="nav-more" onclick="showMore(); return false;">Más</a>
+  </nav>
 
-    <div class="nav">
-      <a href="#" id="nav-home" onclick="showHome(); return false;">Inicio</a>
-      <a href="#" id="nav-predict" onclick="showPredict(); return false;">Predicción</a>
-      <a href="#" id="nav-favorito" onclick="showFavorito(); return false;">Favorito</a>
-      <a href="#" id="nav-news" onclick="showNews(); return false;">Noticias</a>
-      <a href="#" id="nav-more" onclick="showMore(); return false;">Más</a>
-    </div>
+  <div id="detailModal" onclick="closeDetailModal(event)">
+    <div id="detailModalContent"></div>
   </div>
 
-  <div class="modal" id="detailModal" onclick="closeDetailModal(event)">
-    <div class="modal-sheet" onclick="event.stopPropagation()">
-      <div class="modal-close-row">
-        <button class="modal-close" onclick="closeDetailModal()">×</button>
-      </div>
-      <div id="detailModalContent"></div>
-    </div>
-  </div>
-
-  <script>
-    function renderBootError(message) {
-      const content = document.getElementById("content");
-      if (!content) return;
-      content.innerHTML = `
-        <div class="card">
-          <div class="card-title">Error de arranque</div>
-          <div class="card-sub">La app no ha podido iniciarse en este modo.</div>
-          <pre class="ai-output">${String(message || "Error desconocido")}</pre>
-        </div>
-      `;
-    }
-
-    window.addEventListener("error", function (event) {
-      renderBootError(event.message || "Error JS");
-    });
-
-    window.addEventListener("unhandledrejection", function (event) {
-      const reason = event.reason && event.reason.message ? event.reason.message : String(event.reason || "Promise rechazada");
-      renderBootError(reason);
-    });
-  </script>
-
-  <script src="/app.js?v=14"></script>
+  <script src="app.js"></script>
 </body>
 </html>
