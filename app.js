@@ -941,7 +941,7 @@ function formatSessionCircuitDateTime(dateIso, timeZone) {
     timeZone,
     weekday: "short",
     day: "2-digit",
-    month: "short",
+    month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23"
@@ -2270,97 +2270,223 @@ function renderHomeHero() {
   `;
 }
 
-function renderWeekendSummary(nextRace) {
-  const data = getWeekendSummaryData(nextRace);
+/* ===== FASE 3 v1.2 · HOME DINÁMICO ===== */
+
+function getHomeWeekendContext() {
+  const favorite = getFavorite();
+
+  if (state.weekendContext) return state.weekendContext;
+  if (state.calendarCache?.events) {
+    state.weekendContext = buildWeekendContext(state.calendarCache.events, favorite);
+    state.weekendNowIso = new Date().toISOString();
+    return state.weekendContext;
+  }
+
+  return null;
+}
+
+function renderHomePhaseHero(context) {
+  if (!context) {
+    return `
+      <div class="card highlight-card">
+        <div class="mini-pill">HOME INTELIGENTE</div>
+        <div class="card-title">Centro del fin de semana</div>
+        <div class="card-sub">No se ha podido cargar el contexto del GP ahora mismo.</div>
+      </div>
+    `;
+  }
+
+  if (context.scheduleUnavailable) {
+    return `
+      <div class="card highlight-card">
+        <div class="mini-pill">HOME INTELIGENTE</div>
+        <div class="card-title">${escapeHtml(context.raceName || "GP")}</div>
+        <div class="card-sub">${escapeHtml(context.scheduleReason || "No hay horario oficial disponible ahora mismo.")}</div>
+
+        <div class="news-meta-row" style="margin-top:10px;">
+          <span class="tag technical">${escapeHtml(context.phaseLabel)}</span>
+          <span class="tag reliability">Horario no disponible</span>
+        </div>
+      </div>
+    `;
+  }
+
+  const leadSession = context.currentSession || context.nextSession || context.lastCompletedSession;
+  const leadLabel = leadSession?.label || "Sin datos";
+  const leadStatus = leadSession ? getSessionStatusLabel(leadSession.status) : "Sin datos";
+  const leadUserTime = leadSession?.start ? formatSessionDateTime(leadSession.start) : "Sin hora";
 
   return `
     <div class="card highlight-card">
-      <div class="mini-pill">RESUMEN DEL FIN DE SEMANA</div>
-      <div class="card-title">Qué esperar del próximo GP</div>
-      <div class="card-sub">Lectura rápida para casuals y base de contexto para quien sigue todo el fin de semana.</div>
+      <div class="mini-pill">HOME INTELIGENTE</div>
+      <div class="card-title">${escapeHtml(context.raceName)}</div>
+      <div class="card-sub">${escapeHtml(context.focusDescription)}</div>
 
-      <div class="weekend-top">
-        <div class="weekend-top-left">
-          <div class="trend-pill ${data.signal.className}">${data.signal.label}</div>
-          <div class="weekend-top-text">${data.signal.description}</div>
-        </div>
-        <div class="weekend-race-box">
-          <div class="weekend-race-label">Próximo GP</div>
-          <div class="weekend-race-name">${escapeHtml(data.raceName)}</div>
-        </div>
+      <div class="news-meta-row" style="margin-top:10px;">
+        <span class="tag ${getWeekendPhaseTagClass(context.phase)}">${escapeHtml(context.phaseLabel)}</span>
+        <span class="tag ${context.isSprint ? "statement" : "general"}">${context.isSprint ? "Sprint weekend" : "Formato normal"}</span>
       </div>
 
       <div class="meta-grid" style="margin-top:14px;">
         <div class="meta-tile">
-          <div class="meta-kicker">Favorito GP</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(data.gpFavorite)}</div>
-          <div class="meta-caption">Lectura inicial del fin de semana</div>
+          <div class="meta-kicker">Foco</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(context.focusLabel)}</div>
+          <div class="meta-caption">Qué manda ahora mismo en el GP</div>
         </div>
         <div class="meta-tile">
-          <div class="meta-kicker">Safety Car</div>
-          <div class="meta-value">${data.heuristics.safetyCar}%</div>
-          <div class="meta-caption">Probabilidad base</div>
+          <div class="meta-kicker">${context.currentSession ? "Ahora mismo" : "Siguiente sesión"}</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(leadLabel)}</div>
+          <div class="meta-caption">${escapeHtml(leadStatus)} · ${escapeHtml(leadUserTime)}</div>
         </div>
         <div class="meta-tile">
-          <div class="meta-kicker">Lluvia</div>
-          <div class="meta-value">${data.heuristics.rain}%</div>
-          <div class="meta-caption">Escenario meteorológico</div>
+          <div class="meta-kicker">Cuenta atrás</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(context.nextSessionCountdown || (context.currentSession ? "ahora" : "—"))}</div>
+          <div class="meta-caption">Siguiente referencia útil</div>
         </div>
-      </div>
-
-      <div class="grid-stats" style="margin-top:14px;">
-        <div class="stat-tile">
-          <div class="stat-kicker">Ventana esperada</div>
-          <div class="stat-value">${data.metrics.expectedWindow}</div>
-          <div class="stat-caption">Rango competitivo del favorito</div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-kicker">Puntos</div>
-          <div class="stat-value">${data.metrics.pointsProbability}%</div>
-          <div class="stat-caption">Probabilidad estimada de puntuar</div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-kicker">Riesgo</div>
-          <div class="stat-value">${data.metrics.dnfRisk}%</div>
-          <div class="stat-caption">Riesgo aproximado de abandono</div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-kicker">Tendencia</div>
-          <div class="stat-value" style="font-size:18px;">${data.metrics.trendInfo.label}</div>
-          <div class="stat-caption">${data.metrics.trendInfo.description}</div>
-        </div>
-      </div>
-
-      <div class="card-sub" style="margin-top:16px; margin-bottom:10px;">3 claves del fin de semana</div>
-      <div class="insight-list">
-        ${data.keyPoints.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
       </div>
     </div>
   `;
 }
 
-function renderHomeQuickSummary(nextRace) {
-  const favorite = getFavorite();
-  const metrics = getFavoriteMetrics(favorite);
-  const nextRaceName = mapCalendarEventToPredictRace(nextRace) || getSelectedRace();
-  const heuristics = getRaceHeuristics(nextRaceName);
+function renderHomeNowCard(context, favorite) {
+  if (!context) {
+    return `
+      <div class="card">
+        <div class="card-title">Ahora</div>
+        <div class="empty-line">No hay contexto suficiente para leer el momento del fin de semana.</div>
+      </div>
+    `;
+  }
+
+  if (context.scheduleUnavailable) {
+    return `
+      <div class="card">
+        <div class="card-title">Ahora</div>
+        <div class="card-sub">No hay una sesión oficial cargada para este GP.</div>
+        <div class="empty-line">${escapeHtml(context.scheduleReason || "Horario no disponible.")}</div>
+      </div>
+    `;
+  }
+
+  const target = context.currentSession || context.nextSession || context.lastCompletedSession;
+
+  if (!target) {
+    return `
+      <div class="card">
+        <div class="card-title">Ahora</div>
+        <div class="empty-line">No hay sesión destacada disponible ahora mismo.</div>
+      </div>
+    `;
+  }
+
+  const userTime = formatSessionDateTime(target.start);
+  const circuitTime = formatSessionCircuitDateTime(target.start, target.timeZone);
+  const impact = getSessionImpactOnFavorite(target.key, favorite);
 
   return `
     <div class="card">
-      <div class="mini-pill">CENTRO DE CONTROL</div>
-      <div class="card-title">Resumen rápido del favorito</div>
-      <div class="card-sub">Lectura inmediata para abrir la app y saber en segundos dónde está el favorito.</div>
+      <div class="card-title">${context.currentSession ? "Ahora mismo" : target.status === "next" ? "Lo siguiente" : "Última referencia"}</div>
+      <div class="card-sub">${escapeHtml(impact)}</div>
 
-      <div class="grid-stats">
+      <div class="meta-grid" style="margin-top:14px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Sesión</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(target.label)}</div>
+          <div class="meta-caption">${escapeHtml(getSessionStatusLabel(target.status))}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Tu hora</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(userTime)}</div>
+          <div class="meta-caption">${target.status === "next" ? `Empieza ${escapeHtml(getCountdownToSession(target))}` : "Hora de referencia"}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Hora circuito</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(circuitTime)}</div>
+          <div class="meta-caption">${escapeHtml(target.timeZone || "")}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderHomeWhatToWatchCard(context) {
+  const items = context?.whatToWatch || [
+    "No hay claves de seguimiento disponibles ahora mismo.",
+    "Recarga el calendario para reconstruir el contexto.",
+    "Cuando haya GP cargado, aquí saldrán las prioridades del momento."
+  ];
+
+  return `
+    <div class="card">
+      <div class="card-title">Qué mirar ahora</div>
+      <div class="card-sub">Tres ideas rápidas para no abrir la app a ciegas según la fase del fin de semana.</div>
+      <div class="insight-list">
+        ${items.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderHomePhaseSummaryCard(context, favorite) {
+  if (!context) {
+    return `
+      <div class="card">
+        <div class="card-title">Resumen de fase</div>
+        <div class="empty-line">No se ha podido generar el resumen del fin de semana.</div>
+      </div>
+    `;
+  }
+
+  const metrics = getFavoriteMetrics(favorite);
+  const raceName = context.raceName || getSelectedRace();
+  const heuristics = getRaceHeuristics(raceName);
+  const signal = getWeekendSignal(favorite, raceName);
+  const phase = context.phase;
+  const nextSessionLabel = context.nextSession?.label || "Sin datos";
+
+  let title = "Resumen del fin de semana";
+  let sub = "Lectura rápida del momento actual del GP.";
+  let insightText = signal.description;
+
+  if (phase === "pre_weekend") {
+    title = "Previa del GP";
+    sub = `Antes de que empiece todo, el guion base de ${raceName} apunta a esto.`;
+    insightText = `La siguiente referencia útil será ${nextSessionLabel}. El contexto del GP sigue dominado por preparación, mejoras y lectura previa.`;
+  } else if (phase === "friday") {
+    title = "Viernes en una mirada";
+    sub = "Viernes sirve para filtrar ruido de tabla y detectar ritmo de verdad.";
+    insightText = "La sesión más valiosa suele ser FP2 o la referencia larga del día. Importa más la consistencia que un tiempo aislado.";
+  } else if (phase === "saturday") {
+    title = "Sábado decisivo";
+    sub = "Hoy cambia de verdad el techo del domingo.";
+    insightText = context.isSprint
+      ? "La Sprint añade contexto, pero la clasificación sigue siendo la llave principal de la carrera."
+      : "La qualy puede cambiar por completo la carrera del favorito y su ventana real de puntos.";
+  } else if (phase === "sunday") {
+    title = "Domingo de carrera";
+    sub = "Ahora manda la ejecución: salida, estrategia y aire limpio.";
+    insightText = "La salida, el primer stint y la ventana de parada suelen pesar más que una lectura teórica de ritmo puro.";
+  } else if (phase === "post_race") {
+    title = "Post GP";
+    sub = "La carrera ya ha pasado; esta lectura sirve como contexto del guion que se esperaba.";
+    insightText = "Úsalo para comparar lo previsto con lo que realmente ha ocurrido y preparar mejor el siguiente evento.";
+  }
+
+  return `
+    <div class="card">
+      <div class="card-title">${escapeHtml(title)}</div>
+      <div class="card-sub">${escapeHtml(sub)}</div>
+
+      <div class="grid-stats" style="margin-top:14px;">
+        <div class="stat-tile">
+          <div class="stat-kicker">Ventana</div>
+          <div class="stat-value">${escapeHtml(metrics.expectedWindow)}</div>
+          <div class="stat-caption">Rango competitivo actual</div>
+        </div>
         <div class="stat-tile">
           <div class="stat-kicker">Puntos</div>
           <div class="stat-value">${metrics.pointsProbability}%</div>
-          <div class="stat-caption">Probabilidad aproximada para el próximo GP</div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-kicker">Ventana esperada</div>
-          <div class="stat-value">${metrics.expectedWindow}</div>
-          <div class="stat-caption">Rango competitivo estimado</div>
+          <div class="stat-caption">Probabilidad aproximada</div>
         </div>
         <div class="stat-tile">
           <div class="stat-kicker">Riesgo</div>
@@ -2369,8 +2495,8 @@ function renderHomeQuickSummary(nextRace) {
         </div>
         <div class="stat-tile">
           <div class="stat-kicker">Tendencia</div>
-          <div class="stat-value" style="font-size:18px;">${metrics.trendInfo.label}</div>
-          <div class="stat-caption">${metrics.trendInfo.description}</div>
+          <div class="stat-value" style="font-size:18px;">${escapeHtml(metrics.trendInfo.label)}</div>
+          <div class="stat-caption">${escapeHtml(metrics.trendInfo.description)}</div>
         </div>
       </div>
 
@@ -2378,67 +2504,65 @@ function renderHomeQuickSummary(nextRace) {
         <div class="meta-tile">
           <div class="meta-kicker">Safety Car</div>
           <div class="meta-value">${heuristics.safetyCar}%</div>
-          <div class="meta-caption">${escapeHtml(nextRaceName)}</div>
+          <div class="meta-caption">${escapeHtml(raceName)}</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Lluvia</div>
           <div class="meta-value">${heuristics.rain}%</div>
-          <div class="meta-caption">Condición base del circuito</div>
+          <div class="meta-caption">Escenario base</div>
         </div>
+      </div>
+
+      <div class="info-line" style="margin-top:14px;">${escapeHtml(insightText)}</div>
+    </div>
+  `;
+}
+
+function renderHomeQuickLinks(context) {
+  const raceName = context?.raceName || getSelectedRace();
+
+  return `
+    <div class="card">
+      <div class="card-title">Accesos rápidos</div>
+      <div class="card-sub">Salta rápido a la pantalla más útil según el momento del fin de semana.</div>
+
+      <div class="quick-row">
+        <a href="#" class="btn" onclick="saveSelectedRace('${String(raceName).replace(/'/g, "\\'")}'); showPredict(); return false;">Predicción</a>
+        <a href="#" class="btn-secondary" onclick="showSessions(); return false;">Sesiones</a>
+        <a href="#" class="btn-secondary" onclick="showRaceMode(); return false;">Modo carrera</a>
       </div>
     </div>
   `;
 }
 
-function renderHomeNextRace(nextRace) {
-  const raceName = mapCalendarEventToPredictRace(nextRace) || getSelectedRace();
-  const heuristics = getRaceHeuristics(raceName);
+function renderHomeDynamicBlocks(context, favorite) {
+  return `
+    ${renderHomePhaseHero(context)}
+    ${renderHomeNowCard(context, favorite)}
+    ${renderHomeWhatToWatchCard(context)}
+    ${renderHomePhaseSummaryCard(context, favorite)}
+    ${renderHomeQuickLinks(context)}
+  `;
+}
 
-  if (!nextRace) {
-    return `
-      <div class="card">
-        <div class="card-title">Próxima carrera</div>
-        <div class="empty-line">No se ha podido detectar la siguiente carrera ahora mismo.</div>
-      </div>
-    `;
-  }
+/* ===== FIN FASE 3 ===== */
+
+function renderHomeNewsPreview(items, favorite) {
+  const previewItems = Array.isArray(items) ? items.slice(0, 3) : [];
 
   return `
     <div class="card">
-      <div class="mini-pill">SIGUIENTE GP</div>
-      <div class="next-race-main">
-        <div>
-          <div class="next-race-title">${escapeHtml(nextRace.title)}</div>
-          <div class="next-race-sub">${escapeHtml(nextRace.venue)} · ${escapeHtml(nextRace.location)}</div>
-          <div class="next-race-sub">${escapeHtml(heuristics.tag)} · ritmo y estrategia condicionados por el circuito</div>
-        </div>
-        <div class="race-date-box">
-          ${formatCalendarDateRange(nextRace.start, nextRace.end)}<br>
-          <span style="color:rgba(255,255,255,0.52);">${getCalendarStatusLabel(nextRace.status, nextRace.type)}</span>
-        </div>
-      </div>
+      <div class="card-title">Noticias clave · ${escapeHtml(favorite.name)}</div>
+      <div class="card-sub">Las 3 noticias más útiles para no ir a ciegas antes del próximo GP.</div>
 
-      <div class="meta-grid">
-        <div class="meta-tile">
-          <div class="meta-kicker">Safety Car</div>
-          <div class="meta-value">${heuristics.safetyCar}%</div>
-          <div class="meta-caption">Probabilidad base</div>
+      ${previewItems.length ? previewItems.map(item => `
+        <div class="news-item">
+          <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
+          <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
         </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Lluvia</div>
-          <div class="meta-value">${heuristics.rain}%</div>
-          <div class="meta-caption">Escenario inicial</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Circuito</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(raceName)}</div>
-          <div class="meta-caption">Se usará por defecto</div>
-        </div>
-      </div>
-
-      <div class="quick-row">
-        <a href="#" class="btn-secondary" onclick="saveSelectedRace('${raceName.replace(/'/g, "\\'")}'); showPredict(); return false;">Abrir predicción</a>
-      </div>
+      `).join("") : `
+        <div class="empty-line">No se han podido cargar noticias destacadas ahora mismo.</div>
+      `}
     </div>
   `;
 }
@@ -2504,33 +2628,13 @@ function renderHomeHierarchy() {
   `;
 }
 
-function renderHomeNewsPreview(items, favorite) {
-  const previewItems = Array.isArray(items) ? items.slice(0, 3) : [];
-
-  return `
-    <div class="card">
-      <div class="card-title">Noticias clave · ${escapeHtml(favorite.name)}</div>
-      <div class="card-sub">Las 3 noticias más útiles para no ir a ciegas antes del próximo GP.</div>
-
-      ${previewItems.length ? previewItems.map(item => `
-        <div class="news-item">
-          <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
-          <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
-        </div>
-      `).join("") : `
-        <div class="empty-line">No se han podido cargar noticias destacadas ahora mismo.</div>
-      `}
-    </div>
-  `;
-}
-
 async function showHome() {
   setActiveNav("nav-home");
   updateSubtitle();
 
   contentEl().innerHTML = `
     ${renderHomeHero()}
-    ${renderLoadingCard("Cargando centro de control…", "Preparando próxima carrera, resumen del favorito y noticias principales.", true)}
+    ${renderLoadingCard("Cargando centro de control…", "Leyendo fase del GP, sesión actual, prioridades y noticias principales.", true)}
   `;
 
   const favorite = getFavorite();
@@ -2549,13 +2653,13 @@ async function showHome() {
       }
     }
 
+    const context = getHomeWeekendContext();
+
     contentEl().innerHTML = `
       ${renderHomeHero()}
-      ${renderWeekendSummary(nextRace)}
-      ${renderHomeQuickSummary(nextRace)}
-      ${renderHomeNextRace(nextRace)}
-      ${renderHomeTeamStatus()}
+      ${renderHomeDynamicBlocks(context, favorite)}
       ${renderHomeNewsPreview(newsData?.items || [], favorite)}
+      ${renderHomeTeamStatus()}
       ${renderHomeHierarchy()}
     `;
   } catch (error) {
