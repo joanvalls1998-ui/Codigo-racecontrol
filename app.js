@@ -10,7 +10,9 @@ const state = {
   standingsDelta: { drivers: {}, teams: {} },
   standingsViewType: "drivers",
   standingsScope: "top10",
-  currentNewsFilterKey: "favorite"
+  currentNewsFilterKey: "favorite",
+  weekendContext: null,
+  weekendNowIso: null
 };
 
 function contentEl() {
@@ -309,6 +311,386 @@ function getNextRaceFromCalendar(events) {
     || null;
 }
 
+/* ===== FASE 1 v1.2 · WEEKEND INTELLIGENCE ===== */
+
+function getWeekendNow() {
+  return new Date();
+}
+
+function getSessionKeyLabel(sessionKey) {
+  const map = {
+    fp1: "FP1",
+    fp2: "FP2",
+    fp3: "FP3",
+    sprintShootout: "Sprint Shootout",
+    sprint: "Sprint",
+    qualifying: "Clasificación",
+    race: "Carrera"
+  };
+  return map[sessionKey] || sessionKey;
+}
+
+function isSprintRaceName(raceName) {
+  const sprintRaces = [
+    "GP de China",
+    "GP Miami",
+    "GP de Bélgica",
+    "GP de Estados Unidos",
+    "GP de São Paulo",
+    "GP de Catar"
+  ];
+  return sprintRaces.includes(raceName);
+}
+
+function addDaysToDateString(dateStr, days) {
+  const date = new Date(`${dateStr}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return dateStr;
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildSessionIso(dateStr, hour, minute) {
+  const date = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(hour, minute, 0, 0);
+  return date.toISOString();
+}
+
+function getSessionImportance(sessionKey) {
+  const map = {
+    fp1: "Primera referencia",
+    fp2: "Clave para ritmo largo",
+    fp3: "Ajuste final",
+    sprintShootout: "Define la Sprint",
+    sprint: "Impacto medio-alto",
+    qualifying: "Muy alta",
+    race: "Máxima"
+  };
+  return map[sessionKey] || "Importancia media";
+}
+
+function buildSession(dateStr, key, hourStart, minuteStart, durationMinutes, dayKey) {
+  const start = buildSessionIso(dateStr, hourStart, minuteStart);
+  if (!start) return null;
+
+  const endDate = new Date(start);
+  endDate.setMinutes(endDate.getMinutes() + durationMinutes);
+
+  return {
+    key,
+    label: getSessionKeyLabel(key),
+    start,
+    end: endDate.toISOString(),
+    dayKey,
+    importance: getSessionImportance(key)
+  };
+}
+
+function buildNormalWeekendSessions(event, raceName) {
+  if (!event?.start || !event?.end) return [];
+
+  const friday = event.start;
+  const saturday = addDaysToDateString(event.start, 1);
+  const sunday = event.end;
+
+  const sessions = [
+    buildSession(friday, "fp1", 13, 30, 60, "friday"),
+    buildSession(friday, "fp2", 17, 0, 60, "friday"),
+    buildSession(saturday, "fp3", 12, 30, 60, "saturday"),
+    buildSession(saturday, "qualifying", 16, 0, 75, "saturday"),
+    buildSession(sunday, "race", 15, 0, 120, "sunday")
+  ].filter(Boolean);
+
+  return sessions.map(session => ({
+    ...session,
+    raceName,
+    isSprint: false
+  }));
+}
+
+function buildSprintWeekendSessions(event, raceName) {
+  if (!event?.start || !event?.end) return [];
+
+  const friday = event.start;
+  const saturday = addDaysToDateString(event.start, 1);
+  const sunday = event.end;
+
+  const sessions = [
+    buildSession(friday, "fp1", 13, 30, 60, "friday"),
+    buildSession(friday, "sprintShootout", 17, 0, 45, "friday"),
+    buildSession(saturday, "sprint", 12, 0, 60, "saturday"),
+    buildSession(saturday, "qualifying", 16, 0, 75, "saturday"),
+    buildSession(sunday, "race", 15, 0, 120, "sunday")
+  ].filter(Boolean);
+
+  return sessions.map(session => ({
+    ...session,
+    raceName,
+    isSprint: true
+  }));
+}
+
+function buildWeekendSessionsFromEvent(event) {
+  const raceName = mapCalendarEventToPredictRace(event) || event?.title || "GP";
+  return isSprintRaceName(raceName)
+    ? buildSprintWeekendSessions(event, raceName)
+    : buildNormalWeekendSessions(event, raceName);
+}
+
+function resolveSessionStatus(session, now) {
+  const start = new Date(session.start);
+  const end = new Date(session.end);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return "upcoming";
+  }
+
+  if (now > end) return "completed";
+  if (now >= start && now <= end) return "live";
+  return "upcoming";
+}
+
+function decorateSessionsWithStatus(sessions, now) {
+  const decorated = (Array.isArray(sessions) ? sessions : []).map(session => ({
+    ...session,
+    status: resolveSessionStatus(session, now)
+  }));
+
+  const firstUpcomingIndex = decorated.findIndex(session => session.status === "upcoming");
+  if (firstUpcomingIndex !== -1) {
+    decorated[firstUpcomingIndex] = {
+      ...decorated[firstUpcomingIndex],
+      status: "next"
+    };
+  }
+
+  return decorated;
+}
+
+function getWeekendPhaseFromSessions(sessions, now) {
+  if (!Array.isArray(sessions) || !sessions.length) return "pre_weekend";
+
+  const firstSession = sessions[0];
+  const firstStart = new Date(firstSession.start);
+
+  if (!Number.isNaN(firstStart.getTime()) && now < firstStart) {
+    return "pre_weekend";
+  }
+
+  if (sessions.every(session => session.status === "completed")) {
+    return "post_race";
+  }
+
+  const reference =
+    sessions.find(session => session.status === "live") ||
+    sessions.find(session => session.status === "next") ||
+    sessions.find(session => session.status === "upcoming") ||
+    sessions[sessions.length - 1];
+
+  if (!reference) return "pre_weekend";
+
+  if (reference.dayKey === "friday") return "friday";
+  if (reference.dayKey === "saturday") return "saturday";
+  return "sunday";
+}
+
+function getWeekendPhaseLabel(phase) {
+  const map = {
+    pre_weekend: "Previa",
+    friday: "Viernes",
+    saturday: "Sábado",
+    sunday: "Domingo",
+    post_race: "Post GP"
+  };
+  return map[phase] || "Previa";
+}
+
+function getCurrentSession(sessions) {
+  return (sessions || []).find(session => session.status === "live") || null;
+}
+
+function getNextSession(sessions) {
+  return (sessions || []).find(session => session.status === "next") || null;
+}
+
+function getLastCompletedSession(sessions) {
+  const completed = (sessions || []).filter(session => session.status === "completed");
+  return completed.length ? completed[completed.length - 1] : null;
+}
+
+function getWeekendFocus(phase, currentSession, nextSession) {
+  if (phase === "pre_weekend") {
+    return {
+      label: "previa del GP",
+      description: "Todavía manda más la lectura general del fin de semana que un resultado concreto."
+    };
+  }
+
+  if (phase === "friday") {
+    return {
+      label: "viernes de referencias",
+      description: currentSession?.key === "fp2" || nextSession?.key === "fp2"
+        ? "FP2 suele ser la sesión más útil para leer ritmo largo y degradación."
+        : "Viernes sirve para separar ruido de tabla y ritmo real."
+    };
+  }
+
+  if (phase === "saturday") {
+    return {
+      label: "sábado de clasificación",
+      description: currentSession?.key === "sprint" || nextSession?.key === "sprint"
+        ? "La Sprint añade contexto, pero la qualy sigue pesando muchísimo en el guion del domingo."
+        : "La posición de salida puede cambiar por completo el techo del domingo."
+    };
+  }
+
+  if (phase === "sunday") {
+    return {
+      label: "domingo de estrategia",
+      description: "Salida, primer stint, Safety Car y ventana de parada son ahora lo más importante."
+    };
+  }
+
+  return {
+    label: "fin de semana completado",
+    description: "El GP ya está cerrado. Esta lectura queda como contexto del guion que se esperaba."
+  };
+}
+
+function getWhatToWatchNow(phase, currentSession, nextSession, favorite) {
+  const favoriteName = favorite?.name || "tu favorito";
+  const favoriteTeam = favorite?.type === "driver" ? favorite.team : favorite?.name || "su equipo";
+
+  if (phase === "pre_weekend") {
+    return [
+      "Mira quién llega con mejor base de ritmo antes de sobrevalorar titulares.",
+      `Atento a si ${favoriteTeam} llega con mejoras o con dudas de fiabilidad.`,
+      "No confundas narrativa previa con ritmo real: eso lo empiezan a aclarar las sesiones."
+    ];
+  }
+
+  if (phase === "friday") {
+    return [
+      "Mira tandas largas, no solo una vuelta rápida suelta.",
+      `Compara a ${favoriteName} con su compañero para ver la referencia interna real.`,
+      "Fíjate en degradación, tráfico y consistencia más que en la tabla final."
+    ];
+  }
+
+  if (phase === "saturday") {
+    return [
+      "La qualy pesa mucho: tráfico, vuelta final y ejecución lo cambian todo.",
+      `Una mala posición de salida puede recortar bastante el techo real de ${favoriteName}.`,
+      "Separa ritmo puro de posición en pista: no siempre van de la mano."
+    ];
+  }
+
+  if (phase === "sunday") {
+    return [
+      "La salida y el primer stint suelen marcar la carrera más de lo que parece.",
+      "Mira la ventana de parada y si aparece un Safety Car que rompa el guion.",
+      `Si ${favoriteName} queda atrapado en tráfico, su carrera puede cambiar aunque tenga ritmo.`
+    ];
+  }
+
+  return [
+    "Repasa qué sesión cambió el guion del GP.",
+    "Distingue qué fue ritmo real y qué fue ejecución.",
+    `Úsalo como base para la siguiente predicción de ${favoriteName}.`
+  ];
+}
+
+function getSessionImpactOnFavorite(sessionKey, favorite) {
+  const favoriteName = favorite?.name || "tu favorito";
+
+  const map = {
+    fp1: `Primera lectura útil de ${favoriteName}, pero todavía poco concluyente.`,
+    fp2: `Suele medir mejor el ritmo real de ${favoriteName} en tanda larga.`,
+    fp3: `Sirve para afinar detalles antes de la sesión decisiva del sábado.`,
+    sprintShootout: "Puede condicionar cómo de limpio o complicado queda el sábado.",
+    sprint: "Añade contexto de posición en pista y ritmo, aunque no define por completo el domingo.",
+    qualifying: `Puede decidir si ${favoriteName} pelea por el objetivo o queda atrapado.`,
+    race: "Es la sesión que más peso tiene: estrategia, salida y ejecución lo deciden casi todo."
+  };
+
+  return map[sessionKey] || `Sesión relevante para entender mejor a ${favoriteName}.`;
+}
+
+function formatSessionDateTime(dateIso) {
+  if (!dateIso) return "";
+  const date = new Date(dateIso);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleString("es-ES", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function getCountdownToSession(session) {
+  if (!session?.start) return "";
+  const start = new Date(session.start);
+  const now = getWeekendNow();
+
+  if (Number.isNaN(start.getTime())) return "";
+
+  const diffMs = start.getTime() - now.getTime();
+  if (diffMs <= 0) return "ahora";
+
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days >= 2) return `en ${days} días`;
+  if (days === 1) return hours > 0 ? `en 1 día y ${hours} h` : "mañana";
+  if (hours >= 1) return minutes > 0 ? `en ${hours} h ${minutes} min` : `en ${hours} h`;
+  return `en ${minutes} min`;
+}
+
+function buildWeekendContext(events, favorite) {
+  const raceEvents = (Array.isArray(events) ? events : []).filter(event => event.type === "race");
+
+  const raceEvent =
+    raceEvents.find(event => event.status === "next") ||
+    raceEvents.find(event => event.status === "upcoming") ||
+    [...raceEvents].reverse().find(event => event.status === "completed") ||
+    null;
+
+  const raceName = mapCalendarEventToPredictRace(raceEvent) || getSelectedRace();
+  const now = getWeekendNow();
+  const rawSessions = raceEvent ? buildWeekendSessionsFromEvent(raceEvent) : [];
+  const sessions = decorateSessionsWithStatus(rawSessions, now);
+  const phase = getWeekendPhaseFromSessions(sessions, now);
+  const phaseLabel = getWeekendPhaseLabel(phase);
+  const currentSession = getCurrentSession(sessions);
+  const nextSession = getNextSession(sessions);
+  const lastCompletedSession = getLastCompletedSession(sessions);
+  const focus = getWeekendFocus(phase, currentSession, nextSession);
+
+  return {
+    raceEvent,
+    raceName,
+    isSprint: isSprintRaceName(raceName),
+    sessions,
+    phase,
+    phaseLabel,
+    currentSession,
+    nextSession,
+    lastCompletedSession,
+    focusLabel: focus.label,
+    focusDescription: focus.description,
+    whatToWatch: getWhatToWatchNow(phase, currentSession, nextSession, favorite),
+    nextSessionCountdown: getCountdownToSession(nextSession),
+    generatedAt: now.toISOString()
+  };
+}
+
+/* ===== FIN FASE 1 ===== */
+
 function saveStandingsSnapshot(data) {
   const snapshot = {
     updatedAt: data?.updatedAt || null,
@@ -350,13 +732,21 @@ async function fetchStandingsData(force = false) {
 
 async function fetchCalendarData(force = false) {
   if (state.calendarCache && !force) return state.calendarCache;
+
   const response = await fetch("/api/calendar");
   const data = await response.json();
   if (!response.ok) throw new Error(data?.error || "No se pudo cargar el calendario");
+
   state.calendarCache = data;
+
   const nextRace = getNextRaceFromCalendar(data?.events || []);
   const mappedRace = mapCalendarEventToPredictRace(nextRace);
   if (mappedRace) state.detectedNextRaceName = mappedRace;
+
+  const favorite = getFavorite();
+  state.weekendContext = buildWeekendContext(data?.events || [], favorite);
+  state.weekendNowIso = new Date().toISOString();
+
   return data;
 }
 
@@ -1057,13 +1447,13 @@ function getRaceModeQuickRead(favorite, raceName, predictData, stage) {
   let needsText = `Necesita ejecutar limpio y proteger su ventana competitiva (${metrics.expectedWindow}).`;
 
   if (metrics.dnfRisk >= 28) {
-    needsText = `Necesita un fin de semana limpio y sin comprometer fiabilidad para sostener su objetivo real.`;
+    needsText = "Necesita un fin de semana limpio y sin comprometer fiabilidad para sostener su objetivo real.";
   } else if (balance.label === "Mejor a una vuelta") {
-    needsText = `Necesita cerrar un sábado limpio y defender posición desde la salida para no perder aire limpio.`;
+    needsText = "Necesita cerrar un sábado limpio y defender posición desde la salida para no perder aire limpio.";
   } else if (balance.label === "Mejor en carrera") {
-    needsText = `Necesita mantenerse en ventana hasta la primera parada y dejar que el stint largo construya su carrera.`;
+    needsText = "Necesita mantenerse en ventana hasta la primera parada y dejar que el stint largo construya su carrera.";
   } else if (strategy.factor === "Safety Car") {
-    needsText = `Necesita mantenerse vivo en estrategia para aprovechar cualquier neutralización que rompa el guion.`;
+    needsText = "Necesita mantenerse vivo en estrategia para aprovechar cualquier neutralización que rompa el guion.";
   }
 
   let stageText = "Antes de empezar, la lectura manda más que el resultado.";
@@ -2601,20 +2991,7 @@ async function showNews() {
   }
 }
 
-function showMore() {
-  setActiveNav("nav-more");
-  updateSubtitle();
-  contentEl().innerHTML = `
-    <div class="card">
-      <div class="card-title">MÁS</div>
-      <a href="#" class="menu-link" onclick="showStandings(); return false;">Clasificación</a>
-      <a href="#" class="menu-link" onclick="showCalendar(); return false;">Calendario</a>
-      <a href="#" class="menu-link" onclick="showRaceMode(); return false;">Modo carrera</a>
-      <a href="#" class="menu-link" onclick="showGlossary(); return false;">Glosario F1</a>
-      <a href="#" class="menu-link" onclick="showSettingsPanel(); return false;">Ajustes</a>
-    </div>
-  `;
-}
+/* ===== GLOSARIO F1 ===== */
 
 function getGlossarySections() {
   return [
@@ -2890,6 +3267,21 @@ function showGlossary() {
   `;
 }
 
+function showMore() {
+  setActiveNav("nav-more");
+  updateSubtitle();
+  contentEl().innerHTML = `
+    <div class="card">
+      <div class="card-title">MÁS</div>
+      <a href="#" class="menu-link" onclick="showStandings(); return false;">Clasificación</a>
+      <a href="#" class="menu-link" onclick="showCalendar(); return false;">Calendario</a>
+      <a href="#" class="menu-link" onclick="showRaceMode(); return false;">Modo carrera</a>
+      <a href="#" class="menu-link" onclick="showGlossary(); return false;">Glosario F1</a>
+      <a href="#" class="menu-link" onclick="showSettingsPanel(); return false;">Ajustes</a>
+    </div>
+  `;
+}
+
 function getDriverContextBadges(name, pos, team) {
   const favorite = getFavorite();
   const badges = [];
@@ -3067,12 +3459,24 @@ function teamRow(pos, team, drivers, points, colorClass, delta) {
 
 function setFavoriteDriver(name, team, number, points, colorClass, image, pos) {
   saveFavorite({ type: "driver", name, team, number, points, colorClass, image, pos });
+
+  if (state.calendarCache?.events) {
+    state.weekendContext = buildWeekendContext(state.calendarCache.events, getFavorite());
+    state.weekendNowIso = new Date().toISOString();
+  }
+
   updateSubtitle();
   showStandings();
 }
 
 function setFavoriteTeam(name, drivers, points, colorClass, pos) {
   saveFavorite({ type: "team", name, drivers, points, colorClass, pos });
+
+  if (state.calendarCache?.events) {
+    state.weekendContext = buildWeekendContext(state.calendarCache.events, getFavorite());
+    state.weekendNowIso = new Date().toISOString();
+  }
+
   updateSubtitle();
   showStandings();
 }
@@ -3327,6 +3731,10 @@ async function showRaceMode() {
 
 function resetFavoriteToDefault() {
   saveFavorite(getDefaultFavorite());
+  if (state.calendarCache?.events) {
+    state.weekendContext = buildWeekendContext(state.calendarCache.events, getFavorite());
+    state.weekendNowIso = new Date().toISOString();
+  }
   updateSubtitle();
   showSettingsPanel();
 }
