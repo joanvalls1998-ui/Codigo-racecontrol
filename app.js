@@ -313,6 +313,267 @@ function getNextRaceFromCalendar(events) {
 
 /* ===== FASE 1 v1.2 · WEEKEND INTELLIGENCE ===== */
 
+const OFFICIAL_2026_SESSION_CONFIG = {
+  "GP de Australia": {
+    timeZone: "Australia/Melbourne",
+    format: "standard",
+    sessions: {
+      fp1: "12:30",
+      fp2: "16:00",
+      fp3: "12:30",
+      qualifying: "16:00",
+      race: "15:00"
+    }
+  },
+  "GP de China": {
+    timeZone: "Asia/Shanghai",
+    format: "sprint",
+    sessions: {
+      fp1: "11:30",
+      sprintShootout: "15:30",
+      sprint: "11:00",
+      qualifying: "15:00",
+      race: "15:00"
+    }
+  },
+  "GP de Japón": {
+    timeZone: "Asia/Tokyo",
+    format: "standard",
+    sessions: {
+      fp1: "11:30",
+      fp2: "15:00",
+      fp3: "11:30",
+      qualifying: "15:00",
+      race: "14:00"
+    }
+  },
+  "GP de Baréin": {
+    timeZone: "Asia/Bahrain",
+    format: "standard",
+    sessions: {
+      fp1: "14:30",
+      fp2: "18:00",
+      fp3: "15:30",
+      qualifying: "19:00",
+      race: "18:00"
+    }
+  },
+  "GP de Arabia Saudí": {
+    timeZone: "Asia/Riyadh",
+    format: "unavailable",
+    reason: "La web oficial no muestra un horario de sesiones utilizable para este GP ahora mismo."
+  },
+  "GP Miami": {
+    timeZone: "America/New_York",
+    format: "sprint",
+    sessions: {
+      fp1: "12:30",
+      sprintShootout: "16:30",
+      sprint: "12:00",
+      qualifying: "16:00",
+      race: "16:00"
+    }
+  },
+  "GP de Canadá": {
+    timeZone: "America/Toronto",
+    format: "sprint",
+    sessions: {
+      fp1: "12:30",
+      sprintShootout: "16:30",
+      sprint: "12:00",
+      qualifying: "16:00",
+      race: "16:00"
+    }
+  },
+  "GP de Mónaco": {
+    timeZone: "Europe/Monaco",
+    format: "standard",
+    sessions: {
+      fp1: "13:30",
+      fp2: "17:00",
+      fp3: "12:30",
+      qualifying: "16:00",
+      race: "15:00"
+    }
+  },
+  "GP de España": {
+    timeZone: "Europe/Madrid",
+    format: "standard",
+    sessions: {
+      fp1: "13:30",
+      fp2: "17:00",
+      fp3: "12:30",
+      qualifying: "16:00",
+      race: "15:00"
+    }
+  },
+  "GP de Austria": {
+    timeZone: "Europe/Vienna",
+    format: "standard",
+    sessions: {
+      fp1: "13:30",
+      fp2: "17:00",
+      fp3: "12:30",
+      qualifying: "16:00",
+      race: "15:00"
+    }
+  },
+  "GP de Gran Bretaña": {
+    timeZone: "Europe/London",
+    format: "sprint",
+    sessions: {
+      fp1: "12:30",
+      sprintShootout: "16:30",
+      sprint: "12:00",
+      qualifying: "16:00",
+      race: "15:00"
+    }
+  },
+  "GP de Bélgica": {
+    timeZone: "Europe/Brussels",
+    format: "standard",
+    sessions: {
+      fp1: "13:30",
+      fp2: "17:00",
+      fp3: "12:30",
+      qualifying: "16:00",
+      race: "15:00"
+    }
+  },
+  "GP de Hungría": {
+    timeZone: "Europe/Budapest",
+    format: "standard",
+    sessions: {
+      fp1: "13:30",
+      fp2: "17:00",
+      fp3: "12:30",
+      qualifying: "16:00",
+      race: "15:00"
+    }
+  },
+  "GP de Países Bajos": {
+    timeZone: "Europe/Amsterdam",
+    format: "sprint",
+    sessions: {
+      fp1: "12:30",
+      sprintShootout: "16:30",
+      sprint: "12:00",
+      qualifying: "16:00",
+      race: "15:00"
+    }
+  },
+  "GP de Italia": {
+    timeZone: "Europe/Rome",
+    format: "standard",
+    sessions: {
+      fp1: "12:30",
+      fp2: "16:00",
+      fp3: "12:30",
+      qualifying: "16:00",
+      race: "15:00"
+    }
+  },
+  "GP de España (Madrid)": {
+    timeZone: "Europe/Madrid",
+    format: "standard",
+    sessions: {
+      fp1: "13:30",
+      fp2: "17:00",
+      fp3: "12:30",
+      qualifying: "16:00",
+      race: "15:00"
+    }
+  },
+  "GP de Azerbaiyán": {
+    timeZone: "Asia/Baku",
+    format: "standard",
+    sessions: {
+      fp1: "12:30",
+      fp2: "16:00",
+      fp3: "12:30",
+      qualifying: "16:00",
+      race: "15:00"
+    }
+  },
+  "GP de Singapur": {
+    timeZone: "Asia/Singapore",
+    format: "sprint",
+    sessions: {
+      fp1: "16:30",
+      sprintShootout: "20:30",
+      sprint: "17:00",
+      qualifying: "21:00",
+      race: "20:00"
+    }
+  },
+  "GP de Estados Unidos": {
+    timeZone: "America/Chicago",
+    format: "standard",
+    sessions: {
+      fp1: "12:30",
+      fp2: "16:00",
+      fp3: "12:30",
+      qualifying: "16:00",
+      race: "15:00"
+    }
+  },
+  "GP de México": {
+    timeZone: "America/Mexico_City",
+    format: "standard",
+    sessions: {
+      fp1: "12:30",
+      fp2: "16:00",
+      fp3: "11:30",
+      qualifying: "15:00",
+      race: "14:00"
+    }
+  },
+  "GP de São Paulo": {
+    timeZone: "America/Sao_Paulo",
+    format: "standard",
+    sessions: {
+      fp1: "12:30",
+      fp2: "16:00",
+      fp3: "11:30",
+      qualifying: "15:00",
+      race: "14:00"
+    }
+  },
+  "GP de Las Vegas": {
+    timeZone: "America/Los_Angeles",
+    format: "standard",
+    sessions: {
+      fp1: "16:30",
+      fp2: "20:00",
+      fp3: "16:30",
+      qualifying: "20:00",
+      race: "20:00"
+    }
+  },
+  "GP de Catar": {
+    timeZone: "Asia/Qatar",
+    format: "standard",
+    sessions: {
+      fp1: "16:30",
+      fp2: "20:00",
+      fp3: "17:30",
+      qualifying: "21:00",
+      race: "19:00"
+    }
+  },
+  "GP de Abu Dabi": {
+    timeZone: "Asia/Dubai",
+    format: "standard",
+    sessions: {
+      fp1: "13:30",
+      fp2: "17:00",
+      fp3: "14:30",
+      qualifying: "18:00",
+      race: "17:00"
+    }
+  }
+};
+
 function getWeekendNow() {
   return new Date();
 }
@@ -330,16 +591,12 @@ function getSessionKeyLabel(sessionKey) {
   return map[sessionKey] || sessionKey;
 }
 
+function getOfficialSessionConfig(raceName) {
+  return OFFICIAL_2026_SESSION_CONFIG[raceName] || null;
+}
+
 function isSprintRaceName(raceName) {
-  const sprintRaces = [
-    "GP de China",
-    "GP Miami",
-    "GP de Bélgica",
-    "GP de Estados Unidos",
-    "GP de São Paulo",
-    "GP de Catar"
-  ];
-  return sprintRaces.includes(raceName);
+  return getOfficialSessionConfig(raceName)?.format === "sprint";
 }
 
 function addDaysToDateString(dateStr, days) {
@@ -349,11 +606,69 @@ function addDaysToDateString(dateStr, days) {
   return date.toISOString().slice(0, 10);
 }
 
-function buildSessionIso(dateStr, hour, minute) {
-  const date = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return null;
-  date.setHours(hour, minute, 0, 0);
-  return date.toISOString();
+function getSessionDurationMinutes(sessionKey) {
+  const map = {
+    fp1: 60,
+    fp2: 60,
+    fp3: 60,
+    sprintShootout: 44,
+    sprint: 60,
+    qualifying: 60,
+    race: 120
+  };
+  return map[sessionKey] || 60;
+}
+
+function getTimeZoneDateParts(timestamp, timeZone) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  });
+
+  const parts = formatter.formatToParts(new Date(timestamp));
+  const out = {};
+
+  parts.forEach(part => {
+    if (part.type !== "literal") out[part.type] = part.value;
+  });
+
+  return {
+    year: Number(out.year),
+    month: Number(out.month),
+    day: Number(out.day),
+    hour: Number(out.hour),
+    minute: Number(out.minute),
+    second: Number(out.second)
+  };
+}
+
+function zonedLocalToUtcIso(dateStr, timeStr, timeZone) {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const [hour, minute] = timeStr.split(":").map(Number);
+
+  let guess = Date.UTC(year, month - 1, day, hour, minute, 0);
+
+  for (let i = 0; i < 3; i += 1) {
+    const zoned = getTimeZoneDateParts(guess, timeZone);
+    const zonedAsUtc = Date.UTC(
+      zoned.year,
+      zoned.month - 1,
+      zoned.day,
+      zoned.hour,
+      zoned.minute,
+      zoned.second
+    );
+    const targetAsUtc = Date.UTC(year, month - 1, day, hour, minute, 0);
+    guess += targetAsUtc - zonedAsUtc;
+  }
+
+  return new Date(guess).toISOString();
 }
 
 function getSessionImportance(sessionKey) {
@@ -369,12 +684,13 @@ function getSessionImportance(sessionKey) {
   return map[sessionKey] || "Importancia media";
 }
 
-function buildSession(dateStr, key, hourStart, minuteStart, durationMinutes, dayKey) {
-  const start = buildSessionIso(dateStr, hourStart, minuteStart);
-  if (!start) return null;
+function buildOfficialSession(dateStr, key, dayKey, raceName, config) {
+  const timeStr = config?.sessions?.[key];
+  if (!timeStr) return null;
 
+  const start = zonedLocalToUtcIso(dateStr, timeStr, config.timeZone);
   const endDate = new Date(start);
-  endDate.setMinutes(endDate.getMinutes() + durationMinutes);
+  endDate.setMinutes(endDate.getMinutes() + getSessionDurationMinutes(key));
 
   return {
     key,
@@ -382,59 +698,45 @@ function buildSession(dateStr, key, hourStart, minuteStart, durationMinutes, day
     start,
     end: endDate.toISOString(),
     dayKey,
-    importance: getSessionImportance(key)
+    importance: getSessionImportance(key),
+    raceName,
+    isSprint: config.format === "sprint",
+    timeZone: config.timeZone,
+    circuitLocalTime: timeStr
   };
-}
-
-function buildNormalWeekendSessions(event, raceName) {
-  if (!event?.start || !event?.end) return [];
-
-  const friday = event.start;
-  const saturday = addDaysToDateString(event.start, 1);
-  const sunday = event.end;
-
-  const sessions = [
-    buildSession(friday, "fp1", 13, 30, 60, "friday"),
-    buildSession(friday, "fp2", 17, 0, 60, "friday"),
-    buildSession(saturday, "fp3", 12, 30, 60, "saturday"),
-    buildSession(saturday, "qualifying", 16, 0, 75, "saturday"),
-    buildSession(sunday, "race", 15, 0, 120, "sunday")
-  ].filter(Boolean);
-
-  return sessions.map(session => ({
-    ...session,
-    raceName,
-    isSprint: false
-  }));
-}
-
-function buildSprintWeekendSessions(event, raceName) {
-  if (!event?.start || !event?.end) return [];
-
-  const friday = event.start;
-  const saturday = addDaysToDateString(event.start, 1);
-  const sunday = event.end;
-
-  const sessions = [
-    buildSession(friday, "fp1", 13, 30, 60, "friday"),
-    buildSession(friday, "sprintShootout", 17, 0, 45, "friday"),
-    buildSession(saturday, "sprint", 12, 0, 60, "saturday"),
-    buildSession(saturday, "qualifying", 16, 0, 75, "saturday"),
-    buildSession(sunday, "race", 15, 0, 120, "sunday")
-  ].filter(Boolean);
-
-  return sessions.map(session => ({
-    ...session,
-    raceName,
-    isSprint: true
-  }));
 }
 
 function buildWeekendSessionsFromEvent(event) {
   const raceName = mapCalendarEventToPredictRace(event) || event?.title || "GP";
-  return isSprintRaceName(raceName)
-    ? buildSprintWeekendSessions(event, raceName)
-    : buildNormalWeekendSessions(event, raceName);
+  const config = getOfficialSessionConfig(raceName);
+
+  if (!config || config.format === "unavailable" || !event?.start || !event?.end) {
+    return [];
+  }
+
+  const friday = event.start;
+  const saturday = addDaysToDateString(event.start, 1);
+  const sunday = event.end;
+
+  const plan = config.format === "sprint"
+    ? [
+        { key: "fp1", date: friday, dayKey: "friday" },
+        { key: "sprintShootout", date: friday, dayKey: "friday" },
+        { key: "sprint", date: saturday, dayKey: "saturday" },
+        { key: "qualifying", date: saturday, dayKey: "saturday" },
+        { key: "race", date: sunday, dayKey: "sunday" }
+      ]
+    : [
+        { key: "fp1", date: friday, dayKey: "friday" },
+        { key: "fp2", date: friday, dayKey: "friday" },
+        { key: "fp3", date: saturday, dayKey: "saturday" },
+        { key: "qualifying", date: saturday, dayKey: "saturday" },
+        { key: "race", date: sunday, dayKey: "sunday" }
+      ];
+
+  return plan
+    .map(item => buildOfficialSession(item.date, item.key, item.dayKey, raceName, config))
+    .filter(Boolean);
 }
 
 function resolveSessionStatus(session, now) {
@@ -630,6 +932,22 @@ function formatSessionDateTime(dateIso) {
   });
 }
 
+function formatSessionCircuitDateTime(dateIso, timeZone) {
+  if (!dateIso || !timeZone) return "";
+  const date = new Date(dateIso);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return new Intl.DateTimeFormat("es-ES", {
+    timeZone,
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).format(date);
+}
+
 function getCountdownToSession(session) {
   if (!session?.start) return "";
   const start = new Date(session.start);
@@ -662,6 +980,7 @@ function buildWeekendContext(events, favorite) {
 
   const raceName = mapCalendarEventToPredictRace(raceEvent) || getSelectedRace();
   const now = getWeekendNow();
+  const config = getOfficialSessionConfig(raceName);
   const rawSessions = raceEvent ? buildWeekendSessionsFromEvent(raceEvent) : [];
   const sessions = decorateSessionsWithStatus(rawSessions, now);
   const phase = getWeekendPhaseFromSessions(sessions, now);
@@ -674,7 +993,9 @@ function buildWeekendContext(events, favorite) {
   return {
     raceEvent,
     raceName,
-    isSprint: isSprintRaceName(raceName),
+    isSprint: config?.format === "sprint",
+    scheduleUnavailable: !config || config.format === "unavailable",
+    scheduleReason: config?.reason || "",
     sessions,
     phase,
     phaseLabel,
@@ -717,6 +1038,10 @@ function getWeekendPhaseTagClass(phase) {
 
 function getSessionsHeroLead(context) {
   if (!context) return "No hay contexto de fin de semana disponible ahora mismo.";
+
+  if (context.scheduleUnavailable) {
+    return context.scheduleReason || "No hay horarios oficiales disponibles para este GP ahora mismo.";
+  }
 
   if (context.currentSession) {
     return `${context.currentSession.label} está en curso. ${context.focusDescription}`;
@@ -788,14 +1113,32 @@ function renderSessionsHero(context) {
     `;
   }
 
+  if (context.scheduleUnavailable) {
+    return `
+      <div class="card highlight-card">
+        <div class="mini-pill">WEEKEND INTELLIGENCE</div>
+        <div class="card-title">${escapeHtml(context.raceName || "GP")}</div>
+        <div class="card-sub">${escapeHtml(getSessionsHeroLead(context))}</div>
+
+        <div class="news-meta-row" style="margin-top:10px;">
+          <span class="tag technical">${escapeHtml(context.phaseLabel)}</span>
+          <span class="tag reliability">Horario no disponible</span>
+        </div>
+      </div>
+    `;
+  }
+
   const principalSession = context.currentSession || context.nextSession || context.lastCompletedSession;
   const principalLabel = principalSession?.label || "Sin datos";
   const principalStatus = principalSession
     ? getSessionStatusLabel(principalSession.status)
     : "Sin datos";
-  const principalMeta = principalSession?.start
+  const principalUserMeta = principalSession?.start
     ? formatSessionDateTime(principalSession.start)
     : "Sin hora cargada";
+  const principalCircuitMeta = principalSession?.start
+    ? formatSessionCircuitDateTime(principalSession.start, principalSession.timeZone)
+    : "Sin hora circuito";
 
   return `
     <div class="card highlight-card">
@@ -817,12 +1160,12 @@ function renderSessionsHero(context) {
         <div class="meta-tile">
           <div class="meta-kicker">${context.currentSession ? "Sesión actual" : "Siguiente sesión"}</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(principalLabel)}</div>
-          <div class="meta-caption">${escapeHtml(principalStatus)} · ${escapeHtml(principalMeta)}</div>
+          <div class="meta-caption">${escapeHtml(principalStatus)} · Tu hora: ${escapeHtml(principalUserMeta)}</div>
         </div>
         <div class="meta-tile">
-          <div class="meta-kicker">Cuenta atrás</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(context.nextSessionCountdown || (context.currentSession ? "ahora" : "—"))}</div>
-          <div class="meta-caption">Tiempo hasta la siguiente referencia útil</div>
+          <div class="meta-kicker">Hora circuito</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(principalCircuitMeta)}</div>
+          <div class="meta-caption">${escapeHtml(context.nextSessionCountdown || (context.currentSession ? "ahora" : "—"))}</div>
         </div>
       </div>
     </div>
@@ -835,13 +1178,15 @@ function renderSessionCard(session, favorite, context) {
   const statusLabel = getSessionStatusLabel(session.status);
   const statusClass = getSessionStatusTagClass(session.status);
   const isPrimary = session.status === "live" || session.status === "next";
+  const userTime = formatSessionDateTime(session.start);
+  const circuitTime = formatSessionCircuitDateTime(session.start, session.timeZone);
 
   return `
     <div class="card ${isPrimary ? "highlight-card" : ""}">
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">${escapeHtml(session.label)}</div>
-          <div class="card-sub">${escapeHtml(formatSessionDateTime(session.start))} · ${escapeHtml(session.importance)}</div>
+          <div class="card-sub">Tu hora: ${escapeHtml(userTime)} · ${escapeHtml(session.importance)}</div>
         </div>
         <div class="card-head-actions">
           <span class="tag ${statusClass}">${escapeHtml(statusLabel)}</span>
@@ -852,19 +1197,19 @@ function renderSessionCard(session, favorite, context) {
 
       <div class="meta-grid" style="margin-top:14px;">
         <div class="meta-tile">
-          <div class="meta-kicker">Estado</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(statusLabel)}</div>
-          <div class="meta-caption">${session.status === "next" ? `Empieza ${escapeHtml(getCountdownToSession(session))}` : escapeHtml(formatSessionDateTime(session.end))}</div>
+          <div class="meta-kicker">Tu hora</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(userTime)}</div>
+          <div class="meta-caption">${session.status === "next" ? `Empieza ${escapeHtml(getCountdownToSession(session))}` : escapeHtml(getSessionStatusLabel(session.status))}</div>
         </div>
         <div class="meta-tile">
-          <div class="meta-kicker">Importancia</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(session.importance)}</div>
-          <div class="meta-caption">Qué peso tiene esta sesión en el fin de semana</div>
+          <div class="meta-kicker">Hora circuito</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(circuitTime)}</div>
+          <div class="meta-caption">${escapeHtml(session.timeZone)}</div>
         </div>
         <div class="meta-tile">
-          <div class="meta-kicker">Tipo</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(session.dayKey === "friday" ? "Viernes" : session.dayKey === "saturday" ? "Sábado" : "Domingo")}</div>
-          <div class="meta-caption">${session.isSprint ? "Fin de semana sprint" : "Formato estándar"}</div>
+          <div class="meta-kicker">Formato</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(session.isSprint ? "Sprint" : "Normal")}</div>
+          <div class="meta-caption">${escapeHtml(session.dayKey === "friday" ? "Viernes" : session.dayKey === "saturday" ? "Sábado" : "Domingo")}</div>
         </div>
       </div>
 
@@ -902,12 +1247,14 @@ async function showSessions() {
         </div>
       </div>
 
-      ${(context?.sessions || []).map(session => renderSessionCard(session, favorite, context)).join("") || `
-        <div class="card">
-          <div class="card-title">Sesiones</div>
-          <div class="empty-line">No se han podido construir las sesiones del GP ahora mismo.</div>
-        </div>
-      `}
+      ${(context?.sessions || []).length
+        ? context.sessions.map(session => renderSessionCard(session, favorite, context)).join("")
+        : `
+          <div class="card">
+            <div class="card-title">Sesiones</div>
+            <div class="empty-line">${escapeHtml(context?.scheduleReason || "No se han podido construir las sesiones del GP ahora mismo.")}</div>
+          </div>
+        `}
     `;
   } catch (error) {
     contentEl().innerHTML = renderErrorCard("Sesiones", "Error al preparar esta pantalla", error.message);
