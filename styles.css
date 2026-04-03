@@ -1298,7 +1298,7 @@ nav,
   .skeleton-grid {
     grid-template-columns: 1fr;
   }
-}
+
 /* ===== HOTFIX FINAL: quitar cabecera + barra inferior horizontal ===== */
 
 header,
