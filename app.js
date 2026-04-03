@@ -110,6 +110,18 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+function normalizeText(value) {
+  return String(value || "").toLowerCase().trim();
+}
+
+function containsAny(text, terms) {
+  return terms.some(term => text.includes(term));
+}
+
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
 function getSettings() {
   const saved = safeJsonParse(localStorage.getItem("racecontrolSettings"), null);
   return saved ? { ...getDefaultSettings(), ...saved } : getDefaultSettings();
@@ -1970,11 +1982,222 @@ function switchNewsFilter(key) {
 function categorizeNewsItem(item) {
   const text = `${item?.title || ""} ${item?.source || ""}`.toLowerCase();
 
-  if (text.includes("upgrade") || text.includes("mejora") || text.includes("aerodin") || text.includes("suelo") || text.includes("floor") || text.includes("package")) return { key: "technical", label: "Técnica" };
-  if (text.includes("reliability") || text.includes("fiabilidad") || text.includes("engine") || text.includes("power unit") || text.includes("gearbox") || text.includes("avería") || text.includes("problema")) return { key: "reliability", label: "Fiabilidad" };
-  if (text.includes("contract") || text.includes("mercado") || text.includes("seat") || text.includes("driver market") || text.includes("fich") || text.includes("replace")) return { key: "market", label: "Mercado" };
-  if (text.includes("said") || text.includes("dice") || text.includes("claims") || text.includes("cree") || text.includes("declara") || text.includes("speaks")) return { key: "statement", label: "Declaración" };
+  if (text.includes("upgrade") || text.includes("mejora") || text.includes("aerodin") || text.includes("suelo") || text.includes("floor") || text.includes("package")) {
+    return { key: "technical", label: "Técnica" };
+  }
+
+  if (text.includes("reliability") || text.includes("fiabilidad") || text.includes("engine") || text.includes("power unit") || text.includes("gearbox") || text.includes("avería") || text.includes("problema")) {
+    return { key: "reliability", label: "Fiabilidad" };
+  }
+
+  if (text.includes("contract") || text.includes("mercado") || text.includes("seat") || text.includes("driver market") || text.includes("fich") || text.includes("replace")) {
+    return { key: "market", label: "Mercado" };
+  }
+
+  if (text.includes("said") || text.includes("dice") || text.includes("claims") || text.includes("cree") || text.includes("declara") || text.includes("speaks")) {
+    return { key: "statement", label: "Declaración" };
+  }
+
+  if (text.includes("pace") || text.includes("ritmo") || text.includes("qualy") || text.includes("qualifying") || text.includes("podium") || text.includes("race result") || text.includes("rendimiento")) {
+    return { key: "general", label: "Rendimiento" };
+  }
+
   return { key: "general", label: "General" };
+}
+
+function getNewsFilterTerms(filter) {
+  const payload = filter?.favoritePayload || {};
+  const base = [];
+
+  if (payload.name) {
+    base.push(normalizeText(payload.name));
+    base.push(...normalizeText(payload.name).split(" ").filter(part => part.length > 2));
+  }
+
+  if (payload.type === "driver" && payload.team) {
+    base.push(normalizeText(payload.team));
+    base.push(...normalizeText(payload.team).split(" ").filter(part => part.length > 2));
+  }
+
+  if (filter?.key === "alonso") {
+    base.push("alonso", "fernando", "aston martin");
+  }
+
+  if (filter?.key === "aston") {
+    base.push("aston martin", "aston", "alonso", "stroll");
+  }
+
+  if (filter?.key === "grid") {
+    base.push(
+      "formula 1",
+      "f1",
+      "mercedes",
+      "ferrari",
+      "mclaren",
+      "red bull",
+      "verstappen",
+      "norris",
+      "piastri",
+      "leclerc",
+      "hamilton",
+      "russell"
+    );
+  }
+
+  return unique(base);
+}
+
+function getNewsRecencyScore(pubDate) {
+  if (!pubDate) return 0;
+  const time = new Date(pubDate).getTime();
+  if (Number.isNaN(time)) return 0;
+
+  const ageDays = (Date.now() - time) / 86400000;
+
+  if (ageDays <= 1) return 8;
+  if (ageDays <= 3) return 6;
+  if (ageDays <= 7) return 4;
+  if (ageDays <= 14) return 2;
+  return 0;
+}
+
+function getNewsCategoryWeight(categoryKey) {
+  if (categoryKey === "technical") return 18;
+  if (categoryKey === "reliability") return 17;
+  if (categoryKey === "market") return 15;
+  if (categoryKey === "statement") return 11;
+  return 9;
+}
+
+function scoreNewsItem(item, filter) {
+  const text = normalizeText(`${item?.title || ""} ${item?.source || ""}`);
+  const category = categorizeNewsItem(item);
+  const filterTerms = getNewsFilterTerms(filter);
+
+  let score = getNewsCategoryWeight(category.key);
+
+  const matchedTerms = filterTerms.filter(term => term && text.includes(term));
+  score += Math.min(
+    22,
+    matchedTerms.reduce((acc, term) => acc + (term.includes(" ") ? 8 : 4), 0)
+  );
+
+  if (filter?.key === "favorite" && filter?.favoritePayload?.type === "driver" && filter.favoritePayload.team) {
+    if (text.includes(normalizeText(filter.favoritePayload.team))) score += 6;
+  }
+
+  if (filter?.key === "grid" && containsAny(text, ["grand prix", "race", "qualifying", "championship", "pace", "podium", "win"])) {
+    score += 6;
+  }
+
+  if (containsAny(text, ["official", "confirmed", "update", "breaking"])) {
+    score += 3;
+  }
+
+  if (containsAny(text, ["gallery", "photos", "photo", "watch", "video", "live blog", "liveblog"])) {
+    score -= 14;
+  }
+
+  if (containsAny(text, ["rumor", "rumour", "speculation"])) {
+    score -= 3;
+  }
+
+  score += getNewsRecencyScore(item?.pubDate);
+
+  return score;
+}
+
+function getNewsImportanceLabel(item, filter) {
+  const score = scoreNewsItem(item, filter);
+
+  if (score >= 30) return "Alta prioridad";
+  if (score >= 22) return "Muy relevante";
+  if (score >= 14) return "Seguimiento";
+  return "Contexto";
+}
+
+function getNewsImportanceClass(item, filter) {
+  const score = scoreNewsItem(item, filter);
+
+  if (score >= 30) return "statement";
+  if (score >= 22) return "market";
+  if (score >= 14) return "general";
+  return "general";
+}
+
+function getNewsImpactText(item, filter) {
+  const category = categorizeNewsItem(item);
+  const favorite = filter?.favoritePayload || getFavorite();
+  const text = normalizeText(item?.title || "");
+  const favoriteName = favorite?.name || "tu favorito";
+  const favoriteTeam = favorite?.team || favorite?.name || "";
+
+  if (category.key === "technical") {
+    if (favoriteTeam && text.includes(normalizeText(favoriteTeam))) {
+      return `Puede cambiar la lectura de ritmo del próximo GP para ${favoriteTeam}.`;
+    }
+    return "Puede cambiar la lectura de rendimiento del próximo GP si trae mejoras reales.";
+  }
+
+  if (category.key === "reliability") {
+    return "Importa porque un problema mecánico puede alterar por completo el fin de semana.";
+  }
+
+  if (category.key === "market") {
+    if (favorite.type === "driver") {
+      return `Aporta contexto sobre el futuro del equipo y del entorno competitivo de ${favoriteName}.`;
+    }
+    return "Puede afectar al proyecto deportivo y al contexto futuro del equipo.";
+  }
+
+  if (category.key === "statement") {
+    if (favoriteName && text.includes(normalizeText(favoriteName))) {
+      return `Da pistas sobre sensaciones reales alrededor de ${favoriteName}, aunque conviene contrastarlo con el ritmo en pista.`;
+    }
+    return "Da pistas sobre sensaciones y narrativa interna, aunque no siempre se traduce en rendimiento real.";
+  }
+
+  if (containsAny(text, ["pace", "ritmo", "qualy", "qualifying", "race", "podium", "result"])) {
+    return "Sirve para entender quién llega mejor y qué esperar del fin de semana.";
+  }
+
+  if (favoriteTeam && text.includes(normalizeText(favoriteTeam))) {
+    return `Afecta directamente al seguimiento de ${favoriteTeam} en el próximo GP.`;
+  }
+
+  return "Aporta contexto general útil para no llegar a ciegas al próximo Gran Premio.";
+}
+
+function sortNewsItems(items, filter) {
+  const list = Array.isArray(items) ? [...items] : [];
+
+  return list.sort((a, b) => {
+    const scoreDiff = scoreNewsItem(b, filter) - scoreNewsItem(a, filter);
+    if (scoreDiff !== 0) return scoreDiff;
+
+    const dateA = new Date(a?.pubDate || 0).getTime();
+    const dateB = new Date(b?.pubDate || 0).getTime();
+    return dateB - dateA;
+  });
+}
+
+function renderNewsKeyLines(items, filter) {
+  const top = sortNewsItems(items, filter).slice(0, 3);
+
+  if (!top.length) {
+    return `<div class="empty-line">No hay claves destacadas disponibles ahora mismo.</div>`;
+  }
+
+  return `
+    <div class="insight-list">
+      ${top.map(item => `
+        <div class="insight-item">
+          <strong>${escapeHtml(getNewsImportanceLabel(item, filter))}</strong> · ${escapeHtml(item.title)}<br>
+          ${escapeHtml(getNewsImpactText(item, filter))}
+        </div>
+      `).join("")}
+    </div>
+  `;
 }
 
 function renderNewsFilters() {
@@ -1988,9 +2211,12 @@ function renderNewsFilters() {
   `;
 }
 
-function renderFeaturedNews(item) {
+function renderFeaturedNews(item, filter) {
   if (!item) return "";
   const category = categorizeNewsItem(item);
+  const importance = getNewsImportanceLabel(item, filter);
+  const importanceClass = getNewsImportanceClass(item, filter);
+  const impactText = getNewsImpactText(item, filter);
 
   return `
     <div class="news-hero">
@@ -1999,8 +2225,29 @@ function renderFeaturedNews(item) {
       <div class="news-hero-sub">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
       <div class="news-meta-row">
         <span class="tag ${category.key}">${escapeHtml(category.label)}</span>
+        <span class="tag ${importanceClass}">${escapeHtml(importance)}</span>
         <a class="btn-secondary" href="${item.link}" target="_blank" rel="noopener noreferrer" style="width:auto; padding:10px 14px;">Abrir noticia</a>
       </div>
+      <div class="info-line" style="margin-top:12px;">${escapeHtml(impactText)}</div>
+    </div>
+  `;
+}
+
+function renderNewsListItem(item, filter) {
+  const category = categorizeNewsItem(item);
+  const importance = getNewsImportanceLabel(item, filter);
+  const importanceClass = getNewsImportanceClass(item, filter);
+  const impactText = getNewsImpactText(item, filter);
+
+  return `
+    <div class="news-item">
+      <div class="news-meta-row" style="margin-top:0; margin-bottom:8px;">
+        <span class="tag ${category.key}">${escapeHtml(category.label)}</span>
+        <span class="tag ${importanceClass}">${escapeHtml(importance)}</span>
+      </div>
+      <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
+      <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
+      <div class="card-sub" style="margin-top:6px;">${escapeHtml(impactText)}</div>
     </div>
   `;
 }
@@ -2024,7 +2271,7 @@ async function showNews() {
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">NOTICIAS</div>
-          <div class="card-sub">Buscando noticias reales y ordenándolas de forma más útil.</div>
+          <div class="card-sub">Buscando noticias reales, priorizando utilidad y dándote contexto editorial.</div>
         </div>
         <div class="card-head-actions">
           <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
@@ -2032,21 +2279,21 @@ async function showNews() {
       </div>
       ${renderNewsFilters()}
     </div>
-    ${renderLoadingCard(`Noticias · ${filter.label}`, "Cargando portada principal y artículos relacionados…")}
+    ${renderLoadingCard(`Noticias · ${filter.label}`, "Priorizando noticias útiles, portada destacada y claves del día…")}
   `;
 
   try {
     const data = await fetchNewsDataForFavorite(filter.favoritePayload, false);
-    const items = Array.isArray(data?.items) ? data.items.slice(0, 10) : [];
-    const featured = items[0] || null;
-    const rest = items.slice(1);
+    const sortedItems = sortNewsItems(Array.isArray(data?.items) ? data.items : [], filter).slice(0, 10);
+    const featured = sortedItems[0] || null;
+    const rest = sortedItems.slice(1);
 
     contentEl().innerHTML = `
       <div class="card">
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">NOTICIAS</div>
-            <div class="card-sub">Vista mejorada con filtros, noticia principal y etiquetas temáticas.</div>
+            <div class="card-sub">Portada más inteligente, claves editoriales y artículos ordenados por utilidad real.</div>
           </div>
           <div class="card-head-actions">
             <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
@@ -2057,25 +2304,22 @@ async function showNews() {
 
       <div class="card highlight-card">
         <div class="card-title">Portada · ${escapeHtml(filter.label)}</div>
-        ${featured ? renderFeaturedNews(featured) : `<div class="empty-line">No hay una noticia destacada disponible ahora mismo.</div>`}
+        ${featured ? renderFeaturedNews(featured, filter) : `<div class="empty-line">No hay una noticia destacada disponible ahora mismo.</div>`}
+      </div>
+
+      <div class="card">
+        <div class="card-title">3 claves del día</div>
+        <div class="card-sub">Qué merece la pena mirar primero y por qué importa realmente.</div>
+        ${renderNewsKeyLines(sortedItems, filter)}
       </div>
 
       <div class="card">
         <div class="card-title">Más noticias</div>
-        <div class="card-sub">Artículos relacionados con el filtro activo.</div>
+        <div class="card-sub">Artículos relacionados con el filtro activo, ya ordenados por relevancia y contexto.</div>
 
-        ${rest.length ? rest.map(item => {
-          const category = categorizeNewsItem(item);
-          return `
-            <div class="news-item">
-              <div class="news-meta-row" style="margin-top:0; margin-bottom:8px;">
-                <span class="tag ${category.key}">${escapeHtml(category.label)}</span>
-              </div>
-              <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
-              <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
-            </div>
-          `;
-        }).join("") : `<div class="empty-line">No se han encontrado noticias adicionales ahora mismo.</div>`}
+        ${rest.length
+          ? rest.map(item => renderNewsListItem(item, filter)).join("")
+          : `<div class="empty-line">No se han encontrado noticias adicionales ahora mismo.</div>`}
       </div>
     `;
   } catch (error) {
