@@ -115,7 +115,7 @@ header:has(#appSubtitle),
 #content {
   width: min(920px, 100%);
   margin: 0 auto;
-  padding: 18px 16px calc(120px + env(safe-area-inset-bottom));
+  padding: 22px 16px calc(120px + env(safe-area-inset-bottom));
 }
 
 #content > * + * {
