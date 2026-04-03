@@ -122,21 +122,22 @@ header:has(#appSubtitle),
   margin-top: 16px;
 }
 
-nav:has(#nav-home),
+nav,
 .bottom-nav,
 .app-nav,
 .tabbar,
 #bottomNav {
-  position: fixed;
-  left: 12px;
-  right: 12px;
+  position: fixed !important;
+  left: 16px;
+  right: 16px;
   bottom: calc(10px + env(safe-area-inset-bottom));
-  z-index: 50;
-  display: flex;
-  align-items: stretch;
+  z-index: 60;
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
   gap: 8px;
   padding: 10px;
-  background: rgba(16, 18, 24, 0.82);
+  background: rgba(16, 18, 24, 0.88);
   backdrop-filter: blur(26px) saturate(1.35);
   -webkit-backdrop-filter: blur(26px) saturate(1.35);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -149,18 +150,21 @@ nav:has(#nav-home),
 #nav-favorito,
 #nav-news,
 #nav-more {
-  flex: 1;
+  width: 100%;
   min-width: 0;
-  display: flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
   min-height: 48px;
-  padding: 10px 8px;
+  margin: 0 !important;
+  padding: 10px 6px;
   border-radius: 16px;
   text-decoration: none;
   color: var(--text-faint);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
   transition:
     background 0.2s ease,
     color 0.2s ease,
