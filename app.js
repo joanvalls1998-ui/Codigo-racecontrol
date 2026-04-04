@@ -4986,3 +4986,978 @@ if (document.readyState === "loading") {
 } else {
   bootRaceControl();
 }
+
+/* =========================================================
+   FASES 6 + 7 + 8 + 9 · BLOQUE ÚNICO
+   Pegar al FINAL de app.js
+========================================================= */
+
+/* ===== FASE 9 · SETTINGS / PERSISTENCIA ===== */
+
+function getDefaultSettings() {
+  return {
+    language: "es-ES",
+    autoSelectNextRace: true,
+    showCircuitLocalTime: true,
+    homeCompactMode: false,
+    weekendExplainerMode: true
+  };
+}
+
+function getUiState() {
+  return safeJsonParse(localStorage.getItem("racecontrolUiState"), {
+    standingsViewType: "drivers",
+    standingsScope: "top10",
+    currentNewsFilterKey: "favorite"
+  });
+}
+
+function saveUiState() {
+  localStorage.setItem("racecontrolUiState", JSON.stringify({
+    standingsViewType: state.standingsViewType,
+    standingsScope: state.standingsScope,
+    currentNewsFilterKey: state.currentNewsFilterKey
+  }));
+}
+
+function applyStoredUiState() {
+  const saved = getUiState();
+  state.standingsViewType = saved.standingsViewType || "drivers";
+  state.standingsScope = saved.standingsScope || "top10";
+  state.currentNewsFilterKey = saved.currentNewsFilterKey || "favorite";
+}
+
+function togglePremiumSetting(key) {
+  const settings = getSettings();
+  saveSettings({ ...settings, [key]: !settings[key] });
+  showSettingsPanel();
+}
+
+function getLocalDataSummary() {
+  const history = safeJsonParse(localStorage.getItem("racecontrolPredictionHistory"), []);
+  return {
+    predictions: Array.isArray(history) ? history.length : 0,
+    selectedRace: localStorage.getItem("racecontrolSelectedRace") || "Auto",
+    favorite: getFavorite()
+  };
+}
+
+function clearAllLocalData() {
+  [
+    "racecontrolFavorite",
+    "racecontrolSettings",
+    "racecontrolSelectedRace",
+    "racecontrolPredictionHistory",
+    "racecontrolStandingsSnapshot",
+    "racecontrolUiState"
+  ].forEach(key => localStorage.removeItem(key));
+
+  state.standingsCache = null;
+  state.calendarCache = null;
+  state.homeNewsCache = {};
+  state.lastPredictData = null;
+  state.lastPredictContext = null;
+  state.detectedNextRaceName = null;
+  state.weekendContext = null;
+  state.weekendNowIso = null;
+  state.standingsDelta = { drivers: {}, teams: {} };
+  state.standingsViewType = "drivers";
+  state.standingsScope = "top10";
+  state.currentNewsFilterKey = "favorite";
+}
+
+function resetAllDataAndReboot() {
+  clearAllLocalData();
+  applyStoredUiState();
+  updateSubtitle();
+  showHome();
+}
+
+/* ===== FASE 6 · FAVORITO INTELIGENTE ===== */
+
+function getActivePredictDataForRace(favorite, raceName) {
+  if (!state.lastPredictData || !state.lastPredictContext) return null;
+  if (state.lastPredictContext.raceName !== raceName) return null;
+  if (state.lastPredictContext.favoriteKey !== `${favorite.type}:${favorite.name}`) return null;
+  return state.lastPredictData;
+}
+
+function getFavoriteRiskFocus(favorite, raceName, predictData) {
+  const metrics = getFavoriteMetrics(favorite);
+  const heuristics = getRaceHeuristics(raceName);
+  const teamData = metrics.teamData;
+
+  if (teamData.reliability < 65) return "Fiabilidad";
+  if (teamData.qualyPace + 4 < teamData.racePace && heuristics.tag === "urbano") return "Qualy / tráfico";
+  if (heuristics.safetyCar >= 45) return "Safety Car";
+  if (heuristics.rain >= 28) return "Meteorología";
+  if (predictData?.summary?.strategy?.stops >= 2) return "Estrategia";
+  return "Ejecución";
+}
+
+function getFavoriteWeekendObjective(favorite, raceName, predictData, context) {
+  const metrics = getFavoriteMetrics(favorite);
+  const prediction = predictData ? formatFavoritePredictionText(predictData.favoritePrediction) : null;
+
+  const realistic =
+    prediction?.race && prediction.race !== "Sin datos"
+      ? prediction.race
+      : metrics.expectedWindow;
+
+  const high = shiftPositionLabel(realistic, -2);
+  const minimum = metrics.dnfRisk >= 28 ? "Terminar limpio" : shiftPositionLabel(realistic, 2);
+  const risk = getFavoriteRiskFocus(favorite, raceName, predictData);
+
+  return {
+    minimum,
+    realistic,
+    high,
+    risk,
+    phase: context?.phaseLabel || "Previa"
+  };
+}
+
+function getCircuitDemandProfile(raceName) {
+  const heuristics = getRaceHeuristics(raceName);
+
+  if (raceName.includes("Italia")) {
+    return {
+      aero: 58,
+      traction: 66,
+      topSpeed: 92,
+      tyreManagement: 70,
+      note: "Monza premia mucho la eficiencia y la velocidad punta."
+    };
+  }
+
+  if (heuristics.tag === "urbano") {
+    return {
+      aero: 78,
+      traction: 85,
+      topSpeed: 62,
+      tyreManagement: 72,
+      note: "Circuito de muros: confianza, tracción y posición en pista pesan mucho."
+    };
+  }
+
+  if (heuristics.tag === "semiurbano") {
+    return {
+      aero: 70,
+      traction: 76,
+      topSpeed: 74,
+      tyreManagement: 74,
+      note: "Compromiso entre recta, tracción y ritmo largo."
+    };
+  }
+
+  if (heuristics.tag === "altitud") {
+    return {
+      aero: 68,
+      traction: 78,
+      topSpeed: 82,
+      tyreManagement: 68,
+      note: "La altitud cambia bastante el comportamiento esperado."
+    };
+  }
+
+  return {
+    aero: 80,
+    traction: 72,
+    topSpeed: 74,
+    tyreManagement: 78,
+    note: "Circuito más clásico: aerodinámica, consistencia y gestión de neumáticos suelen mandar."
+  };
+}
+
+function getCircuitFitValue(teamValue, demandValue) {
+  const diff = Math.abs(teamValue - demandValue);
+  return clamp(100 - diff * 2, 35, 96);
+}
+
+function getFavoriteCircuitFit(favorite, raceName) {
+  const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
+  const teamData = getTeamData(teamName);
+  const demand = getCircuitDemandProfile(raceName);
+
+  const fit = {
+    aero: getCircuitFitValue(teamData.aero, demand.aero),
+    traction: getCircuitFitValue(teamData.traction, demand.traction),
+    topSpeed: getCircuitFitValue(teamData.topSpeed, demand.topSpeed),
+    tyreManagement: getCircuitFitValue(teamData.tyreManagement, demand.tyreManagement)
+  };
+
+  const overall = Math.round((fit.aero + fit.traction + fit.topSpeed + fit.tyreManagement) / 4);
+  const label = overall >= 78 ? "Encaje alto" : overall >= 66 ? "Encaje medio" : "Encaje delicado";
+
+  return { demand, fit, overall, label, teamData };
+}
+
+function getFavoriteComparisonBreakdown(favorite) {
+  const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
+  const teamData = getTeamData(teamName);
+  const trend = getTrendInfo(teamName, favorite);
+
+  if (favorite.type === "driver") {
+    const comparison = getDriverComparison(teamName, favorite.name);
+    const gap = comparison.primaryForm - comparison.secondaryForm;
+
+    return {
+      title: `${comparison.primaryName} vs ${comparison.secondaryName}`,
+      items: [
+        {
+          kicker: "Forma interna",
+          value: `${comparison.primaryForm}%`,
+          caption: gap >= 0 ? `Ventaja interna de ${gap}` : `Desventaja interna de ${Math.abs(gap)}`
+        },
+        {
+          kicker: "Lectura qualy",
+          value: teamData.qualyPace >= teamData.racePace ? "Sábado" : "Domingo",
+          caption: teamData.qualyPace >= teamData.racePace ? "El sábado pesa más" : "El domingo puede abrir más"
+        },
+        {
+          kicker: "Fiabilidad",
+          value: `${teamData.reliability}%`,
+          caption: teamData.reliability < 65 ? "Factor de riesgo" : "Base razonable"
+        },
+        {
+          kicker: "Tendencia",
+          value: trend.label,
+          caption: trend.description
+        }
+      ]
+    };
+  }
+
+  return {
+    title: `${teamData.drivers[0]} vs ${teamData.drivers[1]}`,
+    items: [
+      {
+        kicker: teamData.drivers[0],
+        value: `${teamData.forms[0]}%`,
+        caption: "Estado actual"
+      },
+      {
+        kicker: teamData.drivers[1],
+        value: `${teamData.forms[1]}%`,
+        caption: "Estado actual"
+      },
+      {
+        kicker: "Fiabilidad",
+        value: `${teamData.reliability}%`,
+        caption: teamData.reliability < 65 ? "Factor de riesgo" : "Base razonable"
+      },
+      {
+        kicker: "Tendencia",
+        value: trend.label,
+        caption: trend.description
+      }
+    ]
+  };
+}
+
+function getFavoriteWeekendRadar(favorite, raceName, context, predictData) {
+  const heuristics = getRaceHeuristics(raceName);
+  const metrics = getFavoriteMetrics(favorite);
+
+  const need =
+    metrics.teamData.qualyPace + 4 < metrics.teamData.racePace
+      ? "Necesita no perder demasiada posición el sábado."
+      : "Necesita construir un fin de semana limpio desde la primera referencia.";
+
+  const danger =
+    metrics.dnfRisk >= 28
+      ? "La fiabilidad o un sábado torcido pueden romper el objetivo real."
+      : heuristics.tag === "urbano"
+      ? "El tráfico y la posición en pista pueden recortar mucho el techo del domingo."
+      : "Una mala salida o un stint inicial sin aire limpio pueden cambiar el guion.";
+
+  const watch =
+    context?.phase === "friday"
+      ? "FP2 y las tandas largas son la señal más útil."
+      : context?.phase === "saturday"
+      ? "La qualy es la señal principal: cambia por completo la lectura del GP."
+      : context?.phase === "sunday"
+      ? "Mira la salida, la ventana de parada y cualquier Safety Car."
+      : `La primera referencia útil será ${context?.nextSession?.label || "la siguiente sesión"}.`;
+
+  return [
+    { title: "Qué necesita", text: need },
+    { title: "Qué le puede hundir", text: danger },
+    { title: "Qué mirar primero", text: watch }
+  ];
+}
+
+function getFavoriteDirectRivals(favorite, standingsData, predictData) {
+  if (!standingsData) return [];
+
+  if (favorite.type === "team") {
+    const teams = standingsData.teams || [];
+    const current = teams.find(t => t.team === favorite.name);
+    if (!current) return [];
+
+    return [current.pos - 1, current.pos + 1]
+      .map(pos => teams.find(t => t.pos === pos))
+      .filter(Boolean)
+      .map(team => ({
+        title: team.team,
+        sub: team.drivers,
+        meta: `P${team.pos} · ${team.points} pts`,
+        colorClass: team.colorClass
+      }));
+  }
+
+  const drivers = standingsData.drivers || [];
+  const current = drivers.find(d => d.name === favorite.name);
+  if (!current) return [];
+
+  const teammate = drivers.find(d => d.team === favorite.team && d.name !== favorite.name);
+  const ahead = drivers.find(d => d.pos === current.pos - 1);
+  const behind = drivers.find(d => d.pos === current.pos + 1);
+
+  return [teammate, ahead, behind]
+    .filter(Boolean)
+    .map(driver => ({
+      title: driver.name,
+      sub: driver.team,
+      meta: `P${driver.pos} · ${driver.points} pts`,
+      colorClass: driver.colorClass || getTeamColorClass(driver.team)
+    }));
+}
+
+function renderFavoritoHeroContextCard(favorite, raceName, predictData, context) {
+  const signal = getWeekendSignal(favorite, raceName);
+  const objective = getFavoriteWeekendObjective(favorite, raceName, predictData, context);
+
+  return `
+    <div class="card highlight-card">
+      <div class="mini-pill">FAVORITO INTELIGENTE</div>
+      <div class="card-title">${escapeHtml(favorite.name)}</div>
+      <div class="card-sub">${escapeHtml(raceName)} · ${escapeHtml(context?.phaseLabel || "Previa")} · ${escapeHtml(signal.description)}</div>
+
+      <div class="news-meta-row" style="margin-top:10px;">
+        <span class="tag ${context?.phase === "sunday" ? "statement" : context?.phase === "saturday" ? "market" : "general"}">${escapeHtml(context?.phaseLabel || "Previa")}</span>
+        <span class="trend-pill ${signal.className}">${escapeHtml(signal.label)}</span>
+      </div>
+
+      <div class="meta-grid" style="margin-top:14px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Objetivo real</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(objective.realistic)}</div>
+          <div class="meta-caption">La ventana más razonable del fin de semana</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Objetivo alto</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(objective.high)}</div>
+          <div class="meta-caption">Lo que necesita para estirar el techo</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Riesgo principal</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(objective.risk)}</div>
+          <div class="meta-caption">Lo que más puede romper el guion</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderFavoritoObjectiveCard(favorite, raceName, predictData, context) {
+  const objective = getFavoriteWeekendObjective(favorite, raceName, predictData, context);
+
+  return `
+    <div class="card">
+      <div class="card-title">Objetivo del fin de semana</div>
+      <div class="card-sub">Qué es un buen GP, qué sería lo razonable y qué escenario deja sabor a oportunidad perdida.</div>
+
+      <div class="grid-stats">
+        <div class="stat-tile">
+          <div class="stat-kicker">Mínimo</div>
+          <div class="stat-value" style="font-size:22px;">${escapeHtml(objective.minimum)}</div>
+          <div class="stat-caption">La base que no conviene perder</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-kicker">Razonable</div>
+          <div class="stat-value" style="font-size:22px;">${escapeHtml(objective.realistic)}</div>
+          <div class="stat-caption">La referencia más estable ahora mismo</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-kicker">Alto</div>
+          <div class="stat-value" style="font-size:22px;">${escapeHtml(objective.high)}</div>
+          <div class="stat-caption">Lo que necesita para salir reforzado</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderFavoritoCircuitFitCard(favorite, raceName) {
+  const fit = getFavoriteCircuitFit(favorite, raceName);
+  const accent = favorite.colorClass;
+
+  return `
+    <div class="card">
+      <div class="card-title">Encaje con el circuito</div>
+      <div class="card-sub">${escapeHtml(fit.demand.note)}</div>
+
+      <div class="news-meta-row" style="margin-top:10px;">
+        <span class="tag general">${escapeHtml(raceName)}</span>
+        <span class="tag ${fit.overall >= 78 ? "statement" : fit.overall >= 66 ? "market" : "reliability"}">${escapeHtml(fit.label)}</span>
+      </div>
+
+      <div class="stat" style="margin-top:14px;">Aero <span>${fit.fit.aero}%</span></div>
+      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.aero}%;"></div></div>
+
+      <div class="stat" style="margin-top:14px;">Tracción <span>${fit.fit.traction}%</span></div>
+      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.traction}%;"></div></div>
+
+      <div class="stat" style="margin-top:14px;">Velocidad punta <span>${fit.fit.topSpeed}%</span></div>
+      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.topSpeed}%;"></div></div>
+
+      <div class="stat" style="margin-top:14px;">Gestión neumáticos <span>${fit.fit.tyreManagement}%</span></div>
+      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.tyreManagement}%;"></div></div>
+    </div>
+  `;
+}
+
+function renderFavoritoComparisonAdvancedCard(favorite) {
+  const breakdown = getFavoriteComparisonBreakdown(favorite);
+
+  return `
+    <div class="card">
+      <div class="card-title">${escapeHtml(breakdown.title)}</div>
+      <div class="card-sub">La comparación interna se resume mejor si separas forma, fiabilidad, tendencia y lectura de sábado/domingo.</div>
+
+      <div class="meta-grid" style="margin-top:14px;">
+        ${breakdown.items.map(item => `
+          <div class="meta-tile">
+            <div class="meta-kicker">${escapeHtml(item.kicker)}</div>
+            <div class="meta-value" style="font-size:18px;">${escapeHtml(item.value)}</div>
+            <div class="meta-caption">${escapeHtml(item.caption)}</div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderFavoritoRadarCard(favorite, raceName, context, predictData) {
+  const items = getFavoriteWeekendRadar(favorite, raceName, context, predictData);
+
+  return `
+    <div class="card">
+      <div class="card-title">Radar del fin de semana</div>
+      <div class="card-sub">Qué necesita, qué le puede hundir y cuál es la señal más útil para no mirar el GP a ciegas.</div>
+
+      <div class="insight-list">
+        ${items.map(item => `
+          <div class="insight-item">
+            <strong>${escapeHtml(item.title)}</strong><br>
+            ${escapeHtml(item.text)}
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderFavoritoDirectRivalsCard(favorite, predictData) {
+  const rivals = getFavoriteDirectRivals(favorite, state.standingsCache, predictData);
+
+  return `
+    <div class="card">
+      <div class="card-title">Rivales directos</div>
+      <div class="card-sub">La pelea real del fin de semana suele estar más cerca que la narrativa grande de podio o victoria.</div>
+
+      ${rivals.length ? rivals.map(rival => `
+        <div class="standing-row">
+          <div class="row-left">
+            <div class="row-stripe ${escapeHtml(rival.colorClass)}"></div>
+            <div class="row-info">
+              <div class="row-name">${escapeHtml(rival.title)}</div>
+              <div class="row-team">${escapeHtml(rival.sub)}</div>
+            </div>
+          </div>
+          <div class="row-badges">
+            <div class="row-points">${escapeHtml(rival.meta)}</div>
+          </div>
+        </div>
+      `).join("") : `<div class="empty-line">No hay rivales directos claros cargados ahora mismo.</div>`}
+    </div>
+  `;
+}
+
+function showFavorito() {
+  setActiveNav("nav-favorito");
+  updateSubtitle();
+
+  const favorite = getFavorite();
+  const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
+  const accent = favorite.colorClass;
+  const teamData = getTeamData(teamName);
+  const context = getHomeWeekendContext() || state.weekendContext;
+  const raceName = context?.raceName || getSelectedRace();
+  const predictData = getActivePredictDataForRace(favorite, raceName);
+
+  contentEl().innerHTML = `
+    ${renderFavoriteCard()}
+    ${renderFavoritoHeroContextCard(favorite, raceName, predictData, context)}
+    ${renderFavoritoObjectiveCard(favorite, raceName, predictData, context)}
+    ${renderFavoritoTechnicalCard(favorite, teamName, teamData, accent)}
+    ${renderFavoritoCircuitFitCard(favorite, raceName)}
+    ${renderFavoritoComparisonAdvancedCard(favorite)}
+    ${renderFavoritoRadarCard(favorite, raceName, context, predictData)}
+    ${renderFavoritoDirectRivalsCard(favorite, predictData)}
+    ${renderFavoritoInsightsCard(favorite)}
+  `;
+}
+
+/* ===== FASE 7 · CLASIFICACIÓN AVANZADA ===== */
+
+function getStandingsOverviewData() {
+  const favorite = getFavorite();
+  const data = state.standingsCache;
+  if (!data) return null;
+
+  if (favorite.type === "driver") {
+    const favoriteDriver = data.drivers?.find(d => d.name === favorite.name);
+    const leader = data.drivers?.[0];
+    const ahead = favoriteDriver ? data.drivers?.find(d => d.pos === favoriteDriver.pos - 1) : null;
+    const behind = favoriteDriver ? data.drivers?.find(d => d.pos === favoriteDriver.pos + 1) : null;
+    return { leader, favoriteDriver, ahead, behind, type: "drivers" };
+  }
+
+  const favoriteTeam = data.teams?.find(t => t.team === favorite.name);
+  const leader = data.teams?.[0];
+  const ahead = favoriteTeam ? data.teams?.find(t => t.pos === favoriteTeam.pos - 1) : null;
+  const behind = favoriteTeam ? data.teams?.find(t => t.pos === favoriteTeam.pos + 1) : null;
+  return { leader, favoriteTeam, ahead, behind, type: "teams" };
+}
+
+function renderStandingsOverviewCard() {
+  const overview = getStandingsOverviewData();
+  if (!overview) return "";
+
+  if (overview.type === "drivers") {
+    return `
+      <div class="card">
+        <div class="card-title">Contexto del campeonato</div>
+        <div class="card-sub">No mires solo una tabla: mira dónde está el favorito y con quién pelea de verdad.</div>
+
+        <div class="meta-grid" style="margin-top:14px;">
+          <div class="meta-tile">
+            <div class="meta-kicker">Líder</div>
+            <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.leader?.name || "—")}</div>
+            <div class="meta-caption">${overview.leader ? `${overview.leader.points} pts` : "Sin datos"}</div>
+          </div>
+          <div class="meta-tile">
+            <div class="meta-kicker">Favorito</div>
+            <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.favoriteDriver ? `P${overview.favoriteDriver.pos}` : "—")}</div>
+            <div class="meta-caption">${escapeHtml(overview.favoriteDriver?.name || "No cargado")}</div>
+          </div>
+          <div class="meta-tile">
+            <div class="meta-kicker">Pelea directa</div>
+            <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.ahead?.name || overview.behind?.name || "—")}</div>
+            <div class="meta-caption">La batalla real está cerca en la tabla</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="card">
+      <div class="card-title">Contexto del campeonato</div>
+      <div class="card-sub">La pelea del equipo favorito se entiende mejor viendo líder, posición y rivales inmediatos.</div>
+
+      <div class="meta-grid" style="margin-top:14px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Líder</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.leader?.team || "—")}</div>
+          <div class="meta-caption">${overview.leader ? `${overview.leader.points} pts` : "Sin datos"}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Equipo fav.</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.favoriteTeam ? `P${overview.favoriteTeam.pos}` : "—")}</div>
+          <div class="meta-caption">${escapeHtml(overview.favoriteTeam?.team || "No cargado")}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Pelea directa</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.ahead?.team || overview.behind?.team || "—")}</div>
+          <div class="meta-caption">La batalla real está cerca en la tabla</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderStandingsBattleCard() {
+  const overview = getStandingsOverviewData();
+  if (!overview) return "";
+
+  const items = [overview.ahead, overview.behind].filter(Boolean);
+
+  return `
+    <div class="card">
+      <div class="card-title">Batalla directa</div>
+      <div class="card-sub">Los rivales inmediatos importan más que mirar solo del primero al último.</div>
+
+      ${items.length ? items.map(item => `
+        <div class="standing-row">
+          <div class="row-left">
+            <div class="row-pos-wrap"><div class="row-pos">${item.pos}</div></div>
+            <div class="row-stripe ${escapeHtml(item.colorClass || getTeamColorClass(item.team))}"></div>
+            <div class="row-info">
+              <div class="row-name">${escapeHtml(item.name || item.team)}</div>
+              <div class="row-team">${escapeHtml(item.team || item.drivers)}</div>
+            </div>
+          </div>
+          <div class="row-badges">
+            <div class="row-points">${escapeHtml(String(item.points))}<small>pts</small></div>
+          </div>
+        </div>
+      `).join("") : `<div class="empty-line">No hay rivales inmediatos detectados.</div>`}
+    </div>
+  `;
+}
+
+function renderStandingsSummaryBlock() {
+  const el = document.getElementById("standingsSummaryContent");
+  if (!el) return;
+  el.innerHTML = `${renderStandingsOverviewCard()}${renderStandingsBattleCard()}`;
+}
+
+function setStandingsView(type) {
+  state.standingsViewType = type;
+  saveUiState();
+  renderStandingsSummaryBlock();
+  if (type === "teams") showTeamsStandings();
+  else showDriversStandings();
+}
+
+function setStandingsScope(scope) {
+  state.standingsScope = scope;
+  saveUiState();
+  if (state.standingsViewType === "teams") showTeamsStandings();
+  else showDriversStandings();
+}
+
+async function showStandings(force = false) {
+  setActiveNav("nav-more");
+  updateSubtitle();
+
+  contentEl().innerHTML = `
+    ${renderFavoriteCard()}
+    ${renderLoadingCard("Clasificación", "Cargando clasificación real, cambios y resaltados…", true)}
+  `;
+
+  try {
+    await fetchStandingsData(force);
+
+    contentEl().innerHTML = `
+      ${renderFavoriteCard()}
+      <div id="standingsSummaryContent"></div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-title">Clasificación</div>
+            <div class="card-sub">Vista premium con líder, favorito, compañero y variación de posición.</div>
+          </div>
+          <div class="card-head-actions">
+            <button class="icon-btn" onclick="refreshStandings()">Refrescar</button>
+          </div>
+        </div>
+
+        <div class="standings-toggle">
+          <button class="toggle-btn ${state.standingsViewType === "drivers" ? "active" : ""}" onclick="setStandingsView('drivers')">Pilotos</button>
+          <button class="toggle-btn ${state.standingsViewType === "teams" ? "active" : ""}" onclick="setStandingsView('teams')">Equipos</button>
+        </div>
+
+        <div class="standings-toggle">
+          <button class="toggle-btn ${state.standingsScope === "top10" ? "active" : ""}" onclick="setStandingsScope('top10')">Top 10</button>
+          <button class="toggle-btn ${state.standingsScope === "all" ? "active" : ""}" onclick="setStandingsScope('all')">Todos</button>
+        </div>
+      </div>
+
+      <div id="standingsContent"></div>
+    `;
+
+    renderStandingsSummaryBlock();
+
+    if (state.standingsViewType === "teams") showTeamsStandings();
+    else showDriversStandings();
+  } catch (error) {
+    contentEl().innerHTML = renderErrorCard("Clasificación", "Error al cargar la clasificación", error.message);
+  }
+}
+
+function switchNewsFilter(key) {
+  state.currentNewsFilterKey = key;
+  saveUiState();
+  showNews();
+}
+
+/* ===== FASE 8 · CALENDARIO INTELIGENTE ===== */
+
+function getCalendarFormatLabel(raceName) {
+  const config = getOfficialSessionConfig(raceName);
+  if (!config) return "Sin datos";
+  if (config.format === "sprint") return "Sprint weekend";
+  if (config.format === "standard") return "Formato normal";
+  return "Horario no disponible";
+}
+
+function getCalendarEventNarrative(event) {
+  const raceName = mapCalendarEventToPredictRace(event) || event?.title || "GP";
+  const heuristics = getRaceHeuristics(raceName);
+  const format = getCalendarFormatLabel(raceName);
+
+  if (heuristics.tag === "urbano") return `${format} · Circuito de muros: la posición en pista pesa mucho.`;
+  if (heuristics.tag === "semiurbano") return `${format} · Compromiso entre recta, tracción y ritmo largo.`;
+  if (heuristics.tag === "altitud") return `${format} · La altitud cambia bastante el comportamiento esperado.`;
+  return `${format} · Circuito más clásico donde suele mandar más el ritmo puro.`;
+}
+
+function renderCalendarIntelligenceHero(nextRace, context) {
+  if (!nextRace) return "";
+
+  const raceName = mapCalendarEventToPredictRace(nextRace) || "GP";
+  const heuristics = getRaceHeuristics(raceName);
+  const format = getCalendarFormatLabel(raceName);
+
+  return `
+    <div class="card highlight-card">
+      <div class="mini-pill">CALENDARIO INTELIGENTE</div>
+      <div class="card-title">${escapeHtml(nextRace.title)}</div>
+      <div class="card-sub">${escapeHtml(getCalendarEventNarrative(nextRace))}</div>
+
+      <div class="meta-grid" style="margin-top:14px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Formato</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(format)}</div>
+          <div class="meta-caption">${escapeHtml(formatCalendarDateRange(nextRace.start, nextRace.end))}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Circuito</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(heuristics.tag)}</div>
+          <div class="meta-caption">${escapeHtml(nextRace.venue || "")}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Siguiente referencia</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(context?.nextSession?.label || "—")}</div>
+          <div class="meta-caption">${escapeHtml(context?.nextSessionCountdown || "Sin cuenta atrás")}</div>
+        </div>
+      </div>
+
+      <div class="quick-row" style="margin-top:14px;">
+        <a href="#" class="btn-secondary" onclick="showSessions(); return false;">Abrir sesiones</a>
+        <a href="#" class="btn-secondary" onclick="showPredict(); return false;">Abrir predicción</a>
+      </div>
+    </div>
+  `;
+}
+
+function renderCalendarFlowCard(context) {
+  if (!context?.sessions?.length) return "";
+
+  const showCircuitTime = getSettings().showCircuitLocalTime;
+
+  return `
+    <div class="card">
+      <div class="card-title">Flujo del GP</div>
+      <div class="card-sub">Lectura rápida de cómo se ordena el fin de semana, sin salir del calendario.</div>
+
+      ${context.sessions.map(session => `
+        <div class="standing-row">
+          <div class="row-left">
+            <div class="row-pos-wrap"><div class="row-pos">${escapeHtml(session.label)}</div></div>
+            <div class="row-info">
+              <div class="row-name">${escapeHtml(formatSessionDateTime(session.start))}</div>
+              <div class="row-team">${escapeHtml(session.importance)}</div>
+            </div>
+          </div>
+          <div class="row-badges">
+            <span class="tag ${session.status === "live" ? "statement" : session.status === "next" ? "market" : session.status === "completed" ? "general" : "technical"}">${escapeHtml(session.status === "next" ? "Siguiente" : session.status === "live" ? "En curso" : session.status === "completed" ? "Completada" : "Próxima")}</span>
+            ${showCircuitTime ? `<div class="row-team">${escapeHtml(formatSessionCircuitDateTime(session.start, session.timeZone))}</div>` : ""}
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+async function showCalendar(force = false) {
+  setActiveNav("nav-more");
+  updateSubtitle();
+
+  contentEl().innerHTML = renderLoadingCard("Calendario", "Cargando calendario oficial 2026 y separando próximas y completadas…", true);
+
+  try {
+    const data = await fetchCalendarData(force);
+    const events = Array.isArray(data?.events) ? data.events : [];
+    const nextRace = getNextRaceFromCalendar(events);
+    const upcoming = events.filter(event => event.status === "next" || event.status === "upcoming");
+    const completed = events.filter(event => event.status === "completed");
+    const context = getHomeWeekendContext();
+
+    contentEl().innerHTML = `
+      ${renderCalendarIntelligenceHero(nextRace, context)}
+      ${renderCalendarFlowCard(context)}
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-title">Calendario</div>
+            <div class="card-sub">Vista mejorada con siguiente carrera destacada y bloques separados.</div>
+          </div>
+          <div class="card-head-actions">
+            <button class="icon-btn" onclick="refreshCalendar()">Refrescar</button>
+          </div>
+        </div>
+
+        <div class="calendar-group-title">Próximas citas</div>
+        ${upcoming.length ? upcoming.map(renderCalendarEventCard).join("") : `<div class="empty-line">No hay próximas citas cargadas.</div>`}
+
+        <div class="calendar-group-title" style="margin-top:14px;">Ya completadas</div>
+        ${completed.length ? completed.map(renderCalendarEventCard).join("") : `<div class="empty-line">No hay citas completadas registradas.</div>`}
+      </div>
+    `;
+  } catch (error) {
+    contentEl().innerHTML = renderErrorCard("Calendario", "Error al cargar el calendario", error.message);
+  }
+}
+
+/* ===== FASE 9 · AJUSTES PREMIUM ===== */
+
+function renderSettingsAdvancedCard() {
+  const settings = getSettings();
+  const summary = getLocalDataSummary();
+
+  return `
+    <div class="card">
+      <div class="card-title">Preferencias premium</div>
+      <div class="card-sub">Pequeños ajustes que hacen la app más tuya y más cómoda entre aperturas.</div>
+
+      <div class="settings-line">
+        <div class="settings-line-left">
+          <div class="settings-line-title">Mostrar hora circuito</div>
+          <div class="settings-line-sub">Añade la hora local del circuito en sesiones y calendario.</div>
+        </div>
+        <button class="icon-btn" onclick="togglePremiumSetting('showCircuitLocalTime')">${settings.showCircuitLocalTime ? "Activado" : "Desactivado"}</button>
+      </div>
+
+      <div class="settings-line">
+        <div class="settings-line-left">
+          <div class="settings-line-title">Home compacta</div>
+          <div class="settings-line-sub">Reduce un poco la home y deja solo lo más operativo.</div>
+        </div>
+        <button class="icon-btn" onclick="togglePremiumSetting('homeCompactMode')">${settings.homeCompactMode ? "Activado" : "Desactivado"}</button>
+      </div>
+
+      <div class="settings-line">
+        <div class="settings-line-left">
+          <div class="settings-line-title">Modo explicativo</div>
+          <div class="settings-line-sub">Mantiene tarjetas tipo “qué mirar ahora” pensadas para casuals.</div>
+        </div>
+        <button class="icon-btn" onclick="togglePremiumSetting('weekendExplainerMode')">${settings.weekendExplainerMode ? "Activado" : "Desactivado"}</button>
+      </div>
+
+      <div class="meta-grid" style="margin-top:14px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Predicciones</div>
+          <div class="meta-value" style="font-size:18px;">${summary.predictions}</div>
+          <div class="meta-caption">Guardadas en este dispositivo</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Circuito</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(summary.selectedRace)}</div>
+          <div class="meta-caption">Manual o automático</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Favorito</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(summary.favorite.name)}</div>
+          <div class="meta-caption">${summary.favorite.type === "driver" ? "Piloto" : "Equipo"}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function showSettingsPanel() {
+  setActiveNav("nav-more");
+  updateSubtitle();
+
+  const settings = getSettings();
+  const favorite = getFavorite();
+
+  contentEl().innerHTML = `
+    <div class="card">
+      <div class="card-title">Ajustes</div>
+      <div class="card-sub">Preferencias básicas de la app y limpieza rápida de datos locales.</div>
+
+      <div class="settings-line" style="margin-bottom:10px;">
+        <div class="settings-line-left">
+          <div>
+            <div class="settings-line-title">Idioma</div>
+            <div class="settings-line-sub">Actualmente fijado para español de España.</div>
+          </div>
+        </div>
+        <div class="tag general">es-ES</div>
+      </div>
+
+      <div class="settings-line" style="margin-bottom:10px;">
+        <div class="settings-line-left">
+          <div>
+            <div class="settings-line-title">Favorito actual</div>
+            <div class="settings-line-sub">${favorite.type === "driver" ? `${escapeHtml(favorite.name)} · ${escapeHtml(favorite.team)}` : escapeHtml(favorite.name)}</div>
+          </div>
+        </div>
+        <div class="tag statement">${favorite.type === "driver" ? "Piloto" : "Equipo"}</div>
+      </div>
+
+      <div class="settings-line">
+        <div class="settings-line-left">
+          <div>
+            <div class="settings-line-title">Circuito automático</div>
+            <div class="settings-line-sub">Usar por defecto la siguiente carrera detectada en el calendario.</div>
+          </div>
+        </div>
+        <button class="icon-btn" onclick="togglePremiumSetting('autoSelectNextRace')">${settings.autoSelectNextRace ? "Activado" : "Desactivado"}</button>
+      </div>
+
+      <div class="settings-actions" style="margin-top:14px;">
+        <button class="btn-secondary" onclick="clearPredictionHistory()">Vaciar historial</button>
+        <button class="btn-secondary" onclick="clearSelectedRaceSetting()">Reset circuito</button>
+        <button class="danger-btn" onclick="resetFavoriteToDefault()">Reset favorito</button>
+      </div>
+    </div>
+
+    ${renderSettingsAdvancedCard()}
+
+    <div class="card">
+      <div class="card-title">Limpieza total</div>
+      <div class="card-sub">Borra favorito, historial y preferencias locales de esta instalación.</div>
+      <div class="settings-actions" style="margin-top:14px;">
+        <button class="danger-btn" onclick="resetAllDataAndReboot()">Borrar todo</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ===== FASE 9 · ARRANQUE CON UI STATE ===== */
+
+function bootRaceControl() {
+  try {
+    applyStoredUiState();
+
+    const repairedFavorite = getFavorite();
+    saveFavorite(repairedFavorite);
+
+    updateSubtitle();
+    fetchStandingsData().catch(() => {});
+    fetchCalendarData().catch(() => {});
+    showHome();
+    window.__racecontrolBooted = true;
+  } catch (error) {
+    renderBootError(error && error.message ? error.message : String(error));
+  }
+}
