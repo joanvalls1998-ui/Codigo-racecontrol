@@ -129,7 +129,7 @@ function unique(values) {
 }
 
 function getSettings() {
-  const saved = safeJsonParse(localStorage.getItem("racecontrolUiState"), {}) || {};
+  const saved = safeJsonParse(localStorage.getItem("racecontrolSettings"), null);
   return saved ? { ...getDefaultSettings(), ...saved } : getDefaultSettings();
 }
 
@@ -6364,5 +6364,306 @@ function showGlossary(focusTerm = null) {
     ${focusItem ? renderGlossaryFocusCard(focusItem) : ""}
 
     ${sections.map(renderGlossarySection).join("")}
+  `;
+}
+/* =========================================================
+   FASE 10 · PULIDO VISUAL PRO
+   - PNG de circuitos
+   - menos texto pequeño
+   - tarjetas más limpias en Favorito / Calendario / Race Mode
+========================================================= */
+
+function getCircuitAsset(raceName) {
+  const map = {
+    "GP de Australia": "assets/circuits/australia.png",
+    "GP de China": "assets/circuits/china.png",
+    "GP de Japón": "assets/circuits/japan.png",
+    "GP de Baréin": "assets/circuits/bahrain.png",
+    "GP de Arabia Saudí": "assets/circuits/saudi.png",
+    "GP Miami": "assets/circuits/miami.png",
+    "GP de Canadá": "assets/circuits/canada.png",
+    "GP de Mónaco": "assets/circuits/monaco.png",
+    "GP de España": "assets/circuits/spain.png",
+    "GP de Austria": "assets/circuits/austria.png",
+    "GP de Gran Bretaña": "assets/circuits/britain.png",
+    "GP de Bélgica": "assets/circuits/belgium.png",
+    "GP de Hungría": "assets/circuits/hungary.png",
+    "GP de Países Bajos": "assets/circuits/netherlands.png",
+    "GP de Italia": "assets/circuits/italy.png",
+    "GP de España (Madrid)": "assets/circuits/madrid.png",
+    "GP de Azerbaiyán": "assets/circuits/baku.png",
+    "GP de Singapur": "assets/circuits/singapore.png",
+    "GP de Estados Unidos": "assets/circuits/usa.png",
+    "GP de México": "assets/circuits/mexico.png",
+    "GP de São Paulo": "assets/circuits/brazil.png",
+    "GP de Las Vegas": "assets/circuits/vegas.png",
+    "GP de Catar": "assets/circuits/qatar.png",
+    "GP de Abu Dabi": "assets/circuits/abudhabi.png"
+  };
+
+  return map[raceName] || "";
+}
+
+function renderCircuitThumb(raceName, height = 72) {
+  const asset = getCircuitAsset(raceName);
+  if (!asset) return "";
+
+  return `
+    <div style="
+      width:100%;
+      height:${height}px;
+      border-radius:16px;
+      background:rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.06);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+      margin-bottom:12px;
+    ">
+      <img
+        src="${asset}"
+        alt="${escapeHtml(raceName)}"
+        style="max-width:100%; max-height:${height - 16}px; object-fit:contain; opacity:0.96;"
+        onerror="this.parentNode.style.display='none'"
+      >
+    </div>
+  `;
+}
+
+/* ===== FAVORITO · versión más limpia ===== */
+
+function renderFavoritoCircuitFitCard(favorite, raceName) {
+  const fit = getFavoriteCircuitFit(favorite, raceName);
+  const accent = favorite.colorClass;
+
+  return `
+    <div class="card">
+      <div class="card-title">Encaje con el circuito</div>
+
+      ${renderCircuitThumb(raceName, 76)}
+
+      <div class="news-meta-row" style="margin-top:2px; margin-bottom:14px;">
+        <span class="tag general">${escapeHtml(raceName)}</span>
+        <span class="tag ${fit.overall >= 78 ? "statement" : fit.overall >= 66 ? "market" : "reliability"}">${escapeHtml(fit.label)}</span>
+      </div>
+
+      <div class="stat">Aero <span>${fit.fit.aero}%</span></div>
+      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.aero}%;"></div></div>
+
+      <div class="stat" style="margin-top:14px;">Tracción <span>${fit.fit.traction}%</span></div>
+      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.traction}%;"></div></div>
+
+      <div class="stat" style="margin-top:14px;">Velocidad punta <span>${fit.fit.topSpeed}%</span></div>
+      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.topSpeed}%;"></div></div>
+
+      <div class="stat" style="margin-top:14px;">Gestión neumáticos <span>${fit.fit.tyreManagement}%</span></div>
+      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.tyreManagement}%;"></div></div>
+    </div>
+  `;
+}
+
+function renderFavoritoComparisonAdvancedCard(favorite) {
+  const breakdown = getFavoriteComparisonBreakdown(favorite);
+
+  return `
+    <div class="card">
+      <div class="card-title">${escapeHtml(breakdown.title)}</div>
+
+      <div class="meta-grid" style="margin-top:14px;">
+        ${breakdown.items.map(item => `
+          <div class="meta-tile">
+            <div class="meta-kicker">${escapeHtml(item.kicker)}</div>
+            <div class="meta-value" style="font-size:18px;">${escapeHtml(item.value)}</div>
+            <div class="meta-caption">${escapeHtml(item.caption)}</div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderFavoritoObjectiveCard(favorite, raceName, predictData, context) {
+  const objective = getFavoriteWeekendObjective(favorite, raceName, predictData, context);
+
+  return `
+    <div class="card">
+      <div class="card-title">Objetivo del fin de semana</div>
+
+      <div class="grid-stats" style="margin-top:14px;">
+        <div class="stat-tile">
+          <div class="stat-kicker">Mínimo</div>
+          <div class="stat-value" style="font-size:22px;">${escapeHtml(objective.minimum)}</div>
+          <div class="stat-caption">Base</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-kicker">Razonable</div>
+          <div class="stat-value" style="font-size:22px;">${escapeHtml(objective.realistic)}</div>
+          <div class="stat-caption">Objetivo</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-kicker">Techo</div>
+          <div class="stat-value" style="font-size:22px;">${escapeHtml(objective.high)}</div>
+          <div class="stat-caption">Escenario alto</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderFavoritoRadarCard(favorite, raceName, context, predictData) {
+  const items = getFavoriteWeekendRadar(favorite, raceName, context, predictData);
+
+  return `
+    <div class="card">
+      <div class="card-title">Radar del fin de semana</div>
+
+      <div class="insight-list" style="margin-top:12px;">
+        ${items.map(item => `
+          <div class="insight-item">
+            <strong>${escapeHtml(item.title)}</strong><br>
+            ${escapeHtml(item.text)}
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderFavoritoDirectRivalsCard(favorite, predictData) {
+  const rivals = getFavoriteDirectRivals(favorite, state.standingsCache, predictData);
+
+  return `
+    <div class="card">
+      <div class="card-title">Rivales directos</div>
+
+      ${rivals.length ? rivals.map(rival => `
+        <div class="standing-row">
+          <div class="row-left">
+            <div class="row-stripe ${escapeHtml(rival.colorClass)}"></div>
+            <div class="row-info">
+              <div class="row-name">${escapeHtml(rival.title)}</div>
+              <div class="row-team">${escapeHtml(rival.sub)}</div>
+            </div>
+          </div>
+          <div class="row-badges">
+            <div class="row-points">${escapeHtml(rival.meta)}</div>
+          </div>
+        </div>
+      `).join("") : `<div class="empty-line">No hay rivales directos claros cargados ahora mismo.</div>`}
+    </div>
+  `;
+}
+
+/* ===== CALENDARIO / RACE MODE · toque visual extra ===== */
+
+function renderCalendarIntelligenceHero(nextRace, context) {
+  if (!nextRace) return "";
+
+  const raceName = mapCalendarEventToPredictRace(nextRace) || "GP";
+  const heuristics = getRaceHeuristics(raceName);
+  const format = getCalendarFormatLabel(raceName);
+
+  return `
+    <div class="card highlight-card">
+      <div class="mini-pill">CALENDARIO INTELIGENTE</div>
+      <div class="card-title">${escapeHtml(nextRace.title)}</div>
+
+      ${renderCircuitThumb(raceName, 80)}
+
+      <div class="news-meta-row" style="margin-top:2px;">
+        <span class="tag general">${escapeHtml(format)}</span>
+        <span class="tag technical">${escapeHtml(heuristics.tag)}</span>
+      </div>
+
+      <div class="meta-grid" style="margin-top:14px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Fecha</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(formatCalendarDateRange(nextRace.start, nextRace.end))}</div>
+          <div class="meta-caption">${escapeHtml(nextRace.venue || "")}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Circuito</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(heuristics.tag)}</div>
+          <div class="meta-caption">${escapeHtml(nextRace.location || "")}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Siguiente sesión</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(context?.nextSession?.label || "—")}</div>
+          <div class="meta-caption">${escapeHtml(context?.nextSessionCountdown || "Sin cuenta atrás")}</div>
+        </div>
+      </div>
+
+      <div class="quick-row" style="margin-top:14px;">
+        <a href="#" class="btn-secondary" onclick="showSessions(); return false;">Abrir sesiones</a>
+        <a href="#" class="btn-secondary" onclick="showPredict(); return false;">Abrir predicción</a>
+      </div>
+    </div>
+  `;
+}
+
+function renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData) {
+  const stage = getRaceWeekendStage(nextRaceEvent);
+  const signal = getWeekendSignal(favorite, raceName);
+  const strategy = getStrategyNarrative(favorite, raceName, predictData);
+  const heuristics = getRaceHeuristics(raceName);
+
+  return `
+    <div class="card highlight-card">
+      <div class="mini-pill">MODO CARRERA</div>
+      <div class="card-title">${escapeHtml(raceName)}</div>
+
+      ${renderCircuitThumb(raceName, 80)}
+
+      <div class="news-meta-row" style="margin-top:2px;">
+        <span class="tag general">${escapeHtml(stage.label)}</span>
+        <span class="trend-pill ${signal.className}">${escapeHtml(signal.label)}</span>
+      </div>
+
+      <div class="meta-grid" style="margin-top:14px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Circuito</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(heuristics.tag)}</div>
+          <div class="meta-caption">${nextRaceEvent ? escapeHtml(nextRaceEvent.venue || "") : "Perfil del trazado"}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Safety Car</div>
+          <div class="meta-value">${heuristics.safetyCar}%</div>
+          <div class="meta-caption">Probabilidad base</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Lluvia</div>
+          <div class="meta-value">${heuristics.rain}%</div>
+          <div class="meta-caption">Escenario previsto</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Factor clave</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(strategy.factor)}</div>
+          <div class="meta-caption">Lo que más puede alterar la carrera</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ===== HOME COMPACTA REAL ===== */
+
+function renderHomeDynamicBlocks(context, favorite) {
+  const settings = getSettings();
+
+  if (settings.homeCompactMode) {
+    return `
+      ${renderHomePhaseHero(context)}
+      ${renderHomeNowCard(context, favorite)}
+      ${renderHomeQuickLinks(context)}
+    `;
+  }
+
+  return `
+    ${renderHomePhaseHero(context)}
+    ${renderHomeNowCard(context, favorite)}
+    ${renderHomeWhatToWatchCard(context)}
+    ${renderHomePhaseSummaryCard(context, favorite)}
+    ${renderHomeQuickLinks(context)}
   `;
 }
