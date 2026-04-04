@@ -5388,21 +5388,72 @@ function renderFavoritoObjectiveCard(favorite, raceName, predictData, context) {
   `;
 }
 
+function getCircuitAssetName(raceName) {
+  if (!raceName) return "";
+
+  const map = {
+    "GP de Australia": "australia.png",
+    "GP de China": "china.png",
+    "GP de Japón": "japan.png",
+    "GP de Baréin": "bahrain.png",
+    "GP de Arabia Saudí": "saudi.png",
+    "GP Miami": "miami.png",
+    "GP de Canadá": "canada.png",
+    "GP de Mónaco": "monaco.png",
+    "GP de España": "spain.png",
+    "GP de Austria": "austria.png",
+    "GP de Gran Bretaña": "britain.png",
+    "GP de Bélgica": "belgium.png",
+    "GP de Hungría": "hungary.png",
+    "GP de Países Bajos": "netherlands.png",
+    "GP de Italia": "italy.png",
+    "GP de España (Madrid)": "madrid.png",
+    "GP de Azerbaiyán": "baku.png",
+    "GP de Singapur": "singapore.png",
+    "GP de Estados Unidos": "usa.png",
+    "GP de México": "mexico.png",
+    "GP de São Paulo": "brazil.png",
+    "GP de Las Vegas": "vegas.png",
+    "GP de Catar": "qatar.png",
+    "GP de Abu Dabi": "abudhabi.png"
+  };
+
+  return map[raceName] || "";
+}
+
+function getCircuitAssetPath(raceName) {
+  const file = getCircuitAssetName(raceName);
+  return file ? `/assets/circuits/${file}` : "";
+}
+
 function renderFavoritoCircuitFitCard(favorite, raceName) {
   const fit = getFavoriteCircuitFit(favorite, raceName);
   const accent = favorite.colorClass;
+  const circuitAsset = getCircuitAssetPath(raceName);
 
   return `
     <div class="card">
-      <div class="card-title">Encaje con el circuito</div>
-      <div class="card-sub">${escapeHtml(fit.demand.note)}</div>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:14px;">
+        <div style="min-width:0;">
+          <div class="card-title" style="margin-bottom:0;">Encaje con el circuito</div>
+        </div>
 
-      <div class="news-meta-row" style="margin-top:10px;">
+        ${circuitAsset ? `
+          <img
+            src="${circuitAsset}"
+            alt="${escapeHtml(raceName)}"
+            style="width:74px; height:74px; object-fit:contain; opacity:.96; flex:0 0 auto;"
+            onerror="this.style.display='none'"
+          >
+        ` : ""}
+      </div>
+
+      <div class="news-meta-row" style="margin-top:0; margin-bottom:14px;">
         <span class="tag general">${escapeHtml(raceName)}</span>
         <span class="tag ${fit.overall >= 78 ? "statement" : fit.overall >= 66 ? "market" : "reliability"}">${escapeHtml(fit.label)}</span>
       </div>
 
-      <div class="stat" style="margin-top:14px;">Aero <span>${fit.fit.aero}%</span></div>
+      <div class="stat">Aero <span>${fit.fit.aero}%</span></div>
       <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.aero}%;"></div></div>
 
       <div class="stat" style="margin-top:14px;">Tracción <span>${fit.fit.traction}%</span></div>
