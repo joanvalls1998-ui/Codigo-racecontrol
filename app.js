@@ -129,7 +129,7 @@ function unique(values) {
 }
 
 function getSettings() {
-  const saved = safeJsonParse(localStorage.getItem("racecontrolSettings"), null);
+  const saved = safeJsonParse(localStorage.getItem("racecontrolUiState"), {}) || {};
   return saved ? { ...getDefaultSettings(), ...saved } : getDefaultSettings();
 }
 
