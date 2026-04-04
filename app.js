@@ -15,6 +15,19 @@ const state = {
   weekendNowIso: null
 };
 
+const STORAGE_KEYS = Object.freeze({
+  favorite: "racecontrolFavorite",
+  settings: "racecontrolSettings",
+  selectedRace: "racecontrolSelectedRace",
+  predictionHistory: "racecontrolPredictionHistory",
+  standingsSnapshot: "racecontrolStandingsSnapshot",
+  uiState: "racecontrolUiState"
+});
+
+function clearStorageKeys(keys) {
+  keys.forEach(key => localStorage.removeItem(key));
+}
+
 function contentEl() {
   return document.getElementById("content");
 }
@@ -129,28 +142,21 @@ function unique(values) {
 }
 
 function getSettings() {
-  const saved = safeJsonParse(localStorage.getItem("racecontrolSettings"), null);
+  const saved = safeJsonParse(localStorage.getItem(STORAGE_KEYS.settings), null);
   return saved ? { ...getDefaultSettings(), ...saved } : getDefaultSettings();
 }
 
 function saveSettings(settings) {
-  localStorage.setItem("racecontrolSettings", JSON.stringify(settings));
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings));
 }
 
 function getFavorite() {
-  try {
-    const saved = localStorage.getItem("racecontrolFavorite");
-    if (!saved) return getDefaultFavorite();
-
-    const parsed = JSON.parse(saved);
-    return normalizeFavorite(parsed);
-  } catch {
-    return getDefaultFavorite();
-  }
+  const saved = safeJsonParse(localStorage.getItem(STORAGE_KEYS.favorite), null);
+  return normalizeFavorite(saved);
 }
 
 function saveFavorite(favorite) {
-  localStorage.setItem("racecontrolFavorite", JSON.stringify(normalizeFavorite(favorite)));
+  localStorage.setItem(STORAGE_KEYS.favorite, JSON.stringify(normalizeFavorite(favorite)));
 }
 
 function getPredictRaceOptions() {
@@ -184,14 +190,14 @@ function getPredictRaceOptions() {
 
 function getSelectedRace() {
   const settings = getSettings();
-  const stored = localStorage.getItem("racecontrolSelectedRace");
+  const stored = localStorage.getItem(STORAGE_KEYS.selectedRace);
   if (settings.autoSelectNextRace && state.detectedNextRaceName) return state.detectedNextRaceName;
   if (stored) return stored;
   return state.detectedNextRaceName || "GP Miami";
 }
 
 function saveSelectedRace(raceName) {
-  localStorage.setItem("racecontrolSelectedRace", raceName);
+  localStorage.setItem(STORAGE_KEYS.selectedRace, raceName);
   const settings = getSettings();
   if (settings.autoSelectNextRace) {
     saveSettings({ ...settings, autoSelectNextRace: false });
@@ -6032,11 +6038,11 @@ function getDefaultSettings() {
 
 function getSettings() {
   const savedSettings = asPlainObject(
-    safeJsonParse(localStorage.getItem("racecontrolSettings"), null)
+    safeJsonParse(localStorage.getItem(STORAGE_KEYS.settings), null)
   );
 
   const legacyUiState = asPlainObject(
-    safeJsonParse(localStorage.getItem("racecontrolUiState"), null)
+    safeJsonParse(localStorage.getItem(STORAGE_KEYS.uiState), null)
   );
 
   const migratedLegacySettings = {
@@ -6060,7 +6066,7 @@ function saveSettings(settings) {
     ...asPlainObject(settings)
   };
 
-  localStorage.setItem("racecontrolSettings", JSON.stringify(next));
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(next));
 }
 
 function getUiState() {
@@ -6071,7 +6077,7 @@ function getUiState() {
   };
 
   const saved = asPlainObject(
-    safeJsonParse(localStorage.getItem("racecontrolUiState"), null)
+    safeJsonParse(localStorage.getItem(STORAGE_KEYS.uiState), null)
   );
 
   return {
@@ -6087,7 +6093,7 @@ function saveUiState() {
     currentNewsFilterKey: state.currentNewsFilterKey || "favorite"
   };
 
-  localStorage.setItem("racecontrolUiState", JSON.stringify(next));
+  localStorage.setItem(STORAGE_KEYS.uiState, JSON.stringify(next));
 }
 
 function applyStoredUiState() {
@@ -6127,7 +6133,7 @@ function togglePremiumSetting(key) {
 }
 
 function clearSelectedRaceSetting() {
-  localStorage.removeItem("racecontrolSelectedRace");
+  localStorage.removeItem(STORAGE_KEYS.selectedRace);
 
   const settings = getSettings();
   saveSettings({
@@ -6165,14 +6171,14 @@ function switchNewsFilter(key) {
 }
 
 function clearAllLocalData() {
-  [
-    "racecontrolFavorite",
-    "racecontrolSettings",
-    "racecontrolSelectedRace",
-    "racecontrolPredictionHistory",
-    "racecontrolStandingsSnapshot",
-    "racecontrolUiState"
-  ].forEach(key => localStorage.removeItem(key));
+  clearStorageKeys([
+    STORAGE_KEYS.favorite,
+    STORAGE_KEYS.settings,
+    STORAGE_KEYS.selectedRace,
+    STORAGE_KEYS.predictionHistory,
+    STORAGE_KEYS.standingsSnapshot,
+    STORAGE_KEYS.uiState
+  ]);
 
   state.standingsCache = null;
   state.calendarCache = null;
