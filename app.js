@@ -5373,13 +5373,7 @@ function showSettingsPanel() {
   `;
 }
 
-/* ===== FASE 9 · ARRANQUE CON UI STATE ===== */
-
-
-/* =========================================================
-   PARCHE FINAL · ARRANQUE + PERSISTENCIA SEGURA
-   Pegar al FINAL del app.js
-========================================================= */
+/* ===== ARRANQUE + PERSISTENCIA SEGURA ===== */
 
 function asPlainObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -5589,7 +5583,7 @@ function bootRaceControl() {
     renderBootError(error && error.message ? error.message : String(error));
   }
 }
-/* ===== PATCH · GLOSARIO RÁPIDO CON ⓘ ===== */
+/* ===== GLOSARIO RÁPIDO CON ⓘ ===== */
 
 function escapeForSingleQuotedAttr(value) {
   return String(value || "")
@@ -5695,7 +5689,7 @@ function openGlossaryQuickTerm(term) {
   `);
 }
 
-/* Sobrescribe la tarjeta contextual para mostrar “Término ⓘ” */
+/* Tarjeta contextual con “Término ⓘ”. */
 function renderContextGlossaryCard(screen, phase) {
   const items = getContextGlossaryItems(screen, phase);
   if (!items.length) return "";
@@ -5724,7 +5718,7 @@ function renderContextGlossaryCard(screen, phase) {
   `;
 }
 
-/* Sobrescribe las secciones del glosario completo para mostrar “Término ⓘ” */
+/* Secciones del glosario completo con “Término ⓘ”. */
 function renderGlossarySection(section) {
   return `
     <div class="card">
@@ -5751,7 +5745,7 @@ function renderGlossarySection(section) {
   `;
 }
 
-/* Sobrescribe showGlossary para permitir abrirlo enfocado en un término */
+/* Permite abrir glosario enfocado en un término. */
 function showGlossary(focusTerm = null) {
   setActiveNav("nav-more");
   updateSubtitle();
@@ -5791,12 +5785,7 @@ function showGlossary(focusTerm = null) {
     ${sections.map(renderGlossarySection).join("")}
   `;
 }
-/* =========================================================
-   FASE 10 · PULIDO VISUAL PRO
-   - PNG de circuitos
-   - menos texto pequeño
-   - tarjetas más limpias en Favorito / Calendario / Race Mode
-========================================================= */
+/* ===== PULIDO VISUAL FINAL ===== */
 
 function getCircuitAsset(raceName) {
   const map = {
