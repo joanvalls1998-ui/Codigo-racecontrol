@@ -1,4 +1,3 @@
-
 window.__racecontrolScriptLoaded = true;
 
 const state = {
