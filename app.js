@@ -2153,17 +2153,17 @@ function renderRaceModeFavoriteSummary(favorite, raceName, predictData) {
         <div class="stat-tile">
           <div class="stat-kicker">Carrera</div>
           <div class="stat-value">${favoritePrediction.race}</div>
-          <div class="stat-caption">Resultado esperado</div>
+          <div class="stat-caption">Carrera</div>
         </div>
         <div class="stat-tile">
           <div class="stat-kicker">Puntos</div>
           <div class="stat-value">${favoritePrediction.points}</div>
-          <div class="stat-caption">Opción estimada</div>
+          <div class="stat-caption">Puntos</div>
         </div>
         <div class="stat-tile">
           <div class="stat-kicker">Abandono</div>
           <div class="stat-value">${favoritePrediction.dnf}</div>
-          <div class="stat-caption">Riesgo aproximado</div>
+          <div class="stat-caption">DNF</div>
         </div>
       </div>
 
@@ -2176,7 +2176,7 @@ function renderRaceModeFavoriteSummary(favorite, raceName, predictData) {
         <div class="meta-tile">
           <div class="meta-kicker">Tendencia</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(metrics.trendInfo.label)}</div>
-          <div class="meta-caption">${escapeHtml(metrics.trendInfo.label)}</div>
+          <div class="meta-caption">${escapeHtml(metrics.trendInfo.description)}</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Balance</div>
@@ -2353,7 +2353,7 @@ function renderHomePhaseHero(context) {
         <div class="meta-tile">
           <div class="meta-kicker">Foco</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(context.focusLabel)}</div>
-          <div class="meta-caption">Qué manda ahora mismo en el GP</div>
+          <div class="meta-caption">Momento GP</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">${context.currentSession ? "Ahora mismo" : "Siguiente sesión"}</div>
@@ -2363,7 +2363,7 @@ function renderHomePhaseHero(context) {
         <div class="meta-tile">
           <div class="meta-kicker">Cuenta atrás</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(context.nextSessionCountdown || (context.currentSession ? "ahora" : "—"))}</div>
-          <div class="meta-caption">Siguiente referencia útil</div>
+          <div class="meta-caption">Próxima referencia</div>
         </div>
       </div>
     </div>
@@ -2419,7 +2419,7 @@ function renderHomeNowCard(context, favorite) {
         <div class="meta-tile">
           <div class="meta-kicker">Tu hora</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(userTime)}</div>
-          <div class="meta-caption">${target.status === "next" ? `Empieza ${escapeHtml(getCountdownToSession(target))}` : "Hora de referencia"}</div>
+          <div class="meta-caption">${target.status === "next" ? `Empieza ${escapeHtml(getCountdownToSession(target))}` : "Referencia"}</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Hora circuito</div>
@@ -2441,7 +2441,6 @@ function renderHomeWhatToWatchCard(context) {
   return `
     <div class="card">
       <div class="card-title">Qué mirar ahora</div>
-      <div class="card-sub">Tres ideas rápidas para no abrir la app a ciegas según la fase del fin de semana.</div>
       <div class="insight-list">
         ${items.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
       </div>
@@ -2545,7 +2544,6 @@ function renderHomeQuickLinks(context) {
   return `
     <div class="card">
       <div class="card-title">Accesos rápidos</div>
-      <div class="card-sub">Salta rápido a la pantalla más útil según el momento del fin de semana.</div>
 
       <div class="quick-row">
         <a href="#" class="btn" onclick="saveSelectedRace('${String(raceName).replace(/'/g, "\\'")}'); showPredict(); return false;">Predicción</a>
@@ -3271,7 +3269,6 @@ function renderHomeNewsPreview(items, favorite) {
   return `
     <div class="card">
       <div class="card-title">Noticias clave · ${escapeHtml(favorite.name)}</div>
-      <div class="card-sub">Top 3 ya ordenado según el momento del GP y la utilidad real para seguir el fin de semana.</div>
 
       ${previewItems.length ? previewItems.map(item => `
         <div class="news-item">
@@ -4987,7 +4984,7 @@ function renderFavoritoHeroContextCard(favorite, raceName, predictData, context)
     <div class="card highlight-card">
       <div class="mini-pill">FAVORITO INTELIGENTE</div>
       <div class="card-title">${escapeHtml(favorite.name)}</div>
-      <div class="card-sub">${escapeHtml(raceName)} · ${escapeHtml(context?.phaseLabel || "Previa")} · ${escapeHtml(signal.description)}</div>
+      <div class="card-sub">${escapeHtml(raceName)} · ${escapeHtml(context?.phaseLabel || "Previa")}</div>
 
       <div class="news-meta-row" style="margin-top:10px;">
         <span class="tag ${context?.phase === "sunday" ? "statement" : context?.phase === "saturday" ? "market" : "general"}">${escapeHtml(context?.phaseLabel || "Previa")}</span>
@@ -5288,14 +5285,12 @@ async function showCalendar(force = false) {
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">Calendario</div>
-            <div class="card-sub">Próximas citas y completadas.</div>
           </div>
           <div class="card-head-actions">
             <button class="icon-btn" onclick="refreshCalendar()">Refrescar</button>
           </div>
         </div>
 
-        <div class="calendar-group-title">Próximas citas</div>
         ${upcoming.length ? upcoming.map(renderCalendarEventCard).join("") : `<div class="empty-line">No hay próximas citas cargadas.</div>`}
 
         <div class="calendar-group-title" style="margin-top:14px;">Ya completadas</div>
