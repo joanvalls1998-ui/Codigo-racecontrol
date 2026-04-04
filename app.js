@@ -15,6 +15,19 @@ const state = {
   weekendNowIso: null
 };
 
+const STORAGE_KEYS = Object.freeze({
+  favorite: "racecontrolFavorite",
+  settings: "racecontrolSettings",
+  selectedRace: "racecontrolSelectedRace",
+  predictionHistory: "racecontrolPredictionHistory",
+  standingsSnapshot: "racecontrolStandingsSnapshot",
+  uiState: "racecontrolUiState"
+});
+
+function clearStorageKeys(keys) {
+  keys.forEach(key => localStorage.removeItem(key));
+}
+
 function contentEl() {
   return document.getElementById("content");
 }
@@ -46,12 +59,6 @@ function getDefaultFavorite() {
   };
 }
 
-function getDefaultSettings() {
-  return {
-    language: "es-ES",
-    autoSelectNextRace: true
-  };
-}
 
 function normalizeFavorite(favorite) {
   const defaultDriver = getDefaultFavorite();
@@ -128,29 +135,14 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
-function getSettings() {
-  const saved = safeJsonParse(localStorage.getItem("racecontrolSettings"), null);
-  return saved ? { ...getDefaultSettings(), ...saved } : getDefaultSettings();
-}
-
-function saveSettings(settings) {
-  localStorage.setItem("racecontrolSettings", JSON.stringify(settings));
-}
 
 function getFavorite() {
-  try {
-    const saved = localStorage.getItem("racecontrolFavorite");
-    if (!saved) return getDefaultFavorite();
-
-    const parsed = JSON.parse(saved);
-    return normalizeFavorite(parsed);
-  } catch {
-    return getDefaultFavorite();
-  }
+  const saved = safeJsonParse(localStorage.getItem(STORAGE_KEYS.favorite), null);
+  return normalizeFavorite(saved);
 }
 
 function saveFavorite(favorite) {
-  localStorage.setItem("racecontrolFavorite", JSON.stringify(normalizeFavorite(favorite)));
+  localStorage.setItem(STORAGE_KEYS.favorite, JSON.stringify(normalizeFavorite(favorite)));
 }
 
 function getPredictRaceOptions() {
@@ -184,14 +176,14 @@ function getPredictRaceOptions() {
 
 function getSelectedRace() {
   const settings = getSettings();
-  const stored = localStorage.getItem("racecontrolSelectedRace");
+  const stored = localStorage.getItem(STORAGE_KEYS.selectedRace);
   if (settings.autoSelectNextRace && state.detectedNextRaceName) return state.detectedNextRaceName;
   if (stored) return stored;
   return state.detectedNextRaceName || "GP Miami";
 }
 
 function saveSelectedRace(raceName) {
-  localStorage.setItem("racecontrolSelectedRace", raceName);
+  localStorage.setItem(STORAGE_KEYS.selectedRace, raceName);
   const settings = getSettings();
   if (settings.autoSelectNextRace) {
     saveSettings({ ...settings, autoSelectNextRace: false });
@@ -2055,48 +2047,6 @@ function getRaceModeQuickRead(favorite, raceName, predictData, stage) {
   ];
 }
 
-function renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData) {
-  const stage = getRaceWeekendStage(nextRaceEvent);
-  const signal = getWeekendSignal(favorite, raceName);
-  const strategy = getStrategyNarrative(favorite, raceName, predictData);
-  const heuristics = getRaceHeuristics(raceName);
-
-  return `
-    <div class="card highlight-card">
-      <div class="mini-pill">MODO CARRERA</div>
-      <div class="card-title">${escapeHtml(raceName)}</div>
-      <div class="card-sub">${escapeHtml(stage.description)}</div>
-
-      <div class="news-meta-row" style="margin-top:10px;">
-        <span class="tag general">${escapeHtml(stage.label)}</span>
-        <span class="trend-pill ${signal.className}">${escapeHtml(signal.label)}</span>
-      </div>
-
-      <div class="meta-grid" style="margin-top:14px;">
-        <div class="meta-tile">
-          <div class="meta-kicker">Circuito</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(heuristics.tag)}</div>
-          <div class="meta-caption">${nextRaceEvent ? escapeHtml(nextRaceEvent.venue || "") : "Perfil del trazado"}</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Safety Car</div>
-          <div class="meta-value">${heuristics.safetyCar}%</div>
-          <div class="meta-caption">Probabilidad base</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Lluvia</div>
-          <div class="meta-value">${heuristics.rain}%</div>
-          <div class="meta-caption">Escenario previsto</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Factor clave</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(strategy.factor)}</div>
-          <div class="meta-caption">Lo que más puede alterar la carrera</div>
-        </div>
-      </div>
-    </div>
-  `;
-}
 
 function renderRaceModeQuickRead(favorite, raceName, predictData, stage) {
   const items = getRaceModeQuickRead(favorite, raceName, predictData, stage);
@@ -2540,15 +2490,6 @@ function renderHomeQuickLinks(context) {
   `;
 }
 
-function renderHomeDynamicBlocks(context, favorite) {
-  return `
-    ${renderHomePhaseHero(context)}
-    ${renderHomeNowCard(context, favorite)}
-    ${renderHomeWhatToWatchCard(context)}
-    ${renderHomePhaseSummaryCard(context, favorite)}
-    ${renderHomeQuickLinks(context)}
-  `;
-}
 
 /* ===== FIN FASE 3 ===== */
 
@@ -2857,90 +2798,6 @@ function getContextGlossaryTitle(screen, phase) {
   };
 }
 
-function renderContextGlossaryCard(screen, phase) {
-  const items = getContextGlossaryItems(screen, phase);
-  if (!items.length) return "";
-
-  const copy = getContextGlossaryTitle(screen, phase);
-
-  return `
-    <div class="card">
-      <div class="card-title">${escapeHtml(copy.title)}</div>
-      <div class="card-sub">${escapeHtml(copy.sub)}</div>
-
-      <div class="insight-list" style="margin-top:12px;">
-        ${items.map(item => `
-          <div class="insight-item">
-            <div class="news-meta-row" style="margin-bottom:8px;">
-              <span class="tag ${getGlossaryLevelTagClass(item.level)}">${escapeHtml(item.level)}</span>
-            </div>
-            <strong>${escapeHtml(item.term)}</strong><br>
-            ${escapeHtml(item.easy)}
-          </div>
-        `).join("")}
-      </div>
-    </div>
-  `;
-}
-
-function renderGlossarySection(section) {
-  return `
-    <div class="card">
-      <div class="card-title">${escapeHtml(section.title)}</div>
-      <div class="card-sub">${escapeHtml(section.subtitle)}</div>
-
-      <div class="insight-list" style="margin-top:12px;">
-        ${section.items.map(item => `
-          <div class="insight-item">
-            <div class="news-meta-row" style="margin-bottom:8px;">
-              <span class="tag ${getGlossaryLevelTagClass(item.level)}">${escapeHtml(item.level)}</span>
-            </div>
-            <strong>${escapeHtml(item.term)}</strong><br>
-            <span style="color: rgba(255,255,255,0.92);">${escapeHtml(item.short)}</span><br>
-            <span style="color: rgba(255,255,255,0.62);">${escapeHtml(item.easy)}</span>
-          </div>
-        `).join("")}
-      </div>
-    </div>
-  `;
-}
-
-function showGlossary() {
-  setActiveNav("nav-more");
-  updateSubtitle();
-
-  const sections = getGlossarySections();
-
-  contentEl().innerHTML = `
-    <div class="card highlight-card">
-      <div class="mini-pill">CASUAL FRIENDLY</div>
-      <div class="card-title">Glosario F1</div>
-      <div class="card-sub">
-        Términos actuales de Fórmula 1 explicados en corto y en fácil, para que la app se entienda mejor aunque no sigas todo el año.
-      </div>
-
-      <div class="meta-grid" style="margin-top:14px;">
-        <div class="meta-tile">
-          <div class="meta-kicker">Básico</div>
-          <div class="meta-value" style="font-size:18px;">Esencial</div>
-          <div class="meta-caption">Para entender retransmisiones y titulares</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Muy usado</div>
-          <div class="meta-value" style="font-size:18px;">Habitual</div>
-          <div class="meta-caption">Sale mucho en análisis y radios</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Actual 2026</div>
-          <div class="meta-value" style="font-size:18px;">Nuevo</div>
-          <div class="meta-caption">Términos del reglamento moderno</div>
-        </div>
-      </div>
-    </div>
-
-    ${sections.map(renderGlossarySection).join("")}
-  `;
-}
 
 /* ===== FASE 5 · NOTICIAS CONTEXTUALES ===== */
 
@@ -3035,10 +2892,6 @@ function getActiveNewsFilter() {
   return filters.find(filter => filter.key === state.currentNewsFilterKey) || filters[0];
 }
 
-function switchNewsFilter(key) {
-  state.currentNewsFilterKey = key;
-  showNews();
-}
 
 function categorizeNewsItem(item) {
   const text = `${item?.title || ""} ${item?.source || ""}`.toLowerCase();
@@ -4382,23 +4235,6 @@ function renderFavoritoInsightsCard(favorite) {
   `;
 }
 
-function showFavorito() {
-  setActiveNav("nav-favorito");
-  updateSubtitle();
-
-  const favorite = getFavorite();
-  const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
-  const accent = favorite.colorClass;
-  const teamData = getTeamData(teamName);
-
-  contentEl().innerHTML = `
-    ${renderFavoriteCard()}
-    ${renderFavoritoTechnicalCard(favorite, teamName, teamData, accent)}
-    ${renderFavoritoTrendCard(favorite, teamName)}
-    ${renderFavoritoComparisonCard(favorite, teamName, teamData, accent)}
-    ${renderFavoritoInsightsCard(favorite)}
-  `;
-}
 
 /* ===== MÁS ===== */
 
@@ -4621,63 +4457,6 @@ async function refreshStandings() {
   await showStandings(true);
 }
 
-async function showStandings(force = false) {
-  setActiveNav("nav-more");
-  updateSubtitle();
-
-  contentEl().innerHTML = `
-    ${renderFavoriteCard()}
-    ${renderLoadingCard("Clasificación", "Cargando clasificación real, cambios y resaltados…", true)}
-  `;
-
-  try {
-    await fetchStandingsData(force);
-
-    contentEl().innerHTML = `
-      ${renderFavoriteCard()}
-      <div class="card">
-        <div class="card-head">
-          <div class="card-head-left">
-            <div class="card-title">Clasificación</div>
-            <div class="card-sub">Vista premium con líder, favorito, compañero y variación de posición.</div>
-          </div>
-          <div class="card-head-actions">
-            <button class="icon-btn" onclick="refreshStandings()">Refrescar</button>
-          </div>
-        </div>
-
-        <div class="standings-toggle">
-          <button class="toggle-btn ${state.standingsViewType === "drivers" ? "active" : ""}" onclick="setStandingsView('drivers')">Pilotos</button>
-          <button class="toggle-btn ${state.standingsViewType === "teams" ? "active" : ""}" onclick="setStandingsView('teams')">Equipos</button>
-        </div>
-
-        <div class="standings-toggle">
-          <button class="toggle-btn ${state.standingsScope === "top10" ? "active" : ""}" onclick="setStandingsScope('top10')">Top 10</button>
-          <button class="toggle-btn ${state.standingsScope === "all" ? "active" : ""}" onclick="setStandingsScope('all')">Todos</button>
-        </div>
-      </div>
-
-      <div id="standingsContent"></div>
-    `;
-
-    if (state.standingsViewType === "teams") showTeamsStandings();
-    else showDriversStandings();
-  } catch (error) {
-    contentEl().innerHTML = renderErrorCard("Clasificación", "Error al cargar la clasificación", error.message);
-  }
-}
-
-function setStandingsView(type) {
-  state.standingsViewType = type;
-  if (type === "teams") showTeamsStandings();
-  else showDriversStandings();
-}
-
-function setStandingsScope(scope) {
-  state.standingsScope = scope;
-  if (state.standingsViewType === "teams") showTeamsStandings();
-  else showDriversStandings();
-}
 
 function showDriversStandings() {
   const drivers = state.standingsCache?.drivers || [];
@@ -4751,54 +4530,6 @@ async function refreshCalendar() {
   await showCalendar(true);
 }
 
-async function showCalendar(force = false) {
-  setActiveNav("nav-more");
-  updateSubtitle();
-
-  contentEl().innerHTML = renderLoadingCard("Calendario", "Cargando calendario oficial 2026 y separando próximas y completadas…", true);
-
-  try {
-    const data = await fetchCalendarData(force);
-    const events = Array.isArray(data?.events) ? data.events : [];
-    const nextRace = getNextRaceFromCalendar(events);
-    const upcoming = events.filter(event => event.status === "next" || event.status === "upcoming");
-    const completed = events.filter(event => event.status === "completed");
-
-    contentEl().innerHTML = `
-      <div class="card">
-        <div class="card-head">
-          <div class="card-head-left">
-            <div class="card-title">Calendario</div>
-            <div class="card-sub">Vista mejorada con siguiente carrera destacada y bloques separados.</div>
-          </div>
-          <div class="card-head-actions">
-            <button class="icon-btn" onclick="refreshCalendar()">Refrescar</button>
-          </div>
-        </div>
-
-        ${nextRace ? `
-          <div class="news-hero" style="margin-bottom:12px;">
-            <div class="mini-pill">SIGUIENTE CITA</div>
-            <div class="news-hero-title">${escapeHtml(nextRace.title)}</div>
-            <div class="news-hero-sub">${escapeHtml(nextRace.venue)} · ${escapeHtml(nextRace.location)} · ${formatCalendarDateRange(nextRace.start, nextRace.end)}</div>
-            <div class="news-meta-row">
-              <span class="tag statement">Siguiente GP</span>
-              <span class="tag general">${escapeHtml(mapCalendarEventToPredictRace(nextRace) || "GP")}</span>
-            </div>
-          </div>
-        ` : ""}
-
-        <div class="calendar-group-title">Próximas citas</div>
-        ${upcoming.length ? upcoming.map(renderCalendarEventCard).join("") : `<div class="empty-line">No hay próximas citas cargadas.</div>`}
-
-        <div class="calendar-group-title" style="margin-top:14px;">Ya completadas</div>
-        ${completed.length ? completed.map(renderCalendarEventCard).join("") : `<div class="empty-line">No hay citas completadas registradas.</div>`}
-      </div>
-    `;
-  } catch (error) {
-    contentEl().innerHTML = renderErrorCard("Calendario", "Error al cargar el calendario", error.message);
-  }
-}
 
 function getTeamColorClass(team) {
   if (team.includes("Aston")) return "aston";
@@ -4876,12 +4607,6 @@ function resetFavoriteToDefault() {
   showSettingsPanel();
 }
 
-function clearSelectedRaceSetting() {
-  localStorage.removeItem("racecontrolSelectedRace");
-  const settings = getSettings();
-  saveSettings({ ...settings, autoSelectNextRace: true });
-  showSettingsPanel();
-}
 
 function toggleAutoNextRace() {
   const settings = getSettings();
@@ -4889,56 +4614,6 @@ function toggleAutoNextRace() {
   showSettingsPanel();
 }
 
-function showSettingsPanel() {
-  setActiveNav("nav-more");
-  updateSubtitle();
-
-  const settings = getSettings();
-  const favorite = getFavorite();
-
-  contentEl().innerHTML = `
-    <div class="card">
-      <div class="card-title">Ajustes</div>
-      <div class="card-sub">Preferencias básicas de la app y limpieza rápida de datos locales.</div>
-
-      <div class="settings-line" style="margin-bottom:10px;">
-        <div class="settings-line-left">
-          <div>
-            <div class="settings-line-title">Idioma</div>
-            <div class="settings-line-sub">Actualmente fijado para español de España.</div>
-          </div>
-        </div>
-        <div class="tag general">es-ES</div>
-      </div>
-
-      <div class="settings-line" style="margin-bottom:10px;">
-        <div class="settings-line-left">
-          <div>
-            <div class="settings-line-title">Favorito actual</div>
-            <div class="settings-line-sub">${favorite.type === "driver" ? `${escapeHtml(favorite.name)} · ${escapeHtml(favorite.team)}` : escapeHtml(favorite.name)}</div>
-          </div>
-        </div>
-        <div class="tag statement">${favorite.type === "driver" ? "Piloto" : "Equipo"}</div>
-      </div>
-
-      <div class="settings-line">
-        <div class="settings-line-left">
-          <div>
-            <div class="settings-line-title">Circuito automático</div>
-            <div class="settings-line-sub">Usar por defecto la siguiente carrera detectada en el calendario.</div>
-          </div>
-        </div>
-        <button class="icon-btn" onclick="toggleAutoNextRace()">${settings.autoSelectNextRace ? "Activado" : "Desactivado"}</button>
-      </div>
-
-      <div class="settings-actions" style="margin-top:14px;">
-        <button class="btn-secondary" onclick="clearPredictionHistory()">Vaciar historial</button>
-        <button class="btn-secondary" onclick="clearSelectedRaceSetting()">Reset circuito</button>
-        <button class="danger-btn" onclick="resetFavoriteToDefault()">Reset favorito</button>
-      </div>
-    </div>
-  `;
-}
 
 function openDetailModal(html) {
   modalContentEl().innerHTML = html;
@@ -4966,110 +4641,10 @@ function renderBootError(message) {
   `;
 }
 
-function bootRaceControl() {
-  try {
-    const repairedFavorite = getFavorite();
-    saveFavorite(repairedFavorite);
-
-    updateSubtitle();
-    fetchStandingsData().catch(() => {});
-    fetchCalendarData().catch(() => {});
-    showHome();
-    window.__racecontrolBooted = true;
-  } catch (error) {
-    renderBootError(error && error.message ? error.message : String(error));
-  }
-}
-
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", bootRaceControl);
 } else {
   bootRaceControl();
-}
-/* =========================================================
-   FASES 6 + 7 + 8 + 9 · BLOQUE ÚNICO
-   Pegar al FINAL de app.js
-========================================================= */
-
-/* ===== FASE 9 · SETTINGS / PERSISTENCIA ===== */
-
-function getDefaultSettings() {
-  return {
-    language: "es-ES",
-    autoSelectNextRace: true,
-    showCircuitLocalTime: true,
-    homeCompactMode: false,
-    weekendExplainerMode: true
-  };
-}
-
-function getUiState() {
-  return safeJsonParse(localStorage.getItem("racecontrolUiState"), {
-    standingsViewType: "drivers",
-    standingsScope: "top10",
-    currentNewsFilterKey: "favorite"
-  });
-}
-
-function saveUiState() {
-  localStorage.setItem("racecontrolUiState", JSON.stringify({
-    standingsViewType: state.standingsViewType,
-    standingsScope: state.standingsScope,
-    currentNewsFilterKey: state.currentNewsFilterKey
-  }));
-}
-
-function applyStoredUiState() {
-  const saved = getUiState();
-  state.standingsViewType = saved.standingsViewType || "drivers";
-  state.standingsScope = saved.standingsScope || "top10";
-  state.currentNewsFilterKey = saved.currentNewsFilterKey || "favorite";
-}
-
-function togglePremiumSetting(key) {
-  const settings = getSettings();
-  saveSettings({ ...settings, [key]: !settings[key] });
-  showSettingsPanel();
-}
-
-function getLocalDataSummary() {
-  const history = safeJsonParse(localStorage.getItem("racecontrolPredictionHistory"), []);
-  return {
-    predictions: Array.isArray(history) ? history.length : 0,
-    selectedRace: localStorage.getItem("racecontrolSelectedRace") || "Auto",
-    favorite: getFavorite()
-  };
-}
-
-function clearAllLocalData() {
-  [
-    "racecontrolFavorite",
-    "racecontrolSettings",
-    "racecontrolSelectedRace",
-    "racecontrolPredictionHistory",
-    "racecontrolStandingsSnapshot",
-    "racecontrolUiState"
-  ].forEach(key => localStorage.removeItem(key));
-
-  state.standingsCache = null;
-  state.calendarCache = null;
-  state.homeNewsCache = {};
-  state.lastPredictData = null;
-  state.lastPredictContext = null;
-  state.detectedNextRaceName = null;
-  state.weekendContext = null;
-  state.weekendNowIso = null;
-  state.standingsDelta = { drivers: {}, teams: {} };
-  state.standingsViewType = "drivers";
-  state.standingsScope = "top10";
-  state.currentNewsFilterKey = "favorite";
-}
-
-function resetAllDataAndReboot() {
-  clearAllLocalData();
-  applyStoredUiState();
-  updateSubtitle();
-  showHome();
 }
 
 /* ===== FASE 6 · FAVORITO INTELIGENTE ===== */
@@ -5359,34 +4934,6 @@ function renderFavoritoHeroContextCard(favorite, raceName, predictData, context)
   `;
 }
 
-function renderFavoritoObjectiveCard(favorite, raceName, predictData, context) {
-  const objective = getFavoriteWeekendObjective(favorite, raceName, predictData, context);
-
-  return `
-    <div class="card">
-      <div class="card-title">Objetivo del fin de semana</div>
-      <div class="card-sub">Qué es un buen GP, qué sería lo razonable y qué escenario deja sabor a oportunidad perdida.</div>
-
-      <div class="grid-stats">
-        <div class="stat-tile">
-          <div class="stat-kicker">Mínimo</div>
-          <div class="stat-value" style="font-size:22px;">${escapeHtml(objective.minimum)}</div>
-          <div class="stat-caption">La base que no conviene perder</div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-kicker">Razonable</div>
-          <div class="stat-value" style="font-size:22px;">${escapeHtml(objective.realistic)}</div>
-          <div class="stat-caption">La referencia más estable ahora mismo</div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-kicker">Alto</div>
-          <div class="stat-value" style="font-size:22px;">${escapeHtml(objective.high)}</div>
-          <div class="stat-caption">Lo que necesita para salir reforzado</div>
-        </div>
-      </div>
-    </div>
-  `;
-}
 
 function getCircuitAssetName(raceName) {
   if (!raceName) return "";
@@ -5426,114 +4973,6 @@ function getCircuitAssetPath(raceName) {
   return file ? `/assets/circuits/${file}` : "";
 }
 
-function renderFavoritoCircuitFitCard(favorite, raceName) {
-  const fit = getFavoriteCircuitFit(favorite, raceName);
-  const accent = favorite.colorClass;
-  const circuitAsset = getCircuitAssetPath(raceName);
-
-  return `
-    <div class="card">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:14px;">
-        <div style="min-width:0;">
-          <div class="card-title" style="margin-bottom:0;">Encaje con el circuito</div>
-        </div>
-
-        ${circuitAsset ? `
-          <img
-            src="${circuitAsset}"
-            alt="${escapeHtml(raceName)}"
-            style="width:74px; height:74px; object-fit:contain; opacity:.96; flex:0 0 auto;"
-            onerror="this.style.display='none'"
-          >
-        ` : ""}
-      </div>
-
-      <div class="news-meta-row" style="margin-top:0; margin-bottom:14px;">
-        <span class="tag general">${escapeHtml(raceName)}</span>
-        <span class="tag ${fit.overall >= 78 ? "statement" : fit.overall >= 66 ? "market" : "reliability"}">${escapeHtml(fit.label)}</span>
-      </div>
-
-      <div class="stat">Aero <span>${fit.fit.aero}%</span></div>
-      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.aero}%;"></div></div>
-
-      <div class="stat" style="margin-top:14px;">Tracción <span>${fit.fit.traction}%</span></div>
-      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.traction}%;"></div></div>
-
-      <div class="stat" style="margin-top:14px;">Velocidad punta <span>${fit.fit.topSpeed}%</span></div>
-      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.topSpeed}%;"></div></div>
-
-      <div class="stat" style="margin-top:14px;">Gestión neumáticos <span>${fit.fit.tyreManagement}%</span></div>
-      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.tyreManagement}%;"></div></div>
-    </div>
-  `;
-}
-
-function renderFavoritoComparisonAdvancedCard(favorite) {
-  const breakdown = getFavoriteComparisonBreakdown(favorite);
-
-  return `
-    <div class="card">
-      <div class="card-title">${escapeHtml(breakdown.title)}</div>
-      <div class="card-sub">La comparación interna se resume mejor si separas forma, fiabilidad, tendencia y lectura de sábado/domingo.</div>
-
-      <div class="meta-grid" style="margin-top:14px;">
-        ${breakdown.items.map(item => `
-          <div class="meta-tile">
-            <div class="meta-kicker">${escapeHtml(item.kicker)}</div>
-            <div class="meta-value" style="font-size:18px;">${escapeHtml(item.value)}</div>
-            <div class="meta-caption">${escapeHtml(item.caption)}</div>
-          </div>
-        `).join("")}
-      </div>
-    </div>
-  `;
-}
-
-function renderFavoritoRadarCard(favorite, raceName, context, predictData) {
-  const items = getFavoriteWeekendRadar(favorite, raceName, context, predictData);
-
-  return `
-    <div class="card">
-      <div class="card-title">Radar del fin de semana</div>
-      <div class="card-sub">Qué necesita, qué le puede hundir y cuál es la señal más útil para no mirar el GP a ciegas.</div>
-
-      <div class="insight-list">
-        ${items.map(item => `
-          <div class="insight-item">
-            <strong>${escapeHtml(item.title)}</strong><br>
-            ${escapeHtml(item.text)}
-          </div>
-        `).join("")}
-      </div>
-    </div>
-  `;
-}
-
-function renderFavoritoDirectRivalsCard(favorite, predictData) {
-  const rivals = getFavoriteDirectRivals(favorite, state.standingsCache, predictData);
-
-  return `
-    <div class="card">
-      <div class="card-title">Rivales directos</div>
-      <div class="card-sub">La pelea real del fin de semana suele estar más cerca que la narrativa grande de podio o victoria.</div>
-
-      ${rivals.length ? rivals.map(rival => `
-        <div class="standing-row">
-          <div class="row-left">
-            <div class="row-stripe ${escapeHtml(rival.colorClass)}"></div>
-            <div class="row-info">
-              <div class="row-name">${escapeHtml(rival.title)}</div>
-              <div class="row-team">${escapeHtml(rival.sub)}</div>
-            </div>
-          </div>
-          <div class="row-badges">
-            <div class="row-points">${escapeHtml(rival.meta)}</div>
-          </div>
-        </div>
-      `).join("") : `<div class="empty-line">No hay rivales directos claros cargados ahora mismo.</div>`}
-    </div>
-  `;
-}
 
 function showFavorito() {
   setActiveNav("nav-favorito");
@@ -5675,21 +5114,6 @@ function renderStandingsSummaryBlock() {
   el.innerHTML = `${renderStandingsOverviewCard()}${renderStandingsBattleCard()}`;
 }
 
-function setStandingsView(type) {
-  state.standingsViewType = type;
-  saveUiState();
-  renderStandingsSummaryBlock();
-  if (type === "teams") showTeamsStandings();
-  else showDriversStandings();
-}
-
-function setStandingsScope(scope) {
-  state.standingsScope = scope;
-  saveUiState();
-  if (state.standingsViewType === "teams") showTeamsStandings();
-  else showDriversStandings();
-}
-
 async function showStandings(force = false) {
   setActiveNav("nav-more");
   updateSubtitle();
@@ -5740,12 +5164,6 @@ async function showStandings(force = false) {
   }
 }
 
-function switchNewsFilter(key) {
-  state.currentNewsFilterKey = key;
-  saveUiState();
-  showNews();
-}
-
 /* ===== FASE 8 · CALENDARIO INTELIGENTE ===== */
 
 function getCalendarFormatLabel(raceName) {
@@ -5767,44 +5185,6 @@ function getCalendarEventNarrative(event) {
   return `${format} · Circuito más clásico donde suele mandar más el ritmo puro.`;
 }
 
-function renderCalendarIntelligenceHero(nextRace, context) {
-  if (!nextRace) return "";
-
-  const raceName = mapCalendarEventToPredictRace(nextRace) || "GP";
-  const heuristics = getRaceHeuristics(raceName);
-  const format = getCalendarFormatLabel(raceName);
-
-  return `
-    <div class="card highlight-card">
-      <div class="mini-pill">CALENDARIO INTELIGENTE</div>
-      <div class="card-title">${escapeHtml(nextRace.title)}</div>
-      <div class="card-sub">${escapeHtml(getCalendarEventNarrative(nextRace))}</div>
-
-      <div class="meta-grid" style="margin-top:14px;">
-        <div class="meta-tile">
-          <div class="meta-kicker">Formato</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(format)}</div>
-          <div class="meta-caption">${escapeHtml(formatCalendarDateRange(nextRace.start, nextRace.end))}</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Circuito</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(heuristics.tag)}</div>
-          <div class="meta-caption">${escapeHtml(nextRace.venue || "")}</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Siguiente referencia</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(context?.nextSession?.label || "—")}</div>
-          <div class="meta-caption">${escapeHtml(context?.nextSessionCountdown || "Sin cuenta atrás")}</div>
-        </div>
-      </div>
-
-      <div class="quick-row" style="margin-top:14px;">
-        <a href="#" class="btn-secondary" onclick="showSessions(); return false;">Abrir sesiones</a>
-        <a href="#" class="btn-secondary" onclick="showPredict(); return false;">Abrir predicción</a>
-      </div>
-    </div>
-  `;
-}
 
 function renderCalendarFlowCard(context) {
   if (!context?.sessions?.length) return "";
@@ -5995,22 +5375,7 @@ function showSettingsPanel() {
 
 /* ===== FASE 9 · ARRANQUE CON UI STATE ===== */
 
-function bootRaceControl() {
-  try {
-    applyStoredUiState();
 
-    const repairedFavorite = getFavorite();
-    saveFavorite(repairedFavorite);
-
-    updateSubtitle();
-    fetchStandingsData().catch(() => {});
-    fetchCalendarData().catch(() => {});
-    showHome();
-    window.__racecontrolBooted = true;
-  } catch (error) {
-    renderBootError(error && error.message ? error.message : String(error));
-  }
-}
 /* =========================================================
    PARCHE FINAL · ARRANQUE + PERSISTENCIA SEGURA
    Pegar al FINAL del app.js
@@ -6032,11 +5397,11 @@ function getDefaultSettings() {
 
 function getSettings() {
   const savedSettings = asPlainObject(
-    safeJsonParse(localStorage.getItem("racecontrolSettings"), null)
+    safeJsonParse(localStorage.getItem(STORAGE_KEYS.settings), null)
   );
 
   const legacyUiState = asPlainObject(
-    safeJsonParse(localStorage.getItem("racecontrolUiState"), null)
+    safeJsonParse(localStorage.getItem(STORAGE_KEYS.uiState), null)
   );
 
   const migratedLegacySettings = {
@@ -6060,7 +5425,7 @@ function saveSettings(settings) {
     ...asPlainObject(settings)
   };
 
-  localStorage.setItem("racecontrolSettings", JSON.stringify(next));
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(next));
 }
 
 function getUiState() {
@@ -6071,7 +5436,7 @@ function getUiState() {
   };
 
   const saved = asPlainObject(
-    safeJsonParse(localStorage.getItem("racecontrolUiState"), null)
+    safeJsonParse(localStorage.getItem(STORAGE_KEYS.uiState), null)
   );
 
   return {
@@ -6087,7 +5452,7 @@ function saveUiState() {
     currentNewsFilterKey: state.currentNewsFilterKey || "favorite"
   };
 
-  localStorage.setItem("racecontrolUiState", JSON.stringify(next));
+  localStorage.setItem(STORAGE_KEYS.uiState, JSON.stringify(next));
 }
 
 function applyStoredUiState() {
@@ -6101,6 +5466,15 @@ function applyStoredUiState() {
 
   state.currentNewsFilterKey =
     saved.currentNewsFilterKey || "favorite";
+}
+
+function getLocalDataSummary() {
+  const history = safeJsonParse(localStorage.getItem(STORAGE_KEYS.predictionHistory), []);
+  return {
+    predictions: Array.isArray(history) ? history.length : 0,
+    selectedRace: localStorage.getItem(STORAGE_KEYS.selectedRace) || "Auto",
+    favorite: getFavorite()
+  };
 }
 
 function repairLocalStorageState() {
@@ -6127,7 +5501,7 @@ function togglePremiumSetting(key) {
 }
 
 function clearSelectedRaceSetting() {
-  localStorage.removeItem("racecontrolSelectedRace");
+  localStorage.removeItem(STORAGE_KEYS.selectedRace);
 
   const settings = getSettings();
   saveSettings({
@@ -6165,14 +5539,14 @@ function switchNewsFilter(key) {
 }
 
 function clearAllLocalData() {
-  [
-    "racecontrolFavorite",
-    "racecontrolSettings",
-    "racecontrolSelectedRace",
-    "racecontrolPredictionHistory",
-    "racecontrolStandingsSnapshot",
-    "racecontrolUiState"
-  ].forEach(key => localStorage.removeItem(key));
+  clearStorageKeys([
+    STORAGE_KEYS.favorite,
+    STORAGE_KEYS.settings,
+    STORAGE_KEYS.selectedRace,
+    STORAGE_KEYS.predictionHistory,
+    STORAGE_KEYS.standingsSnapshot,
+    STORAGE_KEYS.uiState
+  ]);
 
   state.standingsCache = null;
   state.calendarCache = null;
