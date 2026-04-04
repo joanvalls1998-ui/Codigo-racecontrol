@@ -1,19 +1,37 @@
 window.__racecontrolScriptLoaded = true;
 
-const state = {
-  standingsCache: null,
-  calendarCache: null,
-  homeNewsCache: {},
-  lastPredictData: null,
-  lastPredictContext: null,
-  detectedNextRaceName: null,
-  standingsDelta: { drivers: {}, teams: {} },
+const DEFAULT_SETTINGS = Object.freeze({
+  language: "es-ES",
+  autoSelectNextRace: true,
+  showCircuitLocalTime: true,
+  homeCompactMode: false,
+  weekendExplainerMode: true
+});
+
+const DEFAULT_UI_STATE = Object.freeze({
   standingsViewType: "drivers",
   standingsScope: "top10",
-  currentNewsFilterKey: "favorite",
-  weekendContext: null,
-  weekendNowIso: null
-};
+  currentNewsFilterKey: "favorite"
+});
+
+function createInitialRuntimeState() {
+  return {
+    standingsCache: null,
+    calendarCache: null,
+    homeNewsCache: {},
+    lastPredictData: null,
+    lastPredictContext: null,
+    detectedNextRaceName: null,
+    standingsDelta: { drivers: {}, teams: {} },
+    standingsViewType: DEFAULT_UI_STATE.standingsViewType,
+    standingsScope: DEFAULT_UI_STATE.standingsScope,
+    currentNewsFilterKey: DEFAULT_UI_STATE.currentNewsFilterKey,
+    weekendContext: null,
+    weekendNowIso: null
+  };
+}
+
+const state = createInitialRuntimeState();
 
 const STORAGE_KEYS = Object.freeze({
   favorite: "racecontrolFavorite",
@@ -52,7 +70,27 @@ const CIRCUIT_ASSET_FILES = Object.freeze({
 });
 
 function clearStorageKeys(keys) {
-  keys.forEach(key => localStorage.removeItem(key));
+  keys.forEach(key => storageRemove(key));
+}
+
+function storageReadJson(key, fallback) {
+  return safeJsonParse(localStorage.getItem(key), fallback);
+}
+
+function storageRead(key) {
+  return localStorage.getItem(key);
+}
+
+function storageWriteJson(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function storageWrite(key, value) {
+  localStorage.setItem(key, value);
+}
+
+function storageRemove(key) {
+  localStorage.removeItem(key);
 }
 
 function contentEl() {
@@ -164,12 +202,12 @@ function unique(values) {
 
 
 function getFavorite() {
-  const saved = safeJsonParse(localStorage.getItem(STORAGE_KEYS.favorite), null);
+  const saved = storageReadJson(STORAGE_KEYS.favorite, null);
   return normalizeFavorite(saved);
 }
 
 function saveFavorite(favorite) {
-  localStorage.setItem(STORAGE_KEYS.favorite, JSON.stringify(normalizeFavorite(favorite)));
+  storageWriteJson(STORAGE_KEYS.favorite, normalizeFavorite(favorite));
 }
 
 function getPredictRaceOptions() {
@@ -203,14 +241,14 @@ function getPredictRaceOptions() {
 
 function getSelectedRace() {
   const settings = getSettings();
-  const stored = localStorage.getItem(STORAGE_KEYS.selectedRace);
+  const stored = storageRead(STORAGE_KEYS.selectedRace);
   if (settings.autoSelectNextRace && state.detectedNextRaceName) return state.detectedNextRaceName;
   if (stored) return stored;
   return state.detectedNextRaceName || "GP Miami";
 }
 
 function saveSelectedRace(raceName) {
-  localStorage.setItem(STORAGE_KEYS.selectedRace, raceName);
+  storageWrite(STORAGE_KEYS.selectedRace, raceName);
   const settings = getSettings();
   if (settings.autoSelectNextRace) {
     saveSettings({ ...settings, autoSelectNextRace: false });
@@ -1294,11 +1332,11 @@ function saveStandingsSnapshot(data) {
     drivers: Object.fromEntries((data?.drivers || []).map(d => [d.name, d.pos])),
     teams: Object.fromEntries((data?.teams || []).map(t => [t.team, t.pos]))
   };
-  localStorage.setItem("racecontrolStandingsSnapshot", JSON.stringify(snapshot));
+  storageWriteJson(STORAGE_KEYS.standingsSnapshot, snapshot);
 }
 
 function computeStandingsDelta(data) {
-  const previous = safeJsonParse(localStorage.getItem("racecontrolStandingsSnapshot"), null);
+  const previous = storageReadJson(STORAGE_KEYS.standingsSnapshot, null);
   const driverDelta = {};
   const teamDelta = {};
 
@@ -3850,12 +3888,12 @@ function renderPredictGridRead(favorite, raceName, data = null) {
 }
 
 function getPredictionHistory() {
-  const history = safeJsonParse(localStorage.getItem("racecontrolPredictionHistory"), []);
+  const history = storageReadJson(STORAGE_KEYS.predictionHistory, []);
   return Array.isArray(history) ? history : [];
 }
 
 function savePredictionHistory(history) {
-  localStorage.setItem("racecontrolPredictionHistory", JSON.stringify(history));
+  storageWriteJson(STORAGE_KEYS.predictionHistory, history);
 }
 
 function pushPredictionHistory(data, favorite, raceName) {
@@ -3901,7 +3939,7 @@ function renderPredictionHistory() {
 }
 
 function clearPredictionHistory() {
-  localStorage.removeItem("racecontrolPredictionHistory");
+  storageRemove(STORAGE_KEYS.predictionHistory);
   document.getElementById("predictionHistoryBox")?.replaceChildren();
   const box = document.getElementById("predictionHistoryBox");
   if (box) box.innerHTML = renderPredictionHistory();
@@ -3919,6 +3957,29 @@ function openPredictionHistoryItem(id) {
   `);
 }
 
+function setPredictSectionPlaceholders({
+  summary = "",
+  scenarios = "",
+  factors = "",
+  qualyRace = "",
+  strategy = "",
+  grid = ""
+}) {
+  const sections = {
+    predictSummaryCards: summary,
+    predictScenarioCards: scenarios,
+    predictKeyFactors: factors,
+    predictQualyRace: qualyRace,
+    predictStrategyDetail: strategy,
+    predictGridRead: grid
+  };
+
+  Object.entries(sections).forEach(([id, html]) => {
+    const el = document.getElementById(id);
+    if (el && html) el.innerHTML = html;
+  });
+}
+
 async function runPredict() {
   const output = document.getElementById("predictOutput");
   const favorite = getFavorite();
@@ -3929,19 +3990,14 @@ async function runPredict() {
 
   if (output) output.innerText = "Generando predicción...";
 
-  const summaryBox = document.getElementById("predictSummaryCards");
-  const scenariosBox = document.getElementById("predictScenarioCards");
-  const factorsBox = document.getElementById("predictKeyFactors");
-  const qualyRaceBox = document.getElementById("predictQualyRace");
-  const strategyBox = document.getElementById("predictStrategyDetail");
-  const gridBox = document.getElementById("predictGridRead");
-
-  if (summaryBox) summaryBox.innerHTML = renderPredictLoadingState();
-  if (scenariosBox) scenariosBox.innerHTML = `<div class="empty-line">Recalculando escenarios del fin de semana…</div>`;
-  if (factorsBox) factorsBox.innerHTML = `<div class="empty-line">Releyendo fortalezas, riesgos y contexto…</div>`;
-  if (qualyRaceBox) qualyRaceBox.innerHTML = `<div class="empty-line">Comparando comportamiento a una vuelta y ritmo largo…</div>`;
-  if (strategyBox) strategyBox.innerHTML = `<div class="empty-line">Actualizando estrategia prevista…</div>`;
-  if (gridBox) gridBox.innerHTML = `<div class="empty-line">Reordenando lectura global de la parrilla…</div>`;
+  setPredictSectionPlaceholders({
+    summary: renderPredictLoadingState(),
+    scenarios: `<div class="empty-line">Recalculando escenarios del fin de semana…</div>`,
+    factors: `<div class="empty-line">Releyendo fortalezas, riesgos y contexto…</div>`,
+    qualyRace: `<div class="empty-line">Comparando comportamiento a una vuelta y ritmo largo…</div>`,
+    strategy: `<div class="empty-line">Actualizando estrategia prevista…</div>`,
+    grid: `<div class="empty-line">Reordenando lectura global de la parrilla…</div>`
+  });
 
   try {
     const data = await fetchPredictData(favorite, raceName);
@@ -3953,24 +4009,28 @@ async function runPredict() {
 
     pushPredictionHistory(data, favorite, raceName);
 
-    if (summaryBox) summaryBox.innerHTML = renderPredictSummaryCards(data);
-    if (scenariosBox) scenariosBox.innerHTML = renderPredictScenarioCards(favorite, raceName, data);
-    if (factorsBox) factorsBox.innerHTML = renderPredictKeyFactors(favorite, raceName, data);
-    if (qualyRaceBox) qualyRaceBox.innerHTML = renderPredictQualyRaceCard(favorite, raceName, data);
-    if (strategyBox) strategyBox.innerHTML = renderPredictStrategyDetail(favorite, raceName, data);
-    if (gridBox) gridBox.innerHTML = renderPredictGridRead(favorite, raceName, data);
+    setPredictSectionPlaceholders({
+      summary: renderPredictSummaryCards(data),
+      scenarios: renderPredictScenarioCards(favorite, raceName, data),
+      factors: renderPredictKeyFactors(favorite, raceName, data),
+      qualyRace: renderPredictQualyRaceCard(favorite, raceName, data),
+      strategy: renderPredictStrategyDetail(favorite, raceName, data),
+      grid: renderPredictGridRead(favorite, raceName, data)
+    });
     if (output) output.innerText = formatPredictResponse(data);
 
     const historyBox = document.getElementById("predictionHistoryBox");
     if (historyBox) historyBox.innerHTML = renderPredictionHistory();
   } catch (error) {
     if (output) output.innerText = `Error: ${error.message}`;
-    if (summaryBox) summaryBox.innerHTML = `<div class="empty-line">No se ha podido generar el resumen predictivo.</div>`;
-    if (scenariosBox) scenariosBox.innerHTML = renderPredictScenarioCards(favorite, raceName, null);
-    if (factorsBox) factorsBox.innerHTML = renderPredictKeyFactors(favorite, raceName, null);
-    if (qualyRaceBox) qualyRaceBox.innerHTML = renderPredictQualyRaceCard(favorite, raceName, null);
-    if (strategyBox) strategyBox.innerHTML = renderPredictStrategyDetail(favorite, raceName, null);
-    if (gridBox) gridBox.innerHTML = renderPredictGridRead(favorite, raceName, null);
+    setPredictSectionPlaceholders({
+      summary: `<div class="empty-line">No se ha podido generar el resumen predictivo.</div>`,
+      scenarios: renderPredictScenarioCards(favorite, raceName, null),
+      factors: renderPredictKeyFactors(favorite, raceName, null),
+      qualyRace: renderPredictQualyRaceCard(favorite, raceName, null),
+      strategy: renderPredictStrategyDetail(favorite, raceName, null),
+      grid: renderPredictGridRead(favorite, raceName, null)
+    });
   }
 }
 
@@ -4636,9 +4696,8 @@ function resetFavoriteToDefault() {
 
 
 function toggleAutoNextRace() {
-  const settings = getSettings();
-  saveSettings({ ...settings, autoSelectNextRace: !settings.autoSelectNextRace });
-  showSettingsPanel();
+  // Compatibilidad legacy por si algún onclick externo aún usa este nombre.
+  togglePremiumSetting("autoSelectNextRace");
 }
 
 
@@ -5378,31 +5437,17 @@ function asPlainObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
-const DEFAULT_SETTINGS = Object.freeze({
-  language: "es-ES",
-  autoSelectNextRace: true,
-  showCircuitLocalTime: true,
-  homeCompactMode: false,
-  weekendExplainerMode: true
-});
-
-const DEFAULT_UI_STATE = Object.freeze({
-  standingsViewType: "drivers",
-  standingsScope: "top10",
-  currentNewsFilterKey: "favorite"
-});
-
 function getDefaultSettings() {
   return { ...DEFAULT_SETTINGS };
 }
 
 function getSettings() {
   const savedSettings = asPlainObject(
-    safeJsonParse(localStorage.getItem(STORAGE_KEYS.settings), null)
+    storageReadJson(STORAGE_KEYS.settings, null)
   );
 
   const legacyUiState = asPlainObject(
-    safeJsonParse(localStorage.getItem(STORAGE_KEYS.uiState), null)
+    storageReadJson(STORAGE_KEYS.uiState, null)
   );
 
   const migratedLegacySettings = {
@@ -5426,12 +5471,12 @@ function saveSettings(settings) {
     ...asPlainObject(settings)
   };
 
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(next));
+  storageWriteJson(STORAGE_KEYS.settings, next);
 }
 
 function getUiState() {
   const saved = asPlainObject(
-    safeJsonParse(localStorage.getItem(STORAGE_KEYS.uiState), null)
+    storageReadJson(STORAGE_KEYS.uiState, null)
   );
 
   return {
@@ -5447,7 +5492,7 @@ function saveUiState() {
     currentNewsFilterKey: state.currentNewsFilterKey || "favorite"
   };
 
-  localStorage.setItem(STORAGE_KEYS.uiState, JSON.stringify(next));
+  storageWriteJson(STORAGE_KEYS.uiState, next);
 }
 
 function applyStoredUiState() {
@@ -5464,10 +5509,10 @@ function applyStoredUiState() {
 }
 
 function getLocalDataSummary() {
-  const history = safeJsonParse(localStorage.getItem(STORAGE_KEYS.predictionHistory), []);
+  const history = storageReadJson(STORAGE_KEYS.predictionHistory, []);
   return {
     predictions: Array.isArray(history) ? history.length : 0,
-    selectedRace: localStorage.getItem(STORAGE_KEYS.selectedRace) || "Auto",
+    selectedRace: storageRead(STORAGE_KEYS.selectedRace) || "Auto",
     favorite: getFavorite()
   };
 }
@@ -5496,7 +5541,7 @@ function togglePremiumSetting(key) {
 }
 
 function clearSelectedRaceSetting() {
-  localStorage.removeItem(STORAGE_KEYS.selectedRace);
+  storageRemove(STORAGE_KEYS.selectedRace);
 
   const settings = getSettings();
   saveSettings({
@@ -5543,18 +5588,7 @@ function clearAllLocalData() {
     STORAGE_KEYS.uiState
   ]);
 
-  state.standingsCache = null;
-  state.calendarCache = null;
-  state.homeNewsCache = {};
-  state.lastPredictData = null;
-  state.lastPredictContext = null;
-  state.detectedNextRaceName = null;
-  state.standingsDelta = { drivers: {}, teams: {} };
-  state.standingsViewType = "drivers";
-  state.standingsScope = "top10";
-  state.currentNewsFilterKey = "favorite";
-  state.weekendContext = null;
-  state.weekendNowIso = null;
+  Object.assign(state, createInitialRuntimeState());
 }
 
 function resetAllDataAndReboot() {
