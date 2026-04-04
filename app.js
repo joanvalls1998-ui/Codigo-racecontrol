@@ -2117,24 +2117,6 @@ function getRaceModeQuickRead(favorite, raceName, predictData, stage) {
 }
 
 
-function renderRaceModeQuickRead(favorite, raceName, predictData, stage) {
-  const items = getRaceModeQuickRead(favorite, raceName, predictData, stage);
-
-  return `
-    <div class="card">
-      <div class="card-title">Lectura rápida</div>
-      <div class="insight-list">
-        ${items.map(item => `
-          <div class="insight-item">
-            <strong>${escapeHtml(item.title)}</strong>
-            ${escapeHtml(item.text)}
-          </div>
-        `).join("")}
-      </div>
-    </div>
-  `;
-}
-
 function renderRaceModeFavoriteSummary(favorite, raceName, predictData) {
   const favoritePrediction = formatFavoritePredictionText(predictData?.favoritePrediction);
   const metrics = getFavoriteMetrics(favorite);
@@ -4198,42 +4180,6 @@ function renderFavoriteCard() {
   `;
 }
 
-function renderFavoritoTechnicalCard(favorite, teamName, teamData, accent) {
-  return `
-    <div class="card highlight-card">
-      <div class="mini-pill">PANEL TÉCNICO</div>
-      <div class="card-title" style="color: var(--${accent});">${escapeHtml(teamName.toUpperCase())}</div>
-
-      <div class="stat">Ritmo de carrera <span>${teamData.racePace}%</span></div>
-      <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.racePace}%;"></div></div>
-
-      <div class="stat" style="margin-top:14px;">Ritmo a una vuelta <span>${teamData.qualyPace}%</span></div>
-      <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.qualyPace}%;"></div></div>
-
-      <div class="stat" style="margin-top:14px;">Fiabilidad <span>${teamData.reliability}%</span></div>
-      <div class="bar"><div class="bar-fill ferrari" style="width:${teamData.reliability}%;"></div></div>
-
-      <div class="meta-grid" style="margin-top:14px;">
-        <div class="meta-tile">
-          <div class="meta-kicker">Aero</div>
-          <div class="meta-value">${teamData.aero}%</div>
-          <div class="meta-caption">Carga</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Tracción</div>
-          <div class="meta-value">${teamData.traction}%</div>
-          <div class="meta-caption">Salida</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Velocidad punta</div>
-          <div class="meta-value">${teamData.topSpeed}%</div>
-          <div class="meta-caption">Recta</div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
 function renderFavoritoTrendCard(favorite, teamName) {
   const trendInfo = getTrendInfo(teamName, favorite);
   const metrics = getFavoriteMetrics(favorite);
@@ -4305,21 +4251,6 @@ function renderFavoritoComparisonCard(favorite, teamName, teamData, accent) {
     </div>
   `;
 }
-
-function renderFavoritoInsightsCard(favorite) {
-  const insights = getFavoriteInsights(favorite, getSelectedRace());
-  return `
-    <div class="card">
-      <div class="card-title">Lectura rápida</div>
-      <div class="insight-list">
-        ${insights.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
-      </div>
-    </div>
-  `;
-}
-
-
-/* ===== MÁS ===== */
 
 function showMore() {
   setActiveNav("nav-more");
@@ -4585,30 +4516,6 @@ function showTeamsStandings() {
   `;
 }
 
-function renderCalendarEventCard(event) {
-  const isTesting = event.type === "testing";
-  const isRace = event.type === "race";
-  const dateLabel = formatCalendarDateRange(event.start, event.end);
-
-  return `
-    <div class="calendar-event-card">
-      <div class="calendar-event-top">
-        <div>
-          <div class="calendar-event-title">${isRace ? `R${event.round} · ${escapeHtml(event.title)}` : escapeHtml(event.title)}</div>
-          <div class="calendar-event-sub">${escapeHtml(event.venue)}</div>
-        </div>
-        <div class="calendar-event-right">${dateLabel}<br>${getCalendarStatusLabel(event.status, event.type)}</div>
-      </div>
-
-      <div class="calendar-event-tags">
-        <span class="tag general">${isTesting ? "Testing" : "Carrera"}</span>
-        ${event.sprint ? `<span class="tag market">Sprint</span>` : ""}
-        ${event.type === "race" && event.status === "next" ? `<span class="tag statement">Siguiente GP</span>` : ""}
-      </div>
-    </div>
-  `;
-}
-
 async function refreshCalendar() {
   await showCalendar(true);
 }
@@ -4627,53 +4534,6 @@ function getTeamColorClass(team) {
   if (team.includes("Haas")) return "haas";
   if (team.includes("Racing Bulls")) return "rb";
   return "aston";
-}
-
-async function showRaceMode() {
-  setActiveNav("nav-more");
-  updateSubtitle();
-
-  contentEl().innerHTML = renderLoadingCard("Modo carrera", "Preparando semáforo del fin de semana, escenarios, estrategia y top 10…", true);
-
-  try {
-    const favorite = getFavorite();
-    const calendarData = await fetchCalendarData();
-    const nextRaceEvent = getNextRaceFromCalendar(calendarData?.events || []);
-    const raceName = mapCalendarEventToPredictRace(nextRaceEvent) || getSelectedRace();
-    const predictData = await fetchPredictData(favorite, raceName);
-    const stage = getRaceWeekendStage(nextRaceEvent);
-
-    contentEl().innerHTML = `
-      ${renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData)}
-      ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
-      ${renderContextGlossaryCard("raceMode", state.weekendContext?.phase || "pre_weekend")}
-      ${renderRaceModeFavoriteSummary(favorite, raceName, predictData)}
-
-      <div class="card">
-        <div class="card-title">Escenarios de carrera</div>
-        ${renderPredictScenarioCards(favorite, raceName, predictData)}
-      </div>
-
-      <div class="card">
-        <div class="card-title">3 claves rápidas</div>
-        ${renderPredictKeyFactors(favorite, raceName, predictData)}
-      </div>
-
-      <div class="card">
-        <div class="card-title">Qualy vs carrera</div>
-        ${renderPredictQualyRaceCard(favorite, raceName, predictData)}
-      </div>
-
-      <div class="card">
-        <div class="card-title">Estrategia operativa</div>
-        ${renderPredictStrategyDetail(favorite, raceName, predictData)}
-      </div>
-
-      ${renderRaceModeTop10(predictData, favorite)}
-    `;
-  } catch (error) {
-    contentEl().innerHTML = renderErrorCard("Modo carrera", "Error al preparar esta pantalla", error.message);
-  }
 }
 
 function resetFavoriteToDefault() {
@@ -5024,33 +4884,6 @@ function getCircuitAssetPath(raceName) {
 }
 
 
-function showFavorito() {
-  setActiveNav("nav-favorito");
-  updateSubtitle();
-
-  const favorite = getFavorite();
-  const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
-  const accent = favorite.colorClass;
-  const teamData = getTeamData(teamName);
-  const context = getHomeWeekendContext() || state.weekendContext;
-  const raceName = context?.raceName || getSelectedRace();
-  const predictData = getActivePredictDataForRace(favorite, raceName);
-
-  contentEl().innerHTML = `
-    ${renderFavoriteCard()}
-    ${renderFavoritoHeroContextCard(favorite, raceName, predictData, context)}
-    ${renderFavoritoObjectiveCard(favorite, raceName, predictData, context)}
-    ${renderFavoritoTechnicalCard(favorite, teamName, teamData, accent)}
-    ${renderFavoritoCircuitFitCard(favorite, raceName)}
-    ${renderFavoritoComparisonAdvancedCard(favorite)}
-    ${renderFavoritoRadarCard(favorite, raceName, context, predictData)}
-    ${renderFavoritoDirectRivalsCard(favorite, predictData)}
-    ${renderFavoritoInsightsCard(favorite)}
-  `;
-}
-
-/* ===== FASE 7 · CLASIFICACIÓN AVANZADA ===== */
-
 function getStandingsOverviewData() {
   const favorite = getFavorite();
   const data = state.standingsCache;
@@ -5235,74 +5068,6 @@ function getCalendarEventNarrative(event) {
   return `${format} · Circuito más clásico donde suele mandar más el ritmo puro.`;
 }
 
-
-function renderCalendarFlowCard(context) {
-  if (!context?.sessions?.length) return "";
-
-  const showCircuitTime = getSettings().showCircuitLocalTime;
-
-  return `
-    <div class="card">
-      <div class="card-title">Flujo del GP</div>
-
-      ${context.sessions.map(session => `
-        <div class="standing-row">
-          <div class="row-left">
-            <div class="row-pos-wrap"><div class="row-pos">${escapeHtml(session.label)}</div></div>
-            <div class="row-info">
-              <div class="row-name">${escapeHtml(formatSessionDateTime(session.start))}</div>
-            </div>
-          </div>
-          <div class="row-badges">
-            <span class="tag ${session.status === "live" ? "statement" : session.status === "next" ? "market" : session.status === "completed" ? "general" : "technical"}">${escapeHtml(session.status === "next" ? "Siguiente" : session.status === "live" ? "En curso" : session.status === "completed" ? "Completada" : "Próxima")}</span>
-            ${showCircuitTime ? `<div class="row-team">${escapeHtml(formatSessionCircuitDateTime(session.start, session.timeZone))}</div>` : ""}
-          </div>
-        </div>
-      `).join("")}
-    </div>
-  `;
-}
-
-async function showCalendar(force = false) {
-  setActiveNav("nav-more");
-  updateSubtitle();
-
-  contentEl().innerHTML = renderLoadingCard("Calendario", "Cargando calendario oficial 2026 y separando próximas y completadas…", true);
-
-  try {
-    const data = await fetchCalendarData(force);
-    const events = Array.isArray(data?.events) ? data.events : [];
-    const nextRace = getNextRaceFromCalendar(events);
-    const upcoming = events.filter(event => event.status === "next" || event.status === "upcoming");
-    const completed = events.filter(event => event.status === "completed");
-    const context = getHomeWeekendContext();
-
-    contentEl().innerHTML = `
-      ${renderCalendarIntelligenceHero(nextRace, context)}
-      ${renderCalendarFlowCard(context)}
-
-      <div class="card">
-        <div class="card-head">
-          <div class="card-head-left">
-            <div class="card-title">Calendario</div>
-          </div>
-          <div class="card-head-actions">
-            <button class="icon-btn" onclick="refreshCalendar()">Refrescar</button>
-          </div>
-        </div>
-
-        ${upcoming.length ? upcoming.map(renderCalendarEventCard).join("") : `<div class="empty-line">No hay próximas citas cargadas.</div>`}
-
-        <div class="calendar-group-title" style="margin-top:14px;">Ya completadas</div>
-        ${completed.length ? completed.map(renderCalendarEventCard).join("") : `<div class="empty-line">No hay citas completadas registradas.</div>`}
-      </div>
-    `;
-  } catch (error) {
-    contentEl().innerHTML = renderErrorCard("Calendario", "Error al cargar el calendario", error.message);
-  }
-}
-
-/* ===== FASE 9 · AJUSTES PREMIUM ===== */
 
 function renderSettingsAdvancedCard() {
   const settings = getSettings();
@@ -5832,36 +5597,6 @@ function renderCircuitThumb(raceName, height = 72) {
 }
 
 /* ===== FAVORITO · versión más limpia ===== */
-
-function renderFavoritoCircuitFitCard(favorite, raceName) {
-  const fit = getFavoriteCircuitFit(favorite, raceName);
-  const accent = favorite.colorClass;
-
-  return `
-    <div class="card">
-      <div class="card-title">Encaje con el circuito</div>
-
-      ${renderCircuitThumb(raceName, 76)}
-
-      <div class="news-meta-row" style="margin-top:2px; margin-bottom:14px;">
-        <span class="tag general">${escapeHtml(raceName)}</span>
-        <span class="tag ${fit.overall >= 78 ? "statement" : fit.overall >= 66 ? "market" : "reliability"}">${escapeHtml(fit.label)}</span>
-      </div>
-
-      <div class="stat">Aero <span>${fit.fit.aero}%</span></div>
-      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.aero}%;"></div></div>
-
-      <div class="stat" style="margin-top:14px;">Tracción <span>${fit.fit.traction}%</span></div>
-      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.traction}%;"></div></div>
-
-      <div class="stat" style="margin-top:14px;">Velocidad punta <span>${fit.fit.topSpeed}%</span></div>
-      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.topSpeed}%;"></div></div>
-
-      <div class="stat" style="margin-top:14px;">Gestión neumáticos <span>${fit.fit.tyreManagement}%</span></div>
-      <div class="bar"><div class="bar-fill ${accent}" style="width:${fit.fit.tyreManagement}%;"></div></div>
-    </div>
-  `;
-}
 
 function renderFavoritoComparisonAdvancedCard(favorite) {
   const breakdown = getFavoriteComparisonBreakdown(favorite);
