@@ -2123,11 +2123,10 @@ function renderRaceModeQuickRead(favorite, raceName, predictData, stage) {
   return `
     <div class="card">
       <div class="card-title">Lectura rápida</div>
-      <div class="card-sub">Quién llega mejor, qué manda este fin de semana y qué necesita tu favorito.</div>
       <div class="insight-list">
         ${items.map(item => `
           <div class="insight-item">
-            <strong>${escapeHtml(item.title)}</strong><br>
+            <strong>${escapeHtml(item.title)}</strong>
             ${escapeHtml(item.text)}
           </div>
         `).join("")}
@@ -2144,7 +2143,6 @@ function renderRaceModeFavoriteSummary(favorite, raceName, predictData) {
   return `
     <div class="card">
       <div class="card-title">Tu favorito</div>
-      <div class="card-sub">Resumen inmediato de dónde debería estar y cómo puede construirse la carrera.</div>
 
       <div class="predict-grid">
         <div class="stat-tile">
@@ -2173,17 +2171,17 @@ function renderRaceModeFavoriteSummary(favorite, raceName, predictData) {
         <div class="meta-tile">
           <div class="meta-kicker">Ventana</div>
           <div class="meta-value">${escapeHtml(metrics.expectedWindow)}</div>
-          <div class="meta-caption">Rango competitivo actual</div>
+          <div class="meta-caption">Rango</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Tendencia</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(metrics.trendInfo.label)}</div>
-          <div class="meta-caption">${escapeHtml(metrics.trendInfo.description)}</div>
+          <div class="meta-caption">${escapeHtml(metrics.trendInfo.label)}</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Balance</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(balance.label)}</div>
-          <div class="meta-caption">${escapeHtml(balance.description)}</div>
+          <div class="meta-caption">Qualy / carrera</div>
         </div>
       </div>
     </div>
@@ -2198,7 +2196,6 @@ function renderRaceModeTop10(predictData, favorite) {
   return `
     <div class="card">
       <div class="card-title">Top 10 estimado</div>
-      <div class="card-sub">Lectura rápida de la carrera prevista, con foco en tu favorito y en la parte alta.</div>
 
       <div class="mode-race-top10">
         ${top10.length ? top10.map(driver => {
@@ -4208,7 +4205,6 @@ function renderFavoritoTechnicalCard(favorite, teamName, teamData, accent) {
     <div class="card highlight-card">
       <div class="mini-pill">PANEL TÉCNICO</div>
       <div class="card-title" style="color: var(--${accent});">${escapeHtml(teamName.toUpperCase())}</div>
-      <div class="card-sub">Lectura rápida del rendimiento actual del favorito y de su entorno competitivo.</div>
 
       <div class="stat">Ritmo de carrera <span>${teamData.racePace}%</span></div>
       <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.racePace}%;"></div></div>
@@ -4223,17 +4219,17 @@ function renderFavoritoTechnicalCard(favorite, teamName, teamData, accent) {
         <div class="meta-tile">
           <div class="meta-kicker">Aero</div>
           <div class="meta-value">${teamData.aero}%</div>
-          <div class="meta-caption">Carga y apoyo</div>
+          <div class="meta-caption">Carga</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Tracción</div>
           <div class="meta-value">${teamData.traction}%</div>
-          <div class="meta-caption">Salida de curva</div>
+          <div class="meta-caption">Salida</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Velocidad punta</div>
           <div class="meta-value">${teamData.topSpeed}%</div>
-          <div class="meta-caption">Recta y eficiencia</div>
+          <div class="meta-caption">Recta</div>
         </div>
       </div>
     </div>
@@ -4247,7 +4243,6 @@ function renderFavoritoTrendCard(favorite, teamName) {
   return `
     <div class="card">
       <div class="card-title">Momento actual</div>
-      <div class="card-sub">Lectura rápida de tendencia para no mirar solo un número aislado.</div>
 
       <div class="trend-pill ${trendInfo.className}" style="margin-bottom:12px;">${trendInfo.label}</div>
       <div class="info-line">${trendInfo.description}</div>
@@ -4256,12 +4251,12 @@ function renderFavoritoTrendCard(favorite, teamName) {
         <div class="stat-tile">
           <div class="stat-kicker">Ventana esperada</div>
           <div class="stat-value">${metrics.expectedWindow}</div>
-          <div class="stat-caption">Rango competitivo actual</div>
+          <div class="stat-caption">Rango</div>
         </div>
         <div class="stat-tile">
           <div class="stat-kicker">Puntos</div>
           <div class="stat-value">${metrics.pointsProbability}%</div>
-          <div class="stat-caption">Opción estimada de puntuar</div>
+          <div class="stat-caption">Probabilidad</div>
         </div>
       </div>
     </div>
@@ -4318,7 +4313,6 @@ function renderFavoritoInsightsCard(favorite) {
   return `
     <div class="card">
       <div class="card-title">Lectura rápida</div>
-      <div class="card-sub">Tres ideas útiles para entender el favorito sin perderse en demasiados datos.</div>
       <div class="insight-list">
         ${insights.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
       </div>
@@ -4603,7 +4597,7 @@ function renderCalendarEventCard(event) {
       <div class="calendar-event-top">
         <div>
           <div class="calendar-event-title">${isRace ? `R${event.round} · ${escapeHtml(event.title)}` : escapeHtml(event.title)}</div>
-          <div class="calendar-event-sub">${escapeHtml(event.venue)} · ${escapeHtml(event.location)}</div>
+          <div class="calendar-event-sub">${escapeHtml(event.venue)}</div>
         </div>
         <div class="calendar-event-right">${dateLabel}<br>${getCalendarStatusLabel(event.status, event.type)}</div>
       </div>
@@ -4659,25 +4653,21 @@ async function showRaceMode() {
 
       <div class="card">
         <div class="card-title">Escenarios de carrera</div>
-        <div class="card-sub">Mejor caso, escenario base y guion difícil para no quedarse con una sola cifra.</div>
         ${renderPredictScenarioCards(favorite, raceName, predictData)}
       </div>
 
       <div class="card">
         <div class="card-title">3 claves rápidas</div>
-        <div class="card-sub">Los factores que más pueden alterar el resultado final del domingo.</div>
         ${renderPredictKeyFactors(favorite, raceName, predictData)}
       </div>
 
       <div class="card">
         <div class="card-title">Qualy vs carrera</div>
-        <div class="card-sub">Dónde debería funcionar mejor el coche y cómo condiciona eso el GP.</div>
         ${renderPredictQualyRaceCard(favorite, raceName, predictData)}
       </div>
 
       <div class="card">
         <div class="card-title">Estrategia operativa</div>
-        <div class="card-sub">Plan base, ventana de parada y factor que más puede romper el guion.</div>
         ${renderPredictStrategyDetail(favorite, raceName, predictData)}
       </div>
 
@@ -5007,17 +4997,17 @@ function renderFavoritoHeroContextCard(favorite, raceName, predictData, context)
         <div class="meta-tile">
           <div class="meta-kicker">Objetivo real</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(objective.realistic)}</div>
-          <div class="meta-caption">La ventana más razonable del fin de semana</div>
+          <div class="meta-caption">Base</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Objetivo alto</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(objective.high)}</div>
-          <div class="meta-caption">Lo que necesita para estirar el techo</div>
+          <div class="meta-caption">Techo</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Riesgo principal</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(objective.risk)}</div>
-          <div class="meta-caption">Lo que más puede romper el guion</div>
+          <div class="meta-caption">Clave</div>
         </div>
       </div>
     </div>
@@ -5256,7 +5246,6 @@ function renderCalendarFlowCard(context) {
   return `
     <div class="card">
       <div class="card-title">Flujo del GP</div>
-      <div class="card-sub">Lectura rápida de cómo se ordena el fin de semana, sin salir del calendario.</div>
 
       ${context.sessions.map(session => `
         <div class="standing-row">
@@ -5264,7 +5253,6 @@ function renderCalendarFlowCard(context) {
             <div class="row-pos-wrap"><div class="row-pos">${escapeHtml(session.label)}</div></div>
             <div class="row-info">
               <div class="row-name">${escapeHtml(formatSessionDateTime(session.start))}</div>
-              <div class="row-team">${escapeHtml(session.importance)}</div>
             </div>
           </div>
           <div class="row-badges">
@@ -5299,7 +5287,7 @@ async function showCalendar(force = false) {
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">Calendario</div>
-            <div class="card-sub">Vista mejorada con siguiente carrera destacada y bloques separados.</div>
+            <div class="card-sub">Próximas citas y completadas.</div>
           </div>
           <div class="card-head-actions">
             <button class="icon-btn" onclick="refreshCalendar()">Refrescar</button>
@@ -5910,17 +5898,14 @@ function renderFavoritoObjectiveCard(favorite, raceName, predictData, context) {
         <div class="stat-tile">
           <div class="stat-kicker">Mínimo</div>
           <div class="stat-value" style="font-size:22px;">${escapeHtml(objective.minimum)}</div>
-          <div class="stat-caption">Base</div>
         </div>
         <div class="stat-tile">
           <div class="stat-kicker">Razonable</div>
           <div class="stat-value" style="font-size:22px;">${escapeHtml(objective.realistic)}</div>
-          <div class="stat-caption">Objetivo</div>
         </div>
         <div class="stat-tile">
           <div class="stat-kicker">Techo</div>
           <div class="stat-value" style="font-size:22px;">${escapeHtml(objective.high)}</div>
-          <div class="stat-caption">Escenario alto</div>
         </div>
       </div>
     </div>
@@ -5937,7 +5922,7 @@ function renderFavoritoRadarCard(favorite, raceName, context, predictData) {
       <div class="insight-list" style="margin-top:12px;">
         ${items.map(item => `
           <div class="insight-item">
-            <strong>${escapeHtml(item.title)}</strong><br>
+            <strong>${escapeHtml(item.title)}</strong>
             ${escapeHtml(item.text)}
           </div>
         `).join("")}
@@ -5996,17 +5981,17 @@ function renderCalendarIntelligenceHero(nextRace, context) {
         <div class="meta-tile">
           <div class="meta-kicker">Fecha</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(formatCalendarDateRange(nextRace.start, nextRace.end))}</div>
-          <div class="meta-caption">${escapeHtml(nextRace.venue || "")}</div>
+          <div class="meta-caption">${escapeHtml(nextRace.venue || "—")}</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Circuito</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(heuristics.tag)}</div>
-          <div class="meta-caption">${escapeHtml(nextRace.location || "")}</div>
+          <div class="meta-caption">${escapeHtml(nextRace.location || "—")}</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Siguiente sesión</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(context?.nextSession?.label || "—")}</div>
-          <div class="meta-caption">${escapeHtml(context?.nextSessionCountdown || "Sin cuenta atrás")}</div>
+          <div class="meta-caption">${escapeHtml(context?.nextSessionCountdown || "—")}</div>
         </div>
       </div>
 
@@ -6040,22 +6025,22 @@ function renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData) {
         <div class="meta-tile">
           <div class="meta-kicker">Circuito</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(heuristics.tag)}</div>
-          <div class="meta-caption">${nextRaceEvent ? escapeHtml(nextRaceEvent.venue || "") : "Perfil del trazado"}</div>
+          <div class="meta-caption">${nextRaceEvent ? escapeHtml(nextRaceEvent.venue || "—") : "—"}</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Safety Car</div>
           <div class="meta-value">${heuristics.safetyCar}%</div>
-          <div class="meta-caption">Probabilidad base</div>
+          <div class="meta-caption">Base</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Lluvia</div>
           <div class="meta-value">${heuristics.rain}%</div>
-          <div class="meta-caption">Escenario previsto</div>
+          <div class="meta-caption">Base</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Factor clave</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(strategy.factor)}</div>
-          <div class="meta-caption">Lo que más puede alterar la carrera</div>
+          <div class="meta-caption">Impacto</div>
         </div>
       </div>
     </div>
