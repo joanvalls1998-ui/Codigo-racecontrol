@@ -5960,3 +5960,207 @@ function bootRaceControl() {
     renderBootError(error && error.message ? error.message : String(error));
   }
 }
+/* =========================================================
+   PARCHE FINAL · ARRANQUE + PERSISTENCIA SEGURA
+   Pegar al FINAL del app.js
+========================================================= */
+
+function asPlainObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function getDefaultSettings() {
+  return {
+    language: "es-ES",
+    autoSelectNextRace: true,
+    showCircuitLocalTime: true,
+    homeCompactMode: false,
+    weekendExplainerMode: true
+  };
+}
+
+function getSettings() {
+  const savedSettings = asPlainObject(
+    safeJsonParse(localStorage.getItem("racecontrolSettings"), null)
+  );
+
+  const legacyUiState = asPlainObject(
+    safeJsonParse(localStorage.getItem("racecontrolUiState"), null)
+  );
+
+  const migratedLegacySettings = {
+    language: legacyUiState.language,
+    autoSelectNextRace: legacyUiState.autoSelectNextRace,
+    showCircuitLocalTime: legacyUiState.showCircuitLocalTime,
+    homeCompactMode: legacyUiState.homeCompactMode,
+    weekendExplainerMode: legacyUiState.weekendExplainerMode
+  };
+
+  return {
+    ...getDefaultSettings(),
+    ...migratedLegacySettings,
+    ...savedSettings
+  };
+}
+
+function saveSettings(settings) {
+  const next = {
+    ...getDefaultSettings(),
+    ...asPlainObject(settings)
+  };
+
+  localStorage.setItem("racecontrolSettings", JSON.stringify(next));
+}
+
+function getUiState() {
+  const defaults = {
+    standingsViewType: "drivers",
+    standingsScope: "top10",
+    currentNewsFilterKey: "favorite"
+  };
+
+  const saved = asPlainObject(
+    safeJsonParse(localStorage.getItem("racecontrolUiState"), null)
+  );
+
+  return {
+    ...defaults,
+    ...saved
+  };
+}
+
+function saveUiState() {
+  const next = {
+    standingsViewType: state.standingsViewType === "teams" ? "teams" : "drivers",
+    standingsScope: state.standingsScope === "all" ? "all" : "top10",
+    currentNewsFilterKey: state.currentNewsFilterKey || "favorite"
+  };
+
+  localStorage.setItem("racecontrolUiState", JSON.stringify(next));
+}
+
+function applyStoredUiState() {
+  const saved = getUiState();
+
+  state.standingsViewType =
+    saved.standingsViewType === "teams" ? "teams" : "drivers";
+
+  state.standingsScope =
+    saved.standingsScope === "all" ? "all" : "top10";
+
+  state.currentNewsFilterKey =
+    saved.currentNewsFilterKey || "favorite";
+}
+
+function repairLocalStorageState() {
+  const favorite = getFavorite();
+  const settings = getSettings();
+  const uiState = getUiState();
+
+  saveFavorite(favorite);
+  saveSettings(settings);
+
+  state.standingsViewType = uiState.standingsViewType;
+  state.standingsScope = uiState.standingsScope;
+  state.currentNewsFilterKey = uiState.currentNewsFilterKey;
+  saveUiState();
+}
+
+function togglePremiumSetting(key) {
+  const settings = getSettings();
+  saveSettings({
+    ...settings,
+    [key]: !settings[key]
+  });
+  showSettingsPanel();
+}
+
+function clearSelectedRaceSetting() {
+  localStorage.removeItem("racecontrolSelectedRace");
+
+  const settings = getSettings();
+  saveSettings({
+    ...settings,
+    autoSelectNextRace: true
+  });
+
+  showSettingsPanel();
+}
+
+function setStandingsView(type) {
+  state.standingsViewType = type === "teams" ? "teams" : "drivers";
+  saveUiState();
+
+  if (typeof renderStandingsSummaryBlock === "function") {
+    renderStandingsSummaryBlock();
+  }
+
+  if (state.standingsViewType === "teams") showTeamsStandings();
+  else showDriversStandings();
+}
+
+function setStandingsScope(scope) {
+  state.standingsScope = scope === "all" ? "all" : "top10";
+  saveUiState();
+
+  if (state.standingsViewType === "teams") showTeamsStandings();
+  else showDriversStandings();
+}
+
+function switchNewsFilter(key) {
+  state.currentNewsFilterKey = key || "favorite";
+  saveUiState();
+  showNews();
+}
+
+function clearAllLocalData() {
+  [
+    "racecontrolFavorite",
+    "racecontrolSettings",
+    "racecontrolSelectedRace",
+    "racecontrolPredictionHistory",
+    "racecontrolStandingsSnapshot",
+    "racecontrolUiState"
+  ].forEach(key => localStorage.removeItem(key));
+
+  state.standingsCache = null;
+  state.calendarCache = null;
+  state.homeNewsCache = {};
+  state.lastPredictData = null;
+  state.lastPredictContext = null;
+  state.detectedNextRaceName = null;
+  state.standingsDelta = { drivers: {}, teams: {} };
+  state.standingsViewType = "drivers";
+  state.standingsScope = "top10";
+  state.currentNewsFilterKey = "favorite";
+  state.weekendContext = null;
+  state.weekendNowIso = null;
+}
+
+function resetAllDataAndReboot() {
+  clearAllLocalData();
+  repairLocalStorageState();
+  applyStoredUiState();
+  updateSubtitle();
+  showHome();
+}
+
+function bootRaceControl() {
+  try {
+    repairLocalStorageState();
+    applyStoredUiState();
+
+    const repairedFavorite = getFavorite();
+    saveFavorite(repairedFavorite);
+
+    updateSubtitle();
+
+    fetchStandingsData().catch(() => {});
+    fetchCalendarData().catch(() => {});
+
+    showHome();
+    window.__racecontrolBooted = true;
+  } catch (error) {
+    renderBootError(error && error.message ? error.message : String(error));
+  }
+}
