@@ -6064,3 +6064,319 @@ function renderHomeDynamicBlocks(context, favorite) {
     ${renderHomeQuickLinks(context)}
   `;
 }
+/* ===== FASE 10 · CIERRE VISUAL FINAL ===== */
+/* Favorito + Calendario + Modo carrera */
+/* Overrides de render/UI al final para no tocar la base */
+
+function rc10Take(items, max = 2) {
+  return (Array.isArray(items) ? items : []).slice(0, max);
+}
+
+function rc10PickBestWorstArea(map, labels = {}) {
+  const rows = Object.entries(map || {})
+    .map(([key, value]) => ({
+      key,
+      value: Number(value || 0),
+      label: labels[key] || key
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  return {
+    best: rows[0] || { label: "—", value: 0 },
+    worst: rows[rows.length - 1] || { label: "—", value: 0 }
+  };
+}
+
+function rc10GetTeamAreaEdges(teamData) {
+  return rc10PickBestWorstArea(
+    {
+      aero: teamData?.aero,
+      traction: teamData?.traction,
+      topSpeed: teamData?.topSpeed,
+      tyreManagement: teamData?.tyreManagement
+    },
+    {
+      aero: "Aero",
+      traction: "Tracción",
+      topSpeed: "Vel. punta",
+      tyreManagement: "Neumáticos"
+    }
+  );
+}
+
+/* ===== FAVORITO ===== */
+
+function renderFavoritoTechnicalCard(favorite, teamName, teamData, accent) {
+  const edges = rc10GetTeamAreaEdges(teamData);
+
+  return `
+    <div class="card">
+      <div class="card-title">Panel técnico</div>
+
+      <div class="stat">Ritmo carrera <span>${teamData.racePace}%</span></div>
+      <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.racePace}%;"></div></div>
+
+      <div class="stat" style="margin-top:14px;">Qualy <span>${teamData.qualyPace}%</span></div>
+      <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.qualyPace}%;"></div></div>
+
+      <div class="stat" style="margin-top:14px;">Fiabilidad <span>${teamData.reliability}%</span></div>
+      <div class="bar"><div class="bar-fill ferrari" style="width:${teamData.reliability}%;"></div></div>
+
+      <div class="meta-grid" style="margin-top:14px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Punto fuerte</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(edges.best.label)}</div>
+          <div class="meta-caption">${edges.best.value}%</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">A vigilar</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(edges.worst.label)}</div>
+          <div class="meta-caption">${edges.worst.value}%</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderFavoritoCircuitFitCard(favorite, raceName) {
+  const fit = getFavoriteCircuitFit(favorite, raceName);
+  const areas = rc10PickBestWorstArea(
+    fit.fit,
+    {
+      aero: "Aero",
+      traction: "Tracción",
+      topSpeed: "Vel. punta",
+      tyreManagement: "Neumáticos"
+    }
+  );
+
+  return `
+    <div class="card">
+      <div class="card-title">Encaje circuito</div>
+
+      ${renderCircuitThumb(raceName, 76)}
+
+      <div class="news-meta-row" style="margin-top:2px; margin-bottom:14px;">
+        <span class="tag general">${escapeHtml(raceName)}</span>
+        <span class="tag ${fit.overall >= 78 ? "statement" : fit.overall >= 66 ? "market" : "reliability"}">${escapeHtml(fit.label)}</span>
+      </div>
+
+      <div class="meta-grid">
+        <div class="meta-tile">
+          <div class="meta-kicker">Encaje</div>
+          <div class="meta-value" style="font-size:18px;">${fit.overall}%</div>
+          <div class="meta-caption">Global</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Mejor área</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(areas.best.label)}</div>
+          <div class="meta-caption">${areas.best.value}%</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">A vigilar</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(areas.worst.label)}</div>
+          <div class="meta-caption">${areas.worst.value}%</div>
+        </div>
+      </div>
+
+      <div class="info-line" style="margin-top:14px;">${escapeHtml(fit.demand.note)}</div>
+    </div>
+  `;
+}
+
+function renderFavoritoInsightsCard(favorite) {
+  const insights = rc10Take(getFavoriteInsights(favorite, getSelectedRace()), 2);
+
+  return `
+    <div class="card">
+      <div class="card-title">Lectura rápida</div>
+      <div class="insight-list">
+        ${insights.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function showFavorito() {
+  setActiveNav("nav-favorito");
+  updateSubtitle();
+
+  const favorite = getFavorite();
+  const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
+  const accent = favorite.colorClass;
+  const teamData = getTeamData(teamName);
+  const context = getHomeWeekendContext() || state.weekendContext;
+  const raceName = context?.raceName || getSelectedRace();
+  const predictData = getActivePredictDataForRace(favorite, raceName);
+
+  contentEl().innerHTML = `
+    ${renderFavoriteCard()}
+    ${renderFavoritoHeroContextCard(favorite, raceName, predictData, context)}
+    ${renderFavoritoObjectiveCard(favorite, raceName, predictData, context)}
+    ${renderFavoritoTechnicalCard(favorite, teamName, teamData, accent)}
+    ${renderFavoritoCircuitFitCard(favorite, raceName)}
+    ${renderFavoritoComparisonAdvancedCard(favorite)}
+    ${renderFavoritoDirectRivalsCard(favorite, predictData)}
+    ${renderFavoritoInsightsCard(favorite)}
+  `;
+}
+
+/* ===== CALENDARIO ===== */
+
+function renderCalendarEventCard(event) {
+  const isTesting = event.type === "testing";
+  const isRace = event.type === "race";
+  const dateLabel = formatCalendarDateRange(event.start, event.end);
+  const statusLabel = getCalendarStatusLabel(event.status, event.type);
+  const locationLine = event.location ? ` · ${escapeHtml(event.location)}` : "";
+
+  return `
+    <div class="calendar-event-card">
+      <div class="calendar-event-top">
+        <div>
+          <div class="calendar-event-title">${isRace ? `R${event.round} · ${escapeHtml(event.title)}` : escapeHtml(event.title)}</div>
+          <div class="calendar-event-sub">${escapeHtml(event.venue || "—")}${locationLine}</div>
+        </div>
+        <div class="calendar-event-right">${escapeHtml(dateLabel)}<br>${escapeHtml(statusLabel)}</div>
+      </div>
+
+      <div class="calendar-event-tags">
+        <span class="tag general">${isTesting ? "Testing" : "Carrera"}</span>
+        ${event.sprint ? `<span class="tag market">Sprint</span>` : ""}
+        ${event.type === "race" && event.status === "next" ? `<span class="tag statement">Siguiente</span>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderCalendarFlowCard(context) {
+  if (!context?.sessions?.length) return "";
+
+  const showCircuitTime = getSettings().showCircuitLocalTime;
+
+  return `
+    <div class="card">
+      <div class="card-title">Flujo del GP</div>
+
+      ${context.sessions.map(session => `
+        <div class="standing-row">
+          <div class="row-left">
+            <div class="row-info">
+              <div class="row-name">${escapeHtml(session.label)}</div>
+              <div class="row-team">${escapeHtml(formatSessionDateTime(session.start))}</div>
+            </div>
+          </div>
+          <div class="row-badges">
+            <span class="tag ${session.status === "live" ? "statement" : session.status === "next" ? "market" : session.status === "completed" ? "general" : "technical"}">
+              ${escapeHtml(session.status === "next" ? "Siguiente" : session.status === "live" ? "En curso" : session.status === "completed" ? "Completada" : "Próxima")}
+            </span>
+            ${showCircuitTime ? `<div class="row-team">${escapeHtml(formatSessionCircuitDateTime(session.start, session.timeZone))}</div>` : ""}
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+async function showCalendar(force = false) {
+  setActiveNav("nav-more");
+  updateSubtitle();
+
+  contentEl().innerHTML = renderLoadingCard("Calendario", "Cargando calendario oficial 2026…", true);
+
+  try {
+    const data = await fetchCalendarData(force);
+    const events = Array.isArray(data?.events) ? data.events : [];
+    const nextRace = getNextRaceFromCalendar(events);
+    const upcoming = events.filter(event => event.status === "next" || event.status === "upcoming");
+    const completed = events.filter(event => event.status === "completed");
+    const context = getHomeWeekendContext();
+
+    contentEl().innerHTML = `
+      ${renderCalendarIntelligenceHero(nextRace, context)}
+      ${renderCalendarFlowCard(context)}
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-title">Calendario</div>
+          </div>
+          <div class="card-head-actions">
+            <button class="icon-btn" onclick="refreshCalendar()">Refrescar</button>
+          </div>
+        </div>
+
+        <div class="calendar-group-title">Próximas citas</div>
+        ${upcoming.length ? upcoming.map(renderCalendarEventCard).join("") : `<div class="empty-line">No hay próximas citas cargadas.</div>`}
+
+        <div class="calendar-group-title" style="margin-top:14px;">Ya completadas</div>
+        ${completed.length ? completed.map(renderCalendarEventCard).join("") : `<div class="empty-line">No hay citas completadas registradas.</div>`}
+      </div>
+    `;
+  } catch (error) {
+    contentEl().innerHTML = renderErrorCard("Calendario", "Error al cargar el calendario", error.message);
+  }
+}
+
+/* ===== MODO CARRERA ===== */
+
+function renderRaceModeQuickRead(favorite, raceName, predictData, stage) {
+  const items = rc10Take(getRaceModeQuickRead(favorite, raceName, predictData, stage), 2);
+
+  return `
+    <div class="card">
+      <div class="card-title">Claves rápidas</div>
+      <div class="insight-list">
+        ${items.map(item => `
+          <div class="insight-item">
+            <strong>${escapeHtml(item.title)}</strong><br>
+            ${escapeHtml(item.text)}
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+async function showRaceMode() {
+  setActiveNav("nav-more");
+  updateSubtitle();
+
+  contentEl().innerHTML = renderLoadingCard("Modo carrera", "Preparando modo carrera…", true);
+
+  try {
+    const favorite = getFavorite();
+    const calendarData = await fetchCalendarData();
+    const nextRaceEvent = getNextRaceFromCalendar(calendarData?.events || []);
+    const raceName = mapCalendarEventToPredictRace(nextRaceEvent) || getSelectedRace();
+    const predictData = await fetchPredictData(favorite, raceName);
+    const stage = getRaceWeekendStage(nextRaceEvent);
+    const phase = state.weekendContext?.phase || "pre_weekend";
+
+    contentEl().innerHTML = `
+      ${renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData)}
+      ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
+      ${renderRaceModeFavoriteSummary(favorite, raceName, predictData)}
+
+      <div class="card">
+        <div class="card-title">Escenarios</div>
+        ${renderPredictScenarioCards(favorite, raceName, predictData)}
+      </div>
+
+      <div class="card">
+        <div class="card-title">3 claves</div>
+        ${renderPredictKeyFactors(favorite, raceName, predictData)}
+      </div>
+
+      <div class="card">
+        <div class="card-title">Estrategia</div>
+        ${renderPredictStrategyDetail(favorite, raceName, predictData)}
+      </div>
+
+      ${renderRaceModeTop10(predictData, favorite)}
+      ${renderContextGlossaryCard("raceMode", phase)}
+    `;
+  } catch (error) {
+    contentEl().innerHTML = renderErrorCard("Modo carrera", "Error al preparar esta pantalla", error.message);
+  }
+}
