@@ -14,6 +14,8 @@ const DEFAULT_UI_STATE = Object.freeze({
   currentNewsFilterKey: "favorite"
 });
 
+const DEFAULT_NEWS_FILTER_KEY = DEFAULT_UI_STATE.currentNewsFilterKey;
+
 function createInitialRuntimeState() {
   return {
     standingsCache: null,
@@ -41,6 +43,8 @@ const STORAGE_KEYS = Object.freeze({
   standingsSnapshot: "racecontrolStandingsSnapshot",
   uiState: "racecontrolUiState"
 });
+
+const ALL_STORAGE_KEYS = Object.freeze(Object.values(STORAGE_KEYS));
 
 const CIRCUIT_ASSET_FILES = Object.freeze({
   "GP de Australia": "australia.png",
@@ -5437,6 +5441,16 @@ function asPlainObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
+function sanitizeUiState(value) {
+  const uiState = asPlainObject(value);
+
+  return {
+    standingsViewType: uiState.standingsViewType === "teams" ? "teams" : "drivers",
+    standingsScope: uiState.standingsScope === "all" ? "all" : "top10",
+    currentNewsFilterKey: uiState.currentNewsFilterKey || DEFAULT_NEWS_FILTER_KEY
+  };
+}
+
 function getDefaultSettings() {
   return { ...DEFAULT_SETTINGS };
 }
@@ -5475,37 +5489,23 @@ function saveSettings(settings) {
 }
 
 function getUiState() {
-  const saved = asPlainObject(
-    storageReadJson(STORAGE_KEYS.uiState, null)
-  );
-
-  return {
-    ...DEFAULT_UI_STATE,
-    ...saved
-  };
+  return sanitizeUiState(storageReadJson(STORAGE_KEYS.uiState, null));
 }
 
 function saveUiState() {
-  const next = {
-    standingsViewType: state.standingsViewType === "teams" ? "teams" : "drivers",
-    standingsScope: state.standingsScope === "all" ? "all" : "top10",
-    currentNewsFilterKey: state.currentNewsFilterKey || "favorite"
-  };
-
-  storageWriteJson(STORAGE_KEYS.uiState, next);
+  storageWriteJson(STORAGE_KEYS.uiState, sanitizeUiState({
+    standingsViewType: state.standingsViewType,
+    standingsScope: state.standingsScope,
+    currentNewsFilterKey: state.currentNewsFilterKey
+  }));
 }
 
 function applyStoredUiState() {
   const saved = getUiState();
 
-  state.standingsViewType =
-    saved.standingsViewType === "teams" ? "teams" : "drivers";
-
-  state.standingsScope =
-    saved.standingsScope === "all" ? "all" : "top10";
-
-  state.currentNewsFilterKey =
-    saved.currentNewsFilterKey || "favorite";
+  state.standingsViewType = saved.standingsViewType;
+  state.standingsScope = saved.standingsScope;
+  state.currentNewsFilterKey = saved.currentNewsFilterKey;
 }
 
 function getLocalDataSummary() {
@@ -5573,20 +5573,13 @@ function setStandingsScope(scope) {
 }
 
 function switchNewsFilter(key) {
-  state.currentNewsFilterKey = key || "favorite";
+  state.currentNewsFilterKey = key || DEFAULT_NEWS_FILTER_KEY;
   saveUiState();
   showNews();
 }
 
 function clearAllLocalData() {
-  clearStorageKeys([
-    STORAGE_KEYS.favorite,
-    STORAGE_KEYS.settings,
-    STORAGE_KEYS.selectedRace,
-    STORAGE_KEYS.predictionHistory,
-    STORAGE_KEYS.standingsSnapshot,
-    STORAGE_KEYS.uiState
-  ]);
+  clearStorageKeys(ALL_STORAGE_KEYS);
 
   Object.assign(state, createInitialRuntimeState());
 }
