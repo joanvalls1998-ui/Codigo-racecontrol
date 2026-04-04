@@ -3448,6 +3448,7 @@ function renderHomeHierarchy() {
 async function showHome() {
   setActiveNav("nav-home");
   updateSubtitle();
+  const isCompactHome = getSettings().homeCompactMode;
 
   contentEl().innerHTML = `
     ${renderHomeHero()}
@@ -3477,15 +3478,15 @@ async function showHome() {
       ${renderHomeDynamicBlocks(context, favorite)}
       ${renderContextGlossaryCard("home", context?.phase || "pre_weekend")}
       ${renderHomeNewsPreview(newsData?.items || [], favorite)}
-      ${renderHomeTeamStatus()}
-      ${renderHomeHierarchy()}
+      ${!isCompactHome ? renderHomeTeamStatus() : ""}
+      ${!isCompactHome ? renderHomeHierarchy() : ""}
     `;
   } catch (error) {
     contentEl().innerHTML = `
       ${renderHomeHero()}
       ${renderErrorCard("Inicio", "Error al cargar el centro de control", error.message)}
-      ${renderHomeTeamStatus()}
-      ${renderHomeHierarchy()}
+      ${!isCompactHome ? renderHomeTeamStatus() : ""}
+      ${!isCompactHome ? renderHomeHierarchy() : ""}
     `;
   }
 }
