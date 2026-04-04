@@ -24,6 +24,33 @@ const STORAGE_KEYS = Object.freeze({
   uiState: "racecontrolUiState"
 });
 
+const CIRCUIT_ASSET_FILES = Object.freeze({
+  "GP de Australia": "australia.png",
+  "GP de China": "china.png",
+  "GP de Japón": "japan.png",
+  "GP de Baréin": "bahrain.png",
+  "GP de Arabia Saudí": "saudi.png",
+  "GP Miami": "miami.png",
+  "GP de Canadá": "canada.png",
+  "GP de Mónaco": "monaco.png",
+  "GP de España": "spain.png",
+  "GP de Austria": "austria.png",
+  "GP de Gran Bretaña": "britain.png",
+  "GP de Bélgica": "belgium.png",
+  "GP de Hungría": "hungary.png",
+  "GP de Países Bajos": "netherlands.png",
+  "GP de Italia": "italy.png",
+  "GP de España (Madrid)": "madrid.png",
+  "GP de Azerbaiyán": "baku.png",
+  "GP de Singapur": "singapore.png",
+  "GP de Estados Unidos": "usa.png",
+  "GP de México": "mexico.png",
+  "GP de São Paulo": "brazil.png",
+  "GP de Las Vegas": "vegas.png",
+  "GP de Catar": "qatar.png",
+  "GP de Abu Dabi": "abudhabi.png"
+});
+
 function clearStorageKeys(keys) {
   keys.forEach(key => localStorage.removeItem(key));
 }
@@ -4937,35 +4964,7 @@ function renderFavoritoHeroContextCard(favorite, raceName, predictData, context)
 
 function getCircuitAssetName(raceName) {
   if (!raceName) return "";
-
-  const map = {
-    "GP de Australia": "australia.png",
-    "GP de China": "china.png",
-    "GP de Japón": "japan.png",
-    "GP de Baréin": "bahrain.png",
-    "GP de Arabia Saudí": "saudi.png",
-    "GP Miami": "miami.png",
-    "GP de Canadá": "canada.png",
-    "GP de Mónaco": "monaco.png",
-    "GP de España": "spain.png",
-    "GP de Austria": "austria.png",
-    "GP de Gran Bretaña": "britain.png",
-    "GP de Bélgica": "belgium.png",
-    "GP de Hungría": "hungary.png",
-    "GP de Países Bajos": "netherlands.png",
-    "GP de Italia": "italy.png",
-    "GP de España (Madrid)": "madrid.png",
-    "GP de Azerbaiyán": "baku.png",
-    "GP de Singapur": "singapore.png",
-    "GP de Estados Unidos": "usa.png",
-    "GP de México": "mexico.png",
-    "GP de São Paulo": "brazil.png",
-    "GP de Las Vegas": "vegas.png",
-    "GP de Catar": "qatar.png",
-    "GP de Abu Dabi": "abudhabi.png"
-  };
-
-  return map[raceName] || "";
+  return CIRCUIT_ASSET_FILES[raceName] || "";
 }
 
 function getCircuitAssetPath(raceName) {
@@ -5379,14 +5378,22 @@ function asPlainObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
+const DEFAULT_SETTINGS = Object.freeze({
+  language: "es-ES",
+  autoSelectNextRace: true,
+  showCircuitLocalTime: true,
+  homeCompactMode: false,
+  weekendExplainerMode: true
+});
+
+const DEFAULT_UI_STATE = Object.freeze({
+  standingsViewType: "drivers",
+  standingsScope: "top10",
+  currentNewsFilterKey: "favorite"
+});
+
 function getDefaultSettings() {
-  return {
-    language: "es-ES",
-    autoSelectNextRace: true,
-    showCircuitLocalTime: true,
-    homeCompactMode: false,
-    weekendExplainerMode: true
-  };
+  return { ...DEFAULT_SETTINGS };
 }
 
 function getSettings() {
@@ -5423,18 +5430,12 @@ function saveSettings(settings) {
 }
 
 function getUiState() {
-  const defaults = {
-    standingsViewType: "drivers",
-    standingsScope: "top10",
-    currentNewsFilterKey: "favorite"
-  };
-
   const saved = asPlainObject(
     safeJsonParse(localStorage.getItem(STORAGE_KEYS.uiState), null)
   );
 
   return {
-    ...defaults,
+    ...DEFAULT_UI_STATE,
     ...saved
   };
 }
@@ -5788,34 +5789,8 @@ function showGlossary(focusTerm = null) {
 /* ===== PULIDO VISUAL FINAL ===== */
 
 function getCircuitAsset(raceName) {
-  const map = {
-    "GP de Australia": "assets/circuits/australia.png",
-    "GP de China": "assets/circuits/china.png",
-    "GP de Japón": "assets/circuits/japan.png",
-    "GP de Baréin": "assets/circuits/bahrain.png",
-    "GP de Arabia Saudí": "assets/circuits/saudi.png",
-    "GP Miami": "assets/circuits/miami.png",
-    "GP de Canadá": "assets/circuits/canada.png",
-    "GP de Mónaco": "assets/circuits/monaco.png",
-    "GP de España": "assets/circuits/spain.png",
-    "GP de Austria": "assets/circuits/austria.png",
-    "GP de Gran Bretaña": "assets/circuits/britain.png",
-    "GP de Bélgica": "assets/circuits/belgium.png",
-    "GP de Hungría": "assets/circuits/hungary.png",
-    "GP de Países Bajos": "assets/circuits/netherlands.png",
-    "GP de Italia": "assets/circuits/italy.png",
-    "GP de España (Madrid)": "assets/circuits/madrid.png",
-    "GP de Azerbaiyán": "assets/circuits/baku.png",
-    "GP de Singapur": "assets/circuits/singapore.png",
-    "GP de Estados Unidos": "assets/circuits/usa.png",
-    "GP de México": "assets/circuits/mexico.png",
-    "GP de São Paulo": "assets/circuits/brazil.png",
-    "GP de Las Vegas": "assets/circuits/vegas.png",
-    "GP de Catar": "assets/circuits/qatar.png",
-    "GP de Abu Dabi": "assets/circuits/abudhabi.png"
-  };
-
-  return map[raceName] || "";
+  const fileName = getCircuitAssetName(raceName);
+  return fileName ? `assets/circuits/${fileName}` : "";
 }
 
 function renderCircuitThumb(raceName, height = 72) {
