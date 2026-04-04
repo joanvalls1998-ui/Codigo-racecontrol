@@ -113,7 +113,11 @@ function clamp(value, min, max) {
 }
 
 function normalizeText(value) {
-  return String(value || "").toLowerCase().trim();
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }
 
 function containsAny(text, terms) {
@@ -1247,6 +1251,8 @@ async function showSessions() {
         </div>
       </div>
 
+      ${renderContextGlossaryCard("sessions", context?.phase || "pre_weekend")}
+
       ${(context?.sessions || []).length
         ? context.sessions.map(session => renderSessionCard(session, favorite, context)).join("")
         : `
@@ -2005,7 +2011,7 @@ function getRaceWeekendStage(event) {
     key: "sunday",
     label: "Domingo",
     description: "Domingo de carrera: salida, estrategia y neutralizaciones pueden decidir por completo el resultado."
-    };
+  };
 }
 
 function getRaceModeQuickRead(favorite, raceName, predictData, stage) {
@@ -2440,13 +2446,12 @@ function renderHomePhaseSummaryCard(context, favorite) {
   const metrics = getFavoriteMetrics(favorite);
   const raceName = context.raceName || getSelectedRace();
   const heuristics = getRaceHeuristics(raceName);
-  const signal = getWeekendSignal(favorite, raceName);
   const phase = context.phase;
   const nextSessionLabel = context.nextSession?.label || "Sin datos";
 
   let title = "Resumen del fin de semana";
   let sub = "Lectura rápida del momento actual del GP.";
-  let insightText = signal.description;
+  let insightText = getWeekendSignal(favorite, raceName).description;
 
   if (phase === "pre_weekend") {
     title = "Previa del GP";
@@ -2547,16 +2552,813 @@ function renderHomeDynamicBlocks(context, favorite) {
 
 /* ===== FIN FASE 3 ===== */
 
+/* ===== FASE 5 · GLOSARIO CONTEXTUAL ===== */
+
+function getGlossarySections() {
+  return [
+    {
+      id: "strategy",
+      title: "Estrategia",
+      subtitle: "Términos que salen mucho cuando se habla de paradas, ritmo y gestión de carrera.",
+      items: [
+        {
+          term: "Undercut",
+          level: "muy usado",
+          short: "Parar antes que el rival para intentar adelantarle con neumáticos más frescos.",
+          easy: "En fácil: entras antes al pit, ruedas más rápido y buscas salir por delante cuando el otro pare."
+        },
+        {
+          term: "Overcut",
+          level: "muy usado",
+          short: "Parar más tarde que el rival para ganar tiempo mientras él ya está en boxes o calentando neumáticos.",
+          easy: "En fácil: te quedas fuera más tiempo e intentas que ese aire limpio te dé la posición."
+        },
+        {
+          term: "Stint",
+          level: "básico",
+          short: "Tramo de carrera entre una parada y la siguiente, o entre la salida y la primera parada.",
+          easy: "Cada vez que un piloto rueda con el mismo juego de neumáticos, está haciendo un stint."
+        },
+        {
+          term: "Delta",
+          level: "muy usado",
+          short: "Diferencia de tiempo respecto a otra referencia.",
+          easy: "Puede ser la diferencia con otro piloto, con tu vuelta anterior o con el tiempo objetivo."
+        },
+        {
+          term: "Ventana de parada",
+          level: "básico",
+          short: "Rango de vueltas en el que una parada tiene más sentido estratégico.",
+          easy: "Es el momento en el que parar suele salir mejor que parar mucho antes o mucho después."
+        },
+        {
+          term: "Track position",
+          level: "muy usado",
+          short: "La importancia de la posición en pista respecto al ritmo puro.",
+          easy: "A veces no gana el más rápido, sino el que va delante y no se queda atrapado."
+        }
+      ]
+    },
+    {
+      id: "race",
+      title: "Carrera",
+      subtitle: "Conceptos que ayudan a entender lo que pasa en pista y por qué cambia una carrera.",
+      items: [
+        {
+          term: "Safety Car",
+          level: "básico",
+          short: "Coche de seguridad que neutraliza la carrera cuando hay un incidente importante.",
+          easy: "Agrupa la parrilla, baja el ritmo y puede cambiar la estrategia de todos."
+        },
+        {
+          term: "VSC",
+          level: "muy usado",
+          short: "Virtual Safety Car: obliga a los pilotos a respetar un ritmo mínimo sin sacar el Safety Car físico.",
+          easy: "Se va más lento, no se puede adelantar y las diferencias suelen mantenerse más que con un Safety Car normal."
+        },
+        {
+          term: "Dirty air",
+          level: "muy usado",
+          short: "Aire turbulento que recibe el coche de detrás al seguir de cerca a otro.",
+          easy: "Cuando vas pegado a otro coche, pierdes carga y te cuesta más girar y cuidar neumáticos."
+        },
+        {
+          term: "Tráfico",
+          level: "básico",
+          short: "Rodar detrás de coches más lentos o en medio de un grupo que te hace perder tiempo.",
+          easy: "Aunque tengas ritmo, si sales detrás de varios coches te quedas atrapado."
+        },
+        {
+          term: "Lift and coast",
+          level: "muy usado",
+          short: "Levantar el pie antes de la frenada y dejar correr el coche para ahorrar combustible o gestionar energía.",
+          easy: "El piloto deja de acelerar un poco antes para gastar menos y castigar menos el coche."
+        }
+      ]
+    },
+    {
+      id: "performance",
+      title: "Rendimiento",
+      subtitle: "Palabras típicas cuando se analiza si un coche va mejor el sábado o el domingo.",
+      items: [
+        {
+          term: "Ritmo de carrera",
+          level: "básico",
+          short: "Velocidad media que un coche puede sostener durante tandas largas.",
+          easy: "No es una vuelta brillante; es lo rápido que eres de verdad cuando la carrera se alarga."
+        },
+        {
+          term: "Ritmo a una vuelta",
+          level: "básico",
+          short: "Potencial del coche para hacer una vuelta rápida, especialmente en clasificación.",
+          easy: "Es el ritmo del sábado: sacar todo durante una sola vuelta."
+        },
+        {
+          term: "Degradación",
+          level: "muy usado",
+          short: "Pérdida de rendimiento del neumático con el uso.",
+          easy: "Cuanto más se degrada una goma, más cae el ritmo del piloto."
+        },
+        {
+          term: "Graining",
+          level: "avanzado",
+          short: "Fenómeno en el que se forman pequeñas bolitas de goma sobre la superficie del neumático.",
+          easy: "La rueda deja de agarrar bien durante unas vueltas porque su superficie se ensucia y se rompe."
+        },
+        {
+          term: "Overheating",
+          level: "muy usado",
+          short: "Exceso de temperatura en neumáticos, frenos, motor o batería.",
+          easy: "Cuando todo se calienta demasiado, el coche pierde rendimiento y a veces también fiabilidad."
+        },
+        {
+          term: "Package / paquete de mejoras",
+          level: "muy usado",
+          short: "Conjunto de piezas nuevas o cambios que un equipo trae a un Gran Premio.",
+          easy: "No es una pieza suelta: es un bloque de mejoras para intentar dar un salto."
+        }
+      ]
+    },
+    {
+      id: "ers",
+      title: "ERS / motor / energía",
+      subtitle: "Términos modernos de F1 que cada vez salen más en análisis técnicos y retransmisiones.",
+      items: [
+        {
+          term: "Overtake mode",
+          level: "actual 2026",
+          short: "Modo de adelantamiento de 2026 que sustituye al DRS y solo puede activarse si vas a menos de un segundo del coche de delante en el punto de detección.",
+          easy: "Te da un empujón extra para atacar, pero no está siempre disponible y hay que usarlo con cabeza."
+        },
+        {
+          term: "Harvesting",
+          level: "muy usado",
+          short: "Recuperación de energía para recargar la batería del coche.",
+          easy: "El coche guarda energía mientras frena o en otras fases para usarla más tarde."
+        },
+        {
+          term: "Deployment",
+          level: "muy usado",
+          short: "Momento en que el coche gasta o libera la energía eléctrica acumulada.",
+          easy: "Es cuando usa esa batería para empujar más y ganar velocidad."
+        },
+        {
+          term: "Clipping",
+          level: "avanzado",
+          short: "Momento en el que el coche deja de empujar con toda la energía eléctrica disponible al final de una recta.",
+          easy: "Lo notas cuando parece que el coche ya no sigue acelerando igual porque se le acaba ese extra eléctrico."
+        },
+        {
+          term: "Super clipping",
+          level: "actual 2026",
+          short: "En 2026, parte de la recarga puede producirse incluso al final de recta y a fondo, según el mapa motor y el circuito.",
+          easy: "Es una forma más avanzada de gestionar energía: el coche empieza a recuperar antes de lo que parecería normal."
+        }
+      ]
+    },
+    {
+      id: "weekend",
+      title: "Fin de semana F1",
+      subtitle: "Conceptos que ayudan a leer mejor libres, quali y carrera.",
+      items: [
+        {
+          term: "Parc fermé",
+          level: "muy usado",
+          short: "Periodo regulado en el que el equipo ya no puede cambiar libremente la configuración del coche.",
+          easy: "Cuando entra en parc fermé, el coche queda casi congelado para que no lo transformen entre quali y carrera."
+        },
+        {
+          term: "Quali sim",
+          level: "básico",
+          short: "Simulación de clasificación: tanda corta buscando mostrar el potencial a una vuelta.",
+          easy: "Es el típico intento de libres que parece una vuelta de quali."
+        },
+        {
+          term: "Race sim",
+          level: "básico",
+          short: "Simulación de carrera: tanda larga para medir ritmo, degradación y consistencia.",
+          easy: "Sirve para ver quién aguanta mejor muchas vueltas seguidas."
+        },
+        {
+          term: "Setup",
+          level: "muy usado",
+          short: "Configuración del coche: alerones, alturas, suspensión, frenos, diferencial y más.",
+          easy: "Es cómo ajustan el coche para ese circuito y para ese piloto."
+        },
+        {
+          term: "Out-lap",
+          level: "básico",
+          short: "Vuelta de salida de boxes antes de empezar a empujar de verdad.",
+          easy: "Se usa para calentar neumáticos, frenos y preparar la vuelta rápida."
+        },
+        {
+          term: "In-lap",
+          level: "básico",
+          short: "Vuelta en la que el piloto vuelve a boxes.",
+          easy: "Puede ser para parar en carrera o para terminar una tanda en libres o quali."
+        }
+      ]
+    }
+  ];
+}
+
+function getGlossaryLevelTagClass(level) {
+  if (level === "básico") return "general";
+  if (level === "muy usado") return "market";
+  if (level === "actual 2026") return "statement";
+  return "technical";
+}
+
+function getAllGlossaryItems() {
+  return getGlossarySections().flatMap(section =>
+    section.items.map(item => ({
+      ...item,
+      sectionId: section.id,
+      sectionTitle: section.title
+    }))
+  );
+}
+
+function findGlossaryItemByTerm(term) {
+  const wanted = normalizeText(term);
+  return getAllGlossaryItems().find(item => normalizeText(item.term) === wanted) || null;
+}
+
+function getContextGlossaryTerms(screen, phase) {
+  const map = {
+    home: {
+      pre_weekend: ["Package / paquete de mejoras", "Setup", "Race sim"],
+      friday: ["Race sim", "Degradación", "Quali sim"],
+      saturday: ["Track position", "Dirty air", "Parc fermé"],
+      sunday: ["Undercut", "Safety Car", "Tráfico"],
+      post_race: ["Stint", "Degradación", "Track position"]
+    },
+    sessions: {
+      pre_weekend: ["Setup", "Out-lap", "Race sim"],
+      friday: ["FP1", "Race sim", "Degradación"],
+      saturday: ["Quali sim", "Parc fermé", "Track position"],
+      sunday: ["Undercut", "VSC", "Dirty air"],
+      post_race: ["Stint", "Lift and coast", "Degradación"]
+    },
+    predict: {
+      pre_weekend: ["Track position", "Package / paquete de mejoras", "Ritmo de carrera"],
+      friday: ["Race sim", "Degradación", "Ritmo de carrera"],
+      saturday: ["Ritmo a una vuelta", "Track position", "Parc fermé"],
+      sunday: ["Undercut", "Overcut", "Safety Car"],
+      post_race: ["Stint", "Ritmo de carrera", "Degradación"]
+    },
+    news: {
+      pre_weekend: ["Package / paquete de mejoras", "Setup", "Fiabilidad"],
+      friday: ["Race sim", "Quali sim", "Degradación"],
+      saturday: ["Track position", "Ritmo a una vuelta", "Parc fermé"],
+      sunday: ["Undercut", "Safety Car", "Dirty air"],
+      post_race: ["Stint", "Track position", "Lift and coast"]
+    },
+    raceMode: {
+      pre_weekend: ["Track position", "Ritmo de carrera", "Ventana de parada"],
+      friday: ["Race sim", "Degradación", "Dirty air"],
+      saturday: ["Track position", "Ritmo a una vuelta", "Parc fermé"],
+      sunday: ["Undercut", "Overcut", "Safety Car"],
+      post_race: ["Stint", "Lift and coast", "Track position"]
+    }
+  };
+
+  const screenMap = map[screen] || map.home;
+  return screenMap[phase] || screenMap.pre_weekend || [];
+}
+
+function getContextGlossaryItems(screen, phase) {
+  return getContextGlossaryTerms(screen, phase)
+    .map(findGlossaryItemByTerm)
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+function getContextGlossaryTitle(screen, phase) {
+  const screenLabelMap = {
+    home: "Conceptos útiles ahora",
+    sessions: "Conceptos útiles para seguir las sesiones",
+    predict: "Conceptos útiles para leer la predicción",
+    news: "Conceptos útiles para interpretar las noticias",
+    raceMode: "Conceptos útiles para el modo carrera"
+  };
+
+  const phaseLabelMap = {
+    pre_weekend: "Previa",
+    friday: "Viernes",
+    saturday: "Sábado",
+    sunday: "Domingo",
+    post_race: "Post GP"
+  };
+
+  return {
+    title: screenLabelMap[screen] || "Conceptos útiles",
+    sub: `Mini glosario contextual · ${phaseLabelMap[phase] || "Previa"}`
+  };
+}
+
+function renderContextGlossaryCard(screen, phase) {
+  const items = getContextGlossaryItems(screen, phase);
+  if (!items.length) return "";
+
+  const copy = getContextGlossaryTitle(screen, phase);
+
+  return `
+    <div class="card">
+      <div class="card-title">${escapeHtml(copy.title)}</div>
+      <div class="card-sub">${escapeHtml(copy.sub)}</div>
+
+      <div class="insight-list" style="margin-top:12px;">
+        ${items.map(item => `
+          <div class="insight-item">
+            <div class="news-meta-row" style="margin-bottom:8px;">
+              <span class="tag ${getGlossaryLevelTagClass(item.level)}">${escapeHtml(item.level)}</span>
+            </div>
+            <strong>${escapeHtml(item.term)}</strong><br>
+            ${escapeHtml(item.easy)}
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderGlossarySection(section) {
+  return `
+    <div class="card">
+      <div class="card-title">${escapeHtml(section.title)}</div>
+      <div class="card-sub">${escapeHtml(section.subtitle)}</div>
+
+      <div class="insight-list" style="margin-top:12px;">
+        ${section.items.map(item => `
+          <div class="insight-item">
+            <div class="news-meta-row" style="margin-bottom:8px;">
+              <span class="tag ${getGlossaryLevelTagClass(item.level)}">${escapeHtml(item.level)}</span>
+            </div>
+            <strong>${escapeHtml(item.term)}</strong><br>
+            <span style="color: rgba(255,255,255,0.92);">${escapeHtml(item.short)}</span><br>
+            <span style="color: rgba(255,255,255,0.62);">${escapeHtml(item.easy)}</span>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function showGlossary() {
+  setActiveNav("nav-more");
+  updateSubtitle();
+
+  const sections = getGlossarySections();
+
+  contentEl().innerHTML = `
+    <div class="card highlight-card">
+      <div class="mini-pill">CASUAL FRIENDLY</div>
+      <div class="card-title">Glosario F1</div>
+      <div class="card-sub">
+        Términos actuales de Fórmula 1 explicados en corto y en fácil, para que la app se entienda mejor aunque no sigas todo el año.
+      </div>
+
+      <div class="meta-grid" style="margin-top:14px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Básico</div>
+          <div class="meta-value" style="font-size:18px;">Esencial</div>
+          <div class="meta-caption">Para entender retransmisiones y titulares</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Muy usado</div>
+          <div class="meta-value" style="font-size:18px;">Habitual</div>
+          <div class="meta-caption">Sale mucho en análisis y radios</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Actual 2026</div>
+          <div class="meta-value" style="font-size:18px;">Nuevo</div>
+          <div class="meta-caption">Términos del reglamento moderno</div>
+        </div>
+      </div>
+    </div>
+
+    ${sections.map(renderGlossarySection).join("")}
+  `;
+}
+
+/* ===== FASE 5 · NOTICIAS CONTEXTUALES ===== */
+
+function getNewsWeekendPhase() {
+  return state.weekendContext?.phase || "pre_weekend";
+}
+
+function getNewsPhaseCopy(phase) {
+  const map = {
+    pre_weekend: {
+      title: "Antes de que empiece el GP",
+      sub: "Ahora pesan más mejoras, fiabilidad, setup y referencias previas que el resultado puro."
+    },
+    friday: {
+      title: "Viernes de referencias",
+      sub: "Ahora pesan más ritmo, tandas largas, degradación y primeras señales reales del coche."
+    },
+    saturday: {
+      title: "Sábado decisivo",
+      sub: "Ahora pesan más qualy, sprint, parrilla, tráfico y posición en pista."
+    },
+    sunday: {
+      title: "Domingo de carrera",
+      sub: "Ahora pesan más estrategia, salida, Safety Car, aire sucio y ritmo útil de carrera."
+    },
+    post_race: {
+      title: "Post GP",
+      sub: "Ahora pesan más análisis, balance, conclusiones y lectura de lo que dejó el fin de semana."
+    }
+  };
+  return map[phase] || map.pre_weekend;
+}
+
+function getNewsPhaseTerms(phase) {
+  const map = {
+    pre_weekend: [
+      "upgrade", "upgrades", "mejora", "mejoras", "package", "floor", "aero", "aerodynamic",
+      "setup", "preview", "prepar", "expect", "fiabilidad", "reliability", "practice",
+      "simulation", "race sim", "long run"
+    ],
+    friday: [
+      "fp1", "fp2", "practice", "free practice", "viernes", "pace", "ritmo", "long run",
+      "race sim", "quali sim", "degradation", "degradacion", "tyre", "neumatic",
+      "balance", "setup", "data"
+    ],
+    saturday: [
+      "qualifying", "qualy", "grid", "pole", "q1", "q2", "q3", "sprint", "shootout",
+      "track position", "traffic", "one lap", "a una vuelta", "parc ferme"
+    ],
+    sunday: [
+      "race", "grand prix", "strategy", "pit stop", "pit window", "undercut", "overcut",
+      "safety car", "vsc", "start", "opening lap", "stint", "dirty air", "traffic",
+      "tyre", "degradation", "podium", "win"
+    ],
+    post_race: [
+      "analysis", "review", "debrief", "verdict", "lessons", "balance", "rating", "what we learned",
+      "conclusion", "post-race", "after the race", "summary"
+    ]
+  };
+  return map[phase] || map.pre_weekend;
+}
+
+function getNewsPhaseWeight(item, phase) {
+  const text = normalizeText(`${item?.title || ""} ${item?.source || ""}`);
+  const terms = getNewsPhaseTerms(phase);
+
+  let score = 0;
+  const matches = terms.filter(term => term && text.includes(normalizeText(term)));
+  score += Math.min(18, matches.length * 4);
+
+  if (phase === "pre_weekend" && containsAny(text, ["upgrade", "mejora", "floor", "package", "setup", "preview"])) score += 8;
+  if (phase === "friday" && containsAny(text, ["fp1", "fp2", "practice", "pace", "ritmo", "long run", "race sim", "degradation"])) score += 9;
+  if (phase === "saturday" && containsAny(text, ["qualifying", "qualy", "grid", "pole", "sprint", "shootout", "traffic"])) score += 10;
+  if (phase === "sunday" && containsAny(text, ["race", "strategy", "undercut", "overcut", "safety car", "vsc", "stint", "podium", "win"])) score += 10;
+  if (phase === "post_race" && containsAny(text, ["analysis", "review", "verdict", "debrief", "lessons", "summary"])) score += 8;
+
+  return score;
+}
+
+function buildNewsFilterPresets() {
+  const favorite = getFavorite();
+  return [
+    { key: "favorite", label: favorite.name, favoritePayload: favorite },
+    { key: "aston", label: "Aston", favoritePayload: { type: "team", name: "Aston Martin", colorClass: "aston" } },
+    { key: "alonso", label: "Alonso", favoritePayload: getDefaultFavorite() },
+    { key: "grid", label: "Parrilla", favoritePayload: { type: "team", name: "Formula 1", colorClass: "ferrari" } }
+  ];
+}
+
+function getActiveNewsFilter() {
+  const filters = buildNewsFilterPresets();
+  return filters.find(filter => filter.key === state.currentNewsFilterKey) || filters[0];
+}
+
+function switchNewsFilter(key) {
+  state.currentNewsFilterKey = key;
+  showNews();
+}
+
+function categorizeNewsItem(item) {
+  const text = `${item?.title || ""} ${item?.source || ""}`.toLowerCase();
+
+  if (text.includes("upgrade") || text.includes("mejora") || text.includes("aerodin") || text.includes("suelo") || text.includes("floor") || text.includes("package")) {
+    return { key: "technical", label: "Técnica" };
+  }
+
+  if (text.includes("reliability") || text.includes("fiabilidad") || text.includes("engine") || text.includes("power unit") || text.includes("gearbox") || text.includes("avería") || text.includes("problema")) {
+    return { key: "reliability", label: "Fiabilidad" };
+  }
+
+  if (text.includes("contract") || text.includes("mercado") || text.includes("seat") || text.includes("driver market") || text.includes("fich") || text.includes("replace")) {
+    return { key: "market", label: "Mercado" };
+  }
+
+  if (text.includes("said") || text.includes("dice") || text.includes("claims") || text.includes("cree") || text.includes("declara") || text.includes("speaks")) {
+    return { key: "statement", label: "Declaración" };
+  }
+
+  if (text.includes("pace") || text.includes("ritmo") || text.includes("qualy") || text.includes("qualifying") || text.includes("podium") || text.includes("race result") || text.includes("rendimiento")) {
+    return { key: "general", label: "Rendimiento" };
+  }
+
+  return { key: "general", label: "General" };
+}
+
+function getNewsFilterTerms(filter) {
+  const payload = filter?.favoritePayload || {};
+  const base = [];
+
+  if (payload.name) {
+    base.push(normalizeText(payload.name));
+    base.push(...normalizeText(payload.name).split(" ").filter(part => part.length > 2));
+  }
+
+  if (payload.type === "driver" && payload.team) {
+    base.push(normalizeText(payload.team));
+    base.push(...normalizeText(payload.team).split(" ").filter(part => part.length > 2));
+  }
+
+  if (filter?.key === "alonso") {
+    base.push("alonso", "fernando", "aston martin");
+  }
+
+  if (filter?.key === "aston") {
+    base.push("aston martin", "aston", "alonso", "stroll");
+  }
+
+  if (filter?.key === "grid") {
+    base.push(
+      "formula 1",
+      "f1",
+      "mercedes",
+      "ferrari",
+      "mclaren",
+      "red bull",
+      "verstappen",
+      "norris",
+      "piastri",
+      "leclerc",
+      "hamilton",
+      "russell"
+    );
+  }
+
+  return unique(base);
+}
+
+function getNewsRecencyScore(pubDate) {
+  if (!pubDate) return 0;
+  const time = new Date(pubDate).getTime();
+  if (Number.isNaN(time)) return 0;
+
+  const ageDays = (Date.now() - time) / 86400000;
+
+  if (ageDays <= 1) return 8;
+  if (ageDays <= 3) return 6;
+  if (ageDays <= 7) return 4;
+  if (ageDays <= 14) return 2;
+  return 0;
+}
+
+function getNewsCategoryWeight(categoryKey) {
+  if (categoryKey === "technical") return 18;
+  if (categoryKey === "reliability") return 17;
+  if (categoryKey === "market") return 15;
+  if (categoryKey === "statement") return 11;
+  return 9;
+}
+
+function scoreNewsItem(item, filter, phase = getNewsWeekendPhase()) {
+  const text = normalizeText(`${item?.title || ""} ${item?.source || ""}`);
+  const category = categorizeNewsItem(item);
+  const filterTerms = getNewsFilterTerms(filter);
+
+  let score = getNewsCategoryWeight(category.key);
+
+  const matchedTerms = filterTerms.filter(term => term && text.includes(term));
+  score += Math.min(
+    22,
+    matchedTerms.reduce((acc, term) => acc + (term.includes(" ") ? 8 : 4), 0)
+  );
+
+  if (filter?.key === "favorite" && filter?.favoritePayload?.type === "driver" && filter.favoritePayload.team) {
+    if (text.includes(normalizeText(filter.favoritePayload.team))) score += 6;
+  }
+
+  if (filter?.key === "grid" && containsAny(text, ["grand prix", "race", "qualifying", "championship", "pace", "podium", "win"])) {
+    score += 6;
+  }
+
+  if (containsAny(text, ["official", "confirmed", "update", "breaking"])) {
+    score += 3;
+  }
+
+  if (containsAny(text, ["gallery", "photos", "photo", "watch", "video", "live blog", "liveblog"])) {
+    score -= 14;
+  }
+
+  if (containsAny(text, ["rumor", "rumour", "speculation"])) {
+    score -= 3;
+  }
+
+  score += getNewsRecencyScore(item?.pubDate);
+  score += getNewsPhaseWeight(item, phase);
+
+  return score;
+}
+
+function getNewsImportanceLabel(item, filter, phase = getNewsWeekendPhase()) {
+  const score = scoreNewsItem(item, filter, phase);
+
+  if (score >= 34) return "Alta prioridad";
+  if (score >= 24) return "Muy relevante";
+  if (score >= 16) return "Seguimiento";
+  return "Contexto";
+}
+
+function getNewsImportanceClass(item, filter, phase = getNewsWeekendPhase()) {
+  const score = scoreNewsItem(item, filter, phase);
+
+  if (score >= 34) return "statement";
+  if (score >= 24) return "market";
+  if (score >= 16) return "general";
+  return "general";
+}
+
+function getNewsImpactText(item, filter, phase = getNewsWeekendPhase()) {
+  const category = categorizeNewsItem(item);
+  const favorite = filter?.favoritePayload || getFavorite();
+  const text = normalizeText(item?.title || "");
+  const favoriteName = favorite?.name || "tu favorito";
+  const favoriteTeam = favorite?.team || favorite?.name || "";
+
+  if (phase === "friday" && containsAny(text, ["fp1", "fp2", "practice", "pace", "ritmo", "long run", "race sim"])) {
+    return "Importa porque puede cambiar la lectura real de ritmo del viernes y separar ruido de tabla.";
+  }
+
+  if (phase === "saturday" && containsAny(text, ["qualifying", "qualy", "grid", "pole", "sprint", "shootout"])) {
+    return "Importa porque puede cambiar directamente la posición en pista y el techo real del domingo.";
+  }
+
+  if (phase === "sunday" && containsAny(text, ["strategy", "race", "pit", "undercut", "overcut", "safety car", "vsc"])) {
+    return "Importa porque puede alterar el guion de carrera, la estrategia y el resultado final.";
+  }
+
+  if (phase === "post_race" && containsAny(text, ["analysis", "review", "verdict", "debrief", "summary"])) {
+    return "Importa porque ayuda a entender qué dejó realmente el GP y cómo leer mejor el siguiente.";
+  }
+
+  if (category.key === "technical") {
+    if (favoriteTeam && text.includes(normalizeText(favoriteTeam))) {
+      return `Puede cambiar la lectura de ritmo del próximo GP para ${favoriteTeam}.`;
+    }
+    return "Puede cambiar la lectura de rendimiento del próximo GP si trae mejoras reales.";
+  }
+
+  if (category.key === "reliability") {
+    return "Importa porque un problema mecánico puede alterar por completo el fin de semana.";
+  }
+
+  if (category.key === "market") {
+    if (favorite.type === "driver") {
+      return `Aporta contexto sobre el futuro del equipo y del entorno competitivo de ${favoriteName}.`;
+    }
+    return "Puede afectar al proyecto deportivo y al contexto futuro del equipo.";
+  }
+
+  if (category.key === "statement") {
+    if (favoriteName && text.includes(normalizeText(favoriteName))) {
+      return `Da pistas sobre sensaciones reales alrededor de ${favoriteName}, aunque conviene contrastarlo con el ritmo en pista.`;
+    }
+    return "Da pistas sobre sensaciones y narrativa interna, aunque no siempre se traduce en rendimiento real.";
+  }
+
+  if (containsAny(text, ["pace", "ritmo", "qualy", "qualifying", "race", "podium", "result"])) {
+    return "Sirve para entender quién llega mejor y qué esperar del fin de semana.";
+  }
+
+  if (favoriteTeam && text.includes(normalizeText(favoriteTeam))) {
+    return `Afecta directamente al seguimiento de ${favoriteTeam} en el próximo GP.`;
+  }
+
+  return "Aporta contexto general útil para no llegar a ciegas al próximo Gran Premio.";
+}
+
+function sortNewsItems(items, filter, phase = getNewsWeekendPhase()) {
+  const list = Array.isArray(items) ? [...items] : [];
+
+  return list.sort((a, b) => {
+    const scoreDiff = scoreNewsItem(b, filter, phase) - scoreNewsItem(a, filter, phase);
+    if (scoreDiff !== 0) return scoreDiff;
+
+    const dateA = new Date(a?.pubDate || 0).getTime();
+    const dateB = new Date(b?.pubDate || 0).getTime();
+    return dateB - dateA;
+  });
+}
+
+function renderNewsKeyLines(items, filter, phase = getNewsWeekendPhase()) {
+  const top = sortNewsItems(items, filter, phase).slice(0, 3);
+
+  if (!top.length) {
+    return `<div class="empty-line">No hay claves destacadas disponibles ahora mismo.</div>`;
+  }
+
+  return `
+    <div class="insight-list">
+      ${top.map(item => `
+        <div class="insight-item">
+          <strong>${escapeHtml(getNewsImportanceLabel(item, filter, phase))}</strong> · ${escapeHtml(item.title)}<br>
+          ${escapeHtml(getNewsImpactText(item, filter, phase))}
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderNewsFilters() {
+  const filters = buildNewsFilterPresets();
+  return `
+    <div class="filters-row">
+      ${filters.map(filter => `
+        <button class="chip ${state.currentNewsFilterKey === filter.key ? "active" : ""}" onclick="switchNewsFilter('${filter.key}')">${escapeHtml(filter.label)}</button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderFeaturedNews(item, filter, phase = getNewsWeekendPhase()) {
+  if (!item) return "";
+  const category = categorizeNewsItem(item);
+  const importance = getNewsImportanceLabel(item, filter, phase);
+  const importanceClass = getNewsImportanceClass(item, filter, phase);
+  const impactText = getNewsImpactText(item, filter, phase);
+
+  return `
+    <div class="news-hero">
+      <div class="mini-pill">DESTACADA</div>
+      <div class="news-hero-title">${escapeHtml(item.title)}</div>
+      <div class="news-hero-sub">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
+      <div class="news-meta-row">
+        <span class="tag ${category.key}">${escapeHtml(category.label)}</span>
+        <span class="tag ${importanceClass}">${escapeHtml(importance)}</span>
+        <a class="btn-secondary" href="${item.link}" target="_blank" rel="noopener noreferrer" style="width:auto; padding:10px 14px;">Abrir noticia</a>
+      </div>
+      <div class="info-line" style="margin-top:12px;">${escapeHtml(impactText)}</div>
+    </div>
+  `;
+}
+
+function renderNewsListItem(item, filter, phase = getNewsWeekendPhase()) {
+  const category = categorizeNewsItem(item);
+  const importance = getNewsImportanceLabel(item, filter, phase);
+  const importanceClass = getNewsImportanceClass(item, filter, phase);
+  const impactText = getNewsImpactText(item, filter, phase);
+
+  return `
+    <div class="news-item">
+      <div class="news-meta-row" style="margin-top:0; margin-bottom:8px;">
+        <span class="tag ${category.key}">${escapeHtml(category.label)}</span>
+        <span class="tag ${importanceClass}">${escapeHtml(importance)}</span>
+      </div>
+      <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
+      <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
+      <div class="card-sub" style="margin-top:6px;">${escapeHtml(impactText)}</div>
+    </div>
+  `;
+}
+
+function renderNewsPhaseCard(phase) {
+  const copy = getNewsPhaseCopy(phase);
+
+  return `
+    <div class="card">
+      <div class="card-title">${escapeHtml(copy.title)}</div>
+      <div class="card-sub">${escapeHtml(copy.sub)}</div>
+      <div class="news-meta-row" style="margin-top:10px;">
+        <span class="tag ${getWeekendPhaseTagClass(phase)}">${escapeHtml(getWeekendPhaseLabel(phase))}</span>
+      </div>
+    </div>
+  `;
+}
+
 function renderHomeNewsPreview(items, favorite) {
-  const previewItems = Array.isArray(items) ? items.slice(0, 3) : [];
+  const filter = { key: "favorite", label: favorite.name, favoritePayload: favorite };
+  const phase = getNewsWeekendPhase();
+  const previewItems = sortNewsItems(items, filter, phase).slice(0, 3);
 
   return `
     <div class="card">
       <div class="card-title">Noticias clave · ${escapeHtml(favorite.name)}</div>
-      <div class="card-sub">Las 3 noticias más útiles para no ir a ciegas antes del próximo GP.</div>
+      <div class="card-sub">Top 3 ya ordenado según el momento del GP y la utilidad real para seguir el fin de semana.</div>
 
       ${previewItems.length ? previewItems.map(item => `
         <div class="news-item">
+          <div class="news-meta-row" style="margin-top:0; margin-bottom:8px;">
+            <span class="tag ${categorizeNewsItem(item).key}">${escapeHtml(categorizeNewsItem(item).label)}</span>
+          </div>
           <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
           <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
         </div>
@@ -2566,6 +3368,102 @@ function renderHomeNewsPreview(items, favorite) {
     </div>
   `;
 }
+
+async function refreshCurrentNews() {
+  const filter = getActiveNewsFilter();
+  if (!filter) return;
+  const key = getNewsCacheKey(filter.favoritePayload);
+  delete state.homeNewsCache[key];
+  showNews();
+}
+
+async function showNews() {
+  setActiveNav("nav-news");
+  updateSubtitle();
+
+  const filter = getActiveNewsFilter();
+  const phase = getNewsWeekendPhase();
+
+  contentEl().innerHTML = `
+    <div class="card">
+      <div class="card-head">
+        <div class="card-head-left">
+          <div class="card-title">NOTICIAS</div>
+          <div class="card-sub">Buscando noticias reales, priorizando utilidad y adaptando el ranking al momento del GP.</div>
+        </div>
+        <div class="card-head-actions">
+          <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
+        </div>
+      </div>
+      ${renderNewsFilters()}
+    </div>
+    ${renderLoadingCard(`Noticias · ${filter.label}`, "Priorizando noticias útiles, portada destacada y claves del día…")}
+  `;
+
+  try {
+    const data = await fetchNewsDataForFavorite(filter.favoritePayload, false);
+    const sortedItems = sortNewsItems(Array.isArray(data?.items) ? data.items : [], filter, phase).slice(0, 10);
+    const featured = sortedItems[0] || null;
+    const rest = sortedItems.slice(1);
+
+    contentEl().innerHTML = `
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-title">NOTICIAS</div>
+            <div class="card-sub">Portada más inteligente, claves editoriales y artículos ordenados por utilidad real.</div>
+          </div>
+          <div class="card-head-actions">
+            <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
+          </div>
+        </div>
+        ${renderNewsFilters()}
+      </div>
+
+      ${renderNewsPhaseCard(phase)}
+
+      <div class="card highlight-card">
+        <div class="card-title">Portada · ${escapeHtml(filter.label)}</div>
+        ${featured ? renderFeaturedNews(featured, filter, phase) : `<div class="empty-line">No hay una noticia destacada disponible ahora mismo.</div>`}
+      </div>
+
+      ${renderContextGlossaryCard("news", phase)}
+
+      <div class="card">
+        <div class="card-title">3 claves del día</div>
+        <div class="card-sub">Qué merece la pena mirar primero y por qué importa realmente.</div>
+        ${renderNewsKeyLines(sortedItems, filter, phase)}
+      </div>
+
+      <div class="card">
+        <div class="card-title">Más noticias</div>
+        <div class="card-sub">Artículos relacionados con el filtro activo, ya ordenados por relevancia, fase del GP y contexto.</div>
+
+        ${rest.length
+          ? rest.map(item => renderNewsListItem(item, filter, phase)).join("")
+          : `<div class="empty-line">No se han encontrado noticias adicionales ahora mismo.</div>`}
+      </div>
+    `;
+  } catch (error) {
+    contentEl().innerHTML = `
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-title">NOTICIAS</div>
+            <div class="card-sub">Error al cargar el panel de noticias.</div>
+          </div>
+          <div class="card-head-actions">
+            <button class="icon-btn" onclick="refreshCurrentNews()">Reintentar</button>
+          </div>
+        </div>
+        ${renderNewsFilters()}
+        <pre class="ai-output">${escapeHtml(error.message)}</pre>
+      </div>
+    `;
+  }
+}
+
+/* ===== HOME ===== */
 
 function renderHomeTeamStatus() {
   const favorite = getFavorite();
@@ -2658,6 +3556,7 @@ async function showHome() {
     contentEl().innerHTML = `
       ${renderHomeHero()}
       ${renderHomeDynamicBlocks(context, favorite)}
+      ${renderContextGlossaryCard("home", context?.phase || "pre_weekend")}
       ${renderHomeNewsPreview(newsData?.items || [], favorite)}
       ${renderHomeTeamStatus()}
       ${renderHomeHierarchy()}
@@ -3253,6 +4152,8 @@ function showPredict() {
       ${renderPredictPhaseGuideCard(predict)}
     </div>
 
+    ${renderContextGlossaryCard("predict", predict.phase)}
+
     <div class="card">
       <div class="card-title">${escapeHtml(predict.copy.summaryTitle)}</div>
       <div class="card-sub">${escapeHtml(predict.copy.summarySub)}</div>
@@ -3327,6 +4228,8 @@ function showPredict() {
     setTimeout(() => runPredict(), 80);
   }
 }
+
+/* ===== FAVORITO ===== */
 
 function renderFavoriteCard() {
   const favorite = getFavorite();
@@ -3497,663 +4400,7 @@ function showFavorito() {
   `;
 }
 
-function buildNewsFilterPresets() {
-  const favorite = getFavorite();
-  return [
-    { key: "favorite", label: favorite.name, favoritePayload: favorite },
-    { key: "aston", label: "Aston", favoritePayload: { type: "team", name: "Aston Martin", colorClass: "aston" } },
-    { key: "alonso", label: "Alonso", favoritePayload: getDefaultFavorite() },
-    { key: "grid", label: "Parrilla", favoritePayload: { type: "team", name: "Formula 1", colorClass: "ferrari" } }
-  ];
-}
-
-function getActiveNewsFilter() {
-  const filters = buildNewsFilterPresets();
-  return filters.find(filter => filter.key === state.currentNewsFilterKey) || filters[0];
-}
-
-function switchNewsFilter(key) {
-  state.currentNewsFilterKey = key;
-  showNews();
-}
-
-function categorizeNewsItem(item) {
-  const text = `${item?.title || ""} ${item?.source || ""}`.toLowerCase();
-
-  if (text.includes("upgrade") || text.includes("mejora") || text.includes("aerodin") || text.includes("suelo") || text.includes("floor") || text.includes("package")) {
-    return { key: "technical", label: "Técnica" };
-  }
-
-  if (text.includes("reliability") || text.includes("fiabilidad") || text.includes("engine") || text.includes("power unit") || text.includes("gearbox") || text.includes("avería") || text.includes("problema")) {
-    return { key: "reliability", label: "Fiabilidad" };
-  }
-
-  if (text.includes("contract") || text.includes("mercado") || text.includes("seat") || text.includes("driver market") || text.includes("fich") || text.includes("replace")) {
-    return { key: "market", label: "Mercado" };
-  }
-
-  if (text.includes("said") || text.includes("dice") || text.includes("claims") || text.includes("cree") || text.includes("declara") || text.includes("speaks")) {
-    return { key: "statement", label: "Declaración" };
-  }
-
-  if (text.includes("pace") || text.includes("ritmo") || text.includes("qualy") || text.includes("qualifying") || text.includes("podium") || text.includes("race result") || text.includes("rendimiento")) {
-    return { key: "general", label: "Rendimiento" };
-  }
-
-  return { key: "general", label: "General" };
-}
-
-function getNewsFilterTerms(filter) {
-  const payload = filter?.favoritePayload || {};
-  const base = [];
-
-  if (payload.name) {
-    base.push(normalizeText(payload.name));
-    base.push(...normalizeText(payload.name).split(" ").filter(part => part.length > 2));
-  }
-
-  if (payload.type === "driver" && payload.team) {
-    base.push(normalizeText(payload.team));
-    base.push(...normalizeText(payload.team).split(" ").filter(part => part.length > 2));
-  }
-
-  if (filter?.key === "alonso") {
-    base.push("alonso", "fernando", "aston martin");
-  }
-
-  if (filter?.key === "aston") {
-    base.push("aston martin", "aston", "alonso", "stroll");
-  }
-
-  if (filter?.key === "grid") {
-    base.push(
-      "formula 1",
-      "f1",
-      "mercedes",
-      "ferrari",
-      "mclaren",
-      "red bull",
-      "verstappen",
-      "norris",
-      "piastri",
-      "leclerc",
-      "hamilton",
-      "russell"
-    );
-  }
-
-  return unique(base);
-}
-
-function getNewsRecencyScore(pubDate) {
-  if (!pubDate) return 0;
-  const time = new Date(pubDate).getTime();
-  if (Number.isNaN(time)) return 0;
-
-  const ageDays = (Date.now() - time) / 86400000;
-
-  if (ageDays <= 1) return 8;
-  if (ageDays <= 3) return 6;
-  if (ageDays <= 7) return 4;
-  if (ageDays <= 14) return 2;
-  return 0;
-}
-
-function getNewsCategoryWeight(categoryKey) {
-  if (categoryKey === "technical") return 18;
-  if (categoryKey === "reliability") return 17;
-  if (categoryKey === "market") return 15;
-  if (categoryKey === "statement") return 11;
-  return 9;
-}
-
-function scoreNewsItem(item, filter) {
-  const text = normalizeText(`${item?.title || ""} ${item?.source || ""}`);
-  const category = categorizeNewsItem(item);
-  const filterTerms = getNewsFilterTerms(filter);
-
-  let score = getNewsCategoryWeight(category.key);
-
-  const matchedTerms = filterTerms.filter(term => term && text.includes(term));
-  score += Math.min(
-    22,
-    matchedTerms.reduce((acc, term) => acc + (term.includes(" ") ? 8 : 4), 0)
-  );
-
-  if (filter?.key === "favorite" && filter?.favoritePayload?.type === "driver" && filter.favoritePayload.team) {
-    if (text.includes(normalizeText(filter.favoritePayload.team))) score += 6;
-  }
-
-  if (filter?.key === "grid" && containsAny(text, ["grand prix", "race", "qualifying", "championship", "pace", "podium", "win"])) {
-    score += 6;
-  }
-
-  if (containsAny(text, ["official", "confirmed", "update", "breaking"])) {
-    score += 3;
-  }
-
-  if (containsAny(text, ["gallery", "photos", "photo", "watch", "video", "live blog", "liveblog"])) {
-    score -= 14;
-  }
-
-  if (containsAny(text, ["rumor", "rumour", "speculation"])) {
-    score -= 3;
-  }
-
-  score += getNewsRecencyScore(item?.pubDate);
-
-  return score;
-}
-
-function getNewsImportanceLabel(item, filter) {
-  const score = scoreNewsItem(item, filter);
-
-  if (score >= 30) return "Alta prioridad";
-  if (score >= 22) return "Muy relevante";
-  if (score >= 14) return "Seguimiento";
-  return "Contexto";
-}
-
-function getNewsImportanceClass(item, filter) {
-  const score = scoreNewsItem(item, filter);
-
-  if (score >= 30) return "statement";
-  if (score >= 22) return "market";
-  if (score >= 14) return "general";
-  return "general";
-}
-
-function getNewsImpactText(item, filter) {
-  const category = categorizeNewsItem(item);
-  const favorite = filter?.favoritePayload || getFavorite();
-  const text = normalizeText(item?.title || "");
-  const favoriteName = favorite?.name || "tu favorito";
-  const favoriteTeam = favorite?.team || favorite?.name || "";
-
-  if (category.key === "technical") {
-    if (favoriteTeam && text.includes(normalizeText(favoriteTeam))) {
-      return `Puede cambiar la lectura de ritmo del próximo GP para ${favoriteTeam}.`;
-    }
-    return "Puede cambiar la lectura de rendimiento del próximo GP si trae mejoras reales.";
-  }
-
-  if (category.key === "reliability") {
-    return "Importa porque un problema mecánico puede alterar por completo el fin de semana.";
-  }
-
-  if (category.key === "market") {
-    if (favorite.type === "driver") {
-      return `Aporta contexto sobre el futuro del equipo y del entorno competitivo de ${favoriteName}.`;
-    }
-    return "Puede afectar al proyecto deportivo y al contexto futuro del equipo.";
-  }
-
-  if (category.key === "statement") {
-    if (favoriteName && text.includes(normalizeText(favoriteName))) {
-      return `Da pistas sobre sensaciones reales alrededor de ${favoriteName}, aunque conviene contrastarlo con el ritmo en pista.`;
-    }
-    return "Da pistas sobre sensaciones y narrativa interna, aunque no siempre se traduce en rendimiento real.";
-  }
-
-  if (containsAny(text, ["pace", "ritmo", "qualy", "qualifying", "race", "podium", "result"])) {
-    return "Sirve para entender quién llega mejor y qué esperar del fin de semana.";
-  }
-
-  if (favoriteTeam && text.includes(normalizeText(favoriteTeam))) {
-    return `Afecta directamente al seguimiento de ${favoriteTeam} en el próximo GP.`;
-  }
-
-  return "Aporta contexto general útil para no llegar a ciegas al próximo Gran Premio.";
-}
-
-function sortNewsItems(items, filter) {
-  const list = Array.isArray(items) ? [...items] : [];
-
-  return list.sort((a, b) => {
-    const scoreDiff = scoreNewsItem(b, filter) - scoreNewsItem(a, filter);
-    if (scoreDiff !== 0) return scoreDiff;
-
-    const dateA = new Date(a?.pubDate || 0).getTime();
-    const dateB = new Date(b?.pubDate || 0).getTime();
-    return dateB - dateA;
-  });
-}
-
-function renderNewsKeyLines(items, filter) {
-  const top = sortNewsItems(items, filter).slice(0, 3);
-
-  if (!top.length) {
-    return `<div class="empty-line">No hay claves destacadas disponibles ahora mismo.</div>`;
-  }
-
-  return `
-    <div class="insight-list">
-      ${top.map(item => `
-        <div class="insight-item">
-          <strong>${escapeHtml(getNewsImportanceLabel(item, filter))}</strong> · ${escapeHtml(item.title)}<br>
-          ${escapeHtml(getNewsImpactText(item, filter))}
-        </div>
-      `).join("")}
-    </div>
-  `;
-}
-
-function renderNewsFilters() {
-  const filters = buildNewsFilterPresets();
-  return `
-    <div class="filters-row">
-      ${filters.map(filter => `
-        <button class="chip ${state.currentNewsFilterKey === filter.key ? "active" : ""}" onclick="switchNewsFilter('${filter.key}')">${escapeHtml(filter.label)}</button>
-      `).join("")}
-    </div>
-  `;
-}
-
-function renderFeaturedNews(item, filter) {
-  if (!item) return "";
-  const category = categorizeNewsItem(item);
-  const importance = getNewsImportanceLabel(item, filter);
-  const importanceClass = getNewsImportanceClass(item, filter);
-  const impactText = getNewsImpactText(item, filter);
-
-  return `
-    <div class="news-hero">
-      <div class="mini-pill">DESTACADA</div>
-      <div class="news-hero-title">${escapeHtml(item.title)}</div>
-      <div class="news-hero-sub">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
-      <div class="news-meta-row">
-        <span class="tag ${category.key}">${escapeHtml(category.label)}</span>
-        <span class="tag ${importanceClass}">${escapeHtml(importance)}</span>
-        <a class="btn-secondary" href="${item.link}" target="_blank" rel="noopener noreferrer" style="width:auto; padding:10px 14px;">Abrir noticia</a>
-      </div>
-      <div class="info-line" style="margin-top:12px;">${escapeHtml(impactText)}</div>
-    </div>
-  `;
-}
-
-function renderNewsListItem(item, filter) {
-  const category = categorizeNewsItem(item);
-  const importance = getNewsImportanceLabel(item, filter);
-  const importanceClass = getNewsImportanceClass(item, filter);
-  const impactText = getNewsImpactText(item, filter);
-
-  return `
-    <div class="news-item">
-      <div class="news-meta-row" style="margin-top:0; margin-bottom:8px;">
-        <span class="tag ${category.key}">${escapeHtml(category.label)}</span>
-        <span class="tag ${importanceClass}">${escapeHtml(importance)}</span>
-      </div>
-      <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
-      <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
-      <div class="card-sub" style="margin-top:6px;">${escapeHtml(impactText)}</div>
-    </div>
-  `;
-}
-
-async function refreshCurrentNews() {
-  const filter = getActiveNewsFilter();
-  if (!filter) return;
-  const key = getNewsCacheKey(filter.favoritePayload);
-  delete state.homeNewsCache[key];
-  showNews();
-}
-
-async function showNews() {
-  setActiveNav("nav-news");
-  updateSubtitle();
-
-  const filter = getActiveNewsFilter();
-
-  contentEl().innerHTML = `
-    <div class="card">
-      <div class="card-head">
-        <div class="card-head-left">
-          <div class="card-title">NOTICIAS</div>
-          <div class="card-sub">Buscando noticias reales, priorizando utilidad y dándote contexto editorial.</div>
-        </div>
-        <div class="card-head-actions">
-          <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
-        </div>
-      </div>
-      ${renderNewsFilters()}
-    </div>
-    ${renderLoadingCard(`Noticias · ${filter.label}`, "Priorizando noticias útiles, portada destacada y claves del día…")}
-  `;
-
-  try {
-    const data = await fetchNewsDataForFavorite(filter.favoritePayload, false);
-    const sortedItems = sortNewsItems(Array.isArray(data?.items) ? data.items : [], filter).slice(0, 10);
-    const featured = sortedItems[0] || null;
-    const rest = sortedItems.slice(1);
-
-    contentEl().innerHTML = `
-      <div class="card">
-        <div class="card-head">
-          <div class="card-head-left">
-            <div class="card-title">NOTICIAS</div>
-            <div class="card-sub">Portada más inteligente, claves editoriales y artículos ordenados por utilidad real.</div>
-          </div>
-          <div class="card-head-actions">
-            <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
-          </div>
-        </div>
-        ${renderNewsFilters()}
-      </div>
-
-      <div class="card highlight-card">
-        <div class="card-title">Portada · ${escapeHtml(filter.label)}</div>
-        ${featured ? renderFeaturedNews(featured, filter) : `<div class="empty-line">No hay una noticia destacada disponible ahora mismo.</div>`}
-      </div>
-
-      <div class="card">
-        <div class="card-title">3 claves del día</div>
-        <div class="card-sub">Qué merece la pena mirar primero y por qué importa realmente.</div>
-        ${renderNewsKeyLines(sortedItems, filter)}
-      </div>
-
-      <div class="card">
-        <div class="card-title">Más noticias</div>
-        <div class="card-sub">Artículos relacionados con el filtro activo, ya ordenados por relevancia y contexto.</div>
-
-        ${rest.length
-          ? rest.map(item => renderNewsListItem(item, filter)).join("")
-          : `<div class="empty-line">No se han encontrado noticias adicionales ahora mismo.</div>`}
-      </div>
-    `;
-  } catch (error) {
-    contentEl().innerHTML = `
-      <div class="card">
-        <div class="card-head">
-          <div class="card-head-left">
-            <div class="card-title">NOTICIAS</div>
-            <div class="card-sub">Error al cargar el panel de noticias.</div>
-          </div>
-          <div class="card-head-actions">
-            <button class="icon-btn" onclick="refreshCurrentNews()">Reintentar</button>
-          </div>
-        </div>
-        ${renderNewsFilters()}
-        <pre class="ai-output">${escapeHtml(error.message)}</pre>
-      </div>
-    `;
-  }
-}
-
-/* ===== GLOSARIO F1 ===== */
-
-function getGlossarySections() {
-  return [
-    {
-      id: "strategy",
-      title: "Estrategia",
-      subtitle: "Términos que salen mucho cuando se habla de paradas, ritmo y gestión de carrera.",
-      items: [
-        {
-          term: "Undercut",
-          level: "muy usado",
-          short: "Parar antes que el rival para intentar adelantarle con neumáticos más frescos.",
-          easy: "En fácil: entras antes al pit, ruedas más rápido y buscas salir por delante cuando el otro pare."
-        },
-        {
-          term: "Overcut",
-          level: "muy usado",
-          short: "Parar más tarde que el rival para ganar tiempo mientras él ya está en boxes o calentando neumáticos.",
-          easy: "En fácil: te quedas fuera más tiempo e intentas que ese aire limpio te dé la posición."
-        },
-        {
-          term: "Stint",
-          level: "básico",
-          short: "Tramo de carrera entre una parada y la siguiente, o entre la salida y la primera parada.",
-          easy: "Cada vez que un piloto rueda con el mismo juego de neumáticos, está haciendo un stint."
-        },
-        {
-          term: "Delta",
-          level: "muy usado",
-          short: "Diferencia de tiempo respecto a otra referencia.",
-          easy: "Puede ser la diferencia con otro piloto, con tu vuelta anterior o con el tiempo objetivo."
-        },
-        {
-          term: "Ventana de parada",
-          level: "básico",
-          short: "Rango de vueltas en el que una parada tiene más sentido estratégico.",
-          easy: "Es el momento en el que parar suele salir mejor que parar mucho antes o mucho después."
-        },
-        {
-          term: "Track position",
-          level: "muy usado",
-          short: "La importancia de la posición en pista respecto al ritmo puro.",
-          easy: "A veces no gana el más rápido, sino el que va delante y no se queda atrapado."
-        }
-      ]
-    },
-    {
-      id: "race",
-      title: "Carrera",
-      subtitle: "Conceptos que ayudan a entender lo que pasa en pista y por qué cambia una carrera.",
-      items: [
-        {
-          term: "Safety Car",
-          level: "básico",
-          short: "Coche de seguridad que neutraliza la carrera cuando hay un incidente importante.",
-          easy: "Agrupa la parrilla, baja el ritmo y puede cambiar la estrategia de todos."
-        },
-        {
-          term: "VSC",
-          level: "muy usado",
-          short: "Virtual Safety Car: obliga a los pilotos a respetar un ritmo mínimo sin sacar el Safety Car físico.",
-          easy: "Se va más lento, no se puede adelantar y las diferencias suelen mantenerse más que con un Safety Car normal."
-        },
-        {
-          term: "Dirty air",
-          level: "muy usado",
-          short: "Aire turbulento que recibe el coche de detrás al seguir de cerca a otro.",
-          easy: "Cuando vas pegado a otro coche, pierdes carga y te cuesta más girar y cuidar neumáticos."
-        },
-        {
-          term: "Tráfico",
-          level: "básico",
-          short: "Rodar detrás de coches más lentos o en medio de un grupo que te hace perder tiempo.",
-          easy: "Aunque tengas ritmo, si sales detrás de varios coches te quedas atrapado."
-        },
-        {
-          term: "Lift and coast",
-          level: "muy usado",
-          short: "Levantar el pie antes de la frenada y dejar correr el coche para ahorrar combustible o gestionar energía.",
-          easy: "El piloto deja de acelerar un poco antes para gastar menos y castigar menos el coche."
-        }
-      ]
-    },
-    {
-      id: "performance",
-      title: "Rendimiento",
-      subtitle: "Palabras típicas cuando se analiza si un coche va mejor el sábado o el domingo.",
-      items: [
-        {
-          term: "Ritmo de carrera",
-          level: "básico",
-          short: "Velocidad media que un coche puede sostener durante tandas largas.",
-          easy: "No es una vuelta brillante; es lo rápido que eres de verdad cuando la carrera se alarga."
-        },
-        {
-          term: "Ritmo a una vuelta",
-          level: "básico",
-          short: "Potencial del coche para hacer una vuelta rápida, especialmente en clasificación.",
-          easy: "Es el ritmo del sábado: sacar todo durante una sola vuelta."
-        },
-        {
-          term: "Degradación",
-          level: "muy usado",
-          short: "Pérdida de rendimiento del neumático con el uso.",
-          easy: "Cuanto más se degrada una goma, más cae el ritmo del piloto."
-        },
-        {
-          term: "Graining",
-          level: "avanzado",
-          short: "Fenómeno en el que se forman pequeñas bolitas de goma sobre la superficie del neumático.",
-          easy: "La rueda deja de agarrar bien durante unas vueltas porque su superficie se ensucia y se rompe."
-        },
-        {
-          term: "Overheating",
-          level: "muy usado",
-          short: "Exceso de temperatura en neumáticos, frenos, motor o batería.",
-          easy: "Cuando todo se calienta demasiado, el coche pierde rendimiento y a veces también fiabilidad."
-        },
-        {
-          term: "Package / paquete de mejoras",
-          level: "muy usado",
-          short: "Conjunto de piezas nuevas o cambios que un equipo trae a un Gran Premio.",
-          easy: "No es una pieza suelta: es un bloque de mejoras para intentar dar un salto."
-        }
-      ]
-    },
-    {
-      id: "ers",
-      title: "ERS / motor / energía",
-      subtitle: "Términos modernos de F1 que cada vez salen más en análisis técnicos y retransmisiones.",
-      items: [
-        {
-          term: "Overtake mode",
-          level: "actual 2026",
-          short: "Modo de adelantamiento de 2026 que sustituye al DRS y solo puede activarse si vas a menos de un segundo del coche de delante en el punto de detección.",
-          easy: "Te da un empujón extra para atacar, pero no está siempre disponible y hay que usarlo con cabeza."
-        },
-        {
-          term: "Harvesting",
-          level: "muy usado",
-          short: "Recuperación de energía para recargar la batería del coche.",
-          easy: "El coche guarda energía mientras frena o en otras fases para usarla más tarde."
-        },
-        {
-          term: "Deployment",
-          level: "muy usado",
-          short: "Momento en que el coche gasta o libera la energía eléctrica acumulada.",
-          easy: "Es cuando usa esa batería para empujar más y ganar velocidad."
-        },
-        {
-          term: "Clipping",
-          level: "avanzado",
-          short: "Momento en el que el coche deja de empujar con toda la energía eléctrica disponible al final de una recta.",
-          easy: "Lo notas cuando parece que el coche ya no sigue acelerando igual porque se le acaba ese extra eléctrico."
-        },
-        {
-          term: "Super clipping",
-          level: "actual 2026",
-          short: "En 2026, parte de la recarga puede producirse incluso al final de recta y a fondo, según el mapa motor y el circuito.",
-          easy: "Es una forma más avanzada de gestionar energía: el coche empieza a recuperar antes de lo que parecería normal."
-        }
-      ]
-    },
-    {
-      id: "weekend",
-      title: "Fin de semana F1",
-      subtitle: "Conceptos que ayudan a leer mejor libres, quali y carrera.",
-      items: [
-        {
-          term: "Parc fermé",
-          level: "muy usado",
-          short: "Periodo regulado en el que el equipo ya no puede cambiar libremente la configuración del coche.",
-          easy: "Cuando entra en parc fermé, el coche queda casi congelado para que no lo transformen entre quali y carrera."
-        },
-        {
-          term: "Quali sim",
-          level: "básico",
-          short: "Simulación de clasificación: tanda corta buscando mostrar el potencial a una vuelta.",
-          easy: "Es el típico intento de libres que parece una vuelta de quali."
-        },
-        {
-          term: "Race sim",
-          level: "básico",
-          short: "Simulación de carrera: tanda larga para medir ritmo, degradación y consistencia.",
-          easy: "Sirve para ver quién aguanta mejor muchas vueltas seguidas."
-        },
-        {
-          term: "Setup",
-          level: "muy usado",
-          short: "Configuración del coche: alerones, alturas, suspensión, frenos, diferencial y más.",
-          easy: "Es cómo ajustan el coche para ese circuito y para ese piloto."
-        },
-        {
-          term: "Out-lap",
-          level: "básico",
-          short: "Vuelta de salida de boxes antes de empezar a empujar de verdad.",
-          easy: "Se usa para calentar neumáticos, frenos y preparar la vuelta rápida."
-        },
-        {
-          term: "In-lap",
-          level: "básico",
-          short: "Vuelta en la que el piloto vuelve a boxes.",
-          easy: "Puede ser para parar en carrera o para terminar una tanda en libres o quali."
-        }
-      ]
-    }
-  ];
-}
-
-function getGlossaryLevelTagClass(level) {
-  if (level === "básico") return "general";
-  if (level === "muy usado") return "market";
-  if (level === "actual 2026") return "statement";
-  return "technical";
-}
-
-function renderGlossarySection(section) {
-  return `
-    <div class="card">
-      <div class="card-title">${escapeHtml(section.title)}</div>
-      <div class="card-sub">${escapeHtml(section.subtitle)}</div>
-
-      <div class="insight-list" style="margin-top:12px;">
-        ${section.items.map(item => `
-          <div class="insight-item">
-            <div class="news-meta-row" style="margin-bottom:8px;">
-              <span class="tag ${getGlossaryLevelTagClass(item.level)}">${escapeHtml(item.level)}</span>
-            </div>
-            <strong>${escapeHtml(item.term)}</strong><br>
-            <span style="color: rgba(255,255,255,0.92);">${escapeHtml(item.short)}</span><br>
-            <span style="color: rgba(255,255,255,0.62);">${escapeHtml(item.easy)}</span>
-          </div>
-        `).join("")}
-      </div>
-    </div>
-  `;
-}
-
-function showGlossary() {
-  setActiveNav("nav-more");
-  updateSubtitle();
-
-  const sections = getGlossarySections();
-
-  contentEl().innerHTML = `
-    <div class="card highlight-card">
-      <div class="mini-pill">CASUAL FRIENDLY</div>
-      <div class="card-title">Glosario F1</div>
-      <div class="card-sub">
-        Términos actuales de Fórmula 1 explicados en corto y en fácil, para que la app se entienda mejor aunque no sigas todo el año.
-      </div>
-
-      <div class="meta-grid" style="margin-top:14px;">
-        <div class="meta-tile">
-          <div class="meta-kicker">Básico</div>
-          <div class="meta-value" style="font-size:18px;">Esencial</div>
-          <div class="meta-caption">Para entender retransmisiones y titulares</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Muy usado</div>
-          <div class="meta-value" style="font-size:18px;">Habitual</div>
-          <div class="meta-caption">Sale mucho en análisis y radios</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Actual 2026</div>
-          <div class="meta-value" style="font-size:18px;">Nuevo</div>
-          <div class="meta-caption">Términos del reglamento moderno</div>
-        </div>
-      </div>
-    </div>
-
-    ${sections.map(renderGlossarySection).join("")}
-  `;
-}
+/* ===== MÁS ===== */
 
 function showMore() {
   setActiveNav("nav-more");
@@ -4585,6 +4832,7 @@ async function showRaceMode() {
     contentEl().innerHTML = `
       ${renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData)}
       ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
+      ${renderContextGlossaryCard("raceMode", state.weekendContext?.phase || "pre_weekend")}
       ${renderRaceModeFavoriteSummary(favorite, raceName, predictData)}
 
       <div class="card">
