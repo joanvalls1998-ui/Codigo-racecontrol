@@ -6,7 +6,7 @@ function renderExperienceModeLine(settings) {
       <div class="settings-line-left">
         <div>
           <div class="settings-line-title">Modo de experiencia</div>
-          <div class="settings-line-sub">Casual: guía ligera · Experto: vista directa.</div>
+          
         </div>
       </div>
       <div class="filters-row" style="margin-top:0;">
@@ -61,7 +61,7 @@ function renderSettingsSecondaryPreferencesBlock(state) {
         <div class="settings-line-left">
           <div>
             <div class="settings-line-title">Idioma</div>
-            <div class="settings-line-sub">Español de España.</div>
+            
           </div>
         </div>
         <div class="tag general">es-ES</div>
@@ -72,7 +72,7 @@ function renderSettingsSecondaryPreferencesBlock(state) {
       <div class="settings-line">
         <div class="settings-line-left">
           <div class="settings-line-title">Modo explicativo</div>
-          <div class="settings-line-sub">${isExpert ? "Muestra ayudas contextuales." : "Activa ayudas de lectura rápida."}</div>
+          
         </div>
         <button class="icon-btn" onclick="togglePremiumSetting('weekendExplainerMode')">${settings.weekendExplainerMode ? "Activado" : "Desactivado"}</button>
       </div>
@@ -80,7 +80,7 @@ function renderSettingsSecondaryPreferencesBlock(state) {
       <div class="settings-line">
         <div class="settings-line-left">
           <div class="settings-line-title">Modo fin de semana</div>
-          <div class="settings-line-sub">Atajo al GP actual en Home y Más.</div>
+          
         </div>
         <button class="icon-btn" onclick="toggleWeekendModeEnabled('showSettingsPanel')">${state.weekendModeEnabled ? "Visible" : "Oculto"}</button>
       </div>
@@ -141,7 +141,7 @@ function renderSettingsMaintenanceBlock(state) {
       <div class="settings-line" style="padding-top:6px;">
         <div class="settings-line-left">
           <div class="settings-line-title">Vaciar historial de predicciones</div>
-          <div class="settings-line-sub">Elimina solo las predicciones guardadas de este dispositivo.</div>
+          
         </div>
         <button class="btn-secondary" onclick="runSettingsMaintenanceAction('clearPredictionHistory')">Vaciar historial</button>
       </div>
@@ -149,7 +149,7 @@ function renderSettingsMaintenanceBlock(state) {
       <div class="settings-line">
         <div class="settings-line-left">
           <div class="settings-line-title">Reset circuito manual</div>
-          <div class="settings-line-sub">Vuelve a modo automático para usar el siguiente GP del calendario.</div>
+          
         </div>
         <button class="btn-secondary" onclick="runSettingsMaintenanceAction('clearSelectedRaceSetting')">Reset circuito</button>
       </div>
@@ -157,7 +157,7 @@ function renderSettingsMaintenanceBlock(state) {
       <div class="settings-line">
         <div class="settings-line-left">
           <div class="settings-line-title">Reset favorito</div>
-          <div class="settings-line-sub">Restaura el favorito por defecto sin borrar el resto de datos.</div>
+          
         </div>
         <button class="danger-btn" onclick="runSettingsMaintenanceAction('resetFavoriteToDefault')">Reset favorito</button>
       </div>

@@ -648,7 +648,7 @@ async function showNews() {
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">NOTICIAS</div>
-          ${isCasualMode() ? `<div class="card-sub">Portada rápida para entender qué pasa y qué mirar primero.</div>` : ""}
+          
         </div>
         <div class="card-head-actions">
           <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
@@ -674,7 +674,7 @@ async function showNews() {
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">NOTICIAS</div>
-            ${isCasualMode() ? `<div class="card-sub">Portada rápida para entender qué pasa y qué mirar primero.</div>` : ""}
+            
           </div>
           <div class="card-head-actions">
             <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
@@ -684,12 +684,6 @@ async function showNews() {
         ${renderNewsSecondaryFilters()}
       </div>
 
-      ${renderFavoriteQuickSelectorCard({
-        title: "Favorito editorial",
-        subtitle: "Cámbialo para rehacer portada y prioridad en un toque.",
-        returnView: "showNews",
-        compact: true
-      })}
       ${isExpertMode() ? renderFavoritePersonalPulseCard({
         favorite,
         raceName,
@@ -735,7 +729,7 @@ async function showNews() {
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">NOTICIAS</div>
-            <div class="card-sub">Error al cargar el panel de noticias.</div>
+            
           </div>
           <div class="card-head-actions">
             <button class="icon-btn" onclick="refreshCurrentNews()">Reintentar</button>

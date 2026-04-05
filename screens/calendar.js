@@ -23,7 +23,7 @@ function renderCalendarIntelligenceHero(nextRace, context) {
     <div class="card highlight-card calendar-hero-card">
       <div class="mini-pill">SIGUIENTE GP</div>
       <div class="card-title">${escapeHtml(nextRace.title)}</div>
-      ${casual ? `<div class="card-sub">${escapeHtml(nextRace.venue || "Venue pendiente")} · ${escapeHtml(nextRace.location || "Ubicación pendiente")}</div>` : ""}
+      
 
       ${renderCircuitThumb(raceName, 84)}
 
@@ -119,7 +119,7 @@ function renderCalendarFlowCard(context) {
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">Flujo del GP</div>
-            ${isCasualMode() ? `<div class="card-sub">Orden operativo de sesiones del fin de semana.</div>` : ""}
+            
           </div>
       </div>
 
@@ -171,7 +171,7 @@ async function showCalendar(force = false) {
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">Próximas citas</div>
-            ${casual ? `<div class="card-sub">Qué toca ahora y qué viene después.</div>` : ""}
+            
           </div>
           <div class="card-head-actions">
             <button class="icon-btn" onclick="refreshCalendar()">Refrescar</button>
@@ -185,8 +185,8 @@ async function showCalendar(force = false) {
       <div class="card calendar-secondary-card">
         <div class="card-head">
           <div class="card-head-left">
-            <div class="card-title">Citas completadas</div>
-            ${casual ? `<div class="card-sub">Histórico resumido.</div>` : ""}
+            <div class="card-title">Histórico</div>
+            
           </div>
         </div>
 

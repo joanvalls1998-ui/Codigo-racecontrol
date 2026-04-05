@@ -173,7 +173,7 @@ function renderWeekendModeHub(context, { compact = false, source = "home" } = {}
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">Modo fin de semana</div>
-          <div class="card-sub">${escapeHtml(raceName)} · ${escapeHtml(phase)} · ${escapeHtml(nextSession)}${escapeHtml(countdown)}</div>
+          ${isCasualMode() ? `<div class="card-sub">${escapeHtml(raceName)} · ${escapeHtml(phase)} · ${escapeHtml(nextSession)}${escapeHtml(countdown)}</div>` : ""}
         </div>
         <div class="card-head-actions">
           <button class="icon-btn" onclick="toggleWeekendModeEnabled('${source}')">Ocultar</button>
@@ -1797,7 +1797,6 @@ function renderSessionCard(session, favorite, context) {
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">${escapeHtml(session.label)}</div>
-          <div class="card-sub">Tu hora: ${escapeHtml(userTime)}</div>
         </div>
         <div class="card-head-actions">
           <span class="tag ${statusClass}">${escapeHtml(statusLabel)}</span>
@@ -1865,8 +1864,6 @@ async function showSessions() {
         </div>
       </div>
 
-      ${expert ? renderSessionsOperationalPanel(context, favorite, expert) : ""}
-
       ${(context?.sessions || []).length
         ? sessionsView.visible.map(session => renderSessionCard(session, favorite, context)).join("")
         : `
@@ -1876,17 +1873,11 @@ async function showSessions() {
           </div>
         `}
 
-      ${sessionsView.hiddenCompletedCount > 0 ? `
-        <div class="card">
-          <div class="empty-line">Se compactaron ${sessionsView.hiddenCompletedCount} sesiones completadas para mantener foco en lo operativo.</div>
-        </div>
-      ` : ""}
-
       ${expert ? `
         <div class="card sessions-impact-card">
-          <div class="card-title">Impacto en el favorito</div>
+          <div class="card-title">Pulso del favorito</div>
           <div class="insight-list">
-            ${impactSummary.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
+            ${impactSummary.slice(0, 3).map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
           </div>
         </div>
       ` : ""}
@@ -3971,7 +3962,7 @@ function showMore() {
   const renderNavCard = ({ title, description, contextLine, onclick }) => `
     <a href="#" class="menu-link more-card more-quick-card" onclick="${onclick}; return false;">
       <div class="more-card-title">${escapeHtml(title)}</div>
-      ${isCasual ? `<div class="more-card-sub">${escapeHtml(description)}</div>` : ""}
+      
       ${isExpert && contextLine ? `<div class="more-card-context">${escapeHtml(contextLine)}</div>` : ""}
     </a>
   `;
@@ -3979,7 +3970,7 @@ function showMore() {
   contentEl().innerHTML = `
     <div class="card more-hub-card">
       <div class="card-title">Más</div>
-      ${isCasual ? `<div class="card-sub">Control rápido sin ruido.</div>` : ""}
+      
 
       ${renderWeekendModeHub(state.weekendContext, { compact: true, source: "more" })}
 
@@ -3988,19 +3979,17 @@ function showMore() {
         <div class="more-control-stack">
           <div class="more-control-card">
             <div class="more-card-title">Favorito actual</div>
-            ${isCasual ? `<div class="more-card-sub">${escapeHtml(favorite.name)}</div>` : ""}
+            
             <div class="more-card-context">${escapeHtml(favoriteTypeLabel)} · ${escapeHtml(favoriteTeamLine)}${isExpert ? ` · P${escapeHtml(favorite.pos || "—")}` : ""}</div>
             <div class="action-row">
               <button class="btn" onclick="openFavoriteSelectorModal('showMore')">Cambiar favorito</button>
             </div>
-            <div class="quick-row" style="margin-top:8px;">
-              <button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset favorito</button>
-            </div>
+            <div class="quick-row" style="margin-top:8px;"><button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset favorito</button></div>
           </div>
 
           <div class="more-control-card">
             <div class="more-card-title">Modo de experiencia</div>
-            ${isCasual ? `<div class="more-card-sub">Cambia al instante cómo quieres ver la app.</div>` : ""}
+            
             <div class="quick-row more-experience-row">
               <button class="chip ${!isExpert ? "active" : ""}" onclick="setExperienceMode('casual')">Casual</button>
               <button class="chip ${isExpert ? "active" : ""}" onclick="setExperienceMode('expert')">Experto</button>
@@ -4009,7 +3998,7 @@ function showMore() {
 
           <div class="more-control-card">
             <div class="more-card-title">Visualización</div>
-            ${isCasual ? `<div class="more-card-sub">Ajustes frecuentes en un toque.</div>` : ""}
+            
             <div class="quick-row more-toggle-row">
               <button class="toggle-btn ${settings.homeCompactMode ? "active" : ""}" onclick="togglePremiumSetting('homeCompactMode')">Inicio compacto</button>
               <button class="toggle-btn ${settings.showCircuitLocalTime ? "active" : ""}" onclick="togglePremiumSetting('showCircuitLocalTime')">Hora local circuito</button>

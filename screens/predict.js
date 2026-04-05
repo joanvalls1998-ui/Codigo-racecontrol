@@ -378,8 +378,8 @@ function showPredict() {
   contentEl().innerHTML = `
     ${renderPredictHeroV2({ predict, favorite, raceName: selectedRace, expert, activePredictData })}
     ${renderFavoriteQuickSelectorCard({
-      title: "Favorito para esta predicción",
-      subtitle: "Cambio rápido para recalcular sin salir de Predict.",
+      title: "Favorito",
+      subtitle: "",
       returnView: "showPredict",
       compact: true
     })}
@@ -403,7 +403,7 @@ function showPredict() {
 
     <div class="card predict-v2-primary">
       <div class="card-title">Resumen central</div>
-      ${expert ? "" : `<div class="card-sub">La lectura inmediata del favorito para este GP.</div>`}
+      
       <div id="predictSummaryCards">
         ${activePredictData
           ? renderPredictSummaryCards(activePredictData)
@@ -412,7 +412,7 @@ function showPredict() {
     </div>
 
     <div class="card predict-v2-primary">
-      <div class="card-title">Escenarios claros</div>
+      <div class="card-title">Suelo · base · techo</div>
       <div id="predictScenarioCards">
         ${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}
       </div>
@@ -420,7 +420,7 @@ function showPredict() {
 
     <div class="card">
       <div class="card-title">Clave del fin de semana</div>
-      ${expert ? "" : `<div class="card-sub">Lo principal para leer rápido este fin de semana.</div>`}
+      
       <div id="predictKeyFactors">
         ${renderPredictWeekendKeyCard(favorite, selectedRace, activePredictData, expert)}
       </div>
@@ -435,7 +435,7 @@ function showPredict() {
 
     <div class="card">
       <div class="card-title">Estrategia</div>
-      ${expert ? "" : `<div class="card-sub">Plan rápido para entender cómo se gana o se pierde el domingo.</div>`}
+      
       <div id="predictStrategyDetail">
         ${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}
       </div>

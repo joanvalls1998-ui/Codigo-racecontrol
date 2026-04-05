@@ -85,7 +85,7 @@ function renderGlossaryFocusCard(item) {
     <div class="card highlight-card glossary-focus-card">
       <div class="mini-pill">TÉRMINO DESTACADO</div>
       <div class="card-title">${escapeHtml(item.term)}</div>
-      ${isCasualMode() ? `<div class="card-sub">Referencia rápida principal con detalle técnico opcional.</div>` : ""}
+      
 
       ${renderGlossaryTermMeta(item)}
       ${renderGlossaryDefinitionBlocks(item)}
@@ -126,7 +126,7 @@ function renderContextGlossaryCard(screen, phase) {
   return `
     <div class="card glossary-context-card">
       <div class="card-title">${escapeHtml(copy.title)}</div>
-      ${isCasualMode() ? `<div class="card-sub">${escapeHtml(copy.sub)}</div>` : ""}
+      
 
       <div class="insight-list glossary-context-list">
         ${items.map(item => `
@@ -148,7 +148,7 @@ function renderGlossarySection(section) {
   return `
     <div class="card glossary-section-card">
       <div class="card-title">${escapeHtml(section.title)}</div>
-      ${isCasualMode() ? `<div class="card-sub">${escapeHtml(section.subtitle)}</div>` : ""}
+      
 
       <div class="insight-list glossary-term-list">
         ${section.items.map(item => `
@@ -176,7 +176,7 @@ function showGlossary(focusTerm = null) {
     <div class="card highlight-card glossary-hero-card">
       <div class="mini-pill">GLOSARIO</div>
       <div class="card-title">Glosario F1</div>
-      ${isCasualMode() ? `<div class="card-sub">Definiciones rápidas para entender retransmisiones, titulares y radios sin complicarte.</div>` : ""}
+      
 
       <div class="insight-list glossary-hero-list">
         <div class="insight-item glossary-hero-item">
