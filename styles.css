@@ -43,6 +43,9 @@
   --theme-accent-soft: rgba(10, 132, 255, 0.2);
   --theme-border: rgba(10, 132, 255, 0.34);
   --theme-glow: rgba(10, 132, 255, 0.3);
+  --bottom-nav-visual-height: 72px;
+  --bottom-nav-offset: 10px;
+  --bottom-content-safe-space: calc(var(--bottom-nav-visual-height) + var(--bottom-nav-offset) + 22px + env(safe-area-inset-bottom));
 }
 
 * {
@@ -132,7 +135,7 @@ header:has(#appSubtitle),
 #content {
   width: min(920px, 100%);
   margin: 0 auto;
-  padding: 22px 16px calc(120px + env(safe-area-inset-bottom));
+  padding: 22px 16px var(--bottom-content-safe-space);
 }
 
 #content > * + * {
@@ -147,7 +150,7 @@ nav,
   position: fixed !important;
   left: 16px;
   right: 16px;
-  bottom: calc(10px + env(safe-area-inset-bottom));
+  bottom: calc(var(--bottom-nav-offset) + env(safe-area-inset-bottom));
   z-index: 60;
   display: grid !important;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -826,6 +829,72 @@ nav,
   line-height: 1.55;
 }
 
+.home-stack > * + * {
+  margin-top: 14px;
+}
+
+.home-stack-expert .home-expert-card {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.home-stack-expert .home-expert-card .card-title {
+  margin-bottom: 4px;
+  font-size: clamp(18px, 2.05vw, 22px);
+}
+
+.home-stack-expert .home-compact-card .info-line {
+  line-height: 1.42;
+}
+
+.home-stack-expert .home-compact-card .insight-list {
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.home-stack-expert .home-hierarchy-item {
+  padding: 10px 12px;
+  border-radius: 14px;
+  line-height: 1.42;
+}
+
+.home-stack-expert .home-hierarchy-item strong {
+  font-size: 13px;
+}
+
+.home-stack-expert .home-team-status-grid {
+  gap: 8px;
+  margin-top: 8px !important;
+}
+
+.home-stack-expert .home-team-status-tile {
+  padding: 10px 12px;
+  border-radius: 14px;
+}
+
+.home-stack-expert .home-team-status-tile .meta-value {
+  margin-top: 6px;
+  font-size: 17px !important;
+}
+
+.home-stack-expert .home-team-status-tile .meta-caption {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.home-stack-expert .home-compact-tags {
+  margin-top: 8px !important;
+  gap: 8px;
+}
+
+.home-stack-expert .home-compact-tags .tag {
+  min-height: 23px;
+  padding: 0 9px;
+  font-size: 10px;
+  opacity: 0.92;
+}
+
 .insight-item strong {
   color: var(--text);
 }
@@ -1333,7 +1402,7 @@ header:has(#appSubtitle),
 #content {
   width: min(920px, 100%) !important;
   margin: 0 auto !important;
-  padding: calc(18px + env(safe-area-inset-top)) 16px calc(120px + env(safe-area-inset-bottom)) !important;
+  padding: calc(18px + env(safe-area-inset-top)) 16px var(--bottom-content-safe-space) !important;
 }
 
 nav,
@@ -1344,7 +1413,7 @@ nav,
   position: fixed !important;
   left: 16px !important;
   right: 16px !important;
-  bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+  bottom: calc(var(--bottom-nav-offset) + env(safe-area-inset-bottom)) !important;
   z-index: 999 !important;
 
   display: flex !important;
