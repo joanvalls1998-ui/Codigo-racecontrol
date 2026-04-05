@@ -1222,6 +1222,12 @@ nav,
 .more-card-grid {
   display: grid;
   gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.more-control-stack {
+  display: grid;
+  gap: 10px;
 }
 
 .more-card {
@@ -1264,6 +1270,33 @@ nav,
 
 .more-card-context {
   color: rgba(255,255,255,0.63);
+}
+
+.more-control-card {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.more-system-card {
+  cursor: pointer;
+}
+
+.more-system-card:hover {
+  background: rgba(255,255,255,0.075);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.more-experience-row .chip,
+.more-toggle-row .toggle-btn {
+  min-height: 42px;
+}
+
+@media (max-width: 680px) {
+  .more-card-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .settings-line {

@@ -3322,108 +3322,91 @@ function showMore() {
   updateSubtitle();
 
   const experienceMode = getExperienceMode();
-  const allowSecondary = experienceMode === "expert";
-  const weekendContext = state.weekendContext;
+  const settings = getSettings();
   const favorite = getFavorite();
-  const nextRaceEvent = getNextRaceFromCalendar(state.calendarCache?.events || []) || weekendContext?.raceEvent || null;
-  const nextRaceName = mapCalendarEventToPredictRace(nextRaceEvent) || weekendContext?.raceName || state.detectedNextRaceName || null;
-  const settingsModeLabel = experienceMode === "expert" ? "Experto" : "Casual";
+  const favoriteTypeLabel = favorite.type === "driver" ? "Piloto" : "Equipo";
+  const favoriteTeamLine = favorite.type === "driver"
+    ? `Equipo: ${favorite.team}`
+    : favorite.drivers
+      ? `Pilotos: ${favorite.drivers}`
+      : "Constructor";
 
-  const sessionsPrimary = weekendContext?.currentSession
-    ? `Ahora: ${weekendContext.currentSession.label}`
-    : weekendContext?.nextSession
-      ? `Próxima: ${weekendContext.nextSession.label}`
-      : "Estado del fin de semana";
-  const sessionsSecondary = weekendContext?.focusDescription || "Vista rápida de sesiones, fase actual y próximos horarios.";
-
-  const calendarPrimary = nextRaceName ? `Siguiente GP: ${nextRaceName}` : "Siguiente GP pendiente de cargar";
-  const calendarSecondary = nextRaceEvent?.startDate && nextRaceEvent?.endDate
-    ? `Fechas: ${formatCalendarDateRange(nextRaceEvent.startDate, nextRaceEvent.endDate)}`
-    : "Consulta fines de semana completados, en curso y próximos.";
-
-  const standingsPrimary = favorite.type === "driver"
-    ? `Favorito: ${favorite.name} · P${favorite.pos || "—"}`
-    : `Favorito: ${favorite.name} · P${favorite.pos || "—"}`;
-  const standingsSecondary = favorite.type === "driver"
-    ? `${favorite.team} · ${favorite.points || "0"} pts`
-    : `${favorite.points || "0"} pts del constructor`;
-
-  const raceModePrimary = state.lastPredictData
-    ? "Predicción disponible"
-    : `GP seleccionado: ${getSelectedRace()}`;
-  const raceModeSecondary = state.lastPredictContext?.phaseLabel
-    ? `Contexto: ${state.lastPredictContext.phaseLabel}`
-    : "Acceso a predicción, simulación y lectura táctica.";
-
-  const settingsPrimary = `Modo actual: ${settingsModeLabel}`;
-  const settingsSecondary = experienceMode === "expert"
-    ? "Personaliza detalle, automatizaciones y lectura avanzada."
-    : "Ajusta idioma, preferencia de experiencia y opciones básicas.";
-
-  const renderMoreCard = ({ title, subtitle, context, onclick }) => `
-    <a href="#" class="menu-link more-card" onclick="${onclick}; return false;">
+  const renderNavCard = ({ title, description, onclick }) => `
+    <a href="#" class="menu-link more-card more-quick-card" onclick="${onclick}; return false;">
       <div class="more-card-title">${escapeHtml(title)}</div>
-      <div class="more-card-sub">${escapeHtml(subtitle)}</div>
-      ${allowSecondary && context ? `<div class="more-card-context">${escapeHtml(context)}</div>` : ""}
+      <div class="more-card-sub">${escapeHtml(description)}</div>
     </a>
   `;
 
   contentEl().innerHTML = `
     <div class="card more-hub-card">
       <div class="card-title">MÁS</div>
-      <div class="card-sub">Accesos organizados para seguir la temporada sin perder contexto.</div>
+      <div class="card-sub">Centro de control rápido para tu uso diario.</div>
 
       <div class="more-section">
-        <div class="more-section-title">Seguimiento</div>
-        <div class="more-card-grid">
-          ${renderMoreCard({
-            title: "Sesiones",
-            subtitle: sessionsPrimary,
-            context: sessionsSecondary,
-            onclick: "showSessions()"
-          })}
-          ${renderMoreCard({
-            title: "Calendario",
-            subtitle: calendarPrimary,
-            context: calendarSecondary,
-            onclick: "showCalendar()"
-          })}
-          ${renderMoreCard({
-            title: "Clasificación",
-            subtitle: standingsPrimary,
-            context: standingsSecondary,
-            onclick: "showStandings()"
-          })}
-          ${renderMoreCard({
-            title: "Modo carrera",
-            subtitle: raceModePrimary,
-            context: raceModeSecondary,
-            onclick: "showRaceMode()"
-          })}
+        <div class="more-section-title">Bloque A · Control rápido</div>
+        <div class="more-control-stack">
+          <div class="more-control-card">
+            <div class="more-card-title">Favorito actual</div>
+            <div class="more-card-sub">${escapeHtml(favorite.name)}</div>
+            <div class="more-card-context">${escapeHtml(favoriteTypeLabel)} · ${escapeHtml(favoriteTeamLine)}</div>
+            <div class="action-row">
+              <button class="btn-secondary" onclick="showStandings()">Cambiar favorito</button>
+              <button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset favorito</button>
+            </div>
+          </div>
+
+          <div class="more-control-card">
+            <div class="more-card-title">Modo de experiencia</div>
+            <div class="more-card-sub">Cambia al instante cómo quieres usar RaceControl.</div>
+            <div class="quick-row more-experience-row">
+              <button class="chip ${experienceMode === "casual" ? "active" : ""}" onclick="setExperienceMode('casual')">Casual</button>
+              <button class="chip ${experienceMode === "expert" ? "active" : ""}" onclick="setExperienceMode('expert')">Experto</button>
+            </div>
+          </div>
+
+          <div class="more-control-card">
+            <div class="more-card-title">Visualización</div>
+            <div class="more-card-sub">Ajustes frecuentes sin entrar a Ajustes avanzados.</div>
+            <div class="quick-row more-toggle-row">
+              <button class="toggle-btn ${settings.homeCompactMode ? "active" : ""}" onclick="togglePremiumSetting('homeCompactMode')">Inicio compacto</button>
+              <button class="toggle-btn ${settings.showCircuitLocalTime ? "active" : ""}" onclick="togglePremiumSetting('showCircuitLocalTime')">Hora local circuito</button>
+              <button class="toggle-btn ${settings.autoSelectNextRace ? "active" : ""}" onclick="togglePremiumSetting('autoSelectNextRace')">Auto GP siguiente</button>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="more-section">
-        <div class="more-section-title">Recursos</div>
+        <div class="more-section-title">Bloque B · Accesos rápidos</div>
         <div class="more-card-grid">
-          ${renderMoreCard({
-            title: "Glosario F1",
-            subtitle: "Conceptos clave en lenguaje claro y rápido.",
-            context: "Útil para entender términos técnicos durante el fin de semana.",
-            onclick: "showGlossary()"
-          })}
+          ${renderNavCard({ title: "Sesiones", description: "Qué está pasando ahora y qué viene después.", onclick: "showSessions()" })}
+          ${renderNavCard({ title: "Calendario", description: "Próximos GPs y fechas del campeonato.", onclick: "showCalendar()" })}
+          ${renderNavCard({ title: "Clasificación", description: "Pilotos y equipos con cambio rápido de favorito.", onclick: "showStandings()" })}
+          ${renderNavCard({ title: "Modo carrera", description: "Lectura táctica y simulación del GP.", onclick: "showRaceMode()" })}
+          ${renderNavCard({ title: "Noticias", description: "Titulares filtrados por tu favorito.", onclick: "showNews()" })}
+          ${renderNavCard({ title: "Predicción", description: "Escenarios rápidos para el siguiente GP.", onclick: "showPredict()" })}
         </div>
       </div>
 
       <div class="more-section">
-        <div class="more-section-title">Sistema</div>
-        <div class="more-card-grid">
-          ${renderMoreCard({
-            title: "Ajustes",
-            subtitle: settingsPrimary,
-            context: settingsSecondary,
-            onclick: "showSettingsPanel()"
-          })}
+        <div class="more-section-title">Bloque C · Sistema</div>
+        <div class="more-control-stack">
+          <div class="more-control-card more-system-card" onclick="showGlossary()">
+            <div class="more-card-title">Glosario F1</div>
+            <div class="more-card-sub">Términos clave explicados de forma rápida.</div>
+          </div>
+          <div class="more-control-card more-system-card" onclick="showSettingsPanel()">
+            <div class="more-card-title">Ajustes avanzados</div>
+            <div class="more-card-sub">Opciones completas y configuración secundaria.</div>
+          </div>
+          <div class="more-control-card">
+            <div class="more-card-title">Limpieza total / reset</div>
+            <div class="more-card-sub">Vuelve al favorito por defecto en un toque.</div>
+            <div class="action-row">
+              <button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset completo</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -4186,6 +4169,11 @@ function togglePremiumSetting(key) {
     ...settings,
     [key]: !settings[key]
   });
+  const active = document.querySelector("#bottomNav a.active")?.id;
+  if (active === "nav-more") {
+    showMore();
+    return;
+  }
   showSettingsPanel();
 }
 
