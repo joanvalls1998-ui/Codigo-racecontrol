@@ -352,6 +352,7 @@ function renderRaceModeObjectiveCard(favorite, raceName, predictData) {
 
 async function showRaceMode() {
   setActiveNav("nav-more");
+  rememberScreen("raceMode");
   updateSubtitle();
 
   contentEl().innerHTML = renderLoadingCard("Modo carrera", "Preparando modo carrera…", true);

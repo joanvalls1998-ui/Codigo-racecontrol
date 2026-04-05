@@ -26,6 +26,8 @@ function getSettingsSystemState() {
     settings,
     summary,
     isExpert,
+    lastScreenLabel: getLastScreenLabel(),
+    weekendModeEnabled: state.weekendModeEnabled,
     raceModeLabel: settings.autoSelectNextRace
       ? "Automático"
       : `Manual · ${summary.selectedRace || "Sin selección"}`,
@@ -78,12 +80,20 @@ function renderSettingsSecondaryPreferencesBlock(state) {
         </div>
         <button class="icon-btn" onclick="togglePremiumSetting('weekendExplainerMode')">${settings.weekendExplainerMode ? "Activado" : "Desactivado"}</button>
       </div>
+
+      <div class="settings-line">
+        <div class="settings-line-left">
+          <div class="settings-line-title">Modo fin de semana</div>
+          <div class="settings-line-sub">Atajo ligero al GP actual en Home y Más.</div>
+        </div>
+        <button class="icon-btn" onclick="toggleWeekendModeEnabled('showSettingsPanel')">${state.weekendModeEnabled ? "Visible" : "Oculto"}</button>
+      </div>
     </div>
   `;
 }
 
 function renderSettingsLocalStateBlock(state) {
-  const { summary, isExpert, raceModeLabel, raceModeSub, favoriteTypeLabel } = state;
+  const { summary, isExpert, raceModeLabel, raceModeSub, favoriteTypeLabel, lastScreenLabel } = state;
 
   return `
     <div class="card">
@@ -109,6 +119,11 @@ function renderSettingsLocalStateBlock(state) {
           <div class="meta-kicker">Predicciones</div>
           <div class="meta-value" style="font-size:18px;">${summary.predictions}</div>
           <div class="meta-caption">Guardadas localmente</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Última pantalla</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(lastScreenLabel)}</div>
+          <div class="meta-caption">Se abrirá al volver</div>
         </div>
       </div>
 
@@ -206,8 +221,27 @@ function runSettingsMaintenanceAction(action) {
   }
 }
 
+function getLastScreenLabel() {
+  const map = {
+    home: "Inicio",
+    predict: "Predict",
+    favorito: "Favorito",
+    news: "Noticias",
+    more: "Más",
+    sessions: "Sesiones",
+    calendar: "Calendario",
+    standings: "Clasificación",
+    raceMode: "Modo carrera",
+    settings: "Ajustes",
+    glossary: "Glosario"
+  };
+
+  return map[state.lastScreen] || "Inicio";
+}
+
 function showSettingsPanel() {
   setActiveNav("nav-more");
+  rememberScreen("settings");
   updateSubtitle();
 
   const systemState = getSettingsSystemState();

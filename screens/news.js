@@ -641,6 +641,7 @@ async function refreshCurrentNews() {
 
 async function showNews() {
   setActiveNav("nav-news");
+  rememberScreen("news");
   updateSubtitle();
 
   const filter = getActiveNewsFilter();
