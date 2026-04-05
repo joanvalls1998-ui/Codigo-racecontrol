@@ -1865,7 +1865,7 @@ async function showSessions() {
         </div>
       </div>
 
-      ${renderSessionsOperationalPanel(context, favorite, expert)}
+      ${expert ? renderSessionsOperationalPanel(context, favorite, expert) : ""}
 
       ${(context?.sessions || []).length
         ? sessionsView.visible.map(session => renderSessionCard(session, favorite, context)).join("")
@@ -3978,7 +3978,7 @@ function showMore() {
   contentEl().innerHTML = `
     <div class="card more-hub-card">
       <div class="card-title">Más</div>
-      <div class="card-sub">${isExpert ? "Centro de control rápido con contexto actual." : "Centro de control rápido."}</div>
+      <div class="card-sub">${isExpert ? "Control rápido con contexto útil del momento." : "Control rápido sin ruido."}</div>
 
       ${renderWeekendModeHub(state.weekendContext, { compact: true, source: "more" })}
 
@@ -3989,15 +3989,11 @@ function showMore() {
             <div class="more-card-title">Favorito actual</div>
             <div class="more-card-sub">${escapeHtml(favorite.name)}</div>
             <div class="more-card-context">${escapeHtml(favoriteTypeLabel)} · ${escapeHtml(favoriteTeamLine)}${isExpert ? ` · P${escapeHtml(favorite.pos || "—")}` : ""}</div>
-            ${renderFavoriteQuickSelectorCard({
-              title: "Cambio rápido premium",
-              subtitle: "Actualiza el favorito sin pasar por Clasificación.",
-              returnView: "showMore",
-              compact: true
-            })}
             <div class="action-row">
-              <button class="btn" onclick="openFavoriteSelectorModal('showMore')">Selector completo</button>
+              <button class="btn" onclick="openFavoriteSelectorModal('showMore')">Cambiar favorito</button>
               <button class="btn-secondary" onclick="showStandings()">Abrir clasificación</button>
+            </div>
+            <div class="quick-row" style="margin-top:10px;">
               <button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset favorito</button>
             </div>
           </div>

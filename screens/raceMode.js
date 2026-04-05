@@ -375,14 +375,14 @@ async function showRaceMode() {
 
     contentEl().innerHTML = `
       ${renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData)}
-      ${renderFavoritePersonalPulseCard({
+      ${expert ? renderFavoritePersonalPulseCard({
         favorite,
         raceName,
         predictData,
         context: state.weekendContext,
         title: "Radar personal en modo carrera",
         expert
-      })}
+      }) : ""}
       ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
       ${renderRaceModeExecutionPanel(favorite, raceName, predictData, stage)}
       ${expert ? renderRaceModeFavoriteSummary(favorite, raceName, predictData) : ""}

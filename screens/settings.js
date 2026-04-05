@@ -247,11 +247,6 @@ function showSettingsPanel() {
   const systemState = getSettingsSystemState();
 
   contentEl().innerHTML = `
-    <div class="card">
-      <div class="card-title">Ajustes / sistema</div>
-      <div class="card-sub">Panel secundario para preferencias menos frecuentes, estado local y limpieza segura.</div>
-    </div>
-
     ${renderSettingsSecondaryPreferencesBlock(systemState)}
     ${renderSettingsLocalStateBlock(systemState)}
     ${renderSettingsMaintenanceBlock(systemState)}

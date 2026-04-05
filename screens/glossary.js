@@ -183,10 +183,6 @@ function showGlossary(focusTerm = null) {
           <strong>Lectura inmediata</strong><br>
           ${isExpertMode() ? "Primero verás la definición técnica y debajo la traducción casual para contexto rápido." : "Primero verás la definición simple y debajo la versión técnica para profundizar solo si quieres."}
         </div>
-        <div class="insight-item glossary-hero-item">
-          <strong>Uso rápido</strong><br>
-          Usa ⓘ para abrir una ficha breve sin salir del flujo, o entra al glosario completo cuando necesites más detalle.
-        </div>
       </div>
     </div>
 
