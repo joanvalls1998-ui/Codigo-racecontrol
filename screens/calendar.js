@@ -6,6 +6,7 @@ function renderCalendarIntelligenceHero(nextRace, context) {
   const raceName = mapCalendarEventToPredictRace(nextRace) || "GP";
   const heuristics = getRaceHeuristics(raceName);
   const format = getCalendarFormatLabel(raceName);
+  const casual = isCasualMode();
 
   return `
     <div class="card highlight-card">
@@ -35,6 +36,13 @@ function renderCalendarIntelligenceHero(nextRace, context) {
           <div class="meta-value" style="font-size:18px;">${escapeHtml(context?.nextSession?.label || "—")}</div>
           <div class="meta-caption">${escapeHtml(context?.nextSessionCountdown || "—")}</div>
         </div>
+        ${casual ? "" : `
+          <div class="meta-tile">
+            <div class="meta-kicker">Lectura pista</div>
+            <div class="meta-value" style="font-size:18px;">${escapeHtml(heuristics.tag)}</div>
+            <div class="meta-caption">Contexto técnico</div>
+          </div>
+        `}
       </div>
 
       <div class="quick-row" style="margin-top:14px;">

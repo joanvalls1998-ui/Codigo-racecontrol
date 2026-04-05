@@ -44,7 +44,7 @@ function renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData) {
 /* ===== MODO CARRERA ===== */
 
 function renderRaceModeQuickRead(favorite, raceName, predictData, stage) {
-  const items = rc10Take(getRaceModeQuickRead(favorite, raceName, predictData, stage), 2);
+  const items = rc10Take(getRaceModeQuickRead(favorite, raceName, predictData, stage), isCasualMode() ? 1 : 2);
 
   return `
     <div class="card">
@@ -75,6 +75,7 @@ async function showRaceMode() {
     const predictData = await fetchPredictData(favorite, raceName);
     const stage = getRaceWeekendStage(nextRaceEvent);
     const phase = state.weekendContext?.phase || "pre_weekend";
+    const expert = isExpertMode();
 
     contentEl().innerHTML = `
       ${renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData)}
@@ -97,7 +98,7 @@ async function showRaceMode() {
       </div>
 
       ${renderRaceModeTop10(predictData, favorite)}
-      ${renderContextGlossaryCard("raceMode", phase)}
+      ${expert ? renderContextGlossaryCard("raceMode", phase) : ""}
     `;
   } catch (error) {
     contentEl().innerHTML = renderErrorCard("Modo carrera", "Error al preparar esta pantalla", error.message);

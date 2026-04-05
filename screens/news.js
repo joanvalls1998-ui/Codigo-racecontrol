@@ -341,12 +341,19 @@ function renderNewsFilters() {
   `;
 }
 
+function truncateSecondaryCopy(text, max = 110) {
+  const raw = String(text || "").trim();
+  if (!raw) return "";
+  if (!isCasualMode() || raw.length <= max) return raw;
+  return `${raw.slice(0, max - 1).trim()}…`;
+}
+
 function renderFeaturedNews(item, filter, phase = getNewsWeekendPhase()) {
   if (!item) return "";
   const category = categorizeNewsItem(item);
   const importance = getNewsImportanceLabel(item, filter, phase);
   const importanceClass = getNewsImportanceClass(item, filter, phase);
-  const impactText = getNewsImpactText(item, filter, phase);
+  const impactText = truncateSecondaryCopy(getNewsImpactText(item, filter, phase), 115);
 
   return `
     <div class="news-hero">
@@ -367,7 +374,7 @@ function renderNewsListItem(item, filter, phase = getNewsWeekendPhase()) {
   const category = categorizeNewsItem(item);
   const importance = getNewsImportanceLabel(item, filter, phase);
   const importanceClass = getNewsImportanceClass(item, filter, phase);
-  const impactText = getNewsImpactText(item, filter, phase);
+  const impactText = truncateSecondaryCopy(getNewsImpactText(item, filter, phase), 95);
 
   return `
     <div class="news-item">
@@ -451,7 +458,7 @@ async function showNews() {
         ${featured ? renderFeaturedNews(featured, filter, phase) : `<div class="empty-line">No hay una noticia destacada disponible ahora mismo.</div>`}
       </div>
 
-      ${renderContextGlossaryCard("news", phase)}
+      ${isExpertMode() ? renderContextGlossaryCard("news", phase) : ""}
 
       <div class="card">
         <div class="card-title">3 claves del día</div>

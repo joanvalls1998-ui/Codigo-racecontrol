@@ -1,3 +1,22 @@
+function renderExperienceModeLine(settings) {
+  const mode = settings.experienceMode === "expert" ? "expert" : "casual";
+
+  return `
+    <div class="settings-line" style="margin-top:12px;">
+      <div class="settings-line-left">
+        <div>
+          <div class="settings-line-title">Modo de experiencia</div>
+          <div class="settings-line-sub">Casual: vista ligera y rápida · Experto: más contexto y detalle técnico.</div>
+        </div>
+      </div>
+      <div class="filters-row" style="margin-top:0;">
+        <button class="chip ${mode === "casual" ? "active" : ""}" onclick="setExperienceMode('casual')">Casual</button>
+        <button class="chip ${mode === "expert" ? "active" : ""}" onclick="setExperienceMode('expert')">Experto</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderSettingsAdvancedCard() {
   const settings = getSettings();
   const summary = getLocalDataSummary();
@@ -93,6 +112,8 @@ function showSettingsPanel() {
         </div>
         <button class="icon-btn" onclick="togglePremiumSetting('autoSelectNextRace')">${settings.autoSelectNextRace ? "Activado" : "Desactivado"}</button>
       </div>
+
+      ${renderExperienceModeLine(settings)}
 
       <div class="settings-actions" style="margin-top:14px;">
         <button class="btn-secondary" onclick="clearPredictionHistory()">Vaciar historial</button>
