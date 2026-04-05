@@ -2060,9 +2060,13 @@ body.experience-casual .glossary-definition-primary {
 }
 
 .sessions-watch-card .card-title,
-.sessions-status-card .card-title,
 .sessions-impact-card .card-title {
   font-size: clamp(18px, 2vw, 22px);
+}
+
+body.experience-casual .predict-v2-raw-output {
+  max-height: 230px;
+  overflow: auto;
 }
 
 .session-card-live {
