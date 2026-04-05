@@ -1,5 +1,10 @@
 /* ===== CALENDARIO / RACE MODE · toque visual extra ===== */
 
+function getCalendarLeadSession(context) {
+  if (!context) return null;
+  return context.currentSession || context.nextSession || context.lastCompletedSession || null;
+}
+
 function renderCalendarIntelligenceHero(nextRace, context) {
   if (!nextRace) return "";
 
@@ -7,40 +12,42 @@ function renderCalendarIntelligenceHero(nextRace, context) {
   const heuristics = getRaceHeuristics(raceName);
   const format = getCalendarFormatLabel(raceName);
   const casual = isCasualMode();
+  const leadSession = getCalendarLeadSession(context);
+  const leadSessionLabel = leadSession?.label || "Sin referencia";
+  const leadSessionStatus = leadSession
+    ? (leadSession.status === "live" ? "En curso" : leadSession.status === "next" ? "Siguiente" : leadSession.status === "completed" ? "Completada" : "Próxima")
+    : "Sin sesión";
 
   return `
-    <div class="card highlight-card">
-      <div class="mini-pill">CALENDARIO</div>
+    <div class="card highlight-card calendar-hero-card">
+      <div class="mini-pill">SIGUIENTE GP</div>
       <div class="card-title">${escapeHtml(nextRace.title)}</div>
+      <div class="card-sub">${escapeHtml(nextRace.venue || "Venue pendiente")} · ${escapeHtml(nextRace.location || "Ubicación pendiente")}</div>
 
-      ${renderCircuitThumb(raceName, 80)}
+      ${renderCircuitThumb(raceName, 84)}
 
-      <div class="news-meta-row" style="margin-top:2px;">
-        <span class="tag general">${escapeHtml(format)}</span>
+      <div class="news-meta-row calendar-hero-tags">
+        <span class="tag ${nextRace.sprint ? "statement" : "general"}">${nextRace.sprint ? "Sprint weekend" : "Formato normal"}</span>
         <span class="tag technical">${escapeHtml(heuristics.tag)}</span>
+        ${casual ? "" : `<span class="tag market">${escapeHtml(format)}</span>`}
       </div>
 
-      <div class="meta-grid" style="margin-top:14px;">
+      <div class="meta-grid calendar-hero-grid">
         <div class="meta-tile">
-          <div class="meta-kicker">Fecha</div>
+          <div class="meta-kicker">Fecha GP</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(formatCalendarDateRange(nextRace.start, nextRace.end))}</div>
-          <div class="meta-caption">${escapeHtml(nextRace.venue || "—")}</div>
+          <div class="meta-caption">Round ${escapeHtml(String(nextRace.round || "—"))}</div>
         </div>
         <div class="meta-tile">
-          <div class="meta-kicker">Circuito</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(heuristics.tag)}</div>
-          <div class="meta-caption">${escapeHtml(nextRace.location || "—")}</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Siguiente sesión</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(context?.nextSession?.label || "—")}</div>
-          <div class="meta-caption">${escapeHtml(context?.nextSessionCountdown || "—")}</div>
+          <div class="meta-kicker">Siguiente referencia</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(leadSessionLabel)}</div>
+          <div class="meta-caption">${escapeHtml(leadSessionStatus)} · ${escapeHtml(context?.nextSessionCountdown || (context?.currentSession ? "ahora" : "—"))}</div>
         </div>
         ${casual ? "" : `
           <div class="meta-tile">
-            <div class="meta-kicker">Lectura pista</div>
+            <div class="meta-kicker">Lectura circuito</div>
             <div class="meta-value" style="font-size:18px;">${escapeHtml(heuristics.tag)}</div>
-            <div class="meta-caption">Contexto técnico</div>
+            <div class="meta-caption">${escapeHtml(getCalendarEventNarrative(nextRace))}</div>
           </div>
         `}
       </div>
@@ -54,30 +61,45 @@ function renderCalendarIntelligenceHero(nextRace, context) {
 }
 /* ===== CALENDARIO ===== */
 
-function renderCalendarEventCard(event) {
+function renderCalendarEventCard(event, options = {}) {
+  const casual = isCasualMode();
   const isTesting = event.type === "testing";
   const isRace = event.type === "race";
   const raceName = isRace ? mapCalendarEventToPredictRace(event) : null;
-  const circuitThumb = raceName ? renderCircuitThumb(raceName, 64) : "";
+  const heuristics = raceName ? getRaceHeuristics(raceName) : null;
+  const format = raceName ? getCalendarFormatLabel(raceName) : (isTesting ? "Testing" : "Evento");
+  const circuitThumb = raceName ? renderCircuitThumb(raceName, 62) : "";
   const dateLabel = formatCalendarDateRange(event.start, event.end);
   const statusLabel = getCalendarStatusLabel(event.status, event.type);
   const locationLine = event.location ? ` · ${escapeHtml(event.location)}` : "";
+  const statusClass = event.status === "next" ? "status-next" : event.status === "upcoming" ? "status-upcoming" : "status-completed";
+  const completedClass = options.secondary ? "calendar-event-card-secondary" : "";
+  const narrative = raceName ? getCalendarEventNarrative(event) : "";
 
   return `
-    <div class="calendar-event-card">
-      ${circuitThumb}
+    <div class="calendar-event-card ${statusClass} ${completedClass}">
       <div class="calendar-event-top">
-        <div>
-          <div class="calendar-event-title">${isRace ? `R${event.round} · ${escapeHtml(event.title)}` : escapeHtml(event.title)}</div>
-          <div class="calendar-event-sub">${escapeHtml(event.venue || "—")}${locationLine}</div>
+        <div class="calendar-event-main">
+          ${circuitThumb}
+          <div>
+            <div class="calendar-event-title">${isRace ? `R${event.round} · ${escapeHtml(event.title)}` : escapeHtml(event.title)}</div>
+            <div class="calendar-event-sub">${escapeHtml(event.venue || "—")}${locationLine}</div>
+          </div>
         </div>
-        <div class="calendar-event-right">${escapeHtml(dateLabel)}<br>${escapeHtml(statusLabel)}</div>
+        <div class="calendar-event-right">
+          <div class="calendar-event-date">${escapeHtml(dateLabel)}</div>
+          <div class="calendar-event-status">${escapeHtml(statusLabel)}</div>
+        </div>
       </div>
 
       <div class="calendar-event-tags">
         <span class="tag general">${isTesting ? "Testing" : "Carrera"}</span>
-        ${event.sprint ? `<span class="tag market">Sprint</span>` : ""}
+        ${event.sprint ? `<span class="tag market">Sprint</span>` : `<span class="tag technical">Normal</span>`}
+        ${casual || !heuristics ? "" : `<span class="tag technical">${escapeHtml(heuristics.tag)}</span>`}
+        ${casual || !raceName ? "" : `<span class="tag reliability">${escapeHtml(format)}</span>`}
       </div>
+
+      ${casual || !narrative ? "" : `<div class="calendar-event-note">${escapeHtml(narrative)}</div>`}
     </div>
   `;
 }
@@ -88,25 +110,32 @@ function renderCalendarFlowCard(context) {
   const showCircuitTime = getSettings().showCircuitLocalTime;
 
   return `
-    <div class="card">
-      <div class="card-title">Sesiones GP</div>
+    <div class="card calendar-flow-card">
+      <div class="card-head">
+        <div class="card-head-left">
+          <div class="card-title">Flujo del GP</div>
+          <div class="card-sub">Orden operativo de sesiones del fin de semana.</div>
+        </div>
+      </div>
 
-      ${context.sessions.map(session => `
-        <div class="standing-row">
-          <div class="row-left">
-            <div class="row-info">
-              <div class="row-name">${escapeHtml(session.label)}</div>
-              <div class="row-team">${escapeHtml(formatSessionDateTime(session.start))}</div>
+      <div class="calendar-flow-list">
+        ${context.sessions.map(session => `
+          <div class="calendar-flow-item ${session.status === "live" ? "live" : session.status === "next" ? "next" : session.status === "completed" ? "completed" : "upcoming"}">
+            <div class="row-left">
+              <div class="row-info">
+                <div class="row-name">${escapeHtml(session.label)}</div>
+                <div class="row-team">${escapeHtml(formatSessionDateTime(session.start))}</div>
+                ${showCircuitTime ? `<div class="row-team">Circuito: ${escapeHtml(formatSessionCircuitDateTime(session.start, session.timeZone))}</div>` : ""}
+              </div>
+            </div>
+            <div class="row-badges">
+              <span class="tag ${session.status === "live" ? "statement" : session.status === "next" ? "market" : session.status === "completed" ? "general" : "technical"}">
+                ${escapeHtml(session.status === "next" ? "Siguiente" : session.status === "live" ? "En curso" : session.status === "completed" ? "Completada" : "Próxima")}
+              </span>
             </div>
           </div>
-          <div class="row-badges">
-            <span class="tag ${session.status === "live" ? "statement" : session.status === "next" ? "market" : session.status === "completed" ? "general" : "technical"}">
-              ${escapeHtml(session.status === "next" ? "Siguiente" : session.status === "live" ? "En curso" : session.status === "completed" ? "Completada" : "Próxima")}
-            </span>
-            ${showCircuitTime ? `<div class="row-team">${escapeHtml(formatSessionCircuitDateTime(session.start, session.timeZone))}</div>` : ""}
-          </div>
-        </div>
-      `).join("")}
+        `).join("")}
+      </div>
     </div>
   `;
 }
@@ -132,18 +161,27 @@ async function showCalendar(force = false) {
       <div class="card">
         <div class="card-head">
           <div class="card-head-left">
-            <div class="card-title">Calendario</div>
+            <div class="card-title">Próximas citas</div>
+            <div class="card-sub">Panel de temporada para entender qué toca ahora y qué viene después.</div>
           </div>
           <div class="card-head-actions">
             <button class="icon-btn" onclick="refreshCalendar()">Refrescar</button>
           </div>
         </div>
 
-        <div class="calendar-group-title">Próximas citas</div>
-        ${upcoming.length ? upcoming.map(renderCalendarEventCard).join("") : `<div class="empty-line">No hay próximas citas cargadas.</div>`}
+        <div class="calendar-group-title">Calendario activo</div>
+        ${upcoming.length ? upcoming.map(event => renderCalendarEventCard(event)).join("") : `<div class="empty-line">No hay próximas citas cargadas.</div>`}
+      </div>
 
-        <div class="calendar-group-title" style="margin-top:14px;">Ya completadas</div>
-        ${completed.length ? completed.map(renderCalendarEventCard).join("") : `<div class="empty-line">No hay citas completadas registradas.</div>`}
+      <div class="card calendar-secondary-card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-title">Citas completadas</div>
+            <div class="card-sub">Histórico rápido del progreso de la temporada.</div>
+          </div>
+        </div>
+
+        ${completed.length ? completed.map(event => renderCalendarEventCard(event, { secondary: true })).join("") : `<div class="empty-line">No hay citas completadas registradas.</div>`}
       </div>
     `;
   } catch (error) {
