@@ -41,7 +41,7 @@ function renderStandingsOverviewCard() {
           <div class="meta-tile">
             <div class="meta-kicker">Pelea directa</div>
             <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.ahead?.name || overview.behind?.name || "—")}</div>
-            <div class="meta-caption">La batalla real está cerca en la tabla</div>
+            <div class="meta-caption">Rival más cercano</div>
           </div>
         </div>
       </div>
@@ -66,7 +66,7 @@ function renderStandingsOverviewCard() {
         <div class="meta-tile">
           <div class="meta-kicker">Pelea directa</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.ahead?.team || overview.behind?.team || "—")}</div>
-          <div class="meta-caption">La batalla real está cerca en la tabla</div>
+          <div class="meta-caption">Rival más cercano</div>
         </div>
       </div>
     </div>
@@ -105,7 +105,7 @@ function renderStandingsBattleCard() {
 function renderStandingsSummaryBlock() {
   const el = document.getElementById("standingsSummaryContent");
   if (!el) return;
-  el.innerHTML = `${renderStandingsOverviewCard()}${renderStandingsBattleCard()}`;
+  el.innerHTML = `${renderStandingsOverviewCard()}${isExpertMode() ? renderStandingsBattleCard() : ""}`;
 }
 
 async function showStandings(force = false) {

@@ -5,7 +5,8 @@ const DEFAULT_SETTINGS = Object.freeze({
   autoSelectNextRace: true,
   showCircuitLocalTime: true,
   homeCompactMode: false,
-  weekendExplainerMode: true
+  weekendExplainerMode: true,
+  experienceMode: "casual"
 });
 
 const DEFAULT_UI_STATE = Object.freeze({
@@ -1335,7 +1336,7 @@ async function showSessions() {
         </div>
       </div>
 
-      ${renderContextGlossaryCard("sessions", context?.phase || "pre_weekend")}
+      ${isExpertMode() ? renderContextGlossaryCard("sessions", context?.phase || "pre_weekend") : ""}
 
       ${(context?.sessions || []).length
         ? context.sessions.map(session => renderSessionCard(session, favorite, context)).join("")
@@ -2791,6 +2792,12 @@ async function showHome() {
 
   const context = getHomeWeekendContext();
 
+  try {
+    await fetchNewsDataForFavorite(favorite, false);
+  } catch {
+    // silencioso: la home mantiene fallback sin romper la carga
+  }
+
   contentEl().innerHTML = `
     ${renderHomeHero()}
     ${calendarError ? renderErrorCard("Inicio", "No se pudo cargar el calendario del GP", calendarError.message) : ""}
@@ -3989,7 +3996,8 @@ function getSettings() {
     autoSelectNextRace: legacyUiState.autoSelectNextRace,
     showCircuitLocalTime: legacyUiState.showCircuitLocalTime,
     homeCompactMode: legacyUiState.homeCompactMode,
-    weekendExplainerMode: legacyUiState.weekendExplainerMode
+    weekendExplainerMode: legacyUiState.weekendExplainerMode,
+    experienceMode: legacyUiState.experienceMode
   };
 
   return {
@@ -4006,6 +4014,18 @@ function saveSettings(settings) {
   };
 
   storageWriteJson(STORAGE_KEYS.settings, next);
+}
+
+function getExperienceMode() {
+  return getSettings().experienceMode === "expert" ? "expert" : "casual";
+}
+
+function isExpertMode() {
+  return getExperienceMode() === "expert";
+}
+
+function isCasualMode() {
+  return !isExpertMode();
 }
 
 function getUiState() {
@@ -4057,6 +4077,33 @@ function togglePremiumSetting(key) {
     ...settings,
     [key]: !settings[key]
   });
+  showSettingsPanel();
+}
+
+function setExperienceMode(mode) {
+  const nextMode = mode === "expert" ? "expert" : "casual";
+  const settings = getSettings();
+  if (settings.experienceMode === nextMode) return;
+
+  saveSettings({
+    ...settings,
+    experienceMode: nextMode
+  });
+
+  refreshCurrentView();
+}
+
+function refreshCurrentView() {
+  const active = document.querySelector("#bottomNav a.active")?.id;
+
+  if (active === "nav-home") return showHome();
+  if (active === "nav-predict") return showPredict();
+  if (active === "nav-favorito") return showFavorito();
+  if (active === "nav-news") return showNews();
+
+  const view = contentEl()?.querySelector(".menu-link");
+  if (view) return showMore();
+
   showSettingsPanel();
 }
 

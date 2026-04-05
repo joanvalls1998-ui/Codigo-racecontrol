@@ -167,6 +167,7 @@ function showPredict() {
   const favorite = getFavorite();
   const needFreshPredict = shouldAutoGeneratePredict(favorite, selectedRace);
   const activePredictData = !needFreshPredict ? state.lastPredictData : null;
+  const expert = isExpertMode();
 
   contentEl().innerHTML = `
     <div class="card highlight-card">
@@ -189,12 +190,14 @@ function showPredict() {
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">${escapeHtml(predict.copy.guidanceTitle)}</div>
-      ${renderPredictPhaseGuideCard(predict)}
-    </div>
+    ${expert ? `
+      <div class="card">
+        <div class="card-title">${escapeHtml(predict.copy.guidanceTitle)}</div>
+        ${renderPredictPhaseGuideCard(predict)}
+      </div>
 
-    ${renderContextGlossaryCard("predict", predict.phase)}
+      ${renderContextGlossaryCard("predict", predict.phase)}
+    ` : ""}
 
     <div class="card">
       <div class="card-title">${escapeHtml(predict.copy.summaryTitle)}</div>
@@ -212,51 +215,56 @@ function showPredict() {
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">${escapeHtml(predict.copy.factorsTitle)}</div>
-      <div id="predictKeyFactors">
-        ${renderPredictKeyFactors(favorite, selectedRace, activePredictData)}
+    ${expert ? `
+      <div class="card">
+        <div class="card-title">${escapeHtml(predict.copy.factorsTitle)}</div>
+        <div id="predictKeyFactors">
+          ${renderPredictKeyFactors(favorite, selectedRace, activePredictData)}
+        </div>
       </div>
-    </div>
 
-    <div class="card">
-      <div class="card-title">${escapeHtml(predict.copy.qualyTitle)}</div>
-      <div id="predictQualyRace">
-        ${renderPredictQualyRaceCard(favorite, selectedRace, activePredictData)}
+      <div class="card">
+        <div class="card-title">${escapeHtml(predict.copy.qualyTitle)}</div>
+        <div id="predictQualyRace">
+          ${renderPredictQualyRaceCard(favorite, selectedRace, activePredictData)}
+        </div>
       </div>
-    </div>
 
-    <div class="card">
-      <div class="card-title">${escapeHtml(predict.copy.strategyTitle)}</div>
-      <div id="predictStrategyDetail">
-        ${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}
+      <div class="card">
+        <div class="card-title">${escapeHtml(predict.copy.strategyTitle)}</div>
+        <div id="predictStrategyDetail">
+          ${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}
+        </div>
       </div>
-    </div>
 
-    <div class="card">
-      <div class="card-title">${escapeHtml(predict.copy.gridTitle)}</div>
-      <div id="predictGridRead">
-        ${renderPredictGridRead(favorite, selectedRace, activePredictData)}
+      <div class="card">
+        <div class="card-title">${escapeHtml(predict.copy.gridTitle)}</div>
+        <div id="predictGridRead">
+          ${renderPredictGridRead(favorite, selectedRace, activePredictData)}
+        </div>
       </div>
-    </div>
+    ` : ""}
 
     <div class="card">
       <div class="card-title">${escapeHtml(predict.copy.textTitle)}</div>
       <pre id="predictOutput" class="ai-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción avanzada..."}</pre>
     </div>
 
-    <div class="card">
-      <div class="card-head">
-        <div class="card-head-left">
-          <div class="card-title">Historial</div>
+    ${expert ? `
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-title">Historial</div>
+          </div>
+          <div class="card-head-actions">
+            <button class="icon-btn" onclick="clearPredictionHistory()">Vaciar</button>
+          </div>
         </div>
-        <div class="card-head-actions">
-          <button class="icon-btn" onclick="clearPredictionHistory()">Vaciar</button>
-        </div>
+        <div id="predictionHistoryBox">${renderPredictionHistory()}</div>
       </div>
-      <div id="predictionHistoryBox">${renderPredictionHistory()}</div>
-    </div>
+    ` : ""}
   `;
+
 
   if (needFreshPredict) {
     setTimeout(() => runPredict(), 80);

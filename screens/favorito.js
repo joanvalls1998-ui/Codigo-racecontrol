@@ -219,13 +219,16 @@ function showFavorito() {
   const raceName = context?.raceName || getSelectedRace();
   const predictData = getActivePredictDataForRace(favorite, raceName);
 
+  const expert = isExpertMode();
+
   contentEl().innerHTML = `
     ${renderFavoriteCard()}
     ${renderFavoritoHeroContextCard(favorite, raceName, predictData, context)}
     ${renderFavoritoObjectiveCard(favorite, raceName, predictData, context)}
     ${renderFavoritoTechnicalCard(favorite, teamName, teamData, accent)}
     ${renderFavoritoCircuitFitCard(favorite, raceName)}
-    ${renderFavoritoComparisonAdvancedCard(favorite)}
+    ${expert ? renderFavoritoRadarCard(favorite, raceName, context, predictData) : ""}
+    ${expert ? renderFavoritoComparisonAdvancedCard(favorite) : ""}
     ${renderFavoritoDirectRivalsCard(favorite, predictData)}
   `;
 }
