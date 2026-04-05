@@ -2376,11 +2376,13 @@ function renderHomePhaseHero(context) {
   `;
 }
 
-function renderHomeNowCard(context, favorite) {
+function renderHomeNowCard(context, favorite, options = {}) {
+  const compact = Boolean(options?.compact);
+
   if (!context) {
     return `
       <div class="card">
-        <div class="card-title">Ahora</div>
+        <div class="card-title">Siguiente sesión</div>
         <div class="empty-line">No hay contexto suficiente para leer el momento del fin de semana.</div>
       </div>
     `;
@@ -2389,7 +2391,7 @@ function renderHomeNowCard(context, favorite) {
   if (context.scheduleUnavailable) {
     return `
       <div class="card">
-        <div class="card-title">Ahora</div>
+        <div class="card-title">Siguiente sesión</div>
         <div class="card-sub">No hay una sesión oficial cargada para este GP.</div>
         <div class="empty-line">${escapeHtml(context.scheduleReason || "Horario no disponible.")}</div>
       </div>
@@ -2401,7 +2403,7 @@ function renderHomeNowCard(context, favorite) {
   if (!target) {
     return `
       <div class="card">
-        <div class="card-title">Ahora</div>
+        <div class="card-title">Siguiente sesión</div>
         <div class="empty-line">No hay sesión destacada disponible ahora mismo.</div>
       </div>
     `;
@@ -2411,26 +2413,34 @@ function renderHomeNowCard(context, favorite) {
   const circuitTime = formatSessionCircuitDateTime(target.start, target.timeZone);
   const impact = getSessionImpactOnFavorite(target.key, favorite);
 
+  if (compact) {
+    return `
+      <div class="card">
+        <div class="card-title">Siguiente sesión</div>
+        <div class="info-line" style="margin-top:10px;">${escapeHtml(impact)}</div>
+        <div class="news-meta-row" style="margin-top:12px;">
+          <span class="tag technical">${escapeHtml(getSessionStatusLabel(target.status))}</span>
+          <span class="tag general">${escapeHtml(target.label)}</span>
+        </div>
+      </div>
+    `;
+  }
+
   return `
-    <div class="card">
-      <div class="card-title">${context.currentSession ? "Ahora mismo" : target.status === "next" ? "Siguiente" : "Última"}</div>
+    <div class="card home-next-session-expert-card">
+      <div class="card-title">${context.currentSession ? "Ahora mismo" : target.status === "next" ? "Siguiente sesión" : "Última sesión"}</div>
       <div class="info-line" style="margin-top:10px;">${escapeHtml(impact)}</div>
 
-      <div class="meta-grid" style="margin-top:14px;">
-        <div class="meta-tile">
-          <div class="meta-kicker">Sesión</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(target.label)}</div>
-          <div class="meta-caption">${escapeHtml(getSessionStatusLabel(target.status))}</div>
-        </div>
-        <div class="meta-tile">
+      <div class="meta-grid home-next-session-expert-grid">
+        <div class="meta-tile home-next-session-expert-tile">
           <div class="meta-kicker">Tu hora</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(userTime)}</div>
-          <div class="meta-caption">${target.status === "next" ? `Empieza ${escapeHtml(getCountdownToSession(target))}` : "Referencia"}</div>
+          <div class="meta-value home-next-session-expert-value">${escapeHtml(userTime)}</div>
+          <div class="meta-caption">${escapeHtml(target.label)} · ${escapeHtml(getSessionStatusLabel(target.status))}</div>
         </div>
-        <div class="meta-tile">
+        <div class="meta-tile home-next-session-expert-tile">
           <div class="meta-kicker">Hora circuito</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(circuitTime)}</div>
-          <div class="meta-caption">${escapeHtml(target.timeZone || "")}</div>
+          <div class="meta-value home-next-session-expert-value">${escapeHtml(circuitTime)}</div>
+          <div class="meta-caption">${escapeHtml(target.timeZone || "Circuito")}</div>
         </div>
       </div>
     </div>

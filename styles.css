@@ -45,7 +45,7 @@
   --theme-glow: rgba(10, 132, 255, 0.3);
   --bottom-nav-visual-height: 72px;
   --bottom-nav-offset: 10px;
-  --bottom-content-safe-space: calc(var(--bottom-nav-visual-height) + var(--bottom-nav-offset) + 22px + env(safe-area-inset-bottom));
+  --bottom-content-safe-space: calc(var(--bottom-nav-visual-height) + (var(--bottom-nav-offset) * 2) + 26px + env(safe-area-inset-bottom));
 }
 
 * {
@@ -135,7 +135,7 @@ header:has(#appSubtitle),
 #content {
   width: min(920px, 100%);
   margin: 0 auto;
-  padding: 22px 16px var(--bottom-content-safe-space);
+  padding: 22px 16px max(var(--bottom-content-safe-space), calc(108px + env(safe-area-inset-bottom)));
 }
 
 #content > * + * {
@@ -834,65 +834,111 @@ nav,
 }
 
 .home-stack-expert .home-expert-card {
-  padding-top: 14px;
-  padding-bottom: 14px;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 .home-stack-expert .home-expert-card .card-title {
-  margin-bottom: 4px;
-  font-size: clamp(18px, 2.05vw, 22px);
+  margin-bottom: 2px;
+  font-size: clamp(17px, 1.95vw, 20px);
 }
 
 .home-stack-expert .home-compact-card .info-line {
-  line-height: 1.42;
+  line-height: 1.36;
+  font-size: 13.5px;
 }
 
 .home-stack-expert .home-compact-card .insight-list {
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .home-stack-expert .home-hierarchy-item {
-  padding: 10px 12px;
-  border-radius: 14px;
-  line-height: 1.42;
-}
-
-.home-stack-expert .home-hierarchy-item strong {
+  padding: 8px 10px;
+  border-radius: 12px;
+  line-height: 1.35;
   font-size: 13px;
 }
 
+.home-stack-expert .home-hierarchy-item strong {
+  font-size: 12px;
+}
+
 .home-stack-expert .home-team-status-grid {
-  gap: 8px;
-  margin-top: 8px !important;
+  gap: 6px;
+  margin-top: 6px !important;
 }
 
 .home-stack-expert .home-team-status-tile {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(10, 12, 16, 0.5);
+}
+
+.home-stack-expert .home-team-status-tile .meta-value {
+  margin-top: 4px;
+  font-size: 16px !important;
+}
+
+.home-stack-expert .home-team-status-tile .meta-caption {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.home-stack-expert .home-compact-tags {
+  margin-top: 6px !important;
+  gap: 6px;
+}
+
+.home-stack-expert .home-compact-tags .tag {
+  min-height: 21px;
+  padding: 0 8px;
+  font-size: 10px;
+  opacity: 0.92;
+}
+
+.home-stack-expert .home-expert-tight {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.home-next-session-expert-card .home-next-session-expert-grid {
+  margin-top: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.home-next-session-expert-card .home-next-session-expert-tile {
   padding: 10px 12px;
   border-radius: 14px;
 }
 
-.home-stack-expert .home-team-status-tile .meta-value {
+.home-next-session-expert-card .home-next-session-expert-value {
   margin-top: 6px;
   font-size: 17px !important;
 }
 
-.home-stack-expert .home-team-status-tile .meta-caption {
-  margin-top: 6px;
+.home-news-preview-card .card-head-actions {
+  align-self: center;
+}
+
+.home-news-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-soft);
   font-size: 12px;
-  line-height: 1.3;
+  font-weight: 700;
+  text-decoration: none;
 }
 
-.home-stack-expert .home-compact-tags {
-  margin-top: 8px !important;
-  gap: 8px;
-}
-
-.home-stack-expert .home-compact-tags .tag {
-  min-height: 23px;
-  padding: 0 9px;
-  font-size: 10px;
-  opacity: 0.92;
+.home-news-cta:active {
+  transform: scale(0.98);
 }
 
 .insight-item strong {
@@ -1402,7 +1448,7 @@ header:has(#appSubtitle),
 #content {
   width: min(920px, 100%) !important;
   margin: 0 auto !important;
-  padding: calc(18px + env(safe-area-inset-top)) 16px var(--bottom-content-safe-space) !important;
+  padding: calc(18px + env(safe-area-inset-top)) 16px max(var(--bottom-content-safe-space), calc(108px + env(safe-area-inset-bottom))) !important;
 }
 
 nav,
