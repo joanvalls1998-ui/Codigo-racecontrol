@@ -3609,18 +3609,24 @@ function showMore() {
 function getDriverContextBadges(name, pos, team) {
   const favorite = getFavorite();
   const badges = [];
+  const favoriteDriver = favorite.type === "driver" ? state.standingsCache?.drivers?.find(d => d.name === favorite.name) : null;
+  const isDirectRival = favoriteDriver && favorite.name !== name && Math.abs((favoriteDriver.pos || 0) - (pos || 0)) === 1;
   if (pos === 1) badges.push(`<span class="context-badge leader">Líder</span>`);
   if (favorite.type === "driver" && favorite.name === name) badges.push(`<span class="context-badge favorite">Favorito</span>`);
   if (favorite.type === "driver" && favorite.team === team && favorite.name !== name) badges.push(`<span class="context-badge teammate">Compañero</span>`);
+  if (isDirectRival) badges.push(`<span class="context-badge rival">Rival directo</span>`);
   return badges.join("");
 }
 
 function getTeamContextBadges(team, pos) {
   const favorite = getFavorite();
   const badges = [];
+  const favoriteTeam = favorite.type === "team" ? state.standingsCache?.teams?.find(t => t.team === favorite.name) : null;
+  const isDirectRival = favoriteTeam && favorite.name !== team && Math.abs((favoriteTeam.pos || 0) - (pos || 0)) === 1;
   if (pos === 1) badges.push(`<span class="context-badge leader">Líder</span>`);
   if (favorite.type === "team" && favorite.name === team) badges.push(`<span class="context-badge favorite">Favorito</span>`);
   if (favorite.type === "driver" && favorite.team === team) badges.push(`<span class="context-badge teammate">Equipo fav.</span>`);
+  if (isDirectRival) badges.push(`<span class="context-badge rival">Rival directo</span>`);
   return badges.join("");
 }
 
@@ -3719,9 +3725,11 @@ function getTeamLogo(team) {
 
 function driverRow(pos, number, name, team, points, colorClass, image, delta) {
   const favorite = getFavorite();
+  const favoriteDriver = favorite.type === "driver" ? state.standingsCache?.drivers?.find(d => d.name === favorite.name) : null;
   const isFav = favorite.type === "driver" && favorite.name === name;
   const isTeammate = favorite.type === "driver" && favorite.team === team && favorite.name !== name;
-  const rowClass = [pos === 1 ? "leader" : "", isFav ? "favorite-row" : "", isTeammate ? "teammate-row" : ""].join(" ").trim();
+  const isRival = favoriteDriver && favorite.name !== name && Math.abs((favoriteDriver.pos || 0) - (pos || 0)) === 1;
+  const rowClass = [pos === 1 ? "leader" : "", isFav ? "favorite-row" : "", isTeammate ? "teammate-row" : "", isRival ? "rival-row" : ""].join(" ").trim();
 
   return `
     <div class="standing-row ${rowClass}" onclick="openDriverDetail(${JSON.stringify(name)}, ${JSON.stringify(team)}, ${JSON.stringify(number)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(pos)})">
@@ -3752,9 +3760,11 @@ function driverRow(pos, number, name, team, points, colorClass, image, delta) {
 
 function teamRow(pos, team, drivers, points, colorClass, delta) {
   const favorite = getFavorite();
+  const favoriteTeam = favorite.type === "team" ? state.standingsCache?.teams?.find(t => t.team === favorite.name) : null;
   const isFav = favorite.type === "team" && favorite.name === team;
   const isFavoriteDriverTeam = favorite.type === "driver" && favorite.team === team;
-  const rowClass = [pos === 1 ? "leader" : "", isFav ? "favorite-row" : "", isFavoriteDriverTeam ? "teammate-row" : ""].join(" ").trim();
+  const isRival = favoriteTeam && favorite.name !== team && Math.abs((favoriteTeam.pos || 0) - (pos || 0)) === 1;
+  const rowClass = [pos === 1 ? "leader" : "", isFav ? "favorite-row" : "", isFavoriteDriverTeam ? "teammate-row" : "", isRival ? "rival-row" : ""].join(" ").trim();
 
   return `
     <div class="standing-row ${rowClass}" onclick="openTeamDetail(${JSON.stringify(team)}, ${JSON.stringify(drivers)}, ${JSON.stringify(points)}, ${JSON.stringify(colorClass)}, ${JSON.stringify(pos)})">
@@ -3818,7 +3828,11 @@ function showDriversStandings() {
   const el = document.getElementById("standingsContent");
   if (!el) return;
   el.innerHTML = `
-    <div class="card">
+    <div class="card standings-table-v2">
+      <div class="standings-table-head">
+        <div class="standings-table-title">Vista pilotos</div>
+        <div class="standings-table-sub">${state.standingsScope === "top10" ? "Top 10 del campeonato" : "Clasificación completa"}</div>
+      </div>
       ${visible.map(driver =>
         driverRow(
           driver.pos,
@@ -3841,7 +3855,11 @@ function showTeamsStandings() {
   const el = document.getElementById("standingsContent");
   if (!el) return;
   el.innerHTML = `
-    <div class="card">
+    <div class="card standings-table-v2">
+      <div class="standings-table-head">
+        <div class="standings-table-title">Vista equipos</div>
+        <div class="standings-table-sub">${state.standingsScope === "top10" ? "Top 10 de constructores" : "Clasificación completa"}</div>
+      </div>
       ${visible.map(team =>
         teamRow(
           team.pos,
