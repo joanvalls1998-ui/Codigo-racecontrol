@@ -241,6 +241,22 @@ nav,
     var(--shadow-2);
 }
 
+.favorito-v2-hero {
+  border-width: 1.5px;
+}
+
+.favorito-v2-objective {
+  background:
+    radial-gradient(circle at top left, rgba(94, 182, 255, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(26, 29, 38, 0.96), rgba(18, 20, 26, 0.92));
+}
+
+.favorito-v2-competitive {
+  background:
+    radial-gradient(circle at bottom right, rgba(255, 159, 10, 0.1), transparent 32%),
+    linear-gradient(180deg, rgba(26, 29, 38, 0.96), rgba(18, 20, 26, 0.92));
+}
+
 .card-head {
   display: flex;
   align-items: flex-start;
