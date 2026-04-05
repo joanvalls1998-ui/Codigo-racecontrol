@@ -1146,6 +1146,7 @@ function getSessionsHeroLead(context) {
 
 function getSessionWhatToWatch(session, favorite, context) {
   const favoriteName = favorite?.name || "tu favorito";
+  const expert = isExpertMode();
 
   const map = {
     fp1: [
@@ -1185,11 +1186,99 @@ function getSessionWhatToWatch(session, favorite, context) {
     ]
   };
 
-  return map[session?.key] || context?.whatToWatch || [
+  const items = map[session?.key] || context?.whatToWatch || [
     "Mira el guion general del fin de semana.",
     "Compara ejecución con ritmo real.",
     "Úsalo para entender mejor lo que viene después."
   ];
+
+  if (expert) return items;
+  return items.slice(0, 2);
+}
+
+function getSessionExpertAngle(session, context, favorite) {
+  const favoriteName = favorite?.name || "tu favorito";
+  const isSprint = Boolean(context?.isSprint);
+
+  const map = {
+    fp1: "FP1 abre el mapa real de trabajo: carga de combustible alta, sensaciones y límites del setup base.",
+    fp2: "FP2 suele ser la referencia más fiable para leer ritmo largo, degradación y ventanas de stint.",
+    fp3: "FP3 confirma si el ajuste para qualy va en la dirección correcta o si aún falta equilibrio.",
+    sprintShootout: "El Shootout penaliza errores mínimos: una vuelta imperfecta condiciona la Sprint y el resto del sábado.",
+    sprint: isSprint
+      ? "La Sprint da lectura operativa de tráfico y adelantamiento, pero la qualy principal sigue pesando para el domingo."
+      : "Esta sesión gana valor por ejecución en pelotón y gestión de neumático a ritmo alto.",
+    qualifying: isSprint
+      ? "Incluso con formato sprint, la qualy principal mantiene gran peso sobre aire limpio y estrategia del domingo."
+      : "La qualy define gran parte del techo de carrera: salida, tráfico y ventanas estratégicas.",
+    race: `La carrera convierte todo en ejecución: salida, ritmo de stint, paradas y capacidad de ${favoriteName} para evitar tráfico.`
+  };
+
+  return map[session?.key] || "Sesión útil para ajustar la lectura global del fin de semana.";
+}
+
+function getSessionVisualClass(status) {
+  if (status === "live") return "session-card-live highlight-card";
+  if (status === "next") return "session-card-next highlight-card";
+  if (status === "completed") return "session-card-completed";
+  return "session-card-upcoming";
+}
+
+function getVisibleSessions(context, expert) {
+  const sessions = context?.sessions || [];
+  if (expert || sessions.length <= 5) return { visible: sessions, hiddenCompletedCount: 0 };
+
+  const visible = [];
+  const completed = [];
+
+  sessions.forEach(session => {
+    if (session.status === "completed") completed.push(session);
+    else visible.push(session);
+  });
+
+  const keepCompleted = completed.length > 0 ? [completed[completed.length - 1]] : [];
+  return {
+    visible: [...visible, ...keepCompleted],
+    hiddenCompletedCount: Math.max(0, completed.length - keepCompleted.length)
+  };
+}
+
+function getWhatToWatchNowItems(context, favorite, expert) {
+  const baseItems = context?.whatToWatch || [
+    "No hay contexto disponible ahora mismo.",
+    "Recarga el calendario para volver a intentarlo."
+  ];
+
+  const items = baseItems.slice(0, expert ? 3 : 2);
+  if (!expert) return items;
+
+  const anchorSession = context?.currentSession || context?.nextSession || context?.lastCompletedSession;
+  const technical = anchorSession
+    ? getSessionExpertAngle(anchorSession, context, favorite)
+    : "Sin sesión de referencia, prioriza leer fase, formato y próxima ventana útil.";
+
+  return [...items, technical];
+}
+
+function getFavoriteImpactSummary(context, favorite, expert) {
+  const anchorSession = context?.currentSession || context?.nextSession || context?.lastCompletedSession;
+  const upcoming = (context?.sessions || []).find(session => session.status === "upcoming");
+
+  const lead = anchorSession
+    ? getSessionImpactOnFavorite(anchorSession.key, favorite)
+    : getSessionImpactOnFavorite("race", favorite);
+
+  const secondLine = upcoming
+    ? `Siguiente referencia: ${upcoming.label}. ${getSessionImpactOnFavorite(upcoming.key, favorite)}`
+    : "No hay una siguiente referencia clara cargada ahora mismo.";
+
+  if (!expert) return [lead, secondLine];
+
+  const technical = anchorSession
+    ? getSessionExpertAngle(anchorSession, context, favorite)
+    : "Sin sesión ancla, usa la fase del fin de semana para ponderar impacto real.";
+
+  return [lead, secondLine, technical];
 }
 
 function renderSessionsHero(context) {
@@ -1231,7 +1320,7 @@ function renderSessionsHero(context) {
     : "Sin hora circuito";
 
   return `
-    <div class="card highlight-card">
+    <div class="card highlight-card sessions-hero-v2">
       <div class="mini-pill">WEEKEND INTELLIGENCE</div>
       <div class="card-title">${escapeHtml(context.raceName || "GP")}</div>
       <div class="card-sub">${escapeHtml(getSessionsHeroLead(context))}</div>
@@ -1241,19 +1330,19 @@ function renderSessionsHero(context) {
         <span class="tag ${context.isSprint ? "statement" : "general"}">${context.isSprint ? "Sprint weekend" : "Formato normal"}</span>
       </div>
 
-      <div class="meta-grid" style="margin-top:14px;">
+      <div class="meta-grid sessions-hero-grid">
         <div class="meta-tile">
-          <div class="meta-kicker">Foco del GP</div>
+          <div class="meta-kicker">Fase del fin de semana</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(context.focusLabel)}</div>
           <div class="meta-caption">${escapeHtml(context.focusDescription)}</div>
         </div>
         <div class="meta-tile">
-          <div class="meta-kicker">${context.currentSession ? "Sesión actual" : "Siguiente sesión"}</div>
+          <div class="meta-kicker">${context.currentSession ? "Sesión en foco" : "Siguiente referencia"}</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(principalLabel)}</div>
           <div class="meta-caption">${escapeHtml(principalStatus)} · Tu hora: ${escapeHtml(principalUserMeta)}</div>
         </div>
         <div class="meta-tile">
-          <div class="meta-kicker">Hora circuito</div>
+          <div class="meta-kicker">Cuenta atrás y circuito</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(principalCircuitMeta)}</div>
           <div class="meta-caption">${escapeHtml(context.nextSessionCountdown || (context.currentSession ? "ahora" : "—"))}</div>
         </div>
@@ -1263,16 +1352,18 @@ function renderSessionsHero(context) {
 }
 
 function renderSessionCard(session, favorite, context) {
+  const expert = isExpertMode();
   const watchItems = getSessionWhatToWatch(session, favorite, context);
   const impact = getSessionImpactOnFavorite(session.key, favorite);
+  const expertAngle = expert ? getSessionExpertAngle(session, context, favorite) : "";
   const statusLabel = getSessionStatusLabel(session.status);
   const statusClass = getSessionStatusTagClass(session.status);
-  const isPrimary = session.status === "live" || session.status === "next";
   const userTime = formatSessionDateTime(session.start);
   const circuitTime = formatSessionCircuitDateTime(session.start, session.timeZone);
+  const showWatch = expert || session.status !== "completed";
 
   return `
-    <div class="card ${isPrimary ? "highlight-card" : ""}">
+    <div class="card ${getSessionVisualClass(session.status)}">
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">${escapeHtml(session.label)}</div>
@@ -1284,6 +1375,7 @@ function renderSessionCard(session, favorite, context) {
       </div>
 
       <div class="info-line">${escapeHtml(impact)}</div>
+      ${expertAngle ? `<div class="info-line sessions-expert-angle">${escapeHtml(expertAngle)}</div>` : ""}
 
       <div class="meta-grid" style="margin-top:14px;">
         <div class="meta-tile">
@@ -1303,10 +1395,12 @@ function renderSessionCard(session, favorite, context) {
         </div>
       </div>
 
-      <div class="meta-kicker" style="margin-top:14px;">Qué mirar</div>
-      <div class="insight-list">
-        ${watchItems.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
-      </div>
+      ${showWatch ? `
+        <div class="meta-kicker" style="margin-top:14px;">Qué mirar</div>
+        <div class="insight-list">
+          ${watchItems.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
+        </div>
+      ` : ""}
     </div>
   `;
 }
@@ -1321,31 +1415,57 @@ async function showSessions() {
     await fetchCalendarData();
     const context = state.weekendContext;
     const favorite = getFavorite();
+    const expert = isExpertMode();
+    const watchNowItems = getWhatToWatchNowItems(context, favorite, expert);
+    const impactSummary = getFavoriteImpactSummary(context, favorite, expert);
+    const sessionsView = getVisibleSessions(context, expert);
 
     contentEl().innerHTML = `
       ${renderSessionsHero(context)}
 
-      <div class="card">
+      <div class="card highlight-card sessions-watch-card">
         <div class="card-title">Qué mirar ahora</div>
         <div class="insight-list">
-          ${(context?.whatToWatch || [
-            "No hay contexto disponible ahora mismo.",
-            "Recarga el calendario para volver a intentarlo.",
-            "Cuando haya GP cargado, aquí saldrán las claves del momento."
-          ]).map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
+          ${watchNowItems.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
         </div>
       </div>
 
-      ${isExpertMode() ? renderContextGlossaryCard("sessions", context?.phase || "pre_weekend") : ""}
+      <div class="card sessions-status-card">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-title">Estado de sesiones</div>
+            <div class="card-sub">Seguimiento operativo del fin de semana.</div>
+          </div>
+          <div class="card-head-actions">
+            <span class="tag statement">Live</span>
+            <span class="tag market">Next</span>
+          </div>
+        </div>
+      </div>
 
       ${(context?.sessions || []).length
-        ? context.sessions.map(session => renderSessionCard(session, favorite, context)).join("")
+        ? sessionsView.visible.map(session => renderSessionCard(session, favorite, context)).join("")
         : `
           <div class="card">
             <div class="card-title">Sesiones</div>
             <div class="empty-line">${escapeHtml(context?.scheduleReason || "No se han podido construir las sesiones del GP ahora mismo.")}</div>
           </div>
         `}
+
+      ${sessionsView.hiddenCompletedCount > 0 ? `
+        <div class="card">
+          <div class="empty-line">Se compactaron ${sessionsView.hiddenCompletedCount} sesiones completadas para mantener foco en lo operativo.</div>
+        </div>
+      ` : ""}
+
+      <div class="card sessions-impact-card">
+        <div class="card-title">Impacto en el favorito</div>
+        <div class="insight-list">
+          ${impactSummary.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
+        </div>
+      </div>
+
+      ${expert ? renderContextGlossaryCard("sessions", context?.phase || "pre_weekend") : ""}
     `;
   } catch (error) {
     contentEl().innerHTML = renderErrorCard("Sesiones", "Error al preparar esta pantalla", error.message);

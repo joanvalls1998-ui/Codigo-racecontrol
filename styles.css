@@ -1497,6 +1497,47 @@ nav,
   margin-top: 10px;
 }
 
+.sessions-hero-v2 .card-title {
+  margin-bottom: 8px;
+}
+
+.sessions-hero-v2 .card-sub {
+  max-width: 68ch;
+}
+
+.sessions-hero-grid {
+  margin-top: 14px;
+}
+
+.sessions-watch-card .card-title,
+.sessions-status-card .card-title,
+.sessions-impact-card .card-title {
+  font-size: clamp(18px, 2vw, 22px);
+}
+
+.session-card-live {
+  border-color: color-mix(in srgb, var(--theme-glow) 62%, rgba(255,255,255,0.2));
+}
+
+.session-card-next {
+  border-color: color-mix(in srgb, #f6b94f 55%, rgba(255,255,255,0.18));
+}
+
+.session-card-upcoming {
+  border-color: rgba(255,255,255,0.11);
+}
+
+.session-card-completed {
+  opacity: 0.84;
+  background: linear-gradient(180deg, rgba(20, 22, 28, 0.9), rgba(14, 16, 22, 0.88));
+}
+
+.sessions-expert-angle {
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
 @media (min-width: 640px) {
   #content {
     padding-left: 20px;
