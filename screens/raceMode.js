@@ -63,7 +63,7 @@ function renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData) {
     <div class="card highlight-card predict-hero-v2 race-mode-v2-hero">
       <div class="mini-pill">MODO CARRERA V2.5</div>
       <div class="card-title">${escapeHtml(raceName)}</div>
-      <div class="card-sub">${escapeHtml(stage.description)}</div>
+      ${isCasualMode() ? `<div class="card-sub">${escapeHtml(stage.description)}</div>` : ""}
 
       ${renderCircuitThumb(raceName, 84)}
 
@@ -135,7 +135,7 @@ function renderRaceModeQuickRead(favorite, raceName, predictData, stage) {
   return `
     <div class="card race-mode-v2-primary">
       <div class="card-title">Lectura rápida de carrera</div>
-      <div class="card-sub">${expert ? "Resumen operativo + lectura técnica para decidir foco del GP." : "Tres ideas para entender el GP en segundos."}</div>
+      ${expert ? "" : `<div class="card-sub">Tres ideas para entender el GP en segundos.</div>`}
       <div class="insight-list">
         ${items.map(item => `
           <div class="insight-item">
@@ -157,7 +157,7 @@ function renderRaceModeFavoriteSummary(favorite, raceName, predictData) {
   return `
     <div class="card race-mode-v2-primary">
       <div class="card-title">Resumen del favorito</div>
-      <div class="card-sub">${expert ? "Estado competitivo, tendencia y equilibrio qualy/carrera del favorito." : "Tu referencia central del fin de semana."}</div>
+      ${expert ? "" : `<div class="card-sub">Tu referencia central del fin de semana.</div>`}
 
       <div class="predict-grid">
         <div class="stat-tile">
@@ -218,7 +218,7 @@ function renderRaceModeTop10(predictData, favorite) {
   return `
     <div class="card race-mode-v2-primary">
       <div class="card-title">Top estimado</div>
-      <div class="card-sub">Top 10 esperado + referencia principal del GP.</div>
+      ${isCasualMode() ? `<div class="card-sub">Top 10 esperado + referencia principal del GP.</div>` : ""}
       <div class="mode-race-top10">
         ${top10.length ? top10.map(driver => {
           const badges = [];
@@ -267,7 +267,7 @@ function renderRaceModeExecutionPanel(favorite, raceName, predictData, stage) {
   return `
     <div class="card race-mode-v2-primary">
       <div class="card-title">Panel operativo</div>
-      <div class="card-sub">${expert ? "Ejecución real del GP: estrategia, rival y riesgo en dos fases." : "Resumen operativo para seguir la carrera sin ruido."}</div>
+      ${expert ? "" : `<div class="card-sub">Resumen operativo para seguir la carrera sin ruido.</div>`}
       <div class="meta-grid">
         <div class="meta-tile">
           <div class="meta-kicker">Sábado</div>
@@ -305,7 +305,7 @@ function renderRaceModeComparativeCard(favorite, raceName, predictData) {
   return `
     <div class="card race-mode-v2-primary">
       <div class="card-title">Comparativa útil del GP</div>
-      <div class="card-sub">${isExpertMode() ? "Favorito vs rival directo + referencia interna para leer tendencia real." : "Referencia rápida contra rival directo."}</div>
+      ${isExpertMode() ? "" : `<div class="card-sub">Referencia rápida contra rival directo.</div>`}
       <div class="meta-grid">
         <div class="meta-tile">
           <div class="meta-kicker">Rival directo</div>

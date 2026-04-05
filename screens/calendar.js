@@ -23,7 +23,7 @@ function renderCalendarIntelligenceHero(nextRace, context) {
     <div class="card highlight-card calendar-hero-card">
       <div class="mini-pill">SIGUIENTE GP</div>
       <div class="card-title">${escapeHtml(nextRace.title)}</div>
-      <div class="card-sub">${escapeHtml(nextRace.venue || "Venue pendiente")} · ${escapeHtml(nextRace.location || "Ubicación pendiente")}</div>
+      ${casual ? `<div class="card-sub">${escapeHtml(nextRace.venue || "Venue pendiente")} · ${escapeHtml(nextRace.location || "Ubicación pendiente")}</div>` : ""}
 
       ${renderCircuitThumb(raceName, 84)}
 
@@ -116,11 +116,11 @@ function renderCalendarFlowCard(context) {
 
   return `
     <div class="card calendar-flow-card">
-      <div class="card-head">
-        <div class="card-head-left">
-          <div class="card-title">Flujo del GP</div>
-          <div class="card-sub">Orden operativo de sesiones del fin de semana.</div>
-        </div>
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-title">Flujo del GP</div>
+            ${isCasualMode() ? `<div class="card-sub">Orden operativo de sesiones del fin de semana.</div>` : ""}
+          </div>
       </div>
 
       <div class="calendar-flow-list">
@@ -171,7 +171,7 @@ async function showCalendar(force = false) {
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">Próximas citas</div>
-            <div class="card-sub">Panel de temporada para entender qué toca ahora y qué viene después.</div>
+            ${casual ? `<div class="card-sub">Qué toca ahora y qué viene después.</div>` : ""}
           </div>
           <div class="card-head-actions">
             <button class="icon-btn" onclick="refreshCalendar()">Refrescar</button>
@@ -186,7 +186,7 @@ async function showCalendar(force = false) {
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">Citas completadas</div>
-            <div class="card-sub">${casual ? "Histórico resumido para mantener foco en lo próximo." : "Histórico rápido del progreso de la temporada."}</div>
+            ${casual ? `<div class="card-sub">Histórico resumido.</div>` : ""}
           </div>
         </div>
 

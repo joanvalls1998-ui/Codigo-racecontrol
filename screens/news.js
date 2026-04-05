@@ -616,7 +616,7 @@ function renderNewsPhaseCard(phase) {
   return `
     <div class="card news-phase-v2">
       <div class="card-title">${escapeHtml(copy.title)}</div>
-      <div class="card-sub">${escapeHtml(copy.sub)}</div>
+      ${isCasualMode() ? `<div class="card-sub">${escapeHtml(copy.sub)}</div>` : ""}
       <div class="news-meta-row" style="margin-top:10px;">
         <span class="tag ${getWeekendPhaseTagClass(phase)}">${escapeHtml(getWeekendPhaseLabel(phase))}</span>
       </div>
@@ -648,7 +648,7 @@ async function showNews() {
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">NOTICIAS</div>
-          <div class="card-sub">${isExpertMode() ? "Lectura editorial con impacto real, prioridad y contexto de GP." : "Portada rápida para entender qué pasa y qué mirar primero."}</div>
+          ${isCasualMode() ? `<div class="card-sub">Portada rápida para entender qué pasa y qué mirar primero.</div>` : ""}
         </div>
         <div class="card-head-actions">
           <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
@@ -674,7 +674,7 @@ async function showNews() {
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">NOTICIAS</div>
-            <div class="card-sub">${isExpertMode() ? "Lectura editorial con impacto real, prioridad y contexto de GP." : "Portada rápida para entender qué pasa y qué mirar primero."}</div>
+            ${isCasualMode() ? `<div class="card-sub">Portada rápida para entender qué pasa y qué mirar primero.</div>` : ""}
           </div>
           <div class="card-head-actions">
             <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
@@ -714,11 +714,11 @@ async function showNews() {
       <div class="card news-list-v2">
         <div class="card-title">${isExpertMode() ? "Seguimiento y contexto" : "Más noticias"}</div>
         ${isExpertMode() ? `
-          <div class="mini-pill" style="margin-top:10px;">Importantes ahora</div>
+          <div class="mini-pill" style="margin-top:10px;">Alta prioridad</div>
           ${importantRest.length
             ? importantRest.map(item => renderNewsListItem(item, filter, phase)).join("")
             : `<div class="empty-line">No hay noticias de alta prioridad adicionales.</div>`}
-          <div class="mini-pill" style="margin-top:12px;">Contexto y seguimiento</div>
+          <div class="mini-pill" style="margin-top:12px;">Seguimiento</div>
           ${contextRest.length
             ? contextRest.map(item => renderNewsListItem(item, filter, phase)).join("")
             : `<div class="empty-line">No hay noticias de contexto adicionales.</div>`}
