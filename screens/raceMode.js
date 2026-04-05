@@ -57,6 +57,7 @@ function renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData) {
   const stage = getRaceWeekendStage(nextRaceEvent);
   const expert = isExpertMode();
   const operational = getRaceModeOperationalSignals(favorite, raceName, predictData, stage);
+  const contextOperational = getWeekendOperationalFocus(getHomeWeekendContext() || state.weekendContext);
 
   return `
     <div class="card highlight-card predict-hero-v2 race-mode-v2-hero">
@@ -70,6 +71,7 @@ function renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData) {
         <span class="tag general">${escapeHtml(stage.label)}</span>
         <span class="trend-pill ${operational.signal.className}">${escapeHtml(operational.signal.label)}</span>
         <span class="tag technical">Factor GP: ${escapeHtml(operational.strategy.factor)}</span>
+        <span class="tag ${escapeHtml(contextOperational.tagClass)}">Ahora manda: ${escapeHtml(contextOperational.label)}</span>
       </div>
 
       <div class="meta-grid race-mode-v2-hero-grid">
@@ -100,6 +102,7 @@ function renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData) {
           Lectura experta: ${escapeHtml(operational.stageRead)} Relación qualy/carrera: ${escapeHtml(operational.balance.label)}.
         </div>
       ` : ""}
+      <div class="info-line">${escapeHtml(contextOperational.detail)}</div>
     </div>
   `;
 }
@@ -315,6 +318,14 @@ async function showRaceMode() {
 
     contentEl().innerHTML = `
       ${renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData)}
+      ${renderFavoritePersonalPulseCard({
+        favorite,
+        raceName,
+        predictData,
+        context: state.weekendContext,
+        title: "Radar personal en modo carrera",
+        expert
+      })}
       ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
       ${renderRaceModeExecutionPanel(favorite, raceName, predictData, stage)}
       ${renderRaceModeFavoriteSummary(favorite, raceName, predictData)}

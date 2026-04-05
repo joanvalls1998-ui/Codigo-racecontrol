@@ -318,6 +318,9 @@ function renderFavoriteQuickSelectorCard({
           return `<button class="chip ${active ? "active" : ""}" onclick="switchQuickFavorite('${escapeHtml(value)}', '${returnView}')">${escapeHtml(item.name.split(" ").slice(-1)[0] || item.name)}</button>`;
         }).join("")}
       </div>
+      <div class="action-row" style="margin-top:10px;">
+        <button class="btn-secondary" onclick="openFavoriteSelectorModal('${returnView}')">Abrir selector completo</button>
+      </div>
     </div>
   `;
 }
@@ -336,6 +339,41 @@ function switchQuickFavorite(value, returnView = "refreshCurrentView") {
   if (returnView === "showNews") return showNews();
   if (returnView === "showFavorito") return showFavorito();
   refreshCurrentView();
+}
+
+function openFavoriteSelectorModal(returnView = "refreshCurrentView") {
+  const favorite = getFavorite();
+  const options = getQuickFavoriteOptions();
+  const currentKey = encodeQuickFavoriteValue(favorite);
+
+  openDetailModal(`
+    <div class="card favorite-selector-modal" style="margin-bottom:0;">
+      <div class="card-head">
+        <div class="card-head-left">
+          <div class="card-title">Cambiar favorito</div>
+          <div class="card-sub">Acción rápida para actualizar toda la app en un toque.</div>
+        </div>
+        <div class="card-head-actions">
+          <button class="icon-btn" onclick="closeDetailModal()">Cerrar</button>
+        </div>
+      </div>
+      <div class="favorite-selector-list">
+        ${options.map(item => {
+          const key = encodeQuickFavoriteValue(item);
+          const active = key === currentKey;
+          const line = item.type === "driver"
+            ? `${item.team || "Piloto"} · #${item.number || "—"}`
+            : `${item.drivers || "Equipo"} · Constructores`;
+          return `
+            <button class="favorite-selector-item ${active ? "active" : ""}" onclick="switchQuickFavorite('${escapeHtml(key)}', '${escapeHtml(returnView)}'); closeDetailModal();">
+              <div class="favorite-selector-main">${escapeHtml(item.name)}</div>
+              <div class="favorite-selector-sub">${escapeHtml(line)}</div>
+            </button>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `);
 }
 
 function applyFavoriteTheme() {
@@ -1080,6 +1118,126 @@ function getWeekendFocus(phase, currentSession, nextSession) {
   };
 }
 
+function getWeekendOperationalFocus(context) {
+  if (!context) {
+    return {
+      key: "ritmo",
+      label: "Ritmo base",
+      detail: "Sin contexto del GP, prioriza referencias de ritmo antes de sacar conclusiones.",
+      tagClass: "general"
+    };
+  }
+
+  const phase = context.phase;
+  const anchor = context.currentSession || context.nextSession || context.lastCompletedSession;
+  const key = anchor?.key || "";
+
+  if (phase === "pre_weekend") {
+    return {
+      key: "ritmo",
+      label: "Ritmo",
+      detail: "Previa: la referencia útil sigue siendo el potencial de ritmo y fiabilidad.",
+      tagClass: "technical"
+    };
+  }
+
+  if (phase === "friday") {
+    return {
+      key: "degradacion",
+      label: "Ritmo + degradación",
+      detail: "Viernes: separa tabla de vuelta rápida y consistencia real de stint.",
+      tagClass: "general"
+    };
+  }
+
+  if (phase === "saturday") {
+    if (key === "sprint" || key === "sprintShootout") {
+      return {
+        key: "salida",
+        label: "Salida y posición",
+        detail: "Sábado sprint: la posición en pista y la salida pesan más de lo normal.",
+        tagClass: "market"
+      };
+    }
+    return {
+      key: "qualy",
+      label: "Qualy",
+      detail: "Sábado: la qualy define aire limpio, tráfico y techo real del domingo.",
+      tagClass: "market"
+    };
+  }
+
+  if (phase === "sunday") {
+    if (key === "race" || context.currentSession?.key === "race") {
+      return {
+        key: "estrategia",
+        label: "Estrategia + Safety Car",
+        detail: "Domingo: salida, primera parada y neutralizaciones pueden romper cualquier guion previo.",
+        tagClass: "statement"
+      };
+    }
+    return {
+      key: "salida",
+      label: "Salida",
+      detail: "Pre-carrera: la salida y el primer stint condicionan gran parte del resultado.",
+      tagClass: "statement"
+    };
+  }
+
+  return {
+    key: "post",
+    label: "Cierre",
+    detail: "Post GP: lectura útil para comparar guion previsto vs ejecución real.",
+    tagClass: "context"
+  };
+}
+
+function getFavoritePersonalContext(favorite, raceName, predictData = null, context = null) {
+  const objective = getFavoriteWeekendObjective(favorite, raceName, predictData, context);
+  const rivals = getFavoriteDirectRivals(favorite, state.standingsCache, predictData);
+  const directRival = rivals[0] || null;
+  const teammate = rivals.find(r => normalizeText(r.title).includes("compañero")) || null;
+
+  return {
+    objective,
+    directRival,
+    teammate,
+    objectiveLine: objective?.realistic || "Objetivo no disponible"
+  };
+}
+
+function renderFavoritePersonalPulseCard({
+  favorite,
+  raceName,
+  predictData = null,
+  context = null,
+  title = "Radar del favorito",
+  expert = false
+} = {}) {
+  if (!favorite) return "";
+  const personal = getFavoritePersonalContext(favorite, raceName, predictData, context);
+
+  return `
+    <div class="card favorite-personal-pulse ${favorite.colorClass ? `favorite-accent-${escapeHtml(favorite.colorClass)}` : ""}">
+      <div class="card-title">${escapeHtml(title)}</div>
+      <div class="card-sub">${escapeHtml(favorite.name)} · ${escapeHtml(personal.objectiveLine)}</div>
+      <div class="meta-grid" style="margin-top:12px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Rival directo</div>
+          <div class="meta-value" style="font-size:17px;">${escapeHtml(personal.directRival?.title || "Sin rival claro")}</div>
+          <div class="meta-caption">${escapeHtml(personal.directRival?.sub || "Esperando datos de contexto")}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Compañero</div>
+          <div class="meta-value" style="font-size:17px;">${escapeHtml(personal.teammate?.title || "Sin comparativa")}</div>
+          <div class="meta-caption">${escapeHtml(personal.teammate?.meta || "Comparativa interna pendiente")}</div>
+        </div>
+      </div>
+      ${expert ? `<div class="info-line">Objetivo mínimo: ${escapeHtml(personal.objective?.minimum || "—")} · Techo: ${escapeHtml(personal.objective?.high || "—")}.</div>` : ""}
+    </div>
+  `;
+}
+
 function getWhatToWatchNow(phase, currentSession, nextSession, favorite) {
   const favoriteName = favorite?.name || "tu favorito";
   const favoriteTeam = favorite?.type === "driver" ? favorite.team : favorite?.name || "su equipo";
@@ -1442,6 +1600,7 @@ function renderSessionsOperationalPanel(context, favorite, expert) {
   const anchor = context?.currentSession || context?.nextSession || context?.lastCompletedSession;
   if (!anchor) return "";
   const weight = getSessionOperationalWeight(anchor, context);
+  const operational = getWeekendOperationalFocus(context);
   const sessionImpact = getSessionImpactOnFavorite(anchor.key, favorite);
   const stageLine = expert
     ? getSessionExpertAngle(anchor, context, favorite)
@@ -1468,6 +1627,9 @@ function renderSessionsOperationalPanel(context, favorite, expert) {
         </div>
       </div>
       <div class="info-line">${escapeHtml(stageLine)}</div>
+      <div class="news-meta-row" style="margin-top:10px;">
+        <span class="tag ${escapeHtml(operational.tagClass)}">Foco GP: ${escapeHtml(operational.label)}</span>
+      </div>
     </div>
   `;
 }
@@ -1499,6 +1661,7 @@ function renderSessionsHero(context) {
   }
 
   const principalSession = context.currentSession || context.nextSession || context.lastCompletedSession;
+  const operational = getWeekendOperationalFocus(context);
   const principalLabel = principalSession?.label || "Sin datos";
   const principalStatus = principalSession
     ? getSessionStatusLabel(principalSession.status)
@@ -1519,6 +1682,7 @@ function renderSessionsHero(context) {
       <div class="news-meta-row" style="margin-top:10px;">
         <span class="tag ${getWeekendPhaseTagClass(context.phase)}">${escapeHtml(context.phaseLabel)}</span>
         <span class="tag ${context.isSprint ? "statement" : "general"}">${context.isSprint ? "Sprint weekend" : "Formato normal"}</span>
+        <span class="tag ${escapeHtml(operational.tagClass)}">Foco: ${escapeHtml(operational.label)}</span>
       </div>
 
       <div class="meta-grid sessions-hero-grid">
@@ -1538,6 +1702,7 @@ function renderSessionsHero(context) {
           <div class="meta-caption">${escapeHtml(context.nextSessionCountdown || (context.currentSession ? "ahora" : "—"))}</div>
         </div>
       </div>
+      <div class="info-line">${escapeHtml(operational.detail)}</div>
     </div>
   `;
 }
@@ -2645,6 +2810,7 @@ function renderHomePhaseHero(context) {
   }
 
   const leadSession = context.currentSession || context.nextSession || context.lastCompletedSession;
+  const operational = getWeekendOperationalFocus(context);
   const leadLabel = leadSession?.label || "Sin datos";
   const leadStatus = leadSession ? getSessionStatusLabel(leadSession.status) : "Sin datos";
   const leadUserTime = leadSession?.start ? formatSessionDateTime(leadSession.start) : "Sin hora";
@@ -2658,6 +2824,7 @@ function renderHomePhaseHero(context) {
       <div class="news-meta-row" style="margin-top:10px;">
         <span class="tag ${getWeekendPhaseTagClass(context.phase)}">${escapeHtml(context.phaseLabel)}</span>
         <span class="tag ${context.isSprint ? "statement" : "general"}">${context.isSprint ? "Sprint weekend" : "Formato normal"}</span>
+        <span class="tag ${escapeHtml(operational.tagClass)}">Foco: ${escapeHtml(operational.label)}</span>
       </div>
 
       <div class="meta-grid" style="margin-top:14px;">
@@ -2677,6 +2844,7 @@ function renderHomePhaseHero(context) {
           <div class="meta-caption">Próxima referencia</div>
         </div>
       </div>
+      <div class="info-line">${escapeHtml(operational.detail)}</div>
     </div>
   `;
 }
@@ -2717,15 +2885,20 @@ function renderHomeNowCard(context, favorite, options = {}) {
   const userTime = formatSessionDateTime(target.start);
   const circuitTime = formatSessionCircuitDateTime(target.start, target.timeZone);
   const impact = getSessionImpactOnFavorite(target.key, favorite);
+  const operational = getWeekendOperationalFocus(context);
+  const nextLabel = context?.nextSession?.label || "Sin siguiente sesión clara";
+  const nextCountdown = context?.nextSessionCountdown || "sin cuenta atrás disponible";
 
   if (compact) {
     return `
       <div class="card">
-        <div class="card-title">Siguiente sesión</div>
+        <div class="card-title">${context.currentSession ? "Ahora mismo" : "Siguiente referencia"}</div>
         <div class="info-line" style="margin-top:10px;">${escapeHtml(impact)}</div>
+        <div class="info-line">${escapeHtml(context.currentSession ? `En curso: ${target.label}.` : `Próxima clave: ${nextLabel} (${nextCountdown}).`)}</div>
         <div class="news-meta-row" style="margin-top:12px;">
           <span class="tag technical">${escapeHtml(getSessionStatusLabel(target.status))}</span>
           <span class="tag general">${escapeHtml(target.label)}</span>
+          <span class="tag ${escapeHtml(operational.tagClass)}">${escapeHtml(operational.label)}</span>
         </div>
       </div>
     `;
@@ -2735,6 +2908,7 @@ function renderHomeNowCard(context, favorite, options = {}) {
     <div class="card home-next-session-expert-card">
       <div class="card-title">${context.currentSession ? "Ahora mismo" : target.status === "next" ? "Siguiente sesión" : "Última sesión"}</div>
       <div class="info-line" style="margin-top:10px;">${escapeHtml(impact)}</div>
+      <div class="info-line">${escapeHtml(operational.detail)}</div>
 
       <div class="meta-grid home-next-session-expert-grid">
         <div class="meta-tile home-next-session-expert-tile">
@@ -3419,22 +3593,29 @@ function renderPredictPreviewCards(favorite, raceName) {
 
 function renderPredictScenarioCards(favorite, raceName, data = null) {
   const scenarios = getPredictScenarios(favorite, raceName, data);
+  const context = getPredictContextForRace(raceName);
   const scenarioMap = [
-    { title: "Suelo", sub: "Objetivo mínimo" },
-    { title: "Escenario base", sub: "Objetivo razonable" },
-    { title: "Techo", sub: "Objetivo alto" }
+    { title: "Suelo", sub: "Objetivo mínimo", className: "scenario-floor" },
+    { title: "Escenario base", sub: "Objetivo razonable", className: "scenario-base" },
+    { title: "Techo", sub: "Objetivo alto", className: "scenario-ceiling" }
   ];
+  const phaseNote = context.phase === "saturday"
+    ? "Hoy depende mucho de la qualy."
+    : context.phase === "sunday"
+      ? "Hoy depende de ejecución y estrategia."
+      : "Previa del GP: aún manda la base.";
 
   return `
     <div class="grid-stats">
       ${scenarios.map((item, index) => `
-        <div class="stat-tile">
+        <div class="stat-tile ${escapeHtml(scenarioMap[index]?.className || "")}">
           <div class="stat-kicker">${escapeHtml(scenarioMap[index]?.title || item.kicker)}</div>
           <div class="stat-value" style="font-size:22px;">${escapeHtml(item.value)}</div>
           <div class="stat-caption"><strong>${escapeHtml(scenarioMap[index]?.sub || "Escenario")}</strong> · ${escapeHtml(item.text)}</div>
         </div>
       `).join("")}
     </div>
+    <div class="info-line" style="margin-top:12px;">${escapeHtml(phaseNote)}</div>
   `;
 }
 
@@ -3735,6 +3916,7 @@ function showMore() {
               compact: true
             })}
             <div class="action-row">
+              <button class="btn" onclick="openFavoriteSelectorModal('showMore')">Selector completo</button>
               <button class="btn-secondary" onclick="showStandings()">Abrir clasificación</button>
               <button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset favorito</button>
             </div>

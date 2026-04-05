@@ -2329,3 +2329,52 @@ nav > *,
 #nav-more:active {
   transform: scale(0.98) !important;
 }
+
+.favorite-personal-pulse {
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 30%, rgba(255,255,255,0.12));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--theme-accent) 12%, rgba(12,14,20,0.96)), rgba(10,12,18,0.95));
+}
+
+.favorite-selector-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.favorite-selector-item {
+  width: 100%;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #f7f9ff;
+}
+
+.favorite-selector-item.active {
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 18%, rgba(255,255,255,0.04));
+}
+
+.favorite-selector-main {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.favorite-selector-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.scenario-floor {
+  border-color: rgba(255, 109, 109, 0.45);
+}
+
+.scenario-base {
+  border-color: rgba(126, 214, 149, 0.45);
+}
+
+.scenario-ceiling {
+  border-color: rgba(109, 167, 255, 0.45);
+}
