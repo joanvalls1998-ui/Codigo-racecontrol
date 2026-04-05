@@ -1397,3 +1397,6 @@ nav > *,
 #nav-more:active {
   transform: scale(0.98) !important;
 }
+.card-sub {
+  display: none !important;
+}
