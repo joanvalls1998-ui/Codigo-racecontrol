@@ -215,6 +215,129 @@ function saveFavorite(favorite) {
   storageWriteJson(STORAGE_KEYS.favorite, normalizeFavorite(favorite));
 }
 
+function applyFavoriteAcrossApp(nextFavorite) {
+  const favorite = normalizeFavorite(nextFavorite);
+  saveFavorite(favorite);
+
+  if (state.calendarCache?.events) {
+    state.weekendContext = buildWeekendContext(state.calendarCache.events, favorite);
+    state.weekendNowIso = new Date().toISOString();
+  }
+
+  state.currentNewsFilterKey = "favorite";
+  saveUiState();
+  applyFavoriteTheme();
+  updateSubtitle();
+}
+
+function getQuickFavoriteOptions() {
+  const current = getFavorite();
+  const drivers = Array.isArray(state.standingsCache?.drivers) ? state.standingsCache.drivers.slice(0, 10) : [];
+  const teams = Array.isArray(state.standingsCache?.teams) ? state.standingsCache.teams.slice(0, 6) : [];
+
+  const fallbackDriver = getDefaultFavorite();
+  const fallbackTeam = {
+    type: "team",
+    name: "Aston Martin",
+    drivers: "Fernando Alonso / Lance Stroll",
+    points: "0",
+    colorClass: "aston",
+    pos: "10"
+  };
+
+  const list = [];
+  const pushUnique = item => {
+    const key = `${item.type}:${item.name}`;
+    if (list.some(option => `${option.type}:${option.name}` === key)) return;
+    list.push(item);
+  };
+
+  pushUnique(current);
+  pushUnique(fallbackDriver);
+  pushUnique(fallbackTeam);
+
+  drivers.forEach(driver => {
+    pushUnique({
+      type: "driver",
+      name: driver.name,
+      team: driver.team,
+      number: String(driver.number || ""),
+      points: String(driver.points || "0"),
+      colorClass: driver.colorClass || "aston",
+      image: driver.image || "",
+      pos: String(driver.pos || "")
+    });
+  });
+
+  teams.forEach(team => {
+    pushUnique({
+      type: "team",
+      name: team.team,
+      drivers: team.drivers || "",
+      points: String(team.points || "0"),
+      colorClass: team.colorClass || "aston",
+      pos: String(team.pos || "")
+    });
+  });
+
+  return list.slice(0, 14);
+}
+
+function encodeQuickFavoriteValue(option) {
+  return `${option.type}:${option.name}`;
+}
+
+function renderFavoriteQuickSelectorCard({
+  title = "Selector rápido de favorito",
+  subtitle = "Cámbialo en un toque y actualiza Home, Predict y Noticias.",
+  returnView = "refreshCurrentView",
+  compact = false
+} = {}) {
+  const favorite = getFavorite();
+  const options = getQuickFavoriteOptions();
+  const currentKey = encodeQuickFavoriteValue(favorite);
+  const chips = options.filter(item => item.type === "driver").slice(0, compact ? 3 : 4);
+
+  return `
+    <div class="card favorite-quick-card ${compact ? "compact" : ""}">
+      <div class="card-title">${escapeHtml(title)}</div>
+      <div class="card-sub">${escapeHtml(subtitle)}</div>
+      <select class="select-input" onchange="switchQuickFavorite(this.value, '${returnView}')">
+        ${options.map(item => {
+          const label = item.type === "driver"
+            ? `${item.name} · ${item.team || "Piloto"}`
+            : `${item.name} · Equipo`;
+          const value = encodeQuickFavoriteValue(item);
+          return `<option value="${escapeHtml(value)}" ${value === currentKey ? "selected" : ""}>${escapeHtml(label)}</option>`;
+        }).join("")}
+      </select>
+      <div class="news-meta-row" style="margin-top:10px;">
+        ${chips.map(item => {
+          const value = encodeQuickFavoriteValue(item);
+          const active = value === currentKey;
+          return `<button class="chip ${active ? "active" : ""}" onclick="switchQuickFavorite('${escapeHtml(value)}', '${returnView}')">${escapeHtml(item.name.split(" ").slice(-1)[0] || item.name)}</button>`;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function switchQuickFavorite(value, returnView = "refreshCurrentView") {
+  const [type, ...nameParts] = String(value || "").split(":");
+  const name = nameParts.join(":");
+  const option = getQuickFavoriteOptions().find(item => item.type === type && item.name === name);
+  if (!option) return;
+
+  applyFavoriteAcrossApp(option);
+
+  if (returnView === "showMore") return showMore();
+  if (returnView === "showHome") return showHome();
+  if (returnView === "showPredict") return showPredict();
+  if (returnView === "showNews") return showNews();
+  if (returnView === "showFavorito") return showFavorito();
+  refreshCurrentView();
+}
+
 function applyFavoriteTheme() {
   const favorite = getFavorite();
   const root = document.body;
@@ -1289,6 +1412,66 @@ function getFavoriteImpactSummary(context, favorite, expert) {
   return [lead, secondLine, technical];
 }
 
+function getSessionOperationalWeight(session, context) {
+  if (!session) return { label: "Media", className: "context", detail: "Mantiene el flujo del fin de semana." };
+
+  if (session.status === "live") {
+    return { label: "Máxima", className: "statement", detail: "Es la referencia activa y condiciona el siguiente paso inmediato." };
+  }
+
+  if (session.status === "next") {
+    return { label: "Alta", className: "market", detail: "Es la próxima ventana útil para validar el escenario del GP." };
+  }
+
+  if (session.key === "qualifying" || session.key === "sprintShootout") {
+    return { label: "Alta", className: "technical", detail: "Define gran parte de la posición en pista." };
+  }
+
+  if (session.key === "race") {
+    return { label: "Máxima", className: "statement", detail: "Convierte toda la lectura previa en resultado real." };
+  }
+
+  if (context?.phase === "friday" && (session.key === "fp2" || session.key === "fp1")) {
+    return { label: "Media-Alta", className: "general", detail: "El viernes sirve para filtrar ruido y validar ritmo largo." };
+  }
+
+  return { label: "Media", className: "context", detail: "Aporta contexto operativo para ajustar la lectura global." };
+}
+
+function renderSessionsOperationalPanel(context, favorite, expert) {
+  const anchor = context?.currentSession || context?.nextSession || context?.lastCompletedSession;
+  if (!anchor) return "";
+  const weight = getSessionOperationalWeight(anchor, context);
+  const sessionImpact = getSessionImpactOnFavorite(anchor.key, favorite);
+  const stageLine = expert
+    ? getSessionExpertAngle(anchor, context, favorite)
+    : "Panel operativo: prioriza esta sesión antes de mirar el resto.";
+
+  return `
+    <div class="card sessions-operational-card">
+      <div class="card-title">Panel operativo del GP</div>
+      <div class="meta-grid">
+        <div class="meta-tile">
+          <div class="meta-kicker">Sesión foco</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(anchor.label)}</div>
+          <div class="meta-caption">${escapeHtml(getSessionStatusLabel(anchor.status))}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Peso ahora</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(weight.label)}</div>
+          <div class="meta-caption">${escapeHtml(weight.detail)}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Impacto favorito</div>
+          <div class="meta-value" style="font-size:16px;">${escapeHtml(favorite.name)}</div>
+          <div class="meta-caption">${escapeHtml(sessionImpact)}</div>
+        </div>
+      </div>
+      <div class="info-line">${escapeHtml(stageLine)}</div>
+    </div>
+  `;
+}
+
 function renderSessionsHero(context) {
   if (!context) {
     return `
@@ -1369,6 +1552,7 @@ function renderSessionCard(session, favorite, context) {
   const userTime = formatSessionDateTime(session.start);
   const circuitTime = formatSessionCircuitDateTime(session.start, session.timeZone);
   const showWatch = expert || session.status !== "completed";
+  const weight = getSessionOperationalWeight(session, context);
 
   return `
     <div class="card ${getSessionVisualClass(session.status)}">
@@ -1383,6 +1567,9 @@ function renderSessionCard(session, favorite, context) {
       </div>
 
       <div class="info-line">${escapeHtml(impact)}</div>
+      <div class="news-meta-row" style="margin-top:8px;">
+        <span class="tag ${weight.className}">Peso: ${escapeHtml(weight.label)}</span>
+      </div>
       ${expertAngle ? `<div class="info-line sessions-expert-angle">${escapeHtml(expertAngle)}</div>` : ""}
 
       <div class="meta-grid" style="margin-top:14px;">
@@ -1408,6 +1595,7 @@ function renderSessionCard(session, favorite, context) {
         <div class="insight-list">
           ${watchItems.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
         </div>
+        <div class="info-line">${escapeHtml(weight.detail)}</div>
       ` : ""}
     </div>
   `;
@@ -1437,6 +1625,8 @@ async function showSessions() {
           ${watchNowItems.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
         </div>
       </div>
+
+      ${renderSessionsOperationalPanel(context, favorite, expert)}
 
       ${(context?.sessions || []).length
         ? sessionsView.visible.map(session => renderSessionCard(session, favorite, context)).join("")
@@ -3538,8 +3728,14 @@ function showMore() {
             <div class="more-card-title">Favorito actual</div>
             <div class="more-card-sub">${escapeHtml(favorite.name)}</div>
             <div class="more-card-context">${escapeHtml(favoriteTypeLabel)} · ${escapeHtml(favoriteTeamLine)}${isExpert ? ` · P${escapeHtml(favorite.pos || "—")}` : ""}</div>
+            ${renderFavoriteQuickSelectorCard({
+              title: "Cambio rápido premium",
+              subtitle: "Actualiza el favorito sin pasar por Clasificación.",
+              returnView: "showMore",
+              compact: true
+            })}
             <div class="action-row">
-              <button class="btn-secondary" onclick="showStandings()">Cambiar favorito</button>
+              <button class="btn-secondary" onclick="showStandings()">Abrir clasificación</button>
               <button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset favorito</button>
             </div>
           </div>
@@ -3787,28 +3983,12 @@ function teamRow(pos, team, drivers, points, colorClass, delta) {
 }
 
 function setFavoriteDriver(name, team, number, points, colorClass, image, pos) {
-  saveFavorite({ type: "driver", name, team, number, points, colorClass, image, pos });
-
-  if (state.calendarCache?.events) {
-    state.weekendContext = buildWeekendContext(state.calendarCache.events, getFavorite());
-    state.weekendNowIso = new Date().toISOString();
-  }
-
-  applyFavoriteTheme();
-  updateSubtitle();
+  applyFavoriteAcrossApp({ type: "driver", name, team, number, points, colorClass, image, pos });
   showStandings();
 }
 
 function setFavoriteTeam(name, drivers, points, colorClass, pos) {
-  saveFavorite({ type: "team", name, drivers, points, colorClass, pos });
-
-  if (state.calendarCache?.events) {
-    state.weekendContext = buildWeekendContext(state.calendarCache.events, getFavorite());
-    state.weekendNowIso = new Date().toISOString();
-  }
-
-  applyFavoriteTheme();
-  updateSubtitle();
+  applyFavoriteAcrossApp({ type: "team", name, drivers, points, colorClass, pos });
   showStandings();
 }
 
@@ -3890,13 +4070,7 @@ function getTeamColorClass(team) {
 }
 
 function resetFavoriteToDefault() {
-  saveFavorite(getDefaultFavorite());
-  if (state.calendarCache?.events) {
-    state.weekendContext = buildWeekendContext(state.calendarCache.events, getFavorite());
-    state.weekendNowIso = new Date().toISOString();
-  }
-  applyFavoriteTheme();
-  updateSubtitle();
+  applyFavoriteAcrossApp(getDefaultFavorite());
   showSettingsPanel();
 }
 

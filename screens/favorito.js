@@ -87,7 +87,7 @@ function renderFavoritoHeroContextCard(favorite, raceName, predictData, context)
 
   return `
     <div class="card highlight-card favorito-v2-hero">
-      <div class="mini-pill">FAVORITO V2</div>
+      <div class="mini-pill">FAVORITO V2.5</div>
       <div class="card-head" style="margin-bottom:6px;">
         <div class="card-head-left">
           <div class="card-title">${escapeHtml(favorite.name)}</div>
@@ -364,6 +364,12 @@ function showFavorito() {
 
   contentEl().innerHTML = `
     ${renderFavoriteCard()}
+    ${renderFavoriteQuickSelectorCard({
+      title: "Selector premium",
+      subtitle: "Cámbialo aquí y sincroniza toda la app al instante.",
+      returnView: "showFavorito",
+      compact: true
+    })}
     ${renderFavoritoHeroContextCard(favorite, raceName, predictData, context)}
     ${renderFavoritoObjectiveCard(favorite, raceName, predictData, context)}
     ${renderFavoritoTechnicalCard(favorite, teamData, accent, raceName, context, predictData, expert)}

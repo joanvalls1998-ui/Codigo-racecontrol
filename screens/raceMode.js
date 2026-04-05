@@ -60,7 +60,7 @@ function renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData) {
 
   return `
     <div class="card highlight-card predict-hero-v2 race-mode-v2-hero">
-      <div class="mini-pill">MODO CARRERA V2</div>
+      <div class="mini-pill">MODO CARRERA V2.5</div>
       <div class="card-title">${escapeHtml(raceName)}</div>
       <div class="card-sub">${escapeHtml(stage.description)}</div>
 
@@ -245,6 +245,52 @@ function renderRaceModeTop10(predictData, favorite) {
   `;
 }
 
+function renderRaceModeExecutionPanel(favorite, raceName, predictData, stage) {
+  const expert = isExpertMode();
+  const operational = getRaceModeOperationalSignals(favorite, raceName, predictData, stage);
+  const rival = Array.isArray(predictData?.raceOrder)
+    ? predictData.raceOrder.find(driver =>
+      favorite.type === "driver"
+        ? !sameDriverName(driver.name, favorite.name)
+        : driver.team !== favorite.name
+    )
+    : null;
+
+  const saturdayText = stage?.key === "sunday"
+    ? "La qualy ya dejó la base; ahora importa cómo se convierte en ritmo real."
+    : "Sábado define salida, tráfico y margen estratégico del domingo.";
+  const sundayText = "Domingo manda por ejecución: primera vuelta, ventana de parada y gestión de riesgo.";
+
+  return `
+    <div class="card race-mode-v2-primary">
+      <div class="card-title">Panel operativo</div>
+      <div class="card-sub">${expert ? "Ejecución real del GP: estrategia, rival y riesgo en dos fases." : "Resumen operativo para seguir la carrera sin ruido."}</div>
+      <div class="meta-grid">
+        <div class="meta-tile">
+          <div class="meta-kicker">Sábado</div>
+          <div class="meta-value" style="font-size:18px;">Qualy / Sprint</div>
+          <div class="meta-caption">${escapeHtml(saturdayText)}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Domingo</div>
+          <div class="meta-value" style="font-size:18px;">Carrera</div>
+          <div class="meta-caption">${escapeHtml(sundayText)}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Rival directo</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(rival?.name || "Zona media")}</div>
+          <div class="meta-caption">${escapeHtml(rival ? `${rival.team} · referencia inmediata` : "Sin rival claro cargado")}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Qué necesita el favorito</div>
+          <div class="meta-value" style="font-size:17px;">Ejecución limpia</div>
+          <div class="meta-caption">${escapeHtml(operational.needs)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 async function showRaceMode() {
   setActiveNav("nav-more");
   updateSubtitle();
@@ -270,6 +316,7 @@ async function showRaceMode() {
     contentEl().innerHTML = `
       ${renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData)}
       ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
+      ${renderRaceModeExecutionPanel(favorite, raceName, predictData, stage)}
       ${renderRaceModeFavoriteSummary(favorite, raceName, predictData)}
 
       <div class="card race-mode-v2-primary">

@@ -120,7 +120,7 @@ function renderPredictHeroV2({ predict, favorite, raceName, expert, activePredic
 
   return `
     <div class="card highlight-card predict-hero-v2">
-      <div class="pill">PREDICT V2</div>
+      <div class="pill">PREDICT V2.5</div>
       <div class="card-title" style="color: var(--${predict.accent}); margin-bottom:4px;">${escapeHtml(predict.title)}</div>
       <div class="card-sub">${escapeHtml(mainFocus.focus)}</div>
 
@@ -196,6 +196,45 @@ function renderPredictWeekendKeyCard(favorite, raceName, data = null, expert = f
   `;
 }
 
+function renderPredictExecutionSplitCard(favorite, raceName, data = null, expert = false) {
+  const strategy = getStrategyNarrative(favorite, raceName, data);
+  const balance = getQualyRaceBalance(favorite, raceName, data);
+  const sprint = isSprintRaceName(raceName);
+  const saturdayFocus = sprint
+    ? "Sábado muy pesado: Shootout + Sprint condicionan más la salida y el riesgo de tráfico."
+    : "Sábado clave: la qualy define aire limpio, ventana estratégica y techo de carrera.";
+  const sundayFocus = balance.label === "Mejor en carrera"
+    ? "Domingo con margen real en stint largo si se mantiene en ventana en el primer relevo."
+    : "Domingo más dependiente de ejecución limpia, paradas y gestión de tráfico.";
+
+  return `
+    <div class="meta-grid">
+      <div class="meta-tile">
+        <div class="meta-kicker">Sábado</div>
+        <div class="meta-value" style="font-size:18px;">Qualy / Sprint</div>
+        <div class="meta-caption">${escapeHtml(saturdayFocus)}</div>
+      </div>
+      <div class="meta-tile">
+        <div class="meta-kicker">Domingo</div>
+        <div class="meta-value" style="font-size:18px;">Carrera</div>
+        <div class="meta-caption">${escapeHtml(sundayFocus)}</div>
+      </div>
+      <div class="meta-tile">
+        <div class="meta-kicker">Factor crítico GP</div>
+        <div class="meta-value" style="font-size:18px;">${escapeHtml(strategy.factor)}</div>
+        <div class="meta-caption">${escapeHtml(balance.description)}</div>
+      </div>
+      ${expert ? `
+        <div class="meta-tile">
+          <div class="meta-kicker">Ejecución experta</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(strategy.label)}</div>
+          <div class="meta-caption">Paradas ${strategy.stops} · ${escapeHtml(strategy.window)}</div>
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
 async function runPredict() {
   const output = document.getElementById("predictOutput");
   const favorite = getFavorite();
@@ -210,7 +249,7 @@ async function runPredict() {
     summary: renderPredictLoadingState(),
     scenarios: `<div class="empty-line">Recalculando escenarios del fin de semana…</div>`,
     factors: `<div class="empty-line">Releyendo fortalezas, riesgos y contexto…</div>`,
-    qualyRace: `<div class="empty-line">Comparando comportamiento a una vuelta y ritmo largo…</div>`,
+      qualyRace: `<div class="empty-line">Comparando comportamiento a una vuelta y ritmo largo…</div>`,
     strategy: `<div class="empty-line">Actualizando estrategia prevista…</div>`,
     grid: `<div class="empty-line">Reordenando lectura global de la parrilla…</div>`
   });
@@ -229,7 +268,7 @@ async function runPredict() {
       summary: renderPredictSummaryCards(data),
       scenarios: renderPredictScenarioCards(favorite, raceName, data),
       factors: renderPredictKeyFactors(favorite, raceName, data),
-      qualyRace: renderPredictQualyRaceCard(favorite, raceName, data),
+      qualyRace: renderPredictExecutionSplitCard(favorite, raceName, data, isExpertMode()),
       strategy: renderPredictStrategyDetail(favorite, raceName, data),
       grid: renderPredictGridRead(favorite, raceName, data)
     });
@@ -243,7 +282,7 @@ async function runPredict() {
       summary: `<div class="empty-line">No se ha podido generar el resumen predictivo.</div>`,
       scenarios: renderPredictScenarioCards(favorite, raceName, null),
       factors: renderPredictKeyFactors(favorite, raceName, null),
-      qualyRace: renderPredictQualyRaceCard(favorite, raceName, null),
+      qualyRace: renderPredictExecutionSplitCard(favorite, raceName, null, isExpertMode()),
       strategy: renderPredictStrategyDetail(favorite, raceName, null),
       grid: renderPredictGridRead(favorite, raceName, null)
     });
@@ -276,6 +315,12 @@ function showPredict() {
 
   contentEl().innerHTML = `
     ${renderPredictHeroV2({ predict, favorite, raceName: selectedRace, expert, activePredictData })}
+    ${renderFavoriteQuickSelectorCard({
+      title: "Favorito para esta predicción",
+      subtitle: "Cambio inmediato para recalcular escenarios sin salir de Predict.",
+      returnView: "showPredict",
+      compact: true
+    })}
 
     ${expert ? `
       <div class="card predict-v2-secondary">
@@ -313,6 +358,14 @@ function showPredict() {
     </div>
 
     <div class="card">
+      <div class="card-title">Sábado vs domingo</div>
+      <div class="card-sub">${expert ? "Separación operativa real: qualy/sprint frente a ejecución de carrera." : "Qué cambia entre sábado y domingo para no mezclar lecturas."}</div>
+      <div id="predictQualyRace">
+        ${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, expert)}
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-title">Estrategia</div>
       <div class="card-sub">${expert ? "Plan base, ventanas y factor que puede romper el guion." : "Plan rápido para entender cómo se gana o se pierde el domingo."}</div>
       <div id="predictStrategyDetail">
@@ -321,13 +374,6 @@ function showPredict() {
     </div>
 
     ${expert ? `
-      <div class="card">
-        <div class="card-title">Lectura sábado vs domingo</div>
-        <div id="predictQualyRace">
-          ${renderPredictQualyRaceCard(favorite, selectedRace, activePredictData)}
-        </div>
-      </div>
-
       <div class="card">
         <div class="card-title">Lectura de parrilla</div>
         <div id="predictGridRead">
