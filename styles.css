@@ -990,6 +990,146 @@ nav,
   line-height: 1.55;
 }
 
+.glossary-hero-card,
+.glossary-focus-card {
+  padding: clamp(16px, 2.2vw, 22px);
+}
+
+.glossary-hero-card .card-sub,
+.glossary-focus-card .card-sub {
+  max-width: 72ch;
+}
+
+.glossary-hero-list {
+  margin-top: 12px;
+  gap: 8px;
+}
+
+.glossary-hero-item {
+  padding: 12px 13px;
+  border-radius: 14px;
+  line-height: 1.45;
+}
+
+.glossary-meta-row {
+  margin-top: 10px;
+}
+
+.glossary-meta-row-compact {
+  margin-bottom: 8px;
+}
+
+.glossary-term-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.glossary-term-name {
+  color: var(--text);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.glossary-info-btn {
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.72);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+  opacity: 0.9;
+  transition: opacity 0.16s ease, transform 0.16s ease, color 0.16s ease;
+}
+
+.glossary-info-btn:hover {
+  opacity: 1;
+  color: rgba(255,255,255,0.92);
+  transform: translateY(-1px);
+}
+
+.glossary-info-btn:active {
+  transform: translateY(0);
+}
+
+.glossary-definitions {
+  position: relative;
+  z-index: 1;
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.glossary-definition-primary,
+.glossary-definition-secondary {
+  padding: 10px 12px;
+  border-radius: 13px;
+  border: 1px solid rgba(255,255,255,0.08);
+  line-height: 1.45;
+}
+
+.glossary-definition-primary {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.93);
+}
+
+.glossary-definition-secondary {
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.74);
+}
+
+.glossary-definition-secondary-compact {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.glossary-term-list {
+  margin-top: 10px;
+  gap: 8px;
+}
+
+.glossary-term-item {
+  border-radius: 16px;
+  padding: 12px 13px;
+}
+
+.glossary-context-list {
+  margin-top: 10px;
+  gap: 8px;
+}
+
+.glossary-context-item {
+  border-radius: 15px;
+}
+
+.glossary-context-easy-copy {
+  margin-top: 6px;
+  color: rgba(255,255,255,0.9);
+  line-height: 1.45;
+}
+
+.glossary-modal-actions {
+  margin-top: 12px;
+}
+
+body.experience-expert .glossary-definition-primary {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.96);
+  border-color: rgba(255,255,255,0.14);
+}
+
+body.experience-expert .glossary-definition-secondary {
+  color: rgba(255,255,255,0.69);
+}
+
+body.experience-casual .glossary-definition-primary {
+  background: rgba(255,255,255,0.085);
+}
+
 .home-stack > * + * {
   margin-top: var(--section-gap);
 }
