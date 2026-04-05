@@ -944,6 +944,7 @@ nav,
 .news-filters-v2 {
   margin-top: 12px;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .news-filters-v2 .chip {
@@ -988,6 +989,15 @@ nav,
   color: var(--text-soft);
   font-size: 14px;
   line-height: 1.55;
+}
+
+.news-portada-brief {
+  margin-top: 12px;
+}
+
+.news-portada-brief .insight-item {
+  padding: 11px 12px;
+  border-radius: 14px;
 }
 
 .glossary-hero-card,
