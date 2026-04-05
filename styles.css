@@ -99,7 +99,15 @@ body.experience-expert .news-item,
 body.experience-expert .standing-row,
 body.experience-expert .mode-race-line,
 body.experience-expert .calendar-flow-item { padding-top: 11px; padding-bottom: 11px; }
-body.experience-expert .card-sub { color: rgba(255, 255, 255, 0.68); }
+body.experience-expert .card-sub,
+body.experience-expert .settings-line-sub,
+body.experience-expert .more-card-sub {
+  display: none;
+}
+body.experience-expert .mini-pill {
+  opacity: 0.72;
+  margin-bottom: 8px;
+}
 body.experience-expert .tag,
 body.experience-expert .trend-pill,
 body.experience-expert .context-badge,

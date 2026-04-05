@@ -6,7 +6,7 @@ function renderExperienceModeLine(settings) {
       <div class="settings-line-left">
         <div>
           <div class="settings-line-title">Modo de experiencia</div>
-          <div class="settings-line-sub">Casual: vista ligera y rápida · Experto: más contexto y detalle técnico.</div>
+          <div class="settings-line-sub">Casual: guía ligera · Experto: vista directa.</div>
         </div>
       </div>
       <div class="filters-row" style="margin-top:0;">
@@ -54,16 +54,14 @@ function renderSettingsSecondaryPreferencesBlock(state) {
     <div class="card">
       ${renderSettingsSectionTitle(
         "A. Preferencias secundarias",
-        isExpert
-          ? "Ajustes de baja frecuencia para mantener la app cómoda sin tocar el flujo principal."
-          : "Ajustes poco frecuentes."
+        isExpert ? "" : "Ajustes poco frecuentes."
       )}
 
       <div class="settings-line" style="padding-top:6px;">
         <div class="settings-line-left">
           <div>
             <div class="settings-line-title">Idioma</div>
-            <div class="settings-line-sub">Actualmente fijado para español de España.</div>
+            <div class="settings-line-sub">Español de España.</div>
           </div>
         </div>
         <div class="tag general">es-ES</div>
@@ -74,9 +72,7 @@ function renderSettingsSecondaryPreferencesBlock(state) {
       <div class="settings-line">
         <div class="settings-line-left">
           <div class="settings-line-title">Modo explicativo</div>
-          <div class="settings-line-sub">${isExpert
-            ? "Mantiene tarjetas de guía para lectura rápida cuando necesitas contexto adicional."
-            : "Activa ayudas tipo “qué mirar ahora”."}</div>
+          <div class="settings-line-sub">${isExpert ? "Muestra ayudas contextuales." : "Activa ayudas de lectura rápida."}</div>
         </div>
         <button class="icon-btn" onclick="togglePremiumSetting('weekendExplainerMode')">${settings.weekendExplainerMode ? "Activado" : "Desactivado"}</button>
       </div>
@@ -84,7 +80,7 @@ function renderSettingsSecondaryPreferencesBlock(state) {
       <div class="settings-line">
         <div class="settings-line-left">
           <div class="settings-line-title">Modo fin de semana</div>
-          <div class="settings-line-sub">Atajo ligero al GP actual en Home y Más.</div>
+          <div class="settings-line-sub">Atajo al GP actual en Home y Más.</div>
         </div>
         <button class="icon-btn" onclick="toggleWeekendModeEnabled('showSettingsPanel')">${state.weekendModeEnabled ? "Visible" : "Oculto"}</button>
       </div>
@@ -99,9 +95,7 @@ function renderSettingsLocalStateBlock(state) {
     <div class="card">
       ${renderSettingsSectionTitle(
         "B. Estado local",
-        isExpert
-          ? "Resumen de lo que queda guardado en este dispositivo para personalizar la experiencia."
-          : "Qué hay guardado en este dispositivo."
+        isExpert ? "" : "Qué hay guardado en este dispositivo."
       )}
 
       <div class="meta-grid" style="margin-top:8px;">
@@ -127,9 +121,9 @@ function renderSettingsLocalStateBlock(state) {
         </div>
       </div>
 
-      ${isExpert ? `
-        <div class="settings-system-note">Los datos locales incluyen favorito, ajustes visuales, histórico de predicciones y GP seleccionado manualmente.</div>
-      ` : ""}
+      ${isExpert ? "" : `
+        <div class="settings-system-note">Incluye favorito, ajustes visuales, predicciones y GP manual.</div>
+      `}
     </div>
   `;
 }
@@ -141,9 +135,7 @@ function renderSettingsMaintenanceBlock(state) {
     <div class="card">
       ${renderSettingsSectionTitle(
         "C. Limpieza / mantenimiento",
-        isExpert
-          ? "Acciones parciales para limpiar partes concretas sin perder toda la configuración."
-          : "Limpieza parcial y segura."
+        isExpert ? "" : "Limpieza parcial y segura."
       )}
 
       <div class="settings-line" style="padding-top:6px;">

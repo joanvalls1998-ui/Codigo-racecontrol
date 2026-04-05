@@ -123,7 +123,7 @@ function renderStandingsOverviewCard() {
     return `
       <div class="card standings-overview-v2">
         <div class="card-title">Campeonato</div>
-        <div class="card-sub">Lectura rápida: líder, posición del favorito y foco de batalla.</div>
+        ${isCasualMode() ? `<div class="card-sub">Líder, favorito y pelea directa.</div>` : ""}
 
         <div class="meta-grid" style="margin-top:14px;">
           <div class="meta-tile">
@@ -149,7 +149,7 @@ function renderStandingsOverviewCard() {
   return `
     <div class="card standings-overview-v2">
       <div class="card-title">Campeonato</div>
-      <div class="card-sub">Lectura rápida: líder, equipo favorito y rival prioritario.</div>
+      ${isCasualMode() ? `<div class="card-sub">Líder, equipo favorito y rival prioritario.</div>` : ""}
 
       <div class="meta-grid" style="margin-top:14px;">
         <div class="meta-tile">
@@ -185,7 +185,7 @@ function renderStandingsBattleCard() {
   return `
     <div class="card standings-battle-v2">
       <div class="card-title">Pelea del favorito</div>
-      <div class="card-sub">${escapeHtml(favoriteName ? `Cómo está la batalla real alrededor de ${favoriteName}.` : "No hay favorito en clasificación todavía.")}</div>
+      ${isCasualMode() ? `<div class="card-sub">${escapeHtml(favoriteName ? `Batalla alrededor de ${favoriteName}.` : "No hay favorito en clasificación todavía.")}</div>` : ""}
       <div class="standings-battle-grid">
         ${renderBattleSlot("Justo delante", overview.ahead, favoritePoints, overview.type)}
         ${renderBattleSlot("Justo detrás", overview.behind, favoritePoints, overview.type)}
@@ -209,7 +209,7 @@ function renderStandingsFavoriteContextCard() {
   return `
     <div class="card standings-overview-v2">
       <div class="card-title">Lectura fina del campeonato</div>
-      <div class="card-sub">${isExpertMode() ? "Posición real, tendencia y objetivo operativo del favorito." : "Qué pelea importa de verdad para tu favorito."}</div>
+      ${isExpertMode() ? "" : `<div class="card-sub">Qué pelea importa para tu favorito.</div>`}
       <div class="meta-grid" style="margin-top:12px;">
         <div class="meta-tile">
           <div class="meta-kicker">Objetivo razonable</div>

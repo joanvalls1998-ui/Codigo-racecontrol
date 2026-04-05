@@ -23,7 +23,7 @@ function getHomeSimpleNewsPreview() {
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">Noticias</div>
-          <div class="card-sub">1 clave rápida para no perder contexto.</div>
+          ${isCasualMode() ? `<div class="card-sub">1 clave rápida para no perder contexto.</div>` : ""}
         </div>
         <div class="card-head-actions">
           <a href="#" class="home-news-cta" onclick="showNews(); return false;">Ver noticias</a>
@@ -166,10 +166,10 @@ function renderHomeDynamicBlocks(context, favorite) {
       raceName,
       predictData,
       context,
-      title: "Favorito central · lectura rápida",
+      title: "Favorito central",
       expert
     }) : ""}
-    ${renderHomeQuickLinks(context)}
+    ${expert ? "" : renderHomeQuickLinks(context)}
     ${getHomeSimpleNewsPreview()}
     ${renderHomeCompetitivePulse(favorite, raceName, predictData)}
     ${expert ? renderHomeWhatToWatchCard(context) : ""}
