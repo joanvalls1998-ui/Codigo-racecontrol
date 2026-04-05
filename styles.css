@@ -724,6 +724,12 @@ nav,
   border: 1px solid rgba(48,209,88,0.22);
 }
 
+.context-badge.rival {
+  background: rgba(255,159,10,0.14);
+  color: #ffd08a;
+  border: 1px solid rgba(255,159,10,0.22);
+}
+
 .tag.performance {
   background: rgba(94, 182, 255, 0.14);
   color: #acd9ff;
@@ -1082,6 +1088,10 @@ nav,
   background: linear-gradient(90deg, rgba(10,132,255,0.04), transparent 70%);
 }
 
+.standing-row.rival-row {
+  background: linear-gradient(90deg, rgba(255,159,10,0.08), transparent 72%);
+}
+
 .standing-row.leader .row-name {
   font-weight: 800;
 }
@@ -1175,6 +1185,117 @@ nav,
   color: #ffd77a;
   background: rgba(255,159,10,0.14);
   border-color: rgba(255,159,10,0.22);
+}
+
+.standings-overview-v2,
+.standings-battle-v2,
+.standings-table-v2,
+.standings-expert-context {
+  position: relative;
+  overflow: hidden;
+}
+
+.standings-overview-v2::before,
+.standings-battle-v2::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--theme-accent) 78%, transparent), transparent 72%);
+  opacity: 0.9;
+}
+
+.standings-battle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.standings-battle-slot {
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.standings-battle-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+
+.standings-battle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.standings-battle-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.standings-battle-name {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.standings-battle-sub,
+.standings-battle-empty {
+  margin-top: 3px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.standings-battle-metrics {
+  text-align: right;
+}
+
+.standings-battle-pos {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.standings-battle-gap {
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: 11px;
+}
+
+.standings-battle-footnote {
+  margin-top: 12px;
+  color: var(--text-soft);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.standings-table-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.standings-table-title {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.standings-table-sub {
+  color: var(--text-faint);
+  font-size: 12px;
 }
 
 .calendar-group-title {
@@ -1868,6 +1989,16 @@ nav,
 
   .skeleton-grid {
     grid-template-columns: 1fr;
+  }
+
+  .standings-battle-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .standings-table-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
 }
 

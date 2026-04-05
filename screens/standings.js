@@ -8,14 +8,111 @@ function getStandingsOverviewData() {
     const leader = data.drivers?.[0];
     const ahead = favoriteDriver ? data.drivers?.find(d => d.pos === favoriteDriver.pos - 1) : null;
     const behind = favoriteDriver ? data.drivers?.find(d => d.pos === favoriteDriver.pos + 1) : null;
-    return { leader, favoriteDriver, ahead, behind, type: "drivers" };
+    const teammate = favoriteDriver ? data.drivers?.find(d => d.team === favoriteDriver.team && d.name !== favoriteDriver.name) : null;
+    const directRival = [ahead, behind].filter(Boolean).sort((a, b) => Math.abs((a?.points || 0) - (favoriteDriver?.points || 0)) - Math.abs((b?.points || 0) - (favoriteDriver?.points || 0)))[0] || null;
+    return { leader, favoriteDriver, ahead, behind, teammate, directRival, type: "drivers" };
   }
 
   const favoriteTeam = data.teams?.find(t => t.team === favorite.name);
   const leader = data.teams?.[0];
   const ahead = favoriteTeam ? data.teams?.find(t => t.pos === favoriteTeam.pos - 1) : null;
   const behind = favoriteTeam ? data.teams?.find(t => t.pos === favoriteTeam.pos + 1) : null;
-  return { leader, favoriteTeam, ahead, behind, type: "teams" };
+  const directRival = [ahead, behind].filter(Boolean).sort((a, b) => Math.abs((a?.points || 0) - (favoriteTeam?.points || 0)) - Math.abs((b?.points || 0) - (favoriteTeam?.points || 0)))[0] || null;
+  return { leader, favoriteTeam, ahead, behind, directRival, type: "teams" };
+}
+
+function getStandingsGapLabel(referencePoints, contenderPoints) {
+  if (typeof referencePoints !== "number" || typeof contenderPoints !== "number") return "Sin referencia";
+  const gap = Math.abs(referencePoints - contenderPoints);
+  if (gap === 0) return "Empate de puntos";
+  return `${gap} pts de diferencia`;
+}
+
+function renderBattleSlot(label, item, favoritePoints, type) {
+  if (!item) {
+    return `
+      <div class="standings-battle-slot">
+        <div class="standings-battle-label">${label}</div>
+        <div class="standings-battle-empty">—</div>
+      </div>
+    `;
+  }
+
+  const entityName = type === "drivers" ? item.name : item.team;
+  const entitySub = type === "drivers" ? item.team : item.drivers;
+  const stripeClass = escapeHtml(item.colorClass || getTeamColorClass(item.team || item.team));
+
+  return `
+    <div class="standings-battle-slot">
+      <div class="standings-battle-label">${label}</div>
+      <div class="standings-battle-row">
+        <div class="row-stripe ${stripeClass}"></div>
+        <div class="standings-battle-main">
+          <div class="standings-battle-name">${escapeHtml(entityName)}</div>
+          <div class="standings-battle-sub">${escapeHtml(entitySub || "Sin datos")}</div>
+        </div>
+        <div class="standings-battle-metrics">
+          <div class="standings-battle-pos">P${escapeHtml(String(item.pos))}</div>
+          <div class="standings-battle-gap">${escapeHtml(getStandingsGapLabel(favoritePoints, item.points))}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderStandingsExpertContextCard() {
+  if (!isExpertMode()) return "";
+  const overview = getStandingsOverviewData();
+  if (!overview) return "";
+
+  if (overview.type === "drivers" && overview.favoriteDriver) {
+    const deltas = state.standingsDelta?.drivers || {};
+    const movers = Object.entries(deltas)
+      .filter(([, delta]) => delta !== 0)
+      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+    const topMover = movers[0];
+    const battleFocus = overview.directRival
+      ? `La pelea inmediata de ${overview.favoriteDriver.name} está con ${overview.directRival.name} (${getStandingsGapLabel(overview.favoriteDriver.points, overview.directRival.points)}).`
+      : `${overview.favoriteDriver.name} está sin rival directo inmediato en su zona.`;
+    const teammateRead = overview.teammate
+      ? `Dentro del equipo, ${overview.teammate.name} está en P${overview.teammate.pos}.`
+      : "No hay referencia de compañero cargada.";
+
+    return `
+      <div class="card standings-expert-context">
+        <div class="card-title">Lectura experta</div>
+        <div class="insight-list">
+          <div class="insight-item"><strong>Pelea real:</strong> ${escapeHtml(battleFocus)}</div>
+          <div class="insight-item"><strong>Equipo del favorito:</strong> ${escapeHtml(teammateRead)}</div>
+          <div class="insight-item"><strong>Movimiento relevante:</strong> ${escapeHtml(topMover ? `${topMover[0]} ${topMover[1] > 0 ? `sube +${topMover[1]}` : `baja ${topMover[1]}`}.` : "No hay cambios de posición desde la última actualización.")}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  if (overview.type === "teams" && overview.favoriteTeam) {
+    const deltas = state.standingsDelta?.teams || {};
+    const movers = Object.entries(deltas)
+      .filter(([, delta]) => delta !== 0)
+      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+    const topMover = movers[0];
+    const battleFocus = overview.directRival
+      ? `La pelea inmediata de ${overview.favoriteTeam.team} está con ${overview.directRival.team} (${getStandingsGapLabel(overview.favoriteTeam.points, overview.directRival.points)}).`
+      : `${overview.favoriteTeam.team} está sin pelea inmediata en puntos.`;
+
+    return `
+      <div class="card standings-expert-context">
+        <div class="card-title">Lectura experta</div>
+        <div class="insight-list">
+          <div class="insight-item"><strong>Pelea real:</strong> ${escapeHtml(battleFocus)}</div>
+          <div class="insight-item"><strong>Brecha con líder:</strong> ${escapeHtml(getStandingsGapLabel(overview.favoriteTeam.points, overview.leader?.points))}</div>
+          <div class="insight-item"><strong>Movimiento relevante:</strong> ${escapeHtml(topMover ? `${topMover[0]} ${topMover[1] > 0 ? `sube +${topMover[1]}` : `baja ${topMover[1]}`}.` : "No hay cambios de posición desde la última actualización.")}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  return "";
 }
 
 function renderStandingsOverviewCard() {
@@ -24,8 +121,9 @@ function renderStandingsOverviewCard() {
 
   if (overview.type === "drivers") {
     return `
-      <div class="card">
+      <div class="card standings-overview-v2">
         <div class="card-title">Campeonato</div>
+        <div class="card-sub">Lectura rápida: líder, posición del favorito y foco de batalla.</div>
 
         <div class="meta-grid" style="margin-top:14px;">
           <div class="meta-tile">
@@ -40,8 +138,8 @@ function renderStandingsOverviewCard() {
           </div>
           <div class="meta-tile">
             <div class="meta-kicker">Pelea directa</div>
-            <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.ahead?.name || overview.behind?.name || "—")}</div>
-            <div class="meta-caption">Rival más cercano</div>
+            <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.directRival?.name || "—")}</div>
+            <div class="meta-caption">${escapeHtml(overview.favoriteDriver && overview.directRival ? getStandingsGapLabel(overview.favoriteDriver.points, overview.directRival.points) : "Rival más cercano")}</div>
           </div>
         </div>
       </div>
@@ -49,8 +147,9 @@ function renderStandingsOverviewCard() {
   }
 
   return `
-    <div class="card">
+    <div class="card standings-overview-v2">
       <div class="card-title">Campeonato</div>
+      <div class="card-sub">Lectura rápida: líder, equipo favorito y rival prioritario.</div>
 
       <div class="meta-grid" style="margin-top:14px;">
         <div class="meta-tile">
@@ -65,8 +164,8 @@ function renderStandingsOverviewCard() {
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Pelea directa</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.ahead?.team || overview.behind?.team || "—")}</div>
-          <div class="meta-caption">Rival más cercano</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.directRival?.team || "—")}</div>
+          <div class="meta-caption">${escapeHtml(overview.favoriteTeam && overview.directRival ? getStandingsGapLabel(overview.favoriteTeam.points, overview.directRival.points) : "Rival más cercano")}</div>
         </div>
       </div>
     </div>
@@ -77,27 +176,21 @@ function renderStandingsBattleCard() {
   const overview = getStandingsOverviewData();
   if (!overview) return "";
 
-  const items = [overview.ahead, overview.behind].filter(Boolean);
+  const favoriteName = overview.type === "drivers" ? overview.favoriteDriver?.name : overview.favoriteTeam?.team;
+  const favoritePoints = overview.type === "drivers" ? overview.favoriteDriver?.points : overview.favoriteTeam?.points;
+  const teammateLine = overview.type === "drivers" && overview.teammate
+    ? `<div class="standings-battle-footnote">Compañero clave: ${escapeHtml(overview.teammate.name)} (P${escapeHtml(String(overview.teammate.pos))}).</div>`
+    : "";
 
   return `
-    <div class="card">
-      <div class="card-title">Batalla directa</div>
-
-      ${items.length ? items.map(item => `
-        <div class="standing-row">
-          <div class="row-left">
-            <div class="row-pos-wrap"><div class="row-pos">${item.pos}</div></div>
-            <div class="row-stripe ${escapeHtml(item.colorClass || getTeamColorClass(item.team))}"></div>
-            <div class="row-info">
-              <div class="row-name">${escapeHtml(item.name || item.team)}</div>
-              <div class="row-team">${escapeHtml(item.team || item.drivers)}</div>
-            </div>
-          </div>
-          <div class="row-badges">
-            <div class="row-points">${escapeHtml(String(item.points))}<small>pts</small></div>
-          </div>
-        </div>
-      `).join("") : `<div class="empty-line">No hay rivales inmediatos detectados.</div>`}
+    <div class="card standings-battle-v2">
+      <div class="card-title">Pelea del favorito</div>
+      <div class="card-sub">${escapeHtml(favoriteName ? `Cómo está la batalla real alrededor de ${favoriteName}.` : "No hay favorito en clasificación todavía.")}</div>
+      <div class="standings-battle-grid">
+        ${renderBattleSlot("Justo delante", overview.ahead, favoritePoints, overview.type)}
+        ${renderBattleSlot("Justo detrás", overview.behind, favoritePoints, overview.type)}
+      </div>
+      ${teammateLine}
     </div>
   `;
 }
@@ -105,7 +198,7 @@ function renderStandingsBattleCard() {
 function renderStandingsSummaryBlock() {
   const el = document.getElementById("standingsSummaryContent");
   if (!el) return;
-  el.innerHTML = `${renderStandingsOverviewCard()}${isExpertMode() ? renderStandingsBattleCard() : ""}`;
+  el.innerHTML = `${renderStandingsOverviewCard()}${renderStandingsBattleCard()}${renderStandingsExpertContextCard()}`;
 }
 
 async function showStandings(force = false) {
