@@ -12,7 +12,9 @@ const DEFAULT_SETTINGS = Object.freeze({
 const DEFAULT_UI_STATE = Object.freeze({
   standingsViewType: "drivers",
   standingsScope: "top10",
-  currentNewsFilterKey: "favorite"
+  currentNewsFilterKey: "favorite",
+  lastScreen: "home",
+  weekendModeEnabled: true
 });
 
 const DEFAULT_NEWS_FILTER_KEY = DEFAULT_UI_STATE.currentNewsFilterKey;
@@ -29,6 +31,8 @@ function createInitialRuntimeState() {
     standingsViewType: DEFAULT_UI_STATE.standingsViewType,
     standingsScope: DEFAULT_UI_STATE.standingsScope,
     currentNewsFilterKey: DEFAULT_UI_STATE.currentNewsFilterKey,
+    lastScreen: DEFAULT_UI_STATE.lastScreen,
+    weekendModeEnabled: DEFAULT_UI_STATE.weekendModeEnabled,
     weekendContext: null,
     weekendNowIso: null
   };
@@ -114,6 +118,75 @@ function setActiveNav(tabId) {
   const ids = ["nav-home", "nav-predict", "nav-favorito", "nav-news", "nav-more"];
   ids.forEach(id => document.getElementById(id)?.classList.remove("active"));
   document.getElementById(tabId)?.classList.add("active");
+}
+
+function getScreenOpeners() {
+  return {
+    home: () => showHome(),
+    predict: () => showPredict(),
+    favorito: () => showFavorito(),
+    news: () => showNews(),
+    more: () => showMore(),
+    sessions: () => showSessions(),
+    calendar: () => showCalendar(),
+    standings: () => showStandings(),
+    raceMode: () => showRaceMode(),
+    settings: () => showSettingsPanel(),
+    glossary: () => showGlossary()
+  };
+}
+
+function isKnownScreen(screenKey) {
+  return Boolean(getScreenOpeners()[screenKey]);
+}
+
+function rememberScreen(screenKey) {
+  if (!isKnownScreen(screenKey)) return;
+  state.lastScreen = screenKey;
+  saveUiState();
+}
+
+function openRememberedScreen() {
+  const target = state.lastScreen && isKnownScreen(state.lastScreen) ? state.lastScreen : DEFAULT_UI_STATE.lastScreen;
+  const openers = getScreenOpeners();
+  const open = openers[target] || openers.home;
+  return open();
+}
+
+function openScreenByKey(screenKey) {
+  const open = getScreenOpeners()[screenKey];
+  if (!open) return false;
+  open();
+  return true;
+}
+
+function renderWeekendModeHub(context, { compact = false, source = "home" } = {}) {
+  if (!state.weekendModeEnabled) return "";
+
+  const raceName = context?.raceName || getSelectedRace();
+  const phase = context?.phaseLabel || "Previa";
+  const nextSession = context?.nextSession?.label || "Sin sesión inmediata";
+  const countdown = context?.nextSessionCountdown ? ` · ${context.nextSessionCountdown}` : "";
+
+  return `
+    <div class="card weekend-mode-card ${compact ? "weekend-mode-compact" : ""}">
+      <div class="card-head">
+        <div class="card-head-left">
+          <div class="card-title">Modo fin de semana</div>
+          <div class="card-sub">${escapeHtml(raceName)} · ${escapeHtml(phase)} · ${escapeHtml(nextSession)}${escapeHtml(countdown)}</div>
+        </div>
+        <div class="card-head-actions">
+          <button class="icon-btn" onclick="toggleWeekendModeEnabled(${JSON.stringify(source)})">Ocultar</button>
+        </div>
+      </div>
+      <div class="weekend-mode-actions">
+        <button class="btn-secondary" onclick="showHome()">Inicio</button>
+        <button class="btn-secondary" onclick="showSessions()">Sesiones</button>
+        <button class="btn-secondary" onclick="showPredict()">Predict</button>
+        <button class="btn-secondary" onclick="showRaceMode()">Modo carrera</button>
+      </div>
+    </div>
+  `;
 }
 
 function getDefaultFavorite() {
@@ -1768,6 +1841,7 @@ function renderSessionCard(session, favorite, context) {
 
 async function showSessions() {
   setActiveNav("nav-more");
+  rememberScreen("sessions");
   updateSubtitle();
 
   contentEl().innerHTML = renderLoadingCard("Sesiones", "Preparando el hub del fin de semana y el valor real de cada sesión…", true);
@@ -3255,6 +3329,7 @@ function getContextGlossaryTitle(screen, phase) {
 
 async function showHome() {
   setActiveNav("nav-home");
+  rememberScreen("home");
   updateSubtitle();
 
   contentEl().innerHTML = `
@@ -3876,6 +3951,7 @@ function getMoreQuickAccessContext() {
 
 function showMore() {
   setActiveNav("nav-more");
+  rememberScreen("more");
   updateSubtitle();
 
   const isExpert = isExpertMode();
@@ -3901,6 +3977,8 @@ function showMore() {
     <div class="card more-hub-card">
       <div class="card-title">Más</div>
       <div class="card-sub">${isExpert ? "Centro de control rápido con contexto del estado actual." : "Centro de control rápido para usar RaceControl sin fricción."}</div>
+
+      ${renderWeekendModeHub(state.weekendContext, { compact: true, source: "more" })}
 
       <div class="more-section">
         <div class="more-section-title">Control rápido</div>
@@ -4715,7 +4793,9 @@ function sanitizeUiState(value) {
   return {
     standingsViewType: uiState.standingsViewType === "teams" ? "teams" : "drivers",
     standingsScope: uiState.standingsScope === "all" ? "all" : "top10",
-    currentNewsFilterKey: uiState.currentNewsFilterKey || DEFAULT_NEWS_FILTER_KEY
+    currentNewsFilterKey: uiState.currentNewsFilterKey || DEFAULT_NEWS_FILTER_KEY,
+    lastScreen: isKnownScreen(uiState.lastScreen) ? uiState.lastScreen : DEFAULT_UI_STATE.lastScreen,
+    weekendModeEnabled: uiState.weekendModeEnabled !== false
   };
 }
 
@@ -4777,7 +4857,9 @@ function saveUiState() {
   storageWriteJson(STORAGE_KEYS.uiState, sanitizeUiState({
     standingsViewType: state.standingsViewType,
     standingsScope: state.standingsScope,
-    currentNewsFilterKey: state.currentNewsFilterKey
+    currentNewsFilterKey: state.currentNewsFilterKey,
+    lastScreen: state.lastScreen,
+    weekendModeEnabled: state.weekendModeEnabled
   }));
 }
 
@@ -4787,6 +4869,8 @@ function applyStoredUiState() {
   state.standingsViewType = saved.standingsViewType;
   state.standingsScope = saved.standingsScope;
   state.currentNewsFilterKey = saved.currentNewsFilterKey;
+  state.lastScreen = saved.lastScreen;
+  state.weekendModeEnabled = saved.weekendModeEnabled;
 }
 
 function getLocalDataSummary() {
@@ -4809,6 +4893,8 @@ function repairLocalStorageState() {
   state.standingsViewType = uiState.standingsViewType;
   state.standingsScope = uiState.standingsScope;
   state.currentNewsFilterKey = uiState.currentNewsFilterKey;
+  state.lastScreen = uiState.lastScreen;
+  state.weekendModeEnabled = uiState.weekendModeEnabled;
   saveUiState();
 }
 
@@ -4840,6 +4926,16 @@ function setExperienceMode(mode) {
   refreshCurrentView();
 }
 
+function toggleWeekendModeEnabled(returnView = "showSettingsPanel") {
+  state.weekendModeEnabled = !state.weekendModeEnabled;
+  saveUiState();
+
+  if (returnView === "home") return showHome();
+  if (returnView === "more") return showMore();
+  if (returnView === "showSettingsPanel") return showSettingsPanel();
+  refreshCurrentView();
+}
+
 function refreshCurrentView() {
   applyExperienceTheme();
   const active = document.querySelector("#bottomNav a.active")?.id;
@@ -4848,6 +4944,8 @@ function refreshCurrentView() {
   if (active === "nav-predict") return showPredict();
   if (active === "nav-favorito") return showFavorito();
   if (active === "nav-news") return showNews();
+
+  if (openScreenByKey(state.lastScreen)) return;
 
   const view = contentEl()?.querySelector(".menu-link");
   if (view) return showMore();
@@ -4922,9 +5020,11 @@ function bootRaceControl() {
     fetchStandingsData().catch(() => {});
     fetchCalendarData().catch(() => {});
 
-    showHome();
+    openRememberedScreen();
     window.__racecontrolBooted = true;
   } catch (error) {
     renderBootError(error && error.message ? error.message : String(error));
   }
 }
+
+window.toggleWeekendModeEnabled = toggleWeekendModeEnabled;

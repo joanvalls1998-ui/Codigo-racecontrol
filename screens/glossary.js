@@ -166,6 +166,7 @@ function renderGlossarySection(section) {
 /* Permite abrir glosario enfocado en un término. */
 function showGlossary(focusTerm = null) {
   setActiveNav("nav-more");
+  rememberScreen("glossary");
   updateSubtitle();
 
   const sections = getGlossarySections();

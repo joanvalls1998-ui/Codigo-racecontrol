@@ -147,6 +147,7 @@ function renderCalendarFlowCard(context) {
 
 async function showCalendar(force = false) {
   setActiveNav("nav-more");
+  rememberScreen("calendar");
   updateSubtitle();
 
   contentEl().innerHTML = renderLoadingCard("Calendario", "Cargando calendario oficial 2026…", true);

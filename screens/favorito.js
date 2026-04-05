@@ -387,6 +387,7 @@ function renderFavoritoChampionshipCard(favorite, raceName, predictData, expert)
 
 function showFavorito() {
   setActiveNav("nav-favorito");
+  rememberScreen("favorito");
   updateSubtitle();
 
   const favorite = getFavorite();

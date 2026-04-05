@@ -68,6 +68,66 @@ function openPredictionHistoryItem(id) {
   `);
 }
 
+
+function getActivePredictionSharePayload() {
+  const favorite = getFavorite();
+  const raceName = getSelectedRace();
+  const data = getActivePredictDataForRace(favorite, raceName);
+  const text = data ? formatPredictResponse(data) : (document.getElementById("predictOutput")?.innerText || "").trim();
+
+  return {
+    title: `RaceControl · ${raceName}`,
+    text,
+    raceName,
+    hasData: Boolean(data && text)
+  };
+}
+
+async function sharePrediction() {
+  const payload = getActivePredictionSharePayload();
+  if (!payload.text || !payload.hasData) {
+    openDetailModal(`
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-title">Compartir predicción</div>
+        <div class="empty-line">Primero genera una predicción para poder compartirla.</div>
+      </div>
+    `);
+    return;
+  }
+
+  const shareData = {
+    title: payload.title,
+    text: payload.text
+  };
+
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+      return;
+    }
+
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(payload.text);
+      openDetailModal(`
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-title">Predicción copiada</div>
+          <div class="card-sub">Tu dispositivo no soporta compartir nativo, pero ya tienes el texto en el portapapeles.</div>
+        </div>
+      `);
+      return;
+    }
+
+    throw new Error("No hay soporte de compartir ni portapapeles.");
+  } catch (error) {
+    openDetailModal(`
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-title">No se pudo compartir</div>
+        <div class="card-sub">${escapeHtml(error?.message || "Inténtalo de nuevo.")}</div>
+      </div>
+    `);
+  }
+}
+
 function setPredictSectionPlaceholders({
   summary = "",
   scenarios = "",
@@ -152,6 +212,7 @@ function renderPredictHeroV2({ predict, favorite, raceName, expert, activePredic
       <div class="action-row">
         <button class="btn" onclick="runPredict()">Generar</button>
         <button class="icon-btn" onclick="refreshPredict()">Actualizar</button>
+        <button class="icon-btn" onclick="sharePrediction()">Compartir</button>
       </div>
 
       ${expert ? `<div class="info-line predict-hero-note">Foco experto: sábado y domingo deben leerse por separado para ajustar el techo real.</div>` : ""}
@@ -304,6 +365,7 @@ function shouldAutoGeneratePredict(favorite, raceName) {
 
 function showPredict() {
   setActiveNav("nav-predict");
+  rememberScreen("predict");
   updateSubtitle();
 
   const predict = renderPredictContent();
@@ -391,7 +453,14 @@ function showPredict() {
     ` : ""}
 
     <div class="card predict-v2-secondary">
-      <div class="card-title">${escapeHtml(predict.copy.textTitle)}</div>
+      <div class="card-head">
+        <div class="card-head-left">
+          <div class="card-title">${escapeHtml(predict.copy.textTitle)}</div>
+        </div>
+        <div class="card-head-actions">
+          <button class="icon-btn" onclick="sharePrediction()">Compartir</button>
+        </div>
+      </div>
       <pre id="predictOutput" class="ai-output predict-v2-raw-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción avanzada..."}</pre>
     </div>
 
@@ -420,3 +489,5 @@ window.refreshPredict = refreshPredict;
 window.showPredict = showPredict;
 window.clearPredictionHistory = clearPredictionHistory;
 window.openPredictionHistoryItem = openPredictionHistoryItem;
+
+window.sharePrediction = sharePrediction;

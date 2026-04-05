@@ -240,6 +240,7 @@ function renderStandingsSummaryBlock() {
 
 async function showStandings(force = false) {
   setActiveNav("nav-more");
+  rememberScreen("standings");
   updateSubtitle();
 
   contentEl().innerHTML = `

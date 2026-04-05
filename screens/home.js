@@ -159,6 +159,7 @@ function renderHomeDynamicBlocks(context, favorite) {
 
   return `
     ${renderHomePhaseHero(context)}
+    ${renderWeekendModeHub(context, { source: "home" })}
     ${renderFavoriteQuickSelectorCard({
       title: "Favorito central",
       subtitle: expert
