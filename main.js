@@ -176,7 +176,7 @@ function renderWeekendModeHub(context, { compact = false, source = "home" } = {}
           <div class="card-sub">${escapeHtml(raceName)} · ${escapeHtml(phase)} · ${escapeHtml(nextSession)}${escapeHtml(countdown)}</div>
         </div>
         <div class="card-head-actions">
-          <button class="icon-btn" onclick="toggleWeekendModeEnabled(${JSON.stringify(source)})">Ocultar</button>
+          <button class="icon-btn" onclick="toggleWeekendModeEnabled('${source}')">Ocultar</button>
         </div>
       </div>
       <div class="weekend-mode-actions">
