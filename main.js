@@ -1882,12 +1882,14 @@ async function showSessions() {
         </div>
       ` : ""}
 
-      <div class="card sessions-impact-card">
-        <div class="card-title">Impacto en el favorito</div>
-        <div class="insight-list">
-          ${impactSummary.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
+      ${expert ? `
+        <div class="card sessions-impact-card">
+          <div class="card-title">Impacto en el favorito</div>
+          <div class="insight-list">
+            ${impactSummary.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
+          </div>
         </div>
-      </div>
+      ` : ""}
 
       ${expert ? renderContextGlossaryCard("sessions", context?.phase || "pre_weekend") : ""}
     `;
@@ -3976,7 +3978,7 @@ function showMore() {
   contentEl().innerHTML = `
     <div class="card more-hub-card">
       <div class="card-title">Más</div>
-      <div class="card-sub">${isExpert ? "Centro de control rápido con contexto del estado actual." : "Centro de control rápido para usar RaceControl sin fricción."}</div>
+      <div class="card-sub">${isExpert ? "Centro de control rápido con contexto actual." : "Centro de control rápido."}</div>
 
       ${renderWeekendModeHub(state.weekendContext, { compact: true, source: "more" })}
 
@@ -4043,13 +4045,6 @@ function showMore() {
           <div class="more-control-card more-system-card" onclick="showSettingsPanel()">
             <div class="more-card-title">Ajustes avanzados</div>
             <div class="more-card-sub">Configuración completa y opciones secundarias.</div>
-          </div>
-          <div class="more-control-card">
-            <div class="more-card-title">Reset rápido de favorito</div>
-            <div class="more-card-sub">Restaura el favorito por defecto sin tocar el resto de ajustes.</div>
-            <div class="action-row">
-              <button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset favorito</button>
-            </div>
           </div>
         </div>
       </div>

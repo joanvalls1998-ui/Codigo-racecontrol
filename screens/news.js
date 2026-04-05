@@ -706,7 +706,7 @@ async function showNews() {
         expert: isExpertMode()
       })}
 
-      ${renderNewsPhaseCard(phase)}
+      ${isExpertMode() ? renderNewsPhaseCard(phase) : ""}
 
       <div class="card highlight-card news-portada-v2">
         <div class="card-title">Portada · ${escapeHtml(filter.label)}</div>
@@ -715,13 +715,11 @@ async function showNews() {
 
       <div class="card news-keys-v2">
         <div class="card-title">${isExpertMode() ? "Claves editoriales del día" : "3 claves del día"}</div>
-        <div class="card-sub">${isExpertMode() ? "Qué merece seguimiento inmediato y qué es más contexto." : "Lectura rápida para saber qué mirar primero."}</div>
         ${renderNewsKeyLines(sortedItems, filter, phase)}
       </div>
 
       <div class="card news-list-v2">
         <div class="card-title">${isExpertMode() ? "Seguimiento y contexto" : "Más noticias"}</div>
-        <div class="card-sub">${isExpertMode() ? "Separación editorial: primero lo importante, luego contexto de paddock." : "Resto de titulares ordenados por relevancia."}</div>
         ${isExpertMode() ? `
           <div class="mini-pill" style="margin-top:10px;">Importantes ahora</div>
           ${importantRest.length
