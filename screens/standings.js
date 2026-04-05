@@ -243,50 +243,37 @@ async function showStandings(force = false) {
   rememberScreen("standings");
   updateSubtitle();
 
-  contentEl().innerHTML = `
-    ${renderFavoriteCard()}
-    ${renderLoadingCard("Clasificación", "Cargando clasificación real, cambios y resaltados…", true)}
-  `;
+  contentEl().innerHTML = `${renderLoadingCard("Clasificación", "Cargando tabla del campeonato…", true)}`;
 
   try {
     await fetchStandingsData(force);
 
     contentEl().innerHTML = `
-      ${renderFavoriteCard()}
       <div id="standingsSummaryContent"></div>
-
       <div class="card">
         <div class="card-head">
-          <div class="card-head-left">
-            <div class="card-title">Clasificación</div>
-          </div>
-          <div class="card-head-actions">
-            <button class="icon-btn" onclick="refreshStandings()">Refrescar</button>
-          </div>
+          <div class="card-head-left"><div class="card-title">Tabla</div></div>
+          <div class="card-head-actions"><button class="icon-btn" onclick="refreshStandings()">Refrescar</button></div>
         </div>
 
         <div class="standings-toggle">
           <button class="toggle-btn ${state.standingsViewType === "drivers" ? "active" : ""}" onclick="setStandingsView('drivers')">Pilotos</button>
           <button class="toggle-btn ${state.standingsViewType === "teams" ? "active" : ""}" onclick="setStandingsView('teams')">Equipos</button>
-        </div>
-
-        <div class="standings-toggle">
           <button class="toggle-btn ${state.standingsScope === "top10" ? "active" : ""}" onclick="setStandingsScope('top10')">Top 10</button>
           <button class="toggle-btn ${state.standingsScope === "all" ? "active" : ""}" onclick="setStandingsScope('all')">Todos</button>
         </div>
       </div>
-
       <div id="standingsContent"></div>
     `;
 
     renderStandingsSummaryBlock();
-
     if (state.standingsViewType === "teams") showTeamsStandings();
     else showDriversStandings();
   } catch (error) {
     contentEl().innerHTML = renderErrorCard("Clasificación", "Error al cargar la clasificación", error.message);
   }
 }
+
 
 
 window.showStandings = showStandings;

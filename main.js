@@ -1843,7 +1843,7 @@ async function showSessions() {
   rememberScreen("sessions");
   updateSubtitle();
 
-  contentEl().innerHTML = renderLoadingCard("Sesiones", "Preparando el hub del fin de semana y el valor real de cada sesión…", true);
+  contentEl().innerHTML = renderLoadingCard("Sesiones", "Preparando centro de seguimiento…", true);
 
   try {
     await fetchCalendarData();
@@ -1851,36 +1851,19 @@ async function showSessions() {
     const favorite = getFavorite();
     const expert = isExpertMode();
     const watchNowItems = getWhatToWatchNowItems(context, favorite, expert);
-    const impactSummary = getFavoriteImpactSummary(context, favorite, expert);
     const sessionsView = getVisibleSessions(context, expert);
 
     contentEl().innerHTML = `
       ${renderSessionsHero(context)}
 
       <div class="card highlight-card sessions-watch-card">
-        <div class="card-title">Qué mirar ahora</div>
-        <div class="insight-list">
-          ${watchNowItems.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
-        </div>
+        <div class="card-title">Ahora / siguiente</div>
+        <div class="insight-list">${watchNowItems.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}</div>
       </div>
 
       ${(context?.sessions || []).length
         ? sessionsView.visible.map(session => renderSessionCard(session, favorite, context)).join("")
-        : `
-          <div class="card">
-            <div class="card-title">Sesiones</div>
-            <div class="empty-line">${escapeHtml(context?.scheduleReason || "No se han podido construir las sesiones del GP ahora mismo.")}</div>
-          </div>
-        `}
-
-      ${expert ? `
-        <div class="card sessions-impact-card">
-          <div class="card-title">Pulso del favorito</div>
-          <div class="insight-list">
-            ${impactSummary.slice(0, 3).map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
-          </div>
-        </div>
-      ` : ""}
+        : `<div class="card"><div class="card-title">Sesiones</div><div class="empty-line">${escapeHtml(context?.scheduleReason || "No se han podido construir las sesiones del GP ahora mismo.")}</div></div>`}
 
       ${expert ? renderContextGlossaryCard("sessions", context?.phase || "pre_weekend") : ""}
     `;
@@ -3951,86 +3934,62 @@ function showMore() {
   const settings = getSettings();
   const favorite = getFavorite();
   const favoriteTypeLabel = favorite.type === "driver" ? "Piloto" : "Equipo";
-  const favoriteTeamLine = favorite.type === "driver"
-    ? `Equipo: ${favorite.team}`
-    : favorite.drivers
-      ? `Pilotos: ${favorite.drivers}`
-      : "Constructor";
+  const favoriteTeamLine = favorite.type === "driver" ? `Equipo: ${favorite.team}` : (favorite.drivers ? `Pilotos: ${favorite.drivers}` : "Constructor");
   const quickContext = getMoreQuickAccessContext();
-  const isCasual = !isExpert;
 
-  const renderNavCard = ({ title, description, contextLine, onclick }) => `
+  const renderNavCard = ({ title, contextLine, onclick }) => `
     <a href="#" class="menu-link more-card more-quick-card" onclick="${onclick}; return false;">
       <div class="more-card-title">${escapeHtml(title)}</div>
-      
-      ${isExpert && contextLine ? `<div class="more-card-context">${escapeHtml(contextLine)}</div>` : ""}
+      ${contextLine ? `<div class="more-card-context">${escapeHtml(contextLine)}</div>` : ""}
     </a>
   `;
 
   contentEl().innerHTML = `
     <div class="card more-hub-card">
-      <div class="card-title">Más</div>
-      
-
-      ${renderWeekendModeHub(state.weekendContext, { compact: true, source: "more" })}
+      <div class="card-title">Panel de control</div>
 
       <div class="more-section">
-        <div class="more-section-title">Control rápido</div>
-        <div class="more-control-stack">
-          <div class="more-control-card">
-            <div class="more-card-title">Favorito actual</div>
-            
-            <div class="more-card-context">${escapeHtml(favoriteTypeLabel)} · ${escapeHtml(favoriteTeamLine)}${isExpert ? ` · P${escapeHtml(favorite.pos || "—")}` : ""}</div>
-            <div class="action-row">
-              <button class="btn" onclick="openFavoriteSelectorModal('showMore')">Cambiar favorito</button>
-            </div>
-            <div class="quick-row" style="margin-top:8px;"><button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset favorito</button></div>
-          </div>
-
-          <div class="more-control-card">
-            <div class="more-card-title">Modo de experiencia</div>
-            
-            <div class="quick-row more-experience-row">
-              <button class="chip ${!isExpert ? "active" : ""}" onclick="setExperienceMode('casual')">Casual</button>
-              <button class="chip ${isExpert ? "active" : ""}" onclick="setExperienceMode('expert')">Experto</button>
-            </div>
-          </div>
-
-          <div class="more-control-card">
-            <div class="more-card-title">Visualización</div>
-            
-            <div class="quick-row more-toggle-row">
-              <button class="toggle-btn ${settings.homeCompactMode ? "active" : ""}" onclick="togglePremiumSetting('homeCompactMode')">Inicio compacto</button>
-              <button class="toggle-btn ${settings.showCircuitLocalTime ? "active" : ""}" onclick="togglePremiumSetting('showCircuitLocalTime')">Hora local circuito</button>
-              <button class="toggle-btn ${settings.autoSelectNextRace ? "active" : ""}" onclick="togglePremiumSetting('autoSelectNextRace')">Auto GP siguiente</button>
-            </div>
+        <div class="more-section-title">Favorito</div>
+        <div class="more-control-card">
+          <div class="more-card-title">${escapeHtml(favorite.name)}</div>
+          <div class="more-card-context">${escapeHtml(favoriteTypeLabel)} · ${escapeHtml(favoriteTeamLine)}</div>
+          <div class="action-row">
+            <button class="btn" onclick="openFavoriteSelectorModal('showMore')">Cambiar</button>
+            <button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset</button>
           </div>
         </div>
       </div>
 
       <div class="more-section">
-        <div class="more-section-title">Accesos rápidos</div>
+        <div class="more-section-title">Modo</div>
+        <div class="more-control-card">
+          <div class="quick-row more-experience-row">
+            <button class="chip ${!isExpert ? "active" : ""}" onclick="setExperienceMode('casual')">Casual</button>
+            <button class="chip ${isExpert ? "active" : ""}" onclick="setExperienceMode('expert')">Experto</button>
+          </div>
+          <div class="quick-row more-toggle-row" style="margin-top:8px;">
+            <button class="toggle-btn ${settings.homeCompactMode ? "active" : ""}" onclick="togglePremiumSetting('homeCompactMode')">Inicio compacto</button>
+            <button class="toggle-btn ${settings.autoSelectNextRace ? "active" : ""}" onclick="togglePremiumSetting('autoSelectNextRace')">Auto GP</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="more-section">
+        <div class="more-section-title">Atajos</div>
         <div class="more-card-grid">
-          ${renderNavCard({ title: "Sesiones", description: "Estado del fin de semana y próxima sesión.", contextLine: quickContext.sessions, onclick: "showSessions()" })}
-          ${renderNavCard({ title: "Calendario", description: "Fechas clave y próximo GP.", contextLine: quickContext.calendar, onclick: "showCalendar()" })}
-          ${renderNavCard({ title: "Clasificación", description: "Tabla de pilotos y equipos.", contextLine: quickContext.standings, onclick: "showStandings()" })}
-          ${renderNavCard({ title: "Modo carrera", description: "Lectura táctica del GP activo.", contextLine: quickContext.raceMode, onclick: "showRaceMode()" })}
-          ${renderNavCard({ title: "Noticias", description: "Titulares filtrados.", contextLine: quickContext.news, onclick: "showNews()" })}
-          ${renderNavCard({ title: "Predicción", description: "Escenario del GP.", contextLine: quickContext.predict, onclick: "showPredict()" })}
+          ${renderNavCard({ title: "Sesiones", contextLine: quickContext.sessions, onclick: "showSessions()" })}
+          ${renderNavCard({ title: "Calendario", contextLine: quickContext.calendar, onclick: "showCalendar()" })}
+          ${renderNavCard({ title: "Clasificación", contextLine: quickContext.standings, onclick: "showStandings()" })}
+          ${renderNavCard({ title: "Modo carrera", contextLine: quickContext.raceMode, onclick: "showRaceMode()" })}
+          ${renderNavCard({ title: "Noticias", contextLine: quickContext.news, onclick: "showNews()" })}
+          ${renderNavCard({ title: "Predict", contextLine: quickContext.predict, onclick: "showPredict()" })}
         </div>
       </div>
 
       <div class="more-section">
-        <div class="more-section-title">Sistema</div>
         <div class="more-control-stack">
-          <div class="more-control-card more-system-card" onclick="showGlossary()">
-            <div class="more-card-title">Glosario F1</div>
-            ${isCasual ? `<div class="more-card-sub">Conceptos clave de F1 en formato simple.</div>` : ""}
-          </div>
-          <div class="more-control-card more-system-card" onclick="showSettingsPanel()">
-            <div class="more-card-title">Ajustes avanzados</div>
-            ${isCasual ? `<div class="more-card-sub">Configuración completa y opciones secundarias.</div>` : ""}
-          </div>
+          <div class="more-control-card more-system-card" onclick="showGlossary()"><div class="more-card-title">Glosario</div></div>
+          <div class="more-control-card more-system-card" onclick="showSettingsPanel()"><div class="more-card-title">Ajustes</div></div>
         </div>
       </div>
     </div>
