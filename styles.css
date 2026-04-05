@@ -1239,6 +1239,22 @@ nav,
   opacity: 0.94;
 }
 
+.race-mode-v2-hero {
+  border-color: rgba(255,255,255,0.16);
+}
+
+.race-mode-v2-hero-grid {
+  margin-top: 12px;
+}
+
+.race-mode-v2-hero-note {
+  margin-top: 12px;
+}
+
+.race-mode-v2-primary {
+  border-color: rgba(255,255,255,0.13);
+}
+
 .menu-link {
   display: block;
   padding: 15px 0;
