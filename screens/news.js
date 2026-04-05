@@ -396,30 +396,6 @@ function renderNewsPhaseCard(phase) {
   `;
 }
 
-function renderHomeNewsPreview(items, favorite) {
-  const filter = { key: "favorite", label: favorite.name, favoritePayload: favorite };
-  const phase = getNewsWeekendPhase();
-  const previewItems = sortNewsItems(items, filter, phase).slice(0, 3);
-
-  return `
-    <div class="card">
-      <div class="card-title">Noticias clave · ${escapeHtml(favorite.name)}</div>
-
-      ${previewItems.length ? previewItems.map(item => `
-        <div class="news-item">
-          <div class="news-meta-row" style="margin-top:0; margin-bottom:8px;">
-            <span class="tag ${categorizeNewsItem(item).key}">${escapeHtml(categorizeNewsItem(item).label)}</span>
-          </div>
-          <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
-          <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
-        </div>
-      `).join("") : `
-        <div class="empty-line">No se han podido cargar noticias destacadas ahora mismo.</div>
-      `}
-    </div>
-  `;
-}
-
 async function refreshCurrentNews() {
   const filter = getActiveNewsFilter();
   if (!filter) return;
