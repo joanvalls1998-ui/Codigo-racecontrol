@@ -2799,9 +2799,11 @@ async function showHome() {
   }
 
   contentEl().innerHTML = `
-    ${renderHomeHero()}
-    ${calendarError ? renderErrorCard("Inicio", "No se pudo cargar el calendario del GP", calendarError.message) : ""}
-    ${renderHomeDynamicBlocks(context, favorite)}
+    <div class="home-stack${isExpertMode() ? " home-stack-expert" : ""}">
+      ${renderHomeHero()}
+      ${calendarError ? renderErrorCard("Inicio", "No se pudo cargar el calendario del GP", calendarError.message) : ""}
+      ${renderHomeDynamicBlocks(context, favorite)}
+    </div>
   `;
 }
 
