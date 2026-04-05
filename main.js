@@ -239,6 +239,14 @@ function applyFavoriteTheme() {
   root.classList.add(`theme-${team}`);
 }
 
+function applyExperienceTheme() {
+  const root = document.body;
+  if (!root) return;
+
+  root.classList.remove("experience-casual", "experience-expert");
+  root.classList.add(getExperienceMode() === "expert" ? "experience-expert" : "experience-casual");
+}
+
 function getPredictRaceOptions() {
   return [
     "GP de Australia",
@@ -4398,10 +4406,12 @@ function setExperienceMode(mode) {
     experienceMode: nextMode
   });
 
+  applyExperienceTheme();
   refreshCurrentView();
 }
 
 function refreshCurrentView() {
+  applyExperienceTheme();
   const active = document.querySelector("#bottomNav a.active")?.id;
 
   if (active === "nav-home") return showHome();
@@ -4475,6 +4485,7 @@ function bootRaceControl() {
     const repairedFavorite = getFavorite();
     saveFavorite(repairedFavorite);
     applyFavoriteTheme();
+    applyExperienceTheme();
 
     updateSubtitle();
 
