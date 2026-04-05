@@ -38,6 +38,11 @@
   --cadillac: #8b5cf6;
   --haas: #ef4444;
   --rb: #4f46e5;
+
+  --theme-accent: var(--apple-blue);
+  --theme-accent-soft: rgba(10, 132, 255, 0.2);
+  --theme-border: rgba(10, 132, 255, 0.34);
+  --theme-glow: rgba(10, 132, 255, 0.3);
 }
 
 * {
@@ -60,6 +65,18 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   letter-spacing: -0.015em;
 }
+
+body.theme-aston { --theme-accent: var(--aston); --theme-accent-soft: rgba(0, 210, 190, 0.2); --theme-border: rgba(0, 210, 190, 0.34); --theme-glow: rgba(0, 210, 190, 0.3); }
+body.theme-ferrari { --theme-accent: var(--ferrari); --theme-accent-soft: rgba(255, 59, 48, 0.22); --theme-border: rgba(255, 59, 48, 0.36); --theme-glow: rgba(255, 59, 48, 0.28); }
+body.theme-mercedes { --theme-accent: var(--mercedes); --theme-accent-soft: rgba(0, 210, 190, 0.2); --theme-border: rgba(0, 210, 190, 0.34); --theme-glow: rgba(0, 210, 190, 0.3); }
+body.theme-mclaren { --theme-accent: var(--mclaren); --theme-accent-soft: rgba(255, 159, 10, 0.2); --theme-border: rgba(255, 159, 10, 0.34); --theme-glow: rgba(255, 159, 10, 0.28); }
+body.theme-redbull { --theme-accent: var(--redbull); --theme-accent-soft: rgba(59, 130, 246, 0.2); --theme-border: rgba(59, 130, 246, 0.34); --theme-glow: rgba(59, 130, 246, 0.28); }
+body.theme-alpine { --theme-accent: var(--alpine); --theme-accent-soft: rgba(96, 165, 250, 0.2); --theme-border: rgba(96, 165, 250, 0.34); --theme-glow: rgba(96, 165, 250, 0.28); }
+body.theme-williams { --theme-accent: var(--williams); --theme-accent-soft: rgba(59, 130, 246, 0.2); --theme-border: rgba(59, 130, 246, 0.34); --theme-glow: rgba(59, 130, 246, 0.28); }
+body.theme-audi { --theme-accent: var(--audi); --theme-accent-soft: rgba(229, 231, 235, 0.2); --theme-border: rgba(229, 231, 235, 0.34); --theme-glow: rgba(229, 231, 235, 0.28); }
+body.theme-cadillac { --theme-accent: var(--cadillac); --theme-accent-soft: rgba(139, 92, 246, 0.2); --theme-border: rgba(139, 92, 246, 0.34); --theme-glow: rgba(139, 92, 246, 0.28); }
+body.theme-haas { --theme-accent: var(--haas); --theme-accent-soft: rgba(239, 68, 68, 0.2); --theme-border: rgba(239, 68, 68, 0.34); --theme-glow: rgba(239, 68, 68, 0.28); }
+body.theme-rb { --theme-accent: var(--rb); --theme-accent-soft: rgba(79, 70, 229, 0.2); --theme-border: rgba(79, 70, 229, 0.34); --theme-glow: rgba(79, 70, 229, 0.28); }
 
 body::before {
   content: "";
@@ -176,9 +193,9 @@ nav,
 #nav-favorito.active,
 #nav-news.active,
 #nav-more.active {
-  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 28%, rgba(255,255,255,0.14)), rgba(255,255,255,0.06));
   color: var(--text);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 0 0 1px var(--theme-border);
 }
 
 #nav-home:active,
@@ -211,11 +228,13 @@ nav,
 
 .highlight-card {
   background:
-    radial-gradient(circle at top right, rgba(10, 132, 255, 0.14), transparent 28%),
+    radial-gradient(circle at top right, var(--theme-accent-soft), transparent 30%),
     linear-gradient(180deg, rgba(26, 29, 38, 0.96), rgba(18, 20, 26, 0.92));
-  border-color: rgba(255, 255, 255, 0.11);
+  border-color: color-mix(in srgb, var(--theme-border) 58%, rgba(255, 255, 255, 0.1));
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.06),
+    0 0 0 1px rgba(255,255,255,0.03),
+    0 14px 34px color-mix(in srgb, var(--theme-glow) 40%, transparent),
     var(--shadow-2);
 }
 
@@ -550,9 +569,9 @@ nav,
 }
 
 .btn {
-  background: linear-gradient(180deg, rgba(10,132,255,0.96), rgba(10,132,255,0.72));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 88%, #fff 12%), color-mix(in srgb, var(--theme-accent) 74%, #000 26%));
   color: white;
-  box-shadow: 0 10px 24px rgba(10,132,255,0.28);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--theme-glow) 76%, transparent);
 }
 
 .btn-secondary,
@@ -608,9 +627,9 @@ nav,
 
 .chip.active,
 .toggle-btn.active {
-  background: rgba(255,255,255,0.12);
+  background: color-mix(in srgb, var(--theme-accent) 24%, rgba(255,255,255,0.08));
   color: var(--text);
-  border-color: rgba(255,255,255,0.14);
+  border-color: var(--theme-border);
 }
 
 .trend-pill,
@@ -655,9 +674,9 @@ nav,
 
 .tag.general,
 .context-badge.favorite {
-  background: rgba(10,132,255,0.14);
-  color: #8fc8ff;
-  border: 1px solid rgba(10,132,255,0.22);
+  background: color-mix(in srgb, var(--theme-accent) 18%, transparent);
+  color: color-mix(in srgb, var(--theme-accent) 62%, #d7ecff);
+  border: 1px solid var(--theme-border);
 }
 
 .tag.technical {

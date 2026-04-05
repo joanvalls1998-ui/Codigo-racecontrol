@@ -45,7 +45,6 @@ function renderGlossaryFocusCard(item) {
     <div class="card highlight-card">
       <div class="mini-pill">TÉRMINO DESTACADO</div>
       <div class="card-title">${escapeHtml(item.term)}</div>
-      <div class="card-sub">Definición rápida para casual y lectura más técnica si quieres profundizar.</div>
 
       <div class="news-meta-row" style="margin-top:10px;">
         <span class="tag ${getGlossaryLevelTagClass(item.level)}">${escapeHtml(item.level)}</span>
@@ -80,7 +79,6 @@ function openGlossaryQuickTerm(term) {
       </div>
 
       <div class="card-title">${escapeHtml(item.term)}</div>
-      <div class="card-sub">Definición rápida para casual y lectura más técnica si quieres profundizar.</div>
 
       <div class="insight-list" style="margin-top:14px;">
         <div class="insight-item">
@@ -170,11 +168,8 @@ function showGlossary(focusTerm = null) {
 
   contentEl().innerHTML = `
     <div class="card highlight-card">
-      <div class="mini-pill">CASUAL FRIENDLY</div>
+      <div class="mini-pill">GLOSARIO</div>
       <div class="card-title">Glosario F1</div>
-      <div class="card-sub">
-        Términos actuales de Fórmula 1 explicados en corto y en fácil, para que la app se entienda mejor aunque no sigas todo el año.
-      </div>
 
       <div class="meta-grid" style="margin-top:14px;">
         <div class="meta-tile">

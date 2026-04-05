@@ -377,7 +377,7 @@ function renderNewsListItem(item, filter, phase = getNewsWeekendPhase()) {
       </div>
       <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
       <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
-      <div class="card-sub" style="margin-top:6px;">${escapeHtml(impactText)}</div>
+      <div class="info-line" style="margin-top:8px;">${escapeHtml(impactText)}</div>
     </div>
   `;
 }
@@ -388,7 +388,6 @@ function renderNewsPhaseCard(phase) {
   return `
     <div class="card">
       <div class="card-title">${escapeHtml(copy.title)}</div>
-      <div class="card-sub">${escapeHtml(copy.sub)}</div>
       <div class="news-meta-row" style="margin-top:10px;">
         <span class="tag ${getWeekendPhaseTagClass(phase)}">${escapeHtml(getWeekendPhaseLabel(phase))}</span>
       </div>
@@ -416,7 +415,6 @@ async function showNews() {
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">NOTICIAS</div>
-          <div class="card-sub">Buscando noticias reales, priorizando utilidad y adaptando el ranking al momento del GP.</div>
         </div>
         <div class="card-head-actions">
           <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
@@ -438,7 +436,6 @@ async function showNews() {
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">NOTICIAS</div>
-            <div class="card-sub">Portada más inteligente, claves editoriales y artículos ordenados por utilidad real.</div>
           </div>
           <div class="card-head-actions">
             <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
@@ -458,14 +455,11 @@ async function showNews() {
 
       <div class="card">
         <div class="card-title">3 claves del día</div>
-        <div class="card-sub">Qué merece la pena mirar primero y por qué importa realmente.</div>
         ${renderNewsKeyLines(sortedItems, filter, phase)}
       </div>
 
       <div class="card">
         <div class="card-title">Más noticias</div>
-        <div class="card-sub">Artículos relacionados con el filtro activo, ya ordenados por relevancia, fase del GP y contexto.</div>
-
         ${rest.length
           ? rest.map(item => renderNewsListItem(item, filter, phase)).join("")
           : `<div class="empty-line">No se han encontrado noticias adicionales ahora mismo.</div>`}

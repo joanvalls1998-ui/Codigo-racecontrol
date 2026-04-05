@@ -25,8 +25,7 @@ function renderStandingsOverviewCard() {
   if (overview.type === "drivers") {
     return `
       <div class="card">
-        <div class="card-title">Contexto del campeonato</div>
-        <div class="card-sub">No mires solo una tabla: mira dónde está el favorito y con quién pelea de verdad.</div>
+        <div class="card-title">Campeonato</div>
 
         <div class="meta-grid" style="margin-top:14px;">
           <div class="meta-tile">
@@ -51,8 +50,7 @@ function renderStandingsOverviewCard() {
 
   return `
     <div class="card">
-      <div class="card-title">Contexto del campeonato</div>
-      <div class="card-sub">La pelea del equipo favorito se entiende mejor viendo líder, posición y rivales inmediatos.</div>
+      <div class="card-title">Campeonato</div>
 
       <div class="meta-grid" style="margin-top:14px;">
         <div class="meta-tile">
@@ -84,7 +82,6 @@ function renderStandingsBattleCard() {
   return `
     <div class="card">
       <div class="card-title">Batalla directa</div>
-      <div class="card-sub">Los rivales inmediatos importan más que mirar solo del primero al último.</div>
 
       ${items.length ? items.map(item => `
         <div class="standing-row">
@@ -131,7 +128,6 @@ async function showStandings(force = false) {
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">Clasificación</div>
-            <div class="card-sub">Vista premium con líder, favorito, compañero y variación de posición.</div>
           </div>
           <div class="card-head-actions">
             <button class="icon-btn" onclick="refreshStandings()">Refrescar</button>

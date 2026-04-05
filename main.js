@@ -214,6 +214,30 @@ function saveFavorite(favorite) {
   storageWriteJson(STORAGE_KEYS.favorite, normalizeFavorite(favorite));
 }
 
+function applyFavoriteTheme() {
+  const favorite = getFavorite();
+  const root = document.body;
+  if (!root) return;
+
+  const team = favorite?.colorClass || "aston";
+  const themeClasses = [
+    "theme-aston",
+    "theme-ferrari",
+    "theme-mercedes",
+    "theme-mclaren",
+    "theme-redbull",
+    "theme-alpine",
+    "theme-williams",
+    "theme-audi",
+    "theme-cadillac",
+    "theme-haas",
+    "theme-rb"
+  ];
+
+  root.classList.remove(...themeClasses);
+  root.classList.add(`theme-${team}`);
+}
+
 function getPredictRaceOptions() {
   return [
     "GP de Australia",
@@ -1251,7 +1275,7 @@ function renderSessionCard(session, favorite, context) {
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">${escapeHtml(session.label)}</div>
-          <div class="card-sub">Tu hora: ${escapeHtml(userTime)} · ${escapeHtml(session.importance)}</div>
+          <div class="card-sub">Tu hora: ${escapeHtml(userTime)}</div>
         </div>
         <div class="card-head-actions">
           <span class="tag ${statusClass}">${escapeHtml(statusLabel)}</span>
@@ -1278,7 +1302,7 @@ function renderSessionCard(session, favorite, context) {
         </div>
       </div>
 
-      <div class="card-sub" style="margin-top:16px; margin-bottom:10px;">Qué mirar</div>
+      <div class="meta-kicker" style="margin-top:14px;">Qué mirar</div>
       <div class="insight-list">
         ${watchItems.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
       </div>
@@ -1302,7 +1326,6 @@ async function showSessions() {
 
       <div class="card">
         <div class="card-title">Qué mirar ahora</div>
-        <div class="card-sub">Tres ideas rápidas para saber dónde poner el foco según la fase actual del GP.</div>
         <div class="insight-list">
           ${(context?.whatToWatch || [
             "No hay contexto disponible ahora mismo.",
@@ -2389,8 +2412,8 @@ function renderHomeNowCard(context, favorite) {
 
   return `
     <div class="card">
-      <div class="card-title">${context.currentSession ? "Ahora mismo" : target.status === "next" ? "Lo siguiente" : "Última referencia"}</div>
-      <div class="card-sub">${escapeHtml(impact)}</div>
+      <div class="card-title">${context.currentSession ? "Ahora mismo" : target.status === "next" ? "Siguiente" : "Última"}</div>
+      <div class="info-line" style="margin-top:10px;">${escapeHtml(impact)}</div>
 
       <div class="meta-grid" style="margin-top:14px;">
         <div class="meta-tile">
@@ -2418,12 +2441,12 @@ function renderHomeQuickLinks(context) {
 
   return `
     <div class="card">
-      <div class="card-title">Accesos rápidos</div>
+      <div class="card-title">Accesos</div>
 
       <div class="quick-row">
         <a href="#" class="btn" onclick="saveSelectedRace('${String(raceName).replace(/'/g, "\\'")}'); showPredict(); return false;">Predicción</a>
         <a href="#" class="btn-secondary" onclick="showSessions(); return false;">Sesiones</a>
-        <a href="#" class="btn-secondary" onclick="showRaceMode(); return false;">Modo carrera</a>
+        <a href="#" class="btn-secondary" onclick="showRaceMode(); return false;">Carrera</a>
       </div>
     </div>
   `;
@@ -2808,13 +2831,13 @@ function getPredictPhaseCopy(phase, context, favorite, raceName) {
     summarySub: "Lo importante arriba, para saber en segundos dónde está el favorito.",
     scenariosTitle: "Escenarios",
     scenariosSub: "Una lectura más realista del fin de semana: mejor caso, base y escenario complicado.",
-    factorsTitle: "Claves del fin de semana",
+    factorsTitle: "Claves",
     factorsSub: "Dónde puede aparecer el rendimiento y qué puede torcer el guion.",
     qualyTitle: "Qualy vs carrera",
     qualySub: "Cómo debería comportarse el coche a una vuelta y en stint largo.",
-    strategyTitle: "Estrategia esperada",
+    strategyTitle: "Estrategia",
     strategySub: "Plan base, ventana de parada y principal factor que puede alterar la carrera.",
-    gridTitle: "Lectura de parrilla",
+    gridTitle: "Parrilla",
     gridSub: "Quién llega como referencia y cómo debería repartirse la parrilla.",
     textTitle: "Texto completo",
     textSub: "Resumen extendido del escenario actual."
@@ -3474,6 +3497,7 @@ function setFavoriteDriver(name, team, number, points, colorClass, image, pos) {
     state.weekendNowIso = new Date().toISOString();
   }
 
+  applyFavoriteTheme();
   updateSubtitle();
   showStandings();
 }
@@ -3486,6 +3510,7 @@ function setFavoriteTeam(name, drivers, points, colorClass, pos) {
     state.weekendNowIso = new Date().toISOString();
   }
 
+  applyFavoriteTheme();
   updateSubtitle();
   showStandings();
 }
@@ -3565,6 +3590,7 @@ function resetFavoriteToDefault() {
     state.weekendContext = buildWeekendContext(state.calendarCache.events, getFavorite());
     state.weekendNowIso = new Date().toISOString();
   }
+  applyFavoriteTheme();
   updateSubtitle();
   showSettingsPanel();
 }
@@ -4093,6 +4119,7 @@ function bootRaceControl() {
 
     const repairedFavorite = getFavorite();
     saveFavorite(repairedFavorite);
+    applyFavoriteTheme();
 
     updateSubtitle();
 

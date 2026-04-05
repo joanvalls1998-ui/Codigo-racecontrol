@@ -9,7 +9,7 @@ function renderCalendarIntelligenceHero(nextRace, context) {
 
   return `
     <div class="card highlight-card">
-      <div class="mini-pill">CALENDARIO INTELIGENTE</div>
+      <div class="mini-pill">CALENDARIO</div>
       <div class="card-title">${escapeHtml(nextRace.title)}</div>
 
       ${renderCircuitThumb(raceName, 80)}
@@ -38,8 +38,8 @@ function renderCalendarIntelligenceHero(nextRace, context) {
       </div>
 
       <div class="quick-row" style="margin-top:14px;">
-        <a href="#" class="btn-secondary" onclick="showSessions(); return false;">Abrir sesiones</a>
-        <a href="#" class="btn-secondary" onclick="showPredict(); return false;">Abrir predicción</a>
+        <a href="#" class="btn-secondary" onclick="showSessions(); return false;">Sesiones</a>
+        <a href="#" class="btn-secondary" onclick="showPredict(); return false;">Predict</a>
       </div>
     </div>
   `;
@@ -66,7 +66,6 @@ function renderCalendarEventCard(event) {
       <div class="calendar-event-tags">
         <span class="tag general">${isTesting ? "Testing" : "Carrera"}</span>
         ${event.sprint ? `<span class="tag market">Sprint</span>` : ""}
-        ${event.type === "race" && event.status === "next" ? `<span class="tag statement">Siguiente</span>` : ""}
       </div>
     </div>
   `;
@@ -79,7 +78,7 @@ function renderCalendarFlowCard(context) {
 
   return `
     <div class="card">
-      <div class="card-title">Flujo del GP</div>
+      <div class="card-title">Sesiones GP</div>
 
       ${context.sessions.map(session => `
         <div class="standing-row">

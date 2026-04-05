@@ -170,21 +170,13 @@ function showPredict() {
 
   contentEl().innerHTML = `
     <div class="card highlight-card">
-      <div class="pill">IA · MOTOR + RESUMEN VISUAL</div>
+      <div class="pill">IA · PREDICT</div>
       <div class="card-title" style="color: var(--${predict.accent});">${escapeHtml(predict.title)}</div>
-      <div class="card-sub">${escapeHtml(predict.sub)}</div>
 
       <div class="news-meta-row" style="margin-top:10px;">
         <span class="tag ${predict.copy.phaseTagClass}">${escapeHtml(predict.copy.phaseLabel)}</span>
-        ${predict.context ? `<span class="tag ${predict.context.isSprint ? "statement" : "general"}">${predict.context.isSprint ? "Sprint weekend" : "Formato normal"}</span>` : ""}
       </div>
-
-      <div class="info-line" style="margin-top:12px;">
-        <strong>${escapeHtml(predict.copy.heroFocus)}</strong><br>
-        ${escapeHtml(predict.copy.heroFocusText)}
-      </div>
-
-      <div class="card-sub" style="margin-top:14px; margin-bottom:6px;">Circuito</div>
+      
       <select id="predictRace" class="select-input" onchange="saveSelectedRace(this.value)">
         ${getPredictRaceOptions().map(race => `
           <option value="${race}" ${race === selectedRace ? "selected" : ""}>${race}</option>
@@ -192,14 +184,13 @@ function showPredict() {
       </select>
 
       <div class="action-row">
-        <button class="btn" onclick="runPredict()">Generar predicción</button>
-        <button class="icon-btn" onclick="refreshPredict()">Refrescar</button>
+        <button class="btn" onclick="runPredict()">Generar</button>
+        <button class="icon-btn" onclick="refreshPredict()">Actualizar</button>
       </div>
     </div>
 
     <div class="card">
       <div class="card-title">${escapeHtml(predict.copy.guidanceTitle)}</div>
-      <div class="card-sub">${escapeHtml(predict.copy.guidanceSub)}</div>
       ${renderPredictPhaseGuideCard(predict)}
     </div>
 
@@ -207,7 +198,6 @@ function showPredict() {
 
     <div class="card">
       <div class="card-title">${escapeHtml(predict.copy.summaryTitle)}</div>
-      <div class="card-sub">${escapeHtml(predict.copy.summarySub)}</div>
       <div id="predictSummaryCards">
         ${activePredictData
           ? renderPredictSummaryCards(activePredictData)
@@ -217,7 +207,6 @@ function showPredict() {
 
     <div class="card">
       <div class="card-title">${escapeHtml(predict.copy.scenariosTitle)}</div>
-      <div class="card-sub">${escapeHtml(predict.copy.scenariosSub)}</div>
       <div id="predictScenarioCards">
         ${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}
       </div>
@@ -225,7 +214,6 @@ function showPredict() {
 
     <div class="card">
       <div class="card-title">${escapeHtml(predict.copy.factorsTitle)}</div>
-      <div class="card-sub">${escapeHtml(predict.copy.factorsSub)}</div>
       <div id="predictKeyFactors">
         ${renderPredictKeyFactors(favorite, selectedRace, activePredictData)}
       </div>
@@ -233,7 +221,6 @@ function showPredict() {
 
     <div class="card">
       <div class="card-title">${escapeHtml(predict.copy.qualyTitle)}</div>
-      <div class="card-sub">${escapeHtml(predict.copy.qualySub)}</div>
       <div id="predictQualyRace">
         ${renderPredictQualyRaceCard(favorite, selectedRace, activePredictData)}
       </div>
@@ -241,7 +228,6 @@ function showPredict() {
 
     <div class="card">
       <div class="card-title">${escapeHtml(predict.copy.strategyTitle)}</div>
-      <div class="card-sub">${escapeHtml(predict.copy.strategySub)}</div>
       <div id="predictStrategyDetail">
         ${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}
       </div>
@@ -249,7 +235,6 @@ function showPredict() {
 
     <div class="card">
       <div class="card-title">${escapeHtml(predict.copy.gridTitle)}</div>
-      <div class="card-sub">${escapeHtml(predict.copy.gridSub)}</div>
       <div id="predictGridRead">
         ${renderPredictGridRead(favorite, selectedRace, activePredictData)}
       </div>
@@ -257,15 +242,13 @@ function showPredict() {
 
     <div class="card">
       <div class="card-title">${escapeHtml(predict.copy.textTitle)}</div>
-      <div class="card-sub">${escapeHtml(predict.copy.textSub)}</div>
       <pre id="predictOutput" class="ai-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción avanzada..."}</pre>
     </div>
 
     <div class="card">
       <div class="card-head">
         <div class="card-head-left">
-          <div class="card-title">Historial de predicciones</div>
-          <div class="card-sub">Las últimas predicciones generadas se guardan localmente en este dispositivo.</div>
+          <div class="card-title">Historial</div>
         </div>
         <div class="card-head-actions">
           <button class="icon-btn" onclick="clearPredictionHistory()">Vaciar</button>
