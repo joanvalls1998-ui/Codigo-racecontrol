@@ -550,6 +550,9 @@ async function showNews() {
 
   const filter = getActiveNewsFilter();
   const phase = getNewsWeekendPhase();
+  const favorite = getFavorite();
+  const raceName = getSelectedRace();
+  const predictData = getActivePredictDataForRace(favorite, raceName);
 
   contentEl().innerHTML = `
     <div class="card news-header-v2">
@@ -595,6 +598,14 @@ async function showNews() {
         subtitle: "Cámbialo para rehacer portada y prioridad en un toque.",
         returnView: "showNews",
         compact: true
+      })}
+      ${renderFavoritePersonalPulseCard({
+        favorite,
+        raceName,
+        predictData,
+        context: state.weekendContext,
+        title: "Contexto del favorito en noticias",
+        expert: isExpertMode()
       })}
 
       ${renderNewsPhaseCard(phase)}

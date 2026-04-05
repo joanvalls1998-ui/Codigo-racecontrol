@@ -321,6 +321,14 @@ function showPredict() {
       returnView: "showPredict",
       compact: true
     })}
+    ${renderFavoritePersonalPulseCard({
+      favorite,
+      raceName: selectedRace,
+      predictData: activePredictData,
+      context: predict.context,
+      title: "Contexto personal del favorito",
+      expert
+    })}
 
     ${expert ? `
       <div class="card predict-v2-secondary">
@@ -359,7 +367,7 @@ function showPredict() {
 
     <div class="card">
       <div class="card-title">Sábado vs domingo</div>
-      <div class="card-sub">${expert ? "Separación operativa real: qualy/sprint frente a ejecución de carrera." : "Qué cambia entre sábado y domingo para no mezclar lecturas."}</div>
+      <div class="card-sub">${expert ? "Separación operativa real: sábado (posición + formato) vs domingo (ritmo + estrategia)." : "Qué depende del sábado y qué depende del domingo."}</div>
       <div id="predictQualyRace">
         ${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, expert)}
       </div>

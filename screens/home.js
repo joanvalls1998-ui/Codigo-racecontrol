@@ -113,6 +113,8 @@ function renderHomeTeamStatus(favorite) {
 function renderHomeDynamicBlocks(context, favorite) {
   const expert = isExpertMode();
   const phase = context?.phase || "pre_weekend";
+  const raceName = context?.raceName || getSelectedRace();
+  const predictData = getActivePredictDataForRace(favorite, raceName);
 
   return `
     ${renderHomePhaseHero(context)}
@@ -125,6 +127,14 @@ function renderHomeDynamicBlocks(context, favorite) {
       compact: true
     })}
     ${renderHomeNowCard(context, favorite, { compact: !expert })}
+    ${renderFavoritePersonalPulseCard({
+      favorite,
+      raceName,
+      predictData,
+      context,
+      title: "Favorito central · lectura rápida",
+      expert
+    })}
     ${renderHomeQuickLinks(context)}
     ${getHomeSimpleNewsPreview()}
     ${expert ? renderHomeWhatToWatchCard(context) : ""}

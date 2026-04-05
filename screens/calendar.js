@@ -13,6 +13,7 @@ function renderCalendarIntelligenceHero(nextRace, context) {
   const format = getCalendarFormatLabel(raceName);
   const casual = isCasualMode();
   const leadSession = getCalendarLeadSession(context);
+  const operational = getWeekendOperationalFocus(context);
   const leadSessionLabel = leadSession?.label || "Sin referencia";
   const leadSessionStatus = leadSession
     ? (leadSession.status === "live" ? "En curso" : leadSession.status === "next" ? "Siguiente" : leadSession.status === "completed" ? "Completada" : "Próxima")
@@ -29,6 +30,8 @@ function renderCalendarIntelligenceHero(nextRace, context) {
       <div class="news-meta-row calendar-hero-tags">
         <span class="tag ${nextRace.sprint ? "statement" : "general"}">${nextRace.sprint ? "Sprint weekend" : "Formato normal"}</span>
         <span class="tag technical">${escapeHtml(heuristics.tag)}</span>
+        ${context?.phaseLabel ? `<span class="tag ${getWeekendPhaseTagClass(context.phase)}">${escapeHtml(context.phaseLabel)}</span>` : ""}
+        <span class="tag ${escapeHtml(operational.tagClass)}">Foco: ${escapeHtml(operational.label)}</span>
         ${casual ? "" : `<span class="tag market">${escapeHtml(format)}</span>`}
       </div>
 
@@ -51,6 +54,8 @@ function renderCalendarIntelligenceHero(nextRace, context) {
           </div>
         `}
       </div>
+
+      <div class="info-line" style="margin-top:12px;">${escapeHtml(operational.detail)}</div>
 
       <div class="quick-row" style="margin-top:14px;">
         <a href="#" class="btn-secondary" onclick="showSessions(); return false;">Sesiones</a>
