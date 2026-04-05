@@ -2413,113 +2413,6 @@ function renderHomeNowCard(context, favorite) {
   `;
 }
 
-function renderHomeWhatToWatchCard(context) {
-  const items = context?.whatToWatch || [
-    "No hay claves de seguimiento disponibles ahora mismo.",
-    "Recarga el calendario para reconstruir el contexto.",
-    "Cuando haya GP cargado, aquí saldrán las prioridades del momento."
-  ];
-
-  return `
-    <div class="card">
-      <div class="card-title">Qué mirar ahora</div>
-      <div class="insight-list">
-        ${items.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
-      </div>
-    </div>
-  `;
-}
-
-function renderHomePhaseSummaryCard(context, favorite) {
-  if (!context) {
-    return `
-      <div class="card">
-        <div class="card-title">Resumen de fase</div>
-        <div class="empty-line">No se ha podido generar el resumen del fin de semana.</div>
-      </div>
-    `;
-  }
-
-  const metrics = getFavoriteMetrics(favorite);
-  const raceName = context.raceName || getSelectedRace();
-  const heuristics = getRaceHeuristics(raceName);
-  const phase = context.phase;
-  const nextSessionLabel = context.nextSession?.label || "Sin datos";
-
-  let title = "Resumen del fin de semana";
-  let sub = "Lectura rápida del momento actual del GP.";
-  let insightText = getWeekendSignal(favorite, raceName).description;
-
-  if (phase === "pre_weekend") {
-    title = "Previa del GP";
-    sub = `Antes de que empiece todo, el guion base de ${raceName} apunta a esto.`;
-    insightText = `La siguiente referencia útil será ${nextSessionLabel}. El contexto del GP sigue dominado por preparación, mejoras y lectura previa.`;
-  } else if (phase === "friday") {
-    title = "Viernes en una mirada";
-    sub = "Viernes sirve para filtrar ruido de tabla y detectar ritmo de verdad.";
-    insightText = "La sesión más valiosa suele ser FP2 o la referencia larga del día. Importa más la consistencia que un tiempo aislado.";
-  } else if (phase === "saturday") {
-    title = "Sábado decisivo";
-    sub = "Hoy cambia de verdad el techo del domingo.";
-    insightText = context.isSprint
-      ? "La Sprint añade contexto, pero la clasificación sigue siendo la llave principal de la carrera."
-      : "La qualy puede cambiar por completo la carrera del favorito y su ventana real de puntos.";
-  } else if (phase === "sunday") {
-    title = "Domingo de carrera";
-    sub = "Ahora manda la ejecución: salida, estrategia y aire limpio.";
-    insightText = "La salida, el primer stint y la ventana de parada suelen pesar más que una lectura teórica de ritmo puro.";
-  } else if (phase === "post_race") {
-    title = "Post GP";
-    sub = "La carrera ya ha pasado; esta lectura sirve como contexto del guion que se esperaba.";
-    insightText = "Úsalo para comparar lo previsto con lo que realmente ha ocurrido y preparar mejor el siguiente evento.";
-  }
-
-  return `
-    <div class="card">
-      <div class="card-title">${escapeHtml(title)}</div>
-      <div class="card-sub">${escapeHtml(sub)}</div>
-
-      <div class="grid-stats" style="margin-top:14px;">
-        <div class="stat-tile">
-          <div class="stat-kicker">Ventana</div>
-          <div class="stat-value">${escapeHtml(metrics.expectedWindow)}</div>
-          <div class="stat-caption">Rango competitivo actual</div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-kicker">Puntos</div>
-          <div class="stat-value">${metrics.pointsProbability}%</div>
-          <div class="stat-caption">Probabilidad aproximada</div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-kicker">Riesgo</div>
-          <div class="stat-value">${metrics.dnfRisk}%</div>
-          <div class="stat-caption">Riesgo aproximado de abandono</div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-kicker">Tendencia</div>
-          <div class="stat-value" style="font-size:18px;">${escapeHtml(metrics.trendInfo.label)}</div>
-          <div class="stat-caption">${escapeHtml(metrics.trendInfo.description)}</div>
-        </div>
-      </div>
-
-      <div class="quick-row" style="margin-top:14px;">
-        <div class="meta-tile">
-          <div class="meta-kicker">Safety Car</div>
-          <div class="meta-value">${heuristics.safetyCar}%</div>
-          <div class="meta-caption">${escapeHtml(raceName)}</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Lluvia</div>
-          <div class="meta-value">${heuristics.rain}%</div>
-          <div class="meta-caption">Escenario base</div>
-        </div>
-      </div>
-
-      <div class="info-line" style="margin-top:14px;">${escapeHtml(insightText)}</div>
-    </div>
-  `;
-}
-
 function renderHomeQuickLinks(context) {
   const raceName = context?.raceName || getSelectedRace();
 
@@ -2847,84 +2740,20 @@ function getContextGlossaryTitle(screen, phase) {
 
 /* ===== HOME ===== */
 
-function renderHomeTeamStatus() {
-  const favorite = getFavorite();
-  const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
-  const accent = favorite.colorClass;
-  const teamData = getTeamData(teamName);
-
-  return `
-    <div class="card">
-      <div class="card-title" style="color: var(--${accent});">${escapeHtml(teamName.toUpperCase())} · ESTADO</div>
-      <div class="stat">Ritmo de carrera <span>${teamData.racePace}%</span></div>
-      <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.racePace}%;"></div></div>
-
-      <div class="stat" style="margin-top:14px;">Ritmo a una vuelta <span>${teamData.qualyPace}%</span></div>
-      <div class="bar"><div class="bar-fill ${accent}" style="width:${teamData.qualyPace}%;"></div></div>
-
-      <div class="stat" style="margin-top:14px;">Fiabilidad <span>${teamData.reliability}%</span></div>
-      <div class="bar"><div class="bar-fill ferrari" style="width:${teamData.reliability}%;"></div></div>
-
-      <div class="stat" style="margin-top:14px;">Previsión del fin de semana <span>${escapeHtml(teamData.outlook)}</span></div>
-    </div>
-  `;
-}
-
-function renderHomeHierarchy() {
-  const favorite = getFavorite();
-  const favoriteTeam = favorite.type === "driver" ? favorite.team : favorite.name;
-  const favoriteColor = favorite.colorClass;
-  const favoriteData = getTeamData(favoriteTeam);
-
-  const rows = [
-    { name: "Mercedes", value: 92, color: "mercedes" },
-    { name: "Ferrari", value: 88, color: "ferrari" },
-    { name: "McLaren", value: 84, color: "mclaren" },
-    { name: "Red Bull", value: 80, color: "redbull" },
-    { name: favoriteTeam, value: favoriteData.racePace, color: favoriteColor }
-  ];
-
-  const uniqueRows = [];
-  const seen = new Set();
-
-  rows.forEach(row => {
-    if (!seen.has(row.name)) {
-      uniqueRows.push(row);
-      seen.add(row.name);
-    }
-  });
-
-  return `
-    <div class="card">
-      <div class="card-title">Jerarquía de equipos</div>
-      ${uniqueRows.map(row => `
-        <div class="stat">
-          <span style="${row.name === favoriteTeam ? `color: var(--${row.color}); font-weight: 700;` : ""}">${escapeHtml(row.name)}</span>
-          ${row.value}%
-        </div>
-        <div class="bar"><div class="bar-fill ${row.color}" style="width:${row.value}%;"></div></div>
-      `).join("")}
-    </div>
-  `;
-}
-
 async function showHome() {
   setActiveNav("nav-home");
   updateSubtitle();
-  const isCompactHome = getSettings().homeCompactMode;
 
   contentEl().innerHTML = `
     ${renderHomeHero()}
-    ${renderLoadingCard("Cargando centro de control…", "Leyendo fase del GP, sesión actual, prioridades y noticias principales.", true)}
+    ${renderLoadingCard("Cargando centro de control…", "Leyendo fase del GP, sesión actual y accesos rápidos.", true)}
   `;
 
   const favorite = getFavorite();
+  let calendarError = null;
 
   try {
-    const [calendarData, newsData] = await Promise.all([
-      fetchCalendarData(),
-      fetchNewsDataForFavorite(favorite)
-    ]);
+    const calendarData = await fetchCalendarData();
 
     const nextRace = getNextRaceFromCalendar(calendarData?.events || []);
     if (nextRace) {
@@ -2933,25 +2762,17 @@ async function showHome() {
         state.detectedNextRaceName = mappedRace;
       }
     }
-
-    const context = getHomeWeekendContext();
-
-    contentEl().innerHTML = `
-      ${renderHomeHero()}
-      ${renderHomeDynamicBlocks(context, favorite)}
-      ${renderContextGlossaryCard("home", context?.phase || "pre_weekend")}
-      ${renderHomeNewsPreview(newsData?.items || [], favorite)}
-      ${!isCompactHome ? renderHomeTeamStatus() : ""}
-      ${!isCompactHome ? renderHomeHierarchy() : ""}
-    `;
   } catch (error) {
-    contentEl().innerHTML = `
-      ${renderHomeHero()}
-      ${renderErrorCard("Inicio", "Error al cargar el centro de control", error.message)}
-      ${!isCompactHome ? renderHomeTeamStatus() : ""}
-      ${!isCompactHome ? renderHomeHierarchy() : ""}
-    `;
+    calendarError = error;
   }
+
+  const context = getHomeWeekendContext();
+
+  contentEl().innerHTML = `
+    ${renderHomeHero()}
+    ${calendarError ? renderErrorCard("Inicio", "No se pudo cargar el calendario del GP", calendarError.message) : ""}
+    ${renderHomeDynamicBlocks(context, favorite)}
+  `;
 }
 
 /* ===== FASE 4 v1.2 · PREDICCIÓN ADAPTATIVA ===== */
