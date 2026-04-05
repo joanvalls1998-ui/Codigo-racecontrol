@@ -159,19 +159,11 @@ function renderHomeDynamicBlocks(context, favorite) {
 
   return `
     ${renderHomePhaseHero(context)}
-    ${renderHomeNowCard(context, favorite, { compact: !expert })}
+    ${renderHomeNowCard(context, favorite, { compact: true })}
     ${renderHomeCompetitivePulse(favorite, raceName, predictData)}
-    ${expert ? renderFavoritePersonalPulseCard({
-      favorite,
-      raceName,
-      predictData,
-      context,
-      title: "Favorito central",
-      expert
-    }) : ""}
+    ${renderHomeQuickLinks(context)}
+    ${expert ? renderHomeWhatToWatchCard(context) : ""}
     ${getHomeSimpleNewsPreview()}
-    ${expert ? renderHomeWhatToWatchCard(context) : renderHomeQuickLinks(context)}
-    ${renderWeekendModeHub(context, { compact: true, source: "home" })}
     ${expert ? renderHomeTeamStatus(favorite) : ""}
     ${expert ? renderContextGlossaryCard("home", phase) : ""}
   `;

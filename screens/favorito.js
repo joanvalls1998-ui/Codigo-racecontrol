@@ -397,24 +397,15 @@ function showFavorito() {
   const context = getHomeWeekendContext() || state.weekendContext;
   const raceName = context?.raceName || getSelectedRace();
   const predictData = getActivePredictDataForRace(favorite, raceName);
-
   const expert = isExpertMode();
 
   contentEl().innerHTML = `
-    ${renderFavoriteCard()}
-    ${renderFavoriteQuickSelectorCard({
-      title: "Cambiar favorito",
-      subtitle: "",
-      returnView: "showFavorito",
-      compact: true
-    })}
     ${renderFavoritoHeroContextCard(favorite, raceName, predictData, context)}
+    ${renderFavoriteQuickSelectorCard({ title: "Cambiar favorito", subtitle: "", returnView: "showFavorito", compact: true })}
     ${renderFavoritoTechnicalCard(favorite, teamData, accent, raceName, context, predictData, expert)}
-    ${expert ? renderFavoritoObjectiveCard(favorite, raceName, predictData, context) : ""}
-    ${expert ? renderFavoritoCircuitFitCard(favorite, raceName, expert) : ""}
-    ${renderFavoritoComparisonAdvancedCard(favorite, expert)}
-    ${expert ? renderFavoritoDirectRivalsCard(favorite, predictData, expert) : ""}
+    ${renderFavoritoObjectiveCard(favorite, raceName, predictData, context)}
     ${renderFavoritoChampionshipCard(favorite, raceName, predictData, expert)}
-    ${renderFavoritoInsightsCard(favorite, raceName, context, predictData, expert)}
+    ${expert ? renderFavoritoDirectRivalsCard(favorite, predictData, true) : renderFavoritoComparisonAdvancedCard(favorite, false)}
+    ${expert ? renderFavoritoCircuitFitCard(favorite, raceName, true) : ""}
   `;
 }

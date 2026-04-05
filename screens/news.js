@@ -646,18 +646,13 @@ async function showNews() {
   contentEl().innerHTML = `
     <div class="card news-header-v2">
       <div class="card-head">
-        <div class="card-head-left">
-          <div class="card-title">NOTICIAS</div>
-          
-        </div>
-        <div class="card-head-actions">
-          <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
-        </div>
+        <div class="card-head-left"><div class="card-title">Noticias</div></div>
+        <div class="card-head-actions"><button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button></div>
       </div>
       ${renderNewsFilters()}
       ${renderNewsSecondaryFilters()}
     </div>
-    ${renderLoadingCard(`Noticias · ${filter.label}`, "Priorizando noticias útiles, portada destacada y claves del día…")}
+    ${renderLoadingCard(`Portada · ${filter.label}`, "Priorizando titulares del paddock…")}
   `;
 
   try {
@@ -666,74 +661,47 @@ async function showNews() {
     const sortedItems = applyNewsSecondaryFilter(sorted, filter, phase).slice(0, 10);
     const featured = sortedItems[0] || null;
     const rest = sortedItems.slice(1);
-    const importantRest = rest.filter(item => ["priority-high", "relevance-high"].includes(getNewsImportanceClass(item, filter, phase)));
-    const contextRest = rest.filter(item => !["priority-high", "relevance-high"].includes(getNewsImportanceClass(item, filter, phase)));
 
     contentEl().innerHTML = `
       <div class="card news-header-v2">
         <div class="card-head">
-          <div class="card-head-left">
-            <div class="card-title">NOTICIAS</div>
-            
-          </div>
-          <div class="card-head-actions">
-            <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
-          </div>
+          <div class="card-head-left"><div class="card-title">Noticias</div></div>
+          <div class="card-head-actions"><button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button></div>
         </div>
         ${renderNewsFilters()}
         ${renderNewsSecondaryFilters()}
       </div>
 
-      ${isExpertMode() ? renderFavoritePersonalPulseCard({
-        favorite,
-        raceName,
-        predictData,
-        context: state.weekendContext,
-        title: "Contexto del favorito en noticias",
-        expert: isExpertMode()
-      }) : ""}
-
-      ${isExpertMode() ? renderNewsPhaseCard(phase) : ""}
-
       <div class="card highlight-card news-portada-v2">
-        <div class="card-title">Portada · ${escapeHtml(filter.label)}</div>
-        ${featured ? renderFeaturedNews(featured, filter, phase) : `<div class="empty-line">No hay una noticia destacada disponible ahora mismo.</div>`}
-      </div>
-
-      <div class="card news-keys-v2">
-        <div class="card-title">${isExpertMode() ? "Claves editoriales del día" : "3 claves del día"}</div>
-        ${renderNewsKeyLines(sortedItems, filter, phase)}
+        ${featured ? renderFeaturedNews(featured, filter, phase) : `<div class="empty-line">No hay noticia destacada ahora mismo.</div>`}
       </div>
 
       <div class="card news-list-v2">
-        <div class="card-title">${isExpertMode() ? "Seguimiento y contexto" : "Más noticias"}</div>
-        ${isExpertMode() ? `
-          <div class="mini-pill" style="margin-top:10px;">Alta prioridad</div>
-          ${importantRest.length
-            ? importantRest.map(item => renderNewsListItem(item, filter, phase)).join("")
-            : `<div class="empty-line">No hay noticias de alta prioridad adicionales.</div>`}
-          <div class="mini-pill" style="margin-top:12px;">Seguimiento</div>
-          ${contextRest.length
-            ? contextRest.map(item => renderNewsListItem(item, filter, phase)).join("")
-            : `<div class="empty-line">No hay noticias de contexto adicionales.</div>`}
-        ` : rest.length
-          ? rest.map(item => renderNewsListItem(item, filter, phase)).join("")
-          : `<div class="empty-line">No se han encontrado noticias adicionales ahora mismo.</div>`}
+        <div class="card-title">Seguimiento</div>
+        ${rest.length ? rest.map(item => renderNewsListItem(item, filter, phase)).join("") : `<div class="empty-line">No hay más titulares relevantes ahora mismo.</div>`}
       </div>
 
-      ${renderContextGlossaryCard("news", phase)}
+      ${isExpertMode() ? `
+        <div class="card news-keys-v2">
+          <div class="card-title">Radar paddock</div>
+          ${renderNewsKeyLines(sortedItems, filter, phase)}
+        </div>
+        ${renderFavoritePersonalPulseCard({
+          favorite,
+          raceName,
+          predictData,
+          context: state.weekendContext,
+          title: "Impacto en tu favorito",
+          expert: true
+        })}
+      ` : ""}
     `;
   } catch (error) {
     contentEl().innerHTML = `
       <div class="card">
         <div class="card-head">
-          <div class="card-head-left">
-            <div class="card-title">NOTICIAS</div>
-            
-          </div>
-          <div class="card-head-actions">
-            <button class="icon-btn" onclick="refreshCurrentNews()">Reintentar</button>
-          </div>
+          <div class="card-head-left"><div class="card-title">Noticias</div></div>
+          <div class="card-head-actions"><button class="icon-btn" onclick="refreshCurrentNews()">Reintentar</button></div>
         </div>
         ${renderNewsFilters()}
         <pre class="ai-output">${escapeHtml(error.message)}</pre>

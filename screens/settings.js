@@ -239,9 +239,10 @@ function showSettingsPanel() {
   const systemState = getSettingsSystemState();
 
   contentEl().innerHTML = `
+    <div class="card"><div class="card-title">Sistema</div></div>
     ${renderSettingsSecondaryPreferencesBlock(systemState)}
-    ${renderSettingsLocalStateBlock(systemState)}
     ${renderSettingsMaintenanceBlock(systemState)}
+    ${renderSettingsLocalStateBlock(systemState)}
     ${renderSettingsHardResetBlock(systemState)}
   `;
 }

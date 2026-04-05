@@ -377,105 +377,48 @@ function showPredict() {
 
   contentEl().innerHTML = `
     ${renderPredictHeroV2({ predict, favorite, raceName: selectedRace, expert, activePredictData })}
-    ${renderFavoriteQuickSelectorCard({
-      title: "Favorito",
-      subtitle: "",
-      returnView: "showPredict",
-      compact: true
-    })}
-    ${expert ? renderFavoritePersonalPulseCard({
-      favorite,
-      raceName: selectedRace,
-      predictData: activePredictData,
-      context: predict.context,
-      title: "Contexto personal del favorito",
-      expert
-    }) : ""}
-
-    ${expert ? `
-      <div class="card predict-v2-secondary">
-        <div class="card-title">${escapeHtml(predict.copy.guidanceTitle)}</div>
-        ${renderPredictPhaseGuideCard(predict)}
-      </div>
-
-      <div class="predict-v2-secondary">${renderContextGlossaryCard("predict", predict.phase)}</div>
-    ` : ""}
 
     <div class="card predict-v2-primary">
-      <div class="card-title">Resumen central</div>
-      
-      <div id="predictSummaryCards">
-        ${activePredictData
-          ? renderPredictSummaryCards(activePredictData)
-          : renderPredictPreviewCards(favorite, selectedRace)}
+      <div class="card-head">
+        <div class="card-head-left"><div class="card-title">Panel predictivo</div></div>
+        <div class="card-head-actions"><button class="icon-btn" onclick="sharePrediction()">Compartir</button></div>
       </div>
+      <div id="predictSummaryCards">${activePredictData ? renderPredictSummaryCards(activePredictData) : renderPredictPreviewCards(favorite, selectedRace)}</div>
+      <div id="predictScenarioCards" style="margin-top:12px;">${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}</div>
     </div>
 
     <div class="card predict-v2-primary">
-      <div class="card-title">Suelo · base · techo</div>
-      <div id="predictScenarioCards">
-        ${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Clave del fin de semana</div>
-      
-      <div id="predictKeyFactors">
-        ${renderPredictWeekendKeyCard(favorite, selectedRace, activePredictData, expert)}
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Sábado vs domingo</div>
-      <div id="predictQualyRace">
-        ${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, expert)}
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Estrategia</div>
-      
-      <div id="predictStrategyDetail">
-        ${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}
-      </div>
+      <div class="card-title">Operativa GP</div>
+      <div id="predictKeyFactors">${renderPredictWeekendKeyCard(favorite, selectedRace, activePredictData, expert)}</div>
+      <div id="predictQualyRace" style="margin-top:12px;">${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, expert)}</div>
     </div>
 
     ${expert ? `
-      <div class="card">
-        <div class="card-title">Lectura de parrilla</div>
-        <div id="predictGridRead">
-          ${renderPredictGridRead(favorite, selectedRace, activePredictData)}
-        </div>
+      <div class="card predict-v2-primary">
+        <div class="card-title">Lectura experta</div>
+        <div id="predictStrategyDetail">${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}</div>
+        <div id="predictGridRead" style="margin-top:12px;">${renderPredictGridRead(favorite, selectedRace, activePredictData)}</div>
       </div>
-    ` : ""}
+    ` : `
+      <div class="card predict-v2-primary">
+        <div class="card-title">Qué necesita tu favorito</div>
+        <div id="predictStrategyDetail">${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}</div>
+      </div>
+    `}
+
+    ${renderFavoriteQuickSelectorCard({ title: "Favorito", subtitle: "", returnView: "showPredict", compact: true })}
 
     <div class="card predict-v2-secondary">
       <div class="card-head">
-        <div class="card-head-left">
-          <div class="card-title">${escapeHtml(predict.copy.textTitle)}</div>
-        </div>
+        <div class="card-head-left"><div class="card-title">Salida técnica</div></div>
+        <div class="card-head-actions"><button class="icon-btn" onclick="clearPredictionHistory()">Vaciar historial</button></div>
       </div>
       <pre id="predictOutput" class="ai-output predict-v2-raw-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción avanzada..."}</pre>
-    </div>
-
-    <div class="card predict-v2-secondary">
-        <div class="card-head">
-          <div class="card-head-left">
-            <div class="card-title">Historial</div>
-          </div>
-          <div class="card-head-actions">
-            <button class="icon-btn" onclick="clearPredictionHistory()">Vaciar</button>
-          </div>
-        </div>
-        <div id="predictionHistoryBox">${renderPredictionHistory()}</div>
+      <div id="predictionHistoryBox" style="margin-top:12px;">${renderPredictionHistory()}</div>
     </div>
   `;
 
-
-  if (needFreshPredict) {
-    setTimeout(() => runPredict(), 80);
-  }
+  if (needFreshPredict) setTimeout(() => runPredict(), 80);
 }
 
 

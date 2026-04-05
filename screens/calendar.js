@@ -150,7 +150,7 @@ async function showCalendar(force = false) {
   rememberScreen("calendar");
   updateSubtitle();
 
-  contentEl().innerHTML = renderLoadingCard("Calendario", "Cargando calendario oficial 2026…", true);
+  contentEl().innerHTML = renderLoadingCard("Calendario", "Cargando temporada…", true);
 
   try {
     const data = await fetchCalendarData(force);
@@ -158,9 +158,6 @@ async function showCalendar(force = false) {
     const nextRace = getNextRaceFromCalendar(events);
     const upcoming = events.filter(event => event.status === "next" || event.status === "upcoming");
     const completed = events.filter(event => event.status === "completed");
-    const casual = isCasualMode();
-    const completedVisible = casual ? completed.slice(0, 6) : completed;
-    const completedHiddenCount = Math.max(0, completed.length - completedVisible.length);
     const context = getHomeWeekendContext();
 
     contentEl().innerHTML = `
@@ -169,29 +166,15 @@ async function showCalendar(force = false) {
 
       <div class="card">
         <div class="card-head">
-          <div class="card-head-left">
-            <div class="card-title">Próximas citas</div>
-            
-          </div>
-          <div class="card-head-actions">
-            <button class="icon-btn" onclick="refreshCalendar()">Refrescar</button>
-          </div>
+          <div class="card-head-left"><div class="card-title">Próximos GP</div></div>
+          <div class="card-head-actions"><button class="icon-btn" onclick="refreshCalendar()">Refrescar</button></div>
         </div>
-
-        <div class="calendar-group-title">Calendario activo</div>
         ${upcoming.length ? upcoming.map(event => renderCalendarEventCard(event)).join("") : `<div class="empty-line">No hay próximas citas cargadas.</div>`}
       </div>
 
       <div class="card calendar-secondary-card">
-        <div class="card-head">
-          <div class="card-head-left">
-            <div class="card-title">Histórico</div>
-            
-          </div>
-        </div>
-
-        ${completedVisible.length ? completedVisible.map(event => renderCalendarEventCard(event, { secondary: true })).join("") : `<div class="empty-line">No hay citas completadas registradas.</div>`}
-        ${completedHiddenCount > 0 ? `<div class="empty-line">Se ocultaron ${completedHiddenCount} citas ya cerradas para reducir scroll en modo casual.</div>` : ""}
+        <div class="card-title">Completados</div>
+        ${completed.slice(0, 5).map(event => renderCalendarEventCard(event, { secondary: true })).join("") || `<div class="empty-line">Sin carreras completadas.</div>`}
       </div>
     `;
   } catch (error) {

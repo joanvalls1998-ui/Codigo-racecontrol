@@ -355,7 +355,7 @@ async function showRaceMode() {
   rememberScreen("raceMode");
   updateSubtitle();
 
-  contentEl().innerHTML = renderLoadingCard("Modo carrera", "Preparando modo carrera…", true);
+  contentEl().innerHTML = renderLoadingCard("Modo carrera", "Preparando panel operativo…", true);
 
   try {
     const favorite = getFavorite();
@@ -366,40 +366,22 @@ async function showRaceMode() {
     const stage = getRaceWeekendStage(nextRaceEvent);
     const phase = state.weekendContext?.phase || "pre_weekend";
     const expert = isExpertMode();
+
     contentEl().innerHTML = `
       ${renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData)}
-      ${expert ? renderFavoritePersonalPulseCard({
-        favorite,
-        raceName,
-        predictData,
-        context: state.weekendContext,
-        title: "Radar personal en modo carrera",
-        expert
-      }) : ""}
-      ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
       ${renderRaceModeExecutionPanel(favorite, raceName, predictData, stage)}
+      ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
       ${renderRaceModeComparativeCard(favorite, raceName, predictData)}
-      ${expert ? renderRaceModeFavoriteSummary(favorite, raceName, predictData) : ""}
 
       <div class="card race-mode-v2-primary">
-        <div class="card-title">Escenarios</div>
+        <div class="card-title">Escenario y estrategia</div>
         ${renderPredictScenarioCards(favorite, raceName, predictData)}
+        <div style="margin-top:12px;">${renderPredictStrategyDetail(favorite, raceName, predictData)}</div>
       </div>
 
-      <div class="card race-mode-v2-primary">
-        <div class="card-title">Claves del GP</div>
-        
-        ${renderPredictKeyFactors(favorite, raceName, predictData)}
-      </div>
-
-      <div class="card race-mode-v2-primary">
-        <div class="card-title">Estrategia</div>
-        
-        ${renderPredictStrategyDetail(favorite, raceName, predictData)}
-      </div>
-
-      ${renderRaceModeTop10(predictData, favorite)}
-      ${renderContextGlossaryCard("raceMode", phase)}
+      ${expert ? renderRaceModeFavoriteSummary(favorite, raceName, predictData) : renderRaceModeTop10(predictData, favorite)}
+      ${expert ? renderRaceModeTop10(predictData, favorite) : ""}
+      ${expert ? renderContextGlossaryCard("raceMode", phase) : ""}
     `;
   } catch (error) {
     contentEl().innerHTML = renderErrorCard("Modo carrera", "Error al preparar esta pantalla", error.message);

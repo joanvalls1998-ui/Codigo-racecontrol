@@ -174,20 +174,10 @@ function showGlossary(focusTerm = null) {
 
   contentEl().innerHTML = `
     <div class="card highlight-card glossary-hero-card">
-      <div class="mini-pill">GLOSARIO</div>
       <div class="card-title">Glosario F1</div>
-      
-
-      <div class="insight-list glossary-hero-list">
-        <div class="insight-item glossary-hero-item">
-          <strong>Lectura inmediata</strong><br>
-          ${isExpertMode() ? "Primero verás la definición técnica y debajo la traducción casual para contexto rápido." : "Primero verás la definición simple y debajo la versión técnica para profundizar solo si quieres."}
-        </div>
-      </div>
+      <div class="news-meta-row"><span class="tag general">Herramienta rápida</span></div>
     </div>
-
     ${focusItem ? renderGlossaryFocusCard(focusItem) : ""}
-
     ${sections.map(renderGlossarySection).join("")}
   `;
 }
