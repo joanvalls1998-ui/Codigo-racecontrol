@@ -1873,6 +1873,18 @@ body.experience-casual .glossary-definition-primary {
   border-color: rgba(255,255,255,0.2);
 }
 
+.favorite-quick-card .select-input {
+  margin-top: 10px;
+}
+
+.favorite-quick-card.compact .card-sub {
+  margin-bottom: 10px;
+}
+
+.sessions-operational-card {
+  border-color: rgba(255,255,255,0.14);
+}
+
 .more-experience-row .chip,
 .more-toggle-row .toggle-btn {
   min-height: 42px;

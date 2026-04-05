@@ -407,6 +407,59 @@ function renderNewsFilters() {
   `;
 }
 
+function getNewsSecondaryFilter() {
+  if (!window.__racecontrolNewsSecondaryFilter) {
+    window.__racecontrolNewsSecondaryFilter = "all";
+  }
+  return window.__racecontrolNewsSecondaryFilter;
+}
+
+function setNewsSecondaryFilter(key = "all") {
+  window.__racecontrolNewsSecondaryFilter = key || "all";
+  showNews();
+}
+
+function applyNewsSecondaryFilter(items, filter, phase) {
+  const mode = getNewsSecondaryFilter();
+  if (!Array.isArray(items) || mode === "all") return items || [];
+
+  if (mode.startsWith("cat:")) {
+    const target = mode.replace("cat:", "");
+    return items.filter(item => categorizeNewsItem(item).key === target);
+  }
+
+  if (mode.startsWith("prio:")) {
+    const target = mode.replace("prio:", "");
+    return items.filter(item => getNewsImportanceClass(item, filter, phase) === target);
+  }
+
+  return items;
+}
+
+function renderNewsSecondaryFilters() {
+  const active = getNewsSecondaryFilter();
+  const chips = [
+    { key: "all", label: "Todo" },
+    { key: "cat:technical", label: "Técnica" },
+    { key: "cat:reliability", label: "Fiabilidad" },
+    { key: "cat:market", label: "Mercado" },
+    { key: "cat:statement", label: "Declaración" },
+    { key: "cat:performance", label: "Rendimiento" },
+    { key: "prio:priority-high", label: "Alta prioridad" },
+    { key: "prio:relevance-high", label: "Muy relevante" }
+  ];
+
+  return `
+    <div class="news-filters-v2 filters-row">
+      ${chips.map(chip => `
+        <button class="chip ${active === chip.key ? "active" : ""}" onclick="setNewsSecondaryFilter('${chip.key}')">
+          ${escapeHtml(chip.label)}
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
 function truncateSecondaryCopy(text, max = 110) {
   const raw = String(text || "").trim();
   if (!raw) return "";
@@ -510,13 +563,15 @@ async function showNews() {
         </div>
       </div>
       ${renderNewsFilters()}
+      ${renderNewsSecondaryFilters()}
     </div>
     ${renderLoadingCard(`Noticias · ${filter.label}`, "Priorizando noticias útiles, portada destacada y claves del día…")}
   `;
 
   try {
     const data = await fetchNewsDataForFavorite(filter.favoritePayload, false);
-    const sortedItems = sortNewsItems(Array.isArray(data?.items) ? data.items : [], filter, phase).slice(0, 10);
+    const sorted = sortNewsItems(Array.isArray(data?.items) ? data.items : [], filter, phase);
+    const sortedItems = applyNewsSecondaryFilter(sorted, filter, phase).slice(0, 10);
     const featured = sortedItems[0] || null;
     const rest = sortedItems.slice(1);
 
@@ -532,7 +587,15 @@ async function showNews() {
           </div>
         </div>
         ${renderNewsFilters()}
+        ${renderNewsSecondaryFilters()}
       </div>
+
+      ${renderFavoriteQuickSelectorCard({
+        title: "Favorito editorial",
+        subtitle: "Cámbialo para rehacer portada y prioridad en un toque.",
+        returnView: "showNews",
+        compact: true
+      })}
 
       ${renderNewsPhaseCard(phase)}
 
@@ -580,3 +643,4 @@ async function showNews() {
 window.refreshCurrentNews = refreshCurrentNews;
 window.showNews = showNews;
 window.switchNewsFilter = switchNewsFilter;
+window.setNewsSecondaryFilter = setNewsSecondaryFilter;

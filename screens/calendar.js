@@ -159,6 +159,12 @@ async function showCalendar(force = false) {
 
     contentEl().innerHTML = `
       ${renderCalendarIntelligenceHero(nextRace, context)}
+      ${renderFavoriteQuickSelectorCard({
+        title: "Favorito del calendario",
+        subtitle: "Cambia referencia para alinear Sesiones, Predict y Noticias.",
+        returnView: "showCalendar",
+        compact: true
+      })}
       ${renderCalendarFlowCard(context)}
 
       <div class="card">
