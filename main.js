@@ -3114,14 +3114,19 @@ function renderPredictPreviewCards(favorite, raceName) {
 
 function renderPredictScenarioCards(favorite, raceName, data = null) {
   const scenarios = getPredictScenarios(favorite, raceName, data);
+  const scenarioMap = [
+    { title: "Suelo", sub: "Objetivo mínimo" },
+    { title: "Escenario base", sub: "Objetivo razonable" },
+    { title: "Techo", sub: "Objetivo alto" }
+  ];
 
   return `
     <div class="grid-stats">
-      ${scenarios.map(item => `
+      ${scenarios.map((item, index) => `
         <div class="stat-tile">
-          <div class="stat-kicker">${escapeHtml(item.kicker)}</div>
+          <div class="stat-kicker">${escapeHtml(scenarioMap[index]?.title || item.kicker)}</div>
           <div class="stat-value" style="font-size:22px;">${escapeHtml(item.value)}</div>
-          <div class="stat-caption">${escapeHtml(item.text)}</div>
+          <div class="stat-caption"><strong>${escapeHtml(scenarioMap[index]?.sub || "Escenario")}</strong> · ${escapeHtml(item.text)}</div>
         </div>
       `).join("")}
     </div>
@@ -3168,6 +3173,7 @@ function renderPredictQualyRaceCard(favorite, raceName, data = null) {
 
 function renderPredictStrategyDetail(favorite, raceName, data = null) {
   const strategy = getStrategyNarrative(favorite, raceName, data);
+  const sprint = isSprintRaceName(raceName);
 
   return `
     <div class="info-line" style="margin-bottom:14px;">${escapeHtml(strategy.note)}</div>
@@ -3187,12 +3193,20 @@ function renderPredictStrategyDetail(favorite, raceName, data = null) {
         <div class="meta-value" style="font-size:18px;">${escapeHtml(strategy.factor)}</div>
         <div class="meta-caption">Lo que más puede cambiar el guion</div>
       </div>
+      ${sprint ? `
+        <div class="meta-tile">
+          <div class="meta-kicker">Impacto sprint</div>
+          <div class="meta-value" style="font-size:18px;">Sábado más pesado</div>
+          <div class="meta-caption">La Sprint puede alterar más la posición de salida y el riesgo de tráfico.</div>
+        </div>
+      ` : ""}
     </div>
   `;
 }
 
 function renderPredictGridRead(favorite, raceName, data = null) {
   const gridRead = getPredictGridRead(favorite, raceName, data);
+  const sprint = isSprintRaceName(raceName);
 
   return `
     <div class="meta-grid">
@@ -3211,6 +3225,13 @@ function renderPredictGridRead(favorite, raceName, data = null) {
         <div class="meta-value" style="font-size:17px; line-height:1.2;">${escapeHtml(gridRead.weakestTeams)}</div>
         <div class="meta-caption">Equipos con menos base</div>
       </div>
+      ${sprint ? `
+        <div class="meta-tile">
+          <div class="meta-kicker">Formato sprint</div>
+          <div class="meta-value" style="font-size:17px;">Mayor varianza</div>
+          <div class="meta-caption">Dos días competitivos: más opciones de ganancia o pérdida de posición.</div>
+        </div>
+      ` : ""}
     </div>
   `;
 }

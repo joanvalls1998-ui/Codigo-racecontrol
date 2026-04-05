@@ -1189,6 +1189,56 @@ nav,
   white-space: nowrap;
 }
 
+.predict-hero-v2 {
+  padding: 20px;
+}
+
+.predict-hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.predict-hero-grid,
+.predict-key-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  grid-template-columns: 1fr;
+}
+
+.predict-hero-tile {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.predict-hero-favorite,
+.predict-hero-race {
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.predict-hero-select {
+  margin-top: 12px;
+}
+
+.predict-hero-note {
+  margin-top: 10px;
+}
+
+.predict-v2-primary {
+  border-color: rgba(255,255,255,0.13);
+}
+
+.predict-v2-secondary {
+  opacity: 0.94;
+}
+
 .menu-link {
   display: block;
   padding: 15px 0;
@@ -1442,6 +1492,11 @@ nav,
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .predict-hero-grid,
+  .predict-key-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .weekend-top,
   .next-race-main {
     grid-template-columns: 1fr auto;
@@ -1463,6 +1518,10 @@ nav,
   }
 
   .meta-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .predict-key-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
