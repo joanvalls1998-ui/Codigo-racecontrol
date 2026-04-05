@@ -112,7 +112,7 @@ function categorizeNewsItem(item) {
   }
 
   if (text.includes("pace") || text.includes("ritmo") || text.includes("qualy") || text.includes("qualifying") || text.includes("podium") || text.includes("race result") || text.includes("rendimiento")) {
-    return { key: "general", label: "Rendimiento" };
+    return { key: "performance", label: "Rendimiento" };
   }
 
   return { key: "general", label: "General" };
@@ -178,6 +178,7 @@ function getNewsCategoryWeight(categoryKey) {
   if (categoryKey === "technical") return 18;
   if (categoryKey === "reliability") return 17;
   if (categoryKey === "market") return 15;
+  if (categoryKey === "performance") return 14;
   if (categoryKey === "statement") return 11;
   return 9;
 }
@@ -233,10 +234,10 @@ function getNewsImportanceLabel(item, filter, phase = getNewsWeekendPhase()) {
 function getNewsImportanceClass(item, filter, phase = getNewsWeekendPhase()) {
   const score = scoreNewsItem(item, filter, phase);
 
-  if (score >= 34) return "statement";
-  if (score >= 24) return "market";
-  if (score >= 16) return "general";
-  return "general";
+  if (score >= 34) return "priority-high";
+  if (score >= 24) return "relevance-high";
+  if (score >= 16) return "tracking";
+  return "context";
 }
 
 function getNewsImpactText(item, filter, phase = getNewsWeekendPhase()) {
@@ -298,6 +299,59 @@ function getNewsImpactText(item, filter, phase = getNewsWeekendPhase()) {
   return "Aporta contexto general útil para no llegar a ciegas al próximo Gran Premio.";
 }
 
+function getNewsEditorialLens(item, filter, phase = getNewsWeekendPhase()) {
+  const text = normalizeText(`${item?.title || ""} ${item?.source || ""}`);
+  const category = categorizeNewsItem(item);
+  const favorite = filter?.favoritePayload || getFavorite();
+  const favoriteName = normalizeText(favorite?.name || "");
+  const favoriteTeam = normalizeText(favorite?.team || favorite?.name || "");
+
+  const affectsFavorite = Boolean(
+    favoriteName && text.includes(favoriteName)
+  ) || Boolean(
+    favoriteTeam && text.includes(favoriteTeam)
+  );
+
+  const affectsGp = containsAny(text, [
+    "grand prix", "race", "qualifying", "qualy", "grid", "strategy", "pace", "ritmo", "degradation", "sprint", "fp1", "fp2"
+  ]) || ["friday", "saturday", "sunday"].includes(phase);
+
+  const isPerformanceLed = ["technical", "reliability", "performance"].includes(category.key)
+    || containsAny(text, ["pace", "ritmo", "setup", "degradation", "tyre", "strategy", "data", "upgrade"]);
+
+  const isNarrative = category.key === "statement"
+    || containsAny(text, ["said", "dice", "claims", "rumor", "rumour", "speculation", "declar"]);
+
+  return {
+    affectsFavorite,
+    affectsGp,
+    isPerformanceLed,
+    isNarrative
+  };
+}
+
+function getNewsEditorialSignals(item, filter, phase = getNewsWeekendPhase()) {
+  const lens = getNewsEditorialLens(item, filter, phase);
+  const signals = [];
+
+  if (lens.affectsFavorite) signals.push("Afecta al favorito");
+  if (lens.affectsGp) signals.push("Afecta al GP");
+  if (lens.isPerformanceLed) signals.push("Impacto de rendimiento real");
+  if (lens.isNarrative && !lens.isPerformanceLed) signals.push("Más narrativa que ritmo");
+
+  return signals;
+}
+
+function getNewsQuickPriorityText(item, filter, phase = getNewsWeekendPhase()) {
+  const importance = getNewsImportanceLabel(item, filter, phase);
+  const lens = getNewsEditorialLens(item, filter, phase);
+
+  if (importance === "Alta prioridad") return "Míralo primero";
+  if (lens.affectsFavorite) return "Prioridad para tu favorito";
+  if (lens.affectsGp) return "Importante para seguir el GP";
+  return "Útil como contexto";
+}
+
 function sortNewsItems(items, filter, phase = getNewsWeekendPhase()) {
   const list = Array.isArray(items) ? [...items] : [];
 
@@ -322,8 +376,17 @@ function renderNewsKeyLines(items, filter, phase = getNewsWeekendPhase()) {
     <div class="insight-list">
       ${top.map(item => `
         <div class="insight-item">
-          <strong>${escapeHtml(getNewsImportanceLabel(item, filter, phase))}</strong> · ${escapeHtml(item.title)}<br>
-          ${escapeHtml(getNewsImpactText(item, filter, phase))}
+          <div class="news-meta-row" style="margin-bottom:8px;">
+            <span class="tag ${getNewsImportanceClass(item, filter, phase)}">${escapeHtml(getNewsImportanceLabel(item, filter, phase))}</span>
+            <span class="tag ${categorizeNewsItem(item).key}">${escapeHtml(categorizeNewsItem(item).label)}</span>
+          </div>
+          <strong>${escapeHtml(item.title)}</strong><br>
+          ${escapeHtml(isExpertMode() ? getNewsImpactText(item, filter, phase) : getNewsQuickPriorityText(item, filter, phase))}
+          ${isExpertMode()
+            ? `<div class="news-meta-row" style="margin-top:8px;">
+                ${getNewsEditorialSignals(item, filter, phase).slice(0, 3).map(signal => `<span class="tag context">${escapeHtml(signal)}</span>`).join("")}
+              </div>`
+            : ""}
         </div>
       `).join("")}
     </div>
@@ -333,9 +396,12 @@ function renderNewsKeyLines(items, filter, phase = getNewsWeekendPhase()) {
 function renderNewsFilters() {
   const filters = buildNewsFilterPresets();
   return `
-    <div class="filters-row">
+    <div class="news-filters-v2 filters-row">
       ${filters.map(filter => `
-        <button class="chip ${state.currentNewsFilterKey === filter.key ? "active" : ""}" onclick="switchNewsFilter('${filter.key}')">${escapeHtml(filter.label)}</button>
+        <button class="chip ${state.currentNewsFilterKey === filter.key ? "active" : ""}" onclick="switchNewsFilter('${filter.key}')">
+          ${escapeHtml(filter.label)}
+          ${state.currentNewsFilterKey === filter.key ? `<span class="news-filter-dot"></span>` : ""}
+        </button>
       `).join("")}
     </div>
   `;
@@ -354,18 +420,28 @@ function renderFeaturedNews(item, filter, phase = getNewsWeekendPhase()) {
   const importance = getNewsImportanceLabel(item, filter, phase);
   const importanceClass = getNewsImportanceClass(item, filter, phase);
   const impactText = truncateSecondaryCopy(getNewsImpactText(item, filter, phase), 115);
+  const signals = getNewsEditorialSignals(item, filter, phase);
 
   return `
-    <div class="news-hero">
-      <div class="mini-pill">DESTACADA</div>
+    <div class="news-hero news-hero-v2">
+      <div class="mini-pill">PORTADA</div>
       <div class="news-hero-title">${escapeHtml(item.title)}</div>
       <div class="news-hero-sub">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
       <div class="news-meta-row">
         <span class="tag ${category.key}">${escapeHtml(category.label)}</span>
         <span class="tag ${importanceClass}">${escapeHtml(importance)}</span>
+        <span class="tag context">${escapeHtml(getNewsQuickPriorityText(item, filter, phase))}</span>
         <a class="btn-secondary" href="${item.link}" target="_blank" rel="noopener noreferrer" style="width:auto; padding:10px 14px;">Abrir noticia</a>
       </div>
-      <div class="info-line" style="margin-top:12px;">${escapeHtml(impactText)}</div>
+      <div class="news-why-block">
+        <div class="news-why-title">Por qué importa</div>
+        <div class="info-line" style="margin-top:8px;">${escapeHtml(impactText)}</div>
+      </div>
+      ${isExpertMode() ? `
+        <div class="news-meta-row" style="margin-top:10px;">
+          ${signals.map(signal => `<span class="tag context">${escapeHtml(signal)}</span>`).join("")}
+        </div>
+      ` : ""}
     </div>
   `;
 }
@@ -374,10 +450,11 @@ function renderNewsListItem(item, filter, phase = getNewsWeekendPhase()) {
   const category = categorizeNewsItem(item);
   const importance = getNewsImportanceLabel(item, filter, phase);
   const importanceClass = getNewsImportanceClass(item, filter, phase);
-  const impactText = truncateSecondaryCopy(getNewsImpactText(item, filter, phase), 95);
+  const impactText = truncateSecondaryCopy(getNewsImpactText(item, filter, phase), isExpertMode() ? 132 : 88);
+  const signals = getNewsEditorialSignals(item, filter, phase);
 
   return `
-    <div class="news-item">
+    <div class="news-item news-item-v2 ${isExpertMode() ? "expert" : "casual"}">
       <div class="news-meta-row" style="margin-top:0; margin-bottom:8px;">
         <span class="tag ${category.key}">${escapeHtml(category.label)}</span>
         <span class="tag ${importanceClass}">${escapeHtml(importance)}</span>
@@ -385,6 +462,9 @@ function renderNewsListItem(item, filter, phase = getNewsWeekendPhase()) {
       <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
       <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
       <div class="info-line" style="margin-top:8px;">${escapeHtml(impactText)}</div>
+      ${isExpertMode() && signals.length
+        ? `<div class="news-meta-row" style="margin-top:8px;">${signals.slice(0, 3).map(signal => `<span class="tag context">${escapeHtml(signal)}</span>`).join("")}</div>`
+        : ""}
     </div>
   `;
 }
@@ -393,8 +473,9 @@ function renderNewsPhaseCard(phase) {
   const copy = getNewsPhaseCopy(phase);
 
   return `
-    <div class="card">
+    <div class="card news-phase-v2">
       <div class="card-title">${escapeHtml(copy.title)}</div>
+      <div class="card-sub">${escapeHtml(copy.sub)}</div>
       <div class="news-meta-row" style="margin-top:10px;">
         <span class="tag ${getWeekendPhaseTagClass(phase)}">${escapeHtml(getWeekendPhaseLabel(phase))}</span>
       </div>
@@ -418,10 +499,11 @@ async function showNews() {
   const phase = getNewsWeekendPhase();
 
   contentEl().innerHTML = `
-    <div class="card">
+    <div class="card news-header-v2">
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">NOTICIAS</div>
+          <div class="card-sub">${isExpertMode() ? "Lectura editorial con impacto real, prioridad y contexto de GP." : "Portada rápida para entender qué pasa y qué mirar primero."}</div>
         </div>
         <div class="card-head-actions">
           <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
@@ -439,10 +521,11 @@ async function showNews() {
     const rest = sortedItems.slice(1);
 
     contentEl().innerHTML = `
-      <div class="card">
+      <div class="card news-header-v2">
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">NOTICIAS</div>
+            <div class="card-sub">${isExpertMode() ? "Lectura editorial con impacto real, prioridad y contexto de GP." : "Portada rápida para entender qué pasa y qué mirar primero."}</div>
           </div>
           <div class="card-head-actions">
             <button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button>
@@ -453,24 +536,26 @@ async function showNews() {
 
       ${renderNewsPhaseCard(phase)}
 
-      <div class="card highlight-card">
+      <div class="card highlight-card news-portada-v2">
         <div class="card-title">Portada · ${escapeHtml(filter.label)}</div>
         ${featured ? renderFeaturedNews(featured, filter, phase) : `<div class="empty-line">No hay una noticia destacada disponible ahora mismo.</div>`}
       </div>
 
-      ${isExpertMode() ? renderContextGlossaryCard("news", phase) : ""}
-
-      <div class="card">
-        <div class="card-title">3 claves del día</div>
+      <div class="card news-keys-v2">
+        <div class="card-title">${isExpertMode() ? "Claves editoriales del día" : "3 claves del día"}</div>
+        <div class="card-sub">${isExpertMode() ? "Qué merece seguimiento inmediato y qué es más contexto." : "Lectura rápida para saber qué mirar primero."}</div>
         ${renderNewsKeyLines(sortedItems, filter, phase)}
       </div>
 
-      <div class="card">
-        <div class="card-title">Más noticias</div>
+      <div class="card news-list-v2">
+        <div class="card-title">${isExpertMode() ? "Seguimiento y contexto" : "Más noticias"}</div>
+        <div class="card-sub">${isExpertMode() ? "Separadas por impacto real para no mezclar señales fuertes con ruido." : "Resto de titulares ordenados por relevancia."}</div>
         ${rest.length
           ? rest.map(item => renderNewsListItem(item, filter, phase)).join("")
           : `<div class="empty-line">No se han encontrado noticias adicionales ahora mismo.</div>`}
       </div>
+
+      ${renderContextGlossaryCard("news", phase)}
     `;
   } catch (error) {
     contentEl().innerHTML = `
