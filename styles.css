@@ -708,6 +708,36 @@ nav,
   border: 1px solid rgba(48,209,88,0.22);
 }
 
+.tag.performance {
+  background: rgba(94, 182, 255, 0.14);
+  color: #acd9ff;
+  border: 1px solid rgba(94, 182, 255, 0.24);
+}
+
+.tag.priority-high {
+  background: rgba(255, 69, 58, 0.17);
+  color: #ffb6ae;
+  border: 1px solid rgba(255, 69, 58, 0.3);
+}
+
+.tag.relevance-high {
+  background: rgba(255, 159, 10, 0.15);
+  color: #ffd08a;
+  border: 1px solid rgba(255, 159, 10, 0.28);
+}
+
+.tag.tracking {
+  background: rgba(94, 182, 255, 0.14);
+  color: #acd9ff;
+  border: 1px solid rgba(94, 182, 255, 0.24);
+}
+
+.tag.context {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.78);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
 .standings-toggle {
   display: flex;
   flex-wrap: wrap;
@@ -767,6 +797,13 @@ nav,
   border: 1px solid rgba(255,255,255,0.08);
 }
 
+.news-hero-v2 {
+  padding: 18px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+  border-color: rgba(255,255,255,0.12);
+}
+
 .news-hero-title {
   margin-top: 4px;
   font-size: clamp(24px, 2.8vw, 30px);
@@ -809,6 +846,69 @@ nav,
   margin-top: 8px;
   font-size: 13px;
   line-height: 1.4;
+}
+
+.news-item-v2 {
+  padding: 14px 0;
+}
+
+.news-item-v2.expert {
+  padding-bottom: 16px;
+}
+
+.news-item-v2 .news-link {
+  font-size: 16px;
+}
+
+.news-why-block {
+  margin-top: 12px;
+  padding: 12px 13px;
+  border-radius: 14px;
+  background: rgba(10, 12, 16, 0.48);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.news-why-title {
+  color: rgba(255,255,255,0.86);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.news-header-v2 .card-head {
+  align-items: flex-start;
+}
+
+.news-filters-v2 {
+  margin-top: 12px;
+  gap: 8px;
+}
+
+.news-filters-v2 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 13px;
+  background: rgba(255,255,255,0.045);
+}
+
+.news-filter-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--theme-accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--theme-accent) 75%, transparent);
+}
+
+.news-phase-v2 .card-sub {
+  margin-top: 6px;
+}
+
+.news-keys-v2 .card-sub,
+.news-list-v2 .card-sub {
+  margin-top: 4px;
 }
 
 .insight-list {
