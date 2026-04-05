@@ -6,34 +6,74 @@ function escapeForSingleQuotedAttr(value) {
     .replace(/'/g, "\\'");
 }
 
+function getGlossaryDefinitionPriority(item) {
+  const expert = isExpertMode();
+  const easyText = item.easy || item.short || "";
+  const technicalText = item.short || item.easy || "";
+
+  if (expert) {
+    return {
+      primaryLabel: "Experto",
+      primaryText: technicalText,
+      secondaryLabel: "Casual",
+      secondaryText: easyText
+    };
+  }
+
+  return {
+    primaryLabel: "Casual",
+    primaryText: easyText,
+    secondaryLabel: "Experto",
+    secondaryText: technicalText
+  };
+}
+
 function renderGlossaryInfoButton(term) {
   const safeTerm = escapeForSingleQuotedAttr(term);
 
   return `
     <button
       type="button"
+      class="glossary-info-btn"
       onclick="openGlossaryQuickTerm('${safeTerm}')"
       aria-label="Ver definición de ${escapeHtml(term)}"
-      style="
-        border:none;
-        background:transparent;
-        color:rgba(255,255,255,0.72);
-        font:inherit;
-        font-size:16px;
-        line-height:1;
-        cursor:pointer;
-        padding:0;
-        margin-left:6px;
-      "
+      title="Definición rápida"
     >ⓘ</button>
   `;
 }
 
 function renderGlossaryTermWithInfo(item) {
   return `
-    <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
-      <strong>${escapeHtml(item.term)}</strong>
+    <div class="glossary-term-head">
+      <strong class="glossary-term-name">${escapeHtml(item.term)}</strong>
       ${renderGlossaryInfoButton(item.term)}
+    </div>
+  `;
+}
+
+function renderGlossaryDefinitionBlocks(item, { compact = false } = {}) {
+  const definitions = getGlossaryDefinitionPriority(item);
+  const secondaryClass = compact ? "glossary-definition-secondary glossary-definition-secondary-compact" : "glossary-definition-secondary";
+
+  return `
+    <div class="glossary-definitions${compact ? " glossary-definitions-compact" : ""}">
+      <div class="glossary-definition-primary">
+        <strong>${definitions.primaryLabel}</strong><br>
+        ${escapeHtml(definitions.primaryText)}
+      </div>
+      <div class="${secondaryClass}">
+        <strong>${definitions.secondaryLabel}</strong><br>
+        ${escapeHtml(definitions.secondaryText)}
+      </div>
+    </div>
+  `;
+}
+
+function renderGlossaryTermMeta(item, { compact = false } = {}) {
+  return `
+    <div class="news-meta-row${compact ? " glossary-meta-row-compact" : " glossary-meta-row"}">
+      <span class="tag ${getGlossaryLevelTagClass(item.level)}">${escapeHtml(item.level)}</span>
+      <span class="tag general">${escapeHtml(item.sectionTitle || "Glosario F1")}</span>
     </div>
   `;
 }
@@ -42,25 +82,13 @@ function renderGlossaryFocusCard(item) {
   if (!item) return "";
 
   return `
-    <div class="card highlight-card">
+    <div class="card highlight-card glossary-focus-card">
       <div class="mini-pill">TÉRMINO DESTACADO</div>
       <div class="card-title">${escapeHtml(item.term)}</div>
+      <div class="card-sub">${isExpertMode() ? "Referencia técnica principal del momento con lectura rápida secundaria." : "Referencia rápida principal con detalle técnico opcional."}</div>
 
-      <div class="news-meta-row" style="margin-top:10px;">
-        <span class="tag ${getGlossaryLevelTagClass(item.level)}">${escapeHtml(item.level)}</span>
-        <span class="tag general">${escapeHtml(item.sectionTitle || "Glosario F1")}</span>
-      </div>
-
-      <div class="insight-list" style="margin-top:14px;">
-        <div class="insight-item">
-          <strong>Casual</strong><br>
-          ${escapeHtml(item.easy || item.short || "")}
-        </div>
-        <div class="insight-item">
-          <strong>Experto</strong><br>
-          ${escapeHtml(item.short || item.easy || "")}
-        </div>
-      </div>
+      ${renderGlossaryTermMeta(item)}
+      ${renderGlossaryDefinitionBlocks(item)}
     </div>
   `;
 }
@@ -72,26 +100,12 @@ function openGlossaryQuickTerm(term) {
   const safeTerm = escapeForSingleQuotedAttr(item.term);
 
   openDetailModal(`
-    <div class="card" style="margin-bottom:0;">
-      <div class="news-meta-row" style="margin-bottom:10px;">
-        <span class="tag ${getGlossaryLevelTagClass(item.level)}">${escapeHtml(item.level)}</span>
-        <span class="tag general">${escapeHtml(item.sectionTitle || "Glosario F1")}</span>
-      </div>
-
+    <div class="card glossary-modal-card" style="margin-bottom:0;">
+      ${renderGlossaryTermMeta(item, { compact: true })}
       <div class="card-title">${escapeHtml(item.term)}</div>
+      ${renderGlossaryDefinitionBlocks(item, { compact: true })}
 
-      <div class="insight-list" style="margin-top:14px;">
-        <div class="insight-item">
-          <strong>Casual</strong><br>
-          ${escapeHtml(item.easy || item.short || "")}
-        </div>
-        <div class="insight-item">
-          <strong>Experto</strong><br>
-          ${escapeHtml(item.short || item.easy || "")}
-        </div>
-      </div>
-
-      <div class="quick-row" style="margin-top:14px;">
+      <div class="quick-row glossary-modal-actions">
         <a
           href="#"
           class="btn-secondary"
@@ -110,18 +124,16 @@ function renderContextGlossaryCard(screen, phase) {
   const copy = getContextGlossaryTitle(screen, phase);
 
   return `
-    <div class="card">
+    <div class="card glossary-context-card">
       <div class="card-title">${escapeHtml(copy.title)}</div>
       <div class="card-sub">${escapeHtml(copy.sub)}</div>
 
-      <div class="insight-list" style="margin-top:12px;">
+      <div class="insight-list glossary-context-list">
         ${items.map(item => `
-          <div class="insight-item">
-            <div class="news-meta-row" style="margin-bottom:8px;">
-              <span class="tag ${getGlossaryLevelTagClass(item.level)}">${escapeHtml(item.level)}</span>
-            </div>
+          <div class="insight-item glossary-context-item">
+            ${renderGlossaryTermMeta(item, { compact: true })}
             ${renderGlossaryTermWithInfo(item)}
-            <div style="margin-top:6px;">
+            <div class="glossary-context-easy-copy">
               ${escapeHtml(item.easy)}
             </div>
           </div>
@@ -134,23 +146,16 @@ function renderContextGlossaryCard(screen, phase) {
 /* Secciones del glosario completo con “Término ⓘ”. */
 function renderGlossarySection(section) {
   return `
-    <div class="card">
+    <div class="card glossary-section-card">
       <div class="card-title">${escapeHtml(section.title)}</div>
       <div class="card-sub">${escapeHtml(section.subtitle)}</div>
 
-      <div class="insight-list" style="margin-top:12px;">
+      <div class="insight-list glossary-term-list">
         ${section.items.map(item => `
-          <div class="insight-item">
-            <div class="news-meta-row" style="margin-bottom:8px;">
-              <span class="tag ${getGlossaryLevelTagClass(item.level)}">${escapeHtml(item.level)}</span>
-            </div>
+          <div class="insight-item glossary-term-item">
+            ${renderGlossaryTermMeta(item, { compact: true })}
             ${renderGlossaryTermWithInfo(item)}
-            <div style="margin-top:6px; color: rgba(255,255,255,0.92);">
-              ${escapeHtml(item.short)}
-            </div>
-            <div style="margin-top:4px; color: rgba(255,255,255,0.62);">
-              ${escapeHtml(item.easy)}
-            </div>
+            ${renderGlossaryDefinitionBlocks(item, { compact: true })}
           </div>
         `).join("")}
       </div>
@@ -167,25 +172,19 @@ function showGlossary(focusTerm = null) {
   const focusItem = focusTerm ? findGlossaryItemByTerm(focusTerm) : null;
 
   contentEl().innerHTML = `
-    <div class="card highlight-card">
+    <div class="card highlight-card glossary-hero-card">
       <div class="mini-pill">GLOSARIO</div>
       <div class="card-title">Glosario F1</div>
+      <div class="card-sub">${isExpertMode() ? "Base común para lectura rápida y criterio técnico, sin ruido extra." : "Definiciones rápidas para entender retransmisiones, titulares y radios sin complicarte."}</div>
 
-      <div class="meta-grid" style="margin-top:14px;">
-        <div class="meta-tile">
-          <div class="meta-kicker">Básico</div>
-          <div class="meta-value" style="font-size:18px;">Esencial</div>
-          <div class="meta-caption">Para entender retransmisiones y titulares</div>
+      <div class="insight-list glossary-hero-list">
+        <div class="insight-item glossary-hero-item">
+          <strong>Lectura inmediata</strong><br>
+          ${isExpertMode() ? "Primero verás la definición técnica y debajo la traducción casual para contexto rápido." : "Primero verás la definición simple y debajo la versión técnica para profundizar solo si quieres."}
         </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Muy usado</div>
-          <div class="meta-value" style="font-size:18px;">Habitual</div>
-          <div class="meta-caption">Sale mucho en análisis y radios</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Actual 2026</div>
-          <div class="meta-value" style="font-size:18px;">Nuevo</div>
-          <div class="meta-caption">Términos del reglamento moderno</div>
+        <div class="insight-item glossary-hero-item">
+          <strong>Uso rápido</strong><br>
+          Usa ⓘ para abrir una ficha breve sin salir del flujo, o entra al glosario completo cuando necesites más detalle.
         </div>
       </div>
     </div>
