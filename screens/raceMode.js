@@ -385,13 +385,12 @@ async function showRaceMode() {
       })}
       ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
       ${renderRaceModeExecutionPanel(favorite, raceName, predictData, stage)}
-      ${renderRaceModeFavoriteSummary(favorite, raceName, predictData)}
+      ${expert ? renderRaceModeFavoriteSummary(favorite, raceName, predictData) : ""}
       ${renderRaceModeComparativeCard(favorite, raceName, predictData)}
-      ${renderRaceModeObjectiveCard(favorite, raceName, predictData)}
+      ${expert ? renderRaceModeObjectiveCard(favorite, raceName, predictData) : ""}
 
       <div class="card race-mode-v2-primary">
         <div class="card-title">Escenarios</div>
-        <div class="card-sub">Suelo, base y techo para leer rápido el rango real.</div>
         ${renderPredictScenarioCards(favorite, raceName, predictData)}
       </div>
 

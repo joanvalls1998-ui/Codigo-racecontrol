@@ -181,7 +181,6 @@ function renderHomeDynamicBlocks(context, favorite) {
     ${getHomeSimpleNewsPreview()}
     ${renderHomeCompetitivePulse(favorite, raceName, predictData)}
     ${expert ? renderHomeWhatToWatchCard(context) : ""}
-    ${expert ? renderHomePhaseSummaryCard(context) : ""}
     ${expert ? renderHomeHierarchy(context, favorite) : ""}
     ${expert ? renderHomeTeamStatus(favorite) : ""}
     ${expert ? renderContextGlossaryCard("home", phase) : ""}
