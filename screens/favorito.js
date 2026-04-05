@@ -64,7 +64,7 @@ function renderFavoritoObjectiveCard(favorite, raceName, predictData, context) {
 
   return `
     <div class="card">
-      <div class="card-title">Objetivo del fin de semana</div>
+      <div class="card-title">Objetivo</div>
 
       <div class="grid-stats" style="margin-top:14px;">
         <div class="stat-tile">
@@ -89,7 +89,7 @@ function renderFavoritoRadarCard(favorite, raceName, context, predictData) {
 
   return `
     <div class="card">
-      <div class="card-title">Radar del fin de semana</div>
+      <div class="card-title">Claves</div>
 
       <div class="insight-list" style="margin-top:12px;">
         ${items.map(item => `
@@ -207,19 +207,6 @@ function renderFavoritoCircuitFitCard(favorite, raceName) {
   `;
 }
 
-function renderFavoritoInsightsCard(favorite) {
-  const insights = rc10Take(getFavoriteInsights(favorite, getSelectedRace()), 2);
-
-  return `
-    <div class="card">
-      <div class="card-title">Lectura rápida</div>
-      <div class="insight-list">
-        ${insights.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}
-      </div>
-    </div>
-  `;
-}
-
 function showFavorito() {
   setActiveNav("nav-favorito");
   updateSubtitle();
@@ -240,6 +227,5 @@ function showFavorito() {
     ${renderFavoritoCircuitFitCard(favorite, raceName)}
     ${renderFavoritoComparisonAdvancedCard(favorite)}
     ${renderFavoritoDirectRivalsCard(favorite, predictData)}
-    ${renderFavoritoInsightsCard(favorite)}
   `;
 }
