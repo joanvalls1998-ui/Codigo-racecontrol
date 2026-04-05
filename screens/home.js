@@ -110,6 +110,47 @@ function renderHomeTeamStatus(favorite) {
   `;
 }
 
+function renderHomeCompetitivePulse(favorite, raceName, predictData) {
+  const snapshot = getFavoriteComparativeSnapshot(favorite, raceName, predictData);
+  if (!snapshot) return "";
+
+  const rivalName = snapshot.championship?.type === "driver"
+    ? snapshot.championship?.directRival?.name
+    : snapshot.championship?.directRival?.team;
+  const rivalGap = snapshot.championship?.rivalGap;
+
+  if (isCasualMode()) {
+    return `
+      <div class="card home-expert-card home-compact-card home-expert-tight">
+        <div class="card-title">Pulso competitivo</div>
+        <div class="info-line">
+          ${escapeHtml(snapshot.metrics.trendInfo.label)} · objetivo ${escapeHtml(snapshot.objective.realistic)} ·
+          rival ${escapeHtml(rivalName || "sin referencia")} ${rivalGap != null ? `(${rivalGap} pts)` : ""}.
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="card home-expert-card home-compact-card home-expert-tight">
+      <div class="card-title">Pulso competitivo</div>
+      <div class="meta-grid">
+        <div class="meta-tile">
+          <div class="meta-kicker">Tendencia</div>
+          <div class="meta-value" style="font-size:17px;">${escapeHtml(snapshot.metrics.trendInfo.label)}</div>
+          <div class="meta-caption">${escapeHtml(snapshot.metrics.trendInfo.description)}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Objetivo razonable</div>
+          <div class="meta-value" style="font-size:17px;">${escapeHtml(snapshot.objective.realistic)}</div>
+          <div class="meta-caption">Mín ${escapeHtml(snapshot.objective.minimum)} · Techo ${escapeHtml(snapshot.objective.high)}</div>
+        </div>
+      </div>
+      <div class="info-line" style="margin-top:10px;">${escapeHtml(snapshot.rivalRead)}</div>
+    </div>
+  `;
+}
+
 function renderHomeDynamicBlocks(context, favorite) {
   const expert = isExpertMode();
   const phase = context?.phase || "pre_weekend";
@@ -137,6 +178,7 @@ function renderHomeDynamicBlocks(context, favorite) {
     })}
     ${renderHomeQuickLinks(context)}
     ${getHomeSimpleNewsPreview()}
+    ${renderHomeCompetitivePulse(favorite, raceName, predictData)}
     ${expert ? renderHomeWhatToWatchCard(context) : ""}
     ${expert ? renderHomePhaseSummaryCard(context) : ""}
     ${expert ? renderHomeHierarchy(context, favorite) : ""}

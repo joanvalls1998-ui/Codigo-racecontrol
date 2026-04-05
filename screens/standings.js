@@ -195,10 +195,47 @@ function renderStandingsBattleCard() {
   `;
 }
 
+function renderStandingsFavoriteContextCard() {
+  const favorite = getFavorite();
+  const raceName = getSelectedRace();
+  const predictData = getActivePredictDataForRace(favorite, raceName);
+  const snapshot = getFavoriteComparativeSnapshot(favorite, raceName, predictData);
+  if (!snapshot || !snapshot.championship) return "";
+
+  const battleName = snapshot.championship.type === "driver"
+    ? snapshot.championship.directRival?.name
+    : snapshot.championship.directRival?.team;
+
+  return `
+    <div class="card standings-overview-v2">
+      <div class="card-title">Lectura fina del campeonato</div>
+      <div class="card-sub">${isExpertMode() ? "Posición real, tendencia y objetivo operativo del favorito." : "Qué pelea importa de verdad para tu favorito."}</div>
+      <div class="meta-grid" style="margin-top:12px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Objetivo razonable</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(snapshot.objective.realistic)}</div>
+          <div class="meta-caption">Mín ${escapeHtml(snapshot.objective.minimum)} · Techo ${escapeHtml(snapshot.objective.high)}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Rival directo</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(battleName || "—")}</div>
+          <div class="meta-caption">${escapeHtml(snapshot.championship.rivalGap != null ? `${snapshot.championship.rivalGap} pts de margen` : "Sin brecha definida")}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Brecha con líder</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(`${snapshot.championship.leaderGap} pts`)}</div>
+          <div class="meta-caption">${escapeHtml(snapshot.metrics.trendInfo.label)}</div>
+        </div>
+      </div>
+      ${isExpertMode() ? `<div class="info-line" style="margin-top:10px;">${escapeHtml(snapshot.internalCompare)}</div>` : ""}
+    </div>
+  `;
+}
+
 function renderStandingsSummaryBlock() {
   const el = document.getElementById("standingsSummaryContent");
   if (!el) return;
-  el.innerHTML = `${renderStandingsOverviewCard()}${renderStandingsBattleCard()}${renderStandingsExpertContextCard()}`;
+  el.innerHTML = `${renderStandingsOverviewCard()}${renderStandingsBattleCard()}${renderStandingsFavoriteContextCard()}${renderStandingsExpertContextCard()}`;
 }
 
 async function showStandings(force = false) {

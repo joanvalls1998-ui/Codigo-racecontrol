@@ -348,6 +348,43 @@ function renderFavoritoInsightsCard(favorite, raceName, context, predictData, ex
   `;
 }
 
+function renderFavoritoChampionshipCard(favorite, raceName, predictData, expert) {
+  const snapshot = getFavoriteComparativeSnapshot(favorite, raceName, predictData);
+  if (!snapshot?.championship) return "";
+
+  const currentName = snapshot.championship.type === "driver"
+    ? snapshot.championship.current?.name
+    : snapshot.championship.current?.team;
+  const rivalName = snapshot.championship.type === "driver"
+    ? snapshot.championship.directRival?.name
+    : snapshot.championship.directRival?.team;
+
+  return `
+    <div class="card">
+      <div class="mini-pill">Campeonato</div>
+      <div class="card-title">Dónde está la pelea real</div>
+      <div class="meta-grid" style="margin-top:12px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Posición actual</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(`P${snapshot.championship.current?.pos || "—"}`)}</div>
+          <div class="meta-caption">${escapeHtml(currentName || favorite.name)}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Rival directo</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(rivalName || "—")}</div>
+          <div class="meta-caption">${escapeHtml(snapshot.championship.rivalGap != null ? `${snapshot.championship.rivalGap} pts de diferencia` : "Sin brecha definida")}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Líder del mundial</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(snapshot.championship.type === "driver" ? (snapshot.championship.leader?.name || "—") : (snapshot.championship.leader?.team || "—"))}</div>
+          <div class="meta-caption">${escapeHtml(`${snapshot.championship.leaderGap} pts de brecha`)}</div>
+        </div>
+      </div>
+      ${expert ? `<div class="info-line" style="margin-top:10px;">${escapeHtml(snapshot.rivalRead)}</div>` : ""}
+    </div>
+  `;
+}
+
 function showFavorito() {
   setActiveNav("nav-favorito");
   updateSubtitle();
@@ -376,6 +413,7 @@ function showFavorito() {
     ${renderFavoritoCircuitFitCard(favorite, raceName, expert)}
     ${renderFavoritoComparisonAdvancedCard(favorite, expert)}
     ${renderFavoritoDirectRivalsCard(favorite, predictData, expert)}
+    ${renderFavoritoChampionshipCard(favorite, raceName, predictData, expert)}
     ${renderFavoritoInsightsCard(favorite, raceName, context, predictData, expert)}
   `;
 }

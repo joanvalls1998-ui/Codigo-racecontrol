@@ -4546,6 +4546,93 @@ function getFavoriteDirectRivals(favorite, standingsData, predictData) {
     }));
 }
 
+function getFavoriteChampionshipContext(favorite, standingsData = state.standingsCache) {
+  if (!standingsData) return null;
+
+  if (favorite.type === "driver") {
+    const drivers = standingsData.drivers || [];
+    const current = drivers.find(driver => sameDriverName(driver.name, favorite.name));
+    const leader = drivers[0] || null;
+    if (!current) return null;
+
+    const ahead = drivers.find(driver => driver.pos === current.pos - 1) || null;
+    const behind = drivers.find(driver => driver.pos === current.pos + 1) || null;
+    const teammate = drivers.find(driver => driver.team === current.team && !sameDriverName(driver.name, current.name)) || null;
+    const directRival = [ahead, behind]
+      .filter(Boolean)
+      .sort((a, b) => Math.abs((a.points || 0) - (current.points || 0)) - Math.abs((b.points || 0) - (current.points || 0)))[0] || null;
+
+    return {
+      type: "driver",
+      current,
+      leader,
+      ahead,
+      behind,
+      teammate,
+      directRival,
+      leaderGap: Math.max(0, (leader?.points || 0) - (current?.points || 0)),
+      rivalGap: directRival ? Math.abs((directRival.points || 0) - (current.points || 0)) : null
+    };
+  }
+
+  const teams = standingsData.teams || [];
+  const current = teams.find(team => normalizeText(team.team) === normalizeText(favorite.name));
+  const leader = teams[0] || null;
+  if (!current) return null;
+
+  const ahead = teams.find(team => team.pos === current.pos - 1) || null;
+  const behind = teams.find(team => team.pos === current.pos + 1) || null;
+  const directRival = [ahead, behind]
+    .filter(Boolean)
+    .sort((a, b) => Math.abs((a.points || 0) - (current.points || 0)) - Math.abs((b.points || 0) - (current.points || 0)))[0] || null;
+
+  return {
+    type: "team",
+    current,
+    leader,
+    ahead,
+    behind,
+    teammate: null,
+    directRival,
+    leaderGap: Math.max(0, (leader?.points || 0) - (current?.points || 0)),
+    rivalGap: directRival ? Math.abs((directRival.points || 0) - (current.points || 0)) : null
+  };
+}
+
+function getFavoriteComparativeSnapshot(favorite, raceName, predictData = null) {
+  const metrics = getFavoriteMetrics(favorite);
+  const teamName = favorite.type === "driver" ? favorite.team : favorite.name;
+  const teamData = getTeamData(teamName);
+  const objective = getFavoriteWeekendObjective(favorite, raceName, predictData, state.weekendContext);
+  const championship = getFavoriteChampionshipContext(favorite, state.standingsCache);
+
+  let internalCompare = "Sin comparativa interna disponible.";
+  if (favorite.type === "driver") {
+    const comparison = getDriverComparison(teamName, favorite.name);
+    const gap = comparison.primaryForm - comparison.secondaryForm;
+    internalCompare = gap >= 0
+      ? `${comparison.primaryName} llega ${gap} puntos de forma por delante de ${comparison.secondaryName}.`
+      : `${comparison.primaryName} llega ${Math.abs(gap)} puntos de forma por detrás de ${comparison.secondaryName}.`;
+  } else if (teamData?.drivers?.length >= 2) {
+    internalCompare = `${teamData.drivers[0]} vs ${teamData.drivers[1]}: ${teamData.forms[0]} vs ${teamData.forms[1]} de forma reciente.`;
+  }
+
+  const rivalRead = championship?.directRival
+    ? championship.type === "driver"
+      ? `${championship.directRival.name} es la referencia directa (${championship.rivalGap} pts).`
+      : `${championship.directRival.team} es la referencia directa (${championship.rivalGap} pts).`
+    : "No hay rival directo claro en puntos.";
+
+  return {
+    metrics,
+    teamData,
+    objective,
+    championship,
+    internalCompare,
+    rivalRead
+  };
+}
+
 function renderFavoritoHeroContextCard(favorite, raceName, predictData, context) {
   const signal = getWeekendSignal(favorite, raceName);
   const objective = getFavoriteWeekendObjective(favorite, raceName, predictData, context);

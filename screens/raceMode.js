@@ -294,6 +294,62 @@ function renderRaceModeExecutionPanel(favorite, raceName, predictData, stage) {
   `;
 }
 
+function renderRaceModeComparativeCard(favorite, raceName, predictData) {
+  const snapshot = getFavoriteComparativeSnapshot(favorite, raceName, predictData);
+  if (!snapshot) return "";
+
+  const rivalName = snapshot.championship?.type === "driver"
+    ? snapshot.championship?.directRival?.name
+    : snapshot.championship?.directRival?.team;
+
+  return `
+    <div class="card race-mode-v2-primary">
+      <div class="card-title">Comparativa útil del GP</div>
+      <div class="card-sub">${isExpertMode() ? "Favorito vs rival directo + referencia interna para leer tendencia real." : "Referencia rápida contra rival directo."}</div>
+      <div class="meta-grid">
+        <div class="meta-tile">
+          <div class="meta-kicker">Rival directo</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(rivalName || "—")}</div>
+          <div class="meta-caption">${escapeHtml(snapshot.championship?.rivalGap != null ? `${snapshot.championship.rivalGap} pts` : "Sin brecha definida")}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Tendencia favorita</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(snapshot.metrics.trendInfo.label)}</div>
+          <div class="meta-caption">${escapeHtml(snapshot.metrics.trendInfo.description)}</div>
+        </div>
+      </div>
+      ${isExpertMode() ? `<div class="info-line" style="margin-top:10px;">${escapeHtml(snapshot.internalCompare)}</div>` : ""}
+    </div>
+  `;
+}
+
+function renderRaceModeObjectiveCard(favorite, raceName, predictData) {
+  const objective = getFavoriteWeekendObjective(favorite, raceName, predictData, state.weekendContext);
+  return `
+    <div class="card race-mode-v2-primary">
+      <div class="card-title">Objetivo realista del fin de semana</div>
+      <div class="card-sub">Mínimo, razonable y techo para no perder el foco durante el GP.</div>
+      <div class="predict-grid">
+        <div class="stat-tile">
+          <div class="stat-kicker">Mínimo</div>
+          <div class="stat-value">${escapeHtml(objective.minimum)}</div>
+          <div class="stat-caption">Evitar daño</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-kicker">Razonable</div>
+          <div class="stat-value">${escapeHtml(objective.realistic)}</div>
+          <div class="stat-caption">Objetivo operativo</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-kicker">Techo</div>
+          <div class="stat-value">${escapeHtml(objective.high)}</div>
+          <div class="stat-caption">Escenario alto</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 async function showRaceMode() {
   setActiveNav("nav-more");
   updateSubtitle();
@@ -329,6 +385,8 @@ async function showRaceMode() {
       ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
       ${renderRaceModeExecutionPanel(favorite, raceName, predictData, stage)}
       ${renderRaceModeFavoriteSummary(favorite, raceName, predictData)}
+      ${renderRaceModeComparativeCard(favorite, raceName, predictData)}
+      ${renderRaceModeObjectiveCard(favorite, raceName, predictData)}
 
       <div class="card race-mode-v2-primary">
         <div class="card-title">Escenarios</div>

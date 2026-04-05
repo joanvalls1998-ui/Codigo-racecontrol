@@ -80,9 +80,13 @@ function buildNewsFilterPresets() {
   const favorite = getFavorite();
   return [
     { key: "favorite", label: favorite.name, favoritePayload: favorite },
+    { key: "general", label: "General", favoritePayload: { type: "team", name: "Formula 1", colorClass: "ferrari" } },
     { key: "aston", label: "Aston", favoritePayload: { type: "team", name: "Aston Martin", colorClass: "aston" } },
     { key: "alonso", label: "Alonso", favoritePayload: getDefaultFavorite() },
-    { key: "grid", label: "Parrilla", favoritePayload: { type: "team", name: "Formula 1", colorClass: "ferrari" } }
+    { key: "grid", label: "Parrilla", favoritePayload: { type: "team", name: "Formula 1", colorClass: "ferrari" } },
+    { key: "technical", label: "Técnica", favoritePayload: { type: "team", name: "Formula 1", colorClass: "mercedes" } },
+    { key: "market", label: "Mercado", favoritePayload: { type: "team", name: "Formula 1", colorClass: "ferrari" } },
+    { key: "performance", label: "Rendimiento", favoritePayload: { type: "team", name: "Formula 1", colorClass: "mclaren" } }
   ];
 }
 
@@ -157,6 +161,22 @@ function getNewsFilterTerms(filter) {
     );
   }
 
+  if (filter?.key === "general") {
+    base.push("grand prix", "formula 1", "f1", "championship", "qualifying", "race");
+  }
+
+  if (filter?.key === "technical") {
+    base.push("upgrade", "package", "floor", "aero", "set-up", "setup", "wind tunnel", "simulator", "degradation");
+  }
+
+  if (filter?.key === "market") {
+    base.push("contract", "seat", "driver market", "renewal", "fich", "mercado", "replace", "line-up");
+  }
+
+  if (filter?.key === "performance") {
+    base.push("pace", "ritmo", "qualy", "qualifying", "race pace", "stint", "degradation", "podium");
+  }
+
   return unique(base);
 }
 
@@ -203,6 +223,11 @@ function scoreNewsItem(item, filter, phase = getNewsWeekendPhase()) {
   if (filter?.key === "grid" && containsAny(text, ["grand prix", "race", "qualifying", "championship", "pace", "podium", "win"])) {
     score += 6;
   }
+
+  if (filter?.key === "technical" && category.key === "technical") score += 12;
+  if (filter?.key === "market" && category.key === "market") score += 12;
+  if (filter?.key === "performance" && category.key === "performance") score += 12;
+  if (filter?.key === "general") score += 2;
 
   if (containsAny(text, ["official", "confirmed", "update", "breaking"])) {
     score += 3;
@@ -299,6 +324,33 @@ function getNewsImpactText(item, filter, phase = getNewsWeekendPhase()) {
   return "Aporta contexto general útil para no llegar a ciegas al próximo Gran Premio.";
 }
 
+function getNewsImpactTier(item, filter, phase = getNewsWeekendPhase()) {
+  const lens = getNewsEditorialLens(item, filter, phase);
+  const score = scoreNewsItem(item, filter, phase);
+
+  if (lens.isPerformanceLed && score >= 24) {
+    return {
+      label: "Impacto real",
+      className: "statement",
+      text: "Hay señales operativas para el GP: no es solo narrativa."
+    };
+  }
+
+  if (lens.isNarrative && !lens.isPerformanceLed) {
+    return {
+      label: "Humo narrativo",
+      className: "market",
+      text: "Úsalo como contexto de paddock; necesita confirmación en pista."
+    };
+  }
+
+  return {
+    label: "Contexto útil",
+    className: "general",
+    text: "Aporta lectura de entorno, con impacto indirecto."
+  };
+}
+
 function getNewsEditorialLens(item, filter, phase = getNewsWeekendPhase()) {
   const text = normalizeText(`${item?.title || ""} ${item?.source || ""}`);
   const category = categorizeNewsItem(item);
@@ -366,7 +418,8 @@ function sortNewsItems(items, filter, phase = getNewsWeekendPhase()) {
 }
 
 function renderNewsKeyLines(items, filter, phase = getNewsWeekendPhase()) {
-  const top = sortNewsItems(items, filter, phase).slice(0, 3);
+  const maxLines = isExpertMode() ? 3 : 2;
+  const top = sortNewsItems(items, filter, phase).slice(0, maxLines);
 
   if (!top.length) {
     return `<div class="empty-line">No hay claves destacadas disponibles ahora mismo.</div>`;
@@ -433,6 +486,16 @@ function applyNewsSecondaryFilter(items, filter, phase) {
     return items.filter(item => getNewsImportanceClass(item, filter, phase) === target);
   }
 
+  if (mode.startsWith("impact:")) {
+    const target = mode.replace("impact:", "");
+    return items.filter(item => {
+      const tier = getNewsImpactTier(item, filter, phase);
+      if (target === "real") return tier.label === "Impacto real";
+      if (target === "narrative") return tier.label === "Humo narrativo";
+      return true;
+    });
+  }
+
   return items;
 }
 
@@ -440,6 +503,8 @@ function renderNewsSecondaryFilters() {
   const active = getNewsSecondaryFilter();
   const chips = [
     { key: "all", label: "Todo" },
+    { key: "impact:real", label: "Impacto real" },
+    { key: "impact:narrative", label: "Humo narrativo" },
     { key: "cat:technical", label: "Técnica" },
     { key: "cat:reliability", label: "Fiabilidad" },
     { key: "cat:market", label: "Mercado" },
@@ -467,6 +532,28 @@ function truncateSecondaryCopy(text, max = 110) {
   return `${raw.slice(0, max - 1).trim()}…`;
 }
 
+function getNewsWhoIsAffected(item, filter, phase = getNewsWeekendPhase()) {
+  const lens = getNewsEditorialLens(item, filter, phase);
+  if (lens.affectsFavorite) return "Afecta directamente al favorito.";
+  if (lens.affectsGp) return "Afecta al guion competitivo del GP.";
+  if (categorizeNewsItem(item).key === "market") return "Afecta al paddock y a la lectura de mercado.";
+  return "Afecta sobre todo a la lectura global de la parrilla.";
+}
+
+function renderNewsPortadaBrief(item, filter, phase = getNewsWeekendPhase()) {
+  if (!item) return "";
+  const impactTier = getNewsImpactTier(item, filter, phase);
+
+  return `
+    <div class="insight-list news-portada-brief">
+      <div class="insight-item"><strong>Qué pasa:</strong> ${escapeHtml(item.title || "Sin titular disponible.")}</div>
+      <div class="insight-item"><strong>Por qué importa:</strong> ${escapeHtml(getNewsImpactText(item, filter, phase))}</div>
+      <div class="insight-item"><strong>A quién afecta:</strong> ${escapeHtml(getNewsWhoIsAffected(item, filter, phase))}</div>
+      ${isExpertMode() ? `<div class="insight-item"><strong>Lectura editorial:</strong> ${escapeHtml(impactTier.text)}</div>` : ""}
+    </div>
+  `;
+}
+
 function renderFeaturedNews(item, filter, phase = getNewsWeekendPhase()) {
   if (!item) return "";
   const category = categorizeNewsItem(item);
@@ -474,6 +561,7 @@ function renderFeaturedNews(item, filter, phase = getNewsWeekendPhase()) {
   const importanceClass = getNewsImportanceClass(item, filter, phase);
   const impactText = truncateSecondaryCopy(getNewsImpactText(item, filter, phase), 115);
   const signals = getNewsEditorialSignals(item, filter, phase);
+  const impactTier = getNewsImpactTier(item, filter, phase);
 
   return `
     <div class="news-hero news-hero-v2">
@@ -483,12 +571,17 @@ function renderFeaturedNews(item, filter, phase = getNewsWeekendPhase()) {
       <div class="news-meta-row">
         <span class="tag ${category.key}">${escapeHtml(category.label)}</span>
         <span class="tag ${importanceClass}">${escapeHtml(importance)}</span>
+        <span class="tag ${impactTier.className}">${escapeHtml(impactTier.label)}</span>
         <span class="tag context">${escapeHtml(getNewsQuickPriorityText(item, filter, phase))}</span>
         <a class="btn-secondary" href="${item.link}" target="_blank" rel="noopener noreferrer" style="width:auto; padding:10px 14px;">Abrir noticia</a>
       </div>
+      ${renderNewsPortadaBrief(item, filter, phase)}
       <div class="news-why-block">
         <div class="news-why-title">Por qué importa</div>
         <div class="info-line" style="margin-top:8px;">${escapeHtml(impactText)}</div>
+        <div class="news-meta-row" style="margin-top:8px;">
+          <span class="tag ${impactTier.className}">${escapeHtml(impactTier.text)}</span>
+        </div>
       </div>
       ${isExpertMode() ? `
         <div class="news-meta-row" style="margin-top:10px;">
@@ -505,12 +598,14 @@ function renderNewsListItem(item, filter, phase = getNewsWeekendPhase()) {
   const importanceClass = getNewsImportanceClass(item, filter, phase);
   const impactText = truncateSecondaryCopy(getNewsImpactText(item, filter, phase), isExpertMode() ? 132 : 88);
   const signals = getNewsEditorialSignals(item, filter, phase);
+  const impactTier = getNewsImpactTier(item, filter, phase);
 
   return `
     <div class="news-item news-item-v2 ${isExpertMode() ? "expert" : "casual"}">
       <div class="news-meta-row" style="margin-top:0; margin-bottom:8px;">
         <span class="tag ${category.key}">${escapeHtml(category.label)}</span>
         <span class="tag ${importanceClass}">${escapeHtml(importance)}</span>
+        ${isExpertMode() ? `<span class="tag ${impactTier.className}">${escapeHtml(impactTier.label)}</span>` : ""}
       </div>
       <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
       <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
@@ -577,6 +672,8 @@ async function showNews() {
     const sortedItems = applyNewsSecondaryFilter(sorted, filter, phase).slice(0, 10);
     const featured = sortedItems[0] || null;
     const rest = sortedItems.slice(1);
+    const importantRest = rest.filter(item => ["priority-high", "relevance-high"].includes(getNewsImportanceClass(item, filter, phase)));
+    const contextRest = rest.filter(item => !["priority-high", "relevance-high"].includes(getNewsImportanceClass(item, filter, phase)));
 
     contentEl().innerHTML = `
       <div class="card news-header-v2">
@@ -623,8 +720,17 @@ async function showNews() {
 
       <div class="card news-list-v2">
         <div class="card-title">${isExpertMode() ? "Seguimiento y contexto" : "Más noticias"}</div>
-        <div class="card-sub">${isExpertMode() ? "Separadas por impacto real para no mezclar señales fuertes con ruido." : "Resto de titulares ordenados por relevancia."}</div>
-        ${rest.length
+        <div class="card-sub">${isExpertMode() ? "Separación editorial: primero lo importante, luego contexto de paddock." : "Resto de titulares ordenados por relevancia."}</div>
+        ${isExpertMode() ? `
+          <div class="mini-pill" style="margin-top:10px;">Importantes ahora</div>
+          ${importantRest.length
+            ? importantRest.map(item => renderNewsListItem(item, filter, phase)).join("")
+            : `<div class="empty-line">No hay noticias de alta prioridad adicionales.</div>`}
+          <div class="mini-pill" style="margin-top:12px;">Contexto y seguimiento</div>
+          ${contextRest.length
+            ? contextRest.map(item => renderNewsListItem(item, filter, phase)).join("")
+            : `<div class="empty-line">No hay noticias de contexto adicionales.</div>`}
+        ` : rest.length
           ? rest.map(item => renderNewsListItem(item, filter, phase)).join("")
           : `<div class="empty-line">No se han encontrado noticias adicionales ahora mismo.</div>`}
       </div>
