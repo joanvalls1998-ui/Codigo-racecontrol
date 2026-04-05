@@ -1264,7 +1264,7 @@ nav,
   margin-bottom: 10px;
   color: rgba(255,255,255,0.7);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1281,7 +1281,7 @@ nav,
 }
 
 .more-card {
-  padding: 12px 14px;
+  padding: 13px 14px;
   border-radius: 16px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
@@ -1323,10 +1323,14 @@ nav,
 }
 
 .more-control-card {
-  padding: 12px 14px;
+  padding: 13px 14px;
   border-radius: 16px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
+}
+
+.more-quick-card {
+  min-height: 98px;
 }
 
 .more-system-card {
