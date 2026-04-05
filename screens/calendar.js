@@ -49,12 +49,15 @@ function renderCalendarIntelligenceHero(nextRace, context) {
 function renderCalendarEventCard(event) {
   const isTesting = event.type === "testing";
   const isRace = event.type === "race";
+  const raceName = isRace ? mapCalendarEventToPredictRace(event) : null;
+  const circuitThumb = raceName ? renderCircuitThumb(raceName, 64) : "";
   const dateLabel = formatCalendarDateRange(event.start, event.end);
   const statusLabel = getCalendarStatusLabel(event.status, event.type);
   const locationLine = event.location ? ` · ${escapeHtml(event.location)}` : "";
 
   return `
     <div class="calendar-event-card">
+      ${circuitThumb}
       <div class="calendar-event-top">
         <div>
           <div class="calendar-event-title">${isRace ? `R${event.round} · ${escapeHtml(event.title)}` : escapeHtml(event.title)}</div>
