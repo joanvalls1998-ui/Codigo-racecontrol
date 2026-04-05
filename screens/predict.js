@@ -91,6 +91,111 @@ function setPredictSectionPlaceholders({
   });
 }
 
+function getPredictMainFocus(favorite, raceName, data = null) {
+  const strategy = getStrategyNarrative(favorite, raceName, data);
+  const factors = getPredictKeyFactors(favorite, raceName, data);
+  const signal = getWeekendSignal(favorite, raceName);
+  const sprint = isSprintRaceName(raceName);
+  const riskFactor = factors.find(item => item.title === "Fiabilidad") || factors[1] || factors[0];
+  const needText = getWeekendKeyPoints(favorite, raceName)[0] || "Convertir bien el ritmo en resultado.";
+
+  return {
+    sprint,
+    signal,
+    strategy,
+    riskFactor,
+    needText,
+    focus: sprint
+      ? "Gestionar bien sábado y domingo sin perder track position."
+      : "Ejecutar un domingo limpio con estrategia estable."
+  };
+}
+
+function renderPredictHeroV2({ predict, favorite, raceName, expert, activePredictData }) {
+  const mainFocus = getPredictMainFocus(favorite, raceName, activePredictData);
+  const signalClass =
+    mainFocus.signal.className === "up" ? "statement" :
+    mainFocus.signal.className === "down" ? "critical" :
+    "general";
+
+  return `
+    <div class="card highlight-card predict-hero-v2">
+      <div class="pill">PREDICT V2</div>
+      <div class="card-title" style="color: var(--${predict.accent}); margin-bottom:4px;">${escapeHtml(predict.title)}</div>
+      <div class="card-sub">${escapeHtml(mainFocus.focus)}</div>
+
+      <div class="predict-hero-tags">
+        <span class="tag ${predict.copy.phaseTagClass}">${escapeHtml(predict.copy.phaseLabel)}</span>
+        <span class="tag ${mainFocus.sprint ? "statement" : "general"}">${mainFocus.sprint ? "Sprint weekend" : "Formato normal"}</span>
+        <span class="tag ${signalClass}">Señal: ${escapeHtml(mainFocus.signal.label)}</span>
+      </div>
+
+      <div class="predict-hero-grid">
+        <div class="predict-hero-tile">
+          <div class="meta-kicker">Favorito</div>
+          <div class="meta-value predict-hero-favorite">${escapeHtml(favorite.name)}</div>
+          <div class="meta-caption">Referencia principal de la predicción</div>
+        </div>
+        <div class="predict-hero-tile">
+          <div class="meta-kicker">GP seleccionado</div>
+          <div class="meta-value predict-hero-race">${escapeHtml(raceName)}</div>
+          <div class="meta-caption">Puedes cambiarlo y regenerar</div>
+        </div>
+      </div>
+      
+      <select id="predictRace" class="select-input predict-hero-select" onchange="saveSelectedRace(this.value)">
+        ${getPredictRaceOptions().map(race => `
+          <option value="${race}" ${race === raceName ? "selected" : ""}>${race}</option>
+        `).join("")}
+      </select>
+
+      <div class="action-row">
+        <button class="btn" onclick="runPredict()">Generar</button>
+        <button class="icon-btn" onclick="refreshPredict()">Actualizar</button>
+      </div>
+
+      ${expert ? `<div class="info-line predict-hero-note">Foco experto: sábado y domingo deben leerse por separado para ajustar el techo real.</div>` : ""}
+    </div>
+  `;
+}
+
+function renderPredictWeekendKeyCard(favorite, raceName, data = null, expert = false) {
+  const factors = getPredictKeyFactors(favorite, raceName, data);
+  const strategy = getStrategyNarrative(favorite, raceName, data);
+  const signal = getWeekendSignal(favorite, raceName);
+  const needText = getWeekendKeyPoints(favorite, raceName)[0] || "Necesita un fin de semana limpio.";
+  const risk = factors.find(item => item.title === "Fiabilidad") || factors[1] || factors[0];
+  const sprint = isSprintRaceName(raceName);
+  const balance = getQualyRaceBalance(favorite, raceName, data);
+
+  return `
+    <div class="predict-key-grid">
+      <div class="meta-tile">
+        <div class="meta-kicker">Factor crítico</div>
+        <div class="meta-value" style="font-size:18px;">${escapeHtml(strategy.factor)}</div>
+        <div class="meta-caption">${escapeHtml(factors[0]?.text || signal.description)}</div>
+      </div>
+      <div class="meta-tile">
+        <div class="meta-kicker">Riesgo principal</div>
+        <div class="meta-value" style="font-size:18px;">${escapeHtml(risk?.title || "Ejecución")}</div>
+        <div class="meta-caption">${escapeHtml(risk?.text || "Un detalle puede romper el escenario base.")}</div>
+      </div>
+      <div class="meta-tile">
+        <div class="meta-kicker">Qué necesita el favorito</div>
+        <div class="meta-value" style="font-size:18px;">Ejecución limpia</div>
+        <div class="meta-caption">${escapeHtml(needText)}</div>
+      </div>
+      ${expert ? `
+        <div class="meta-tile">
+          <div class="meta-kicker">Lectura técnica</div>
+          <div class="meta-value" style="font-size:17px;">${escapeHtml(balance.label)}</div>
+          <div class="meta-caption">${escapeHtml(sprint ? "Con sprint, el sábado condiciona más el domingo." : balance.description)}</div>
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
 async function runPredict() {
   const output = document.getElementById("predictOutput");
   const favorite = getFavorite();
@@ -170,37 +275,20 @@ function showPredict() {
   const expert = isExpertMode();
 
   contentEl().innerHTML = `
-    <div class="card highlight-card">
-      <div class="pill">IA · PREDICT</div>
-      <div class="card-title" style="color: var(--${predict.accent});">${escapeHtml(predict.title)}</div>
-
-      <div class="news-meta-row" style="margin-top:10px;">
-        <span class="tag ${predict.copy.phaseTagClass}">${escapeHtml(predict.copy.phaseLabel)}</span>
-      </div>
-      
-      <select id="predictRace" class="select-input" onchange="saveSelectedRace(this.value)">
-        ${getPredictRaceOptions().map(race => `
-          <option value="${race}" ${race === selectedRace ? "selected" : ""}>${race}</option>
-        `).join("")}
-      </select>
-
-      <div class="action-row">
-        <button class="btn" onclick="runPredict()">Generar</button>
-        <button class="icon-btn" onclick="refreshPredict()">Actualizar</button>
-      </div>
-    </div>
+    ${renderPredictHeroV2({ predict, favorite, raceName: selectedRace, expert, activePredictData })}
 
     ${expert ? `
-      <div class="card">
+      <div class="card predict-v2-secondary">
         <div class="card-title">${escapeHtml(predict.copy.guidanceTitle)}</div>
         ${renderPredictPhaseGuideCard(predict)}
       </div>
 
-      ${renderContextGlossaryCard("predict", predict.phase)}
+      <div class="predict-v2-secondary">${renderContextGlossaryCard("predict", predict.phase)}</div>
     ` : ""}
 
-    <div class="card">
-      <div class="card-title">${escapeHtml(predict.copy.summaryTitle)}</div>
+    <div class="card predict-v2-primary">
+      <div class="card-title">Resumen central</div>
+      <div class="card-sub">La lectura inmediata del favorito para este GP.</div>
       <div id="predictSummaryCards">
         ${activePredictData
           ? renderPredictSummaryCards(activePredictData)
@@ -208,50 +296,52 @@ function showPredict() {
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">${escapeHtml(predict.copy.scenariosTitle)}</div>
+    <div class="card predict-v2-primary">
+      <div class="card-title">Escenarios claros</div>
+      <div class="card-sub">Objetivo mínimo, razonable y techo.</div>
       <div id="predictScenarioCards">
         ${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}
       </div>
     </div>
 
+    <div class="card">
+      <div class="card-title">Clave del fin de semana</div>
+      <div class="card-sub">${expert ? "Lectura técnica prioritaria para no romper el escenario base." : "Lo principal para leer rápido este fin de semana."}</div>
+      <div id="predictKeyFactors">
+        ${renderPredictWeekendKeyCard(favorite, selectedRace, activePredictData, expert)}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Estrategia</div>
+      <div class="card-sub">${expert ? "Plan base, ventanas y factor que puede romper el guion." : "Plan rápido para entender cómo se gana o se pierde el domingo."}</div>
+      <div id="predictStrategyDetail">
+        ${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}
+      </div>
+    </div>
+
     ${expert ? `
       <div class="card">
-        <div class="card-title">${escapeHtml(predict.copy.factorsTitle)}</div>
-        <div id="predictKeyFactors">
-          ${renderPredictKeyFactors(favorite, selectedRace, activePredictData)}
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">${escapeHtml(predict.copy.qualyTitle)}</div>
+        <div class="card-title">Lectura sábado vs domingo</div>
         <div id="predictQualyRace">
           ${renderPredictQualyRaceCard(favorite, selectedRace, activePredictData)}
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">${escapeHtml(predict.copy.strategyTitle)}</div>
-        <div id="predictStrategyDetail">
-          ${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">${escapeHtml(predict.copy.gridTitle)}</div>
+        <div class="card-title">Lectura de parrilla</div>
         <div id="predictGridRead">
           ${renderPredictGridRead(favorite, selectedRace, activePredictData)}
         </div>
       </div>
     ` : ""}
 
-    <div class="card">
+    <div class="card predict-v2-secondary">
       <div class="card-title">${escapeHtml(predict.copy.textTitle)}</div>
       <pre id="predictOutput" class="ai-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción avanzada..."}</pre>
     </div>
 
-    ${expert ? `
-      <div class="card">
+    <div class="card predict-v2-secondary">
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">Historial</div>
@@ -261,8 +351,7 @@ function showPredict() {
           </div>
         </div>
         <div id="predictionHistoryBox">${renderPredictionHistory()}</div>
-      </div>
-    ` : ""}
+    </div>
   `;
 
 
