@@ -403,17 +403,17 @@ function showFavorito() {
   contentEl().innerHTML = `
     ${renderFavoriteCard()}
     ${renderFavoriteQuickSelectorCard({
-      title: "Selector premium",
-      subtitle: "Cámbialo aquí y sincroniza toda la app al instante.",
+      title: "Cambiar favorito",
+      subtitle: "Actualiza la referencia principal en un toque.",
       returnView: "showFavorito",
       compact: true
     })}
     ${renderFavoritoHeroContextCard(favorite, raceName, predictData, context)}
-    ${renderFavoritoObjectiveCard(favorite, raceName, predictData, context)}
     ${renderFavoritoTechnicalCard(favorite, teamData, accent, raceName, context, predictData, expert)}
-    ${renderFavoritoCircuitFitCard(favorite, raceName, expert)}
+    ${expert ? renderFavoritoObjectiveCard(favorite, raceName, predictData, context) : ""}
+    ${expert ? renderFavoritoCircuitFitCard(favorite, raceName, expert) : ""}
     ${renderFavoritoComparisonAdvancedCard(favorite, expert)}
-    ${renderFavoritoDirectRivalsCard(favorite, predictData, expert)}
+    ${expert ? renderFavoritoDirectRivalsCard(favorite, predictData, expert) : ""}
     ${renderFavoritoChampionshipCard(favorite, raceName, predictData, expert)}
     ${renderFavoritoInsightsCard(favorite, raceName, context, predictData, expert)}
   `;

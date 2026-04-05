@@ -379,7 +379,7 @@ function showPredict() {
     ${renderPredictHeroV2({ predict, favorite, raceName: selectedRace, expert, activePredictData })}
     ${renderFavoriteQuickSelectorCard({
       title: "Favorito para esta predicción",
-      subtitle: "Cambio inmediato para recalcular escenarios sin salir de Predict.",
+      subtitle: "Cambio rápido para recalcular sin salir de Predict.",
       returnView: "showPredict",
       compact: true
     })}
@@ -454,9 +454,6 @@ function showPredict() {
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">${escapeHtml(predict.copy.textTitle)}</div>
-        </div>
-        <div class="card-head-actions">
-          <button class="icon-btn" onclick="sharePrediction()">Compartir</button>
         </div>
       </div>
       <pre id="predictOutput" class="ai-output predict-v2-raw-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción avanzada..."}</pre>

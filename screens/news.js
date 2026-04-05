@@ -572,17 +572,10 @@ function renderFeaturedNews(item, filter, phase = getNewsWeekendPhase()) {
         <span class="tag ${category.key}">${escapeHtml(category.label)}</span>
         <span class="tag ${importanceClass}">${escapeHtml(importance)}</span>
         <span class="tag ${impactTier.className}">${escapeHtml(impactTier.label)}</span>
-        <span class="tag context">${escapeHtml(getNewsQuickPriorityText(item, filter, phase))}</span>
         <a class="btn-secondary" href="${item.link}" target="_blank" rel="noopener noreferrer" style="width:auto; padding:10px 14px;">Abrir noticia</a>
       </div>
       ${renderNewsPortadaBrief(item, filter, phase)}
-      <div class="news-why-block">
-        <div class="news-why-title">Por qué importa</div>
-        <div class="info-line" style="margin-top:8px;">${escapeHtml(impactText)}</div>
-        <div class="news-meta-row" style="margin-top:8px;">
-          <span class="tag ${impactTier.className}">${escapeHtml(impactTier.text)}</span>
-        </div>
-      </div>
+      <div class="info-line" style="margin-top:10px;">${escapeHtml(impactText)}</div>
       ${isExpertMode() ? `
         <div class="news-meta-row" style="margin-top:10px;">
           ${signals.map(signal => `<span class="tag context">${escapeHtml(signal)}</span>`).join("")}
@@ -697,14 +690,14 @@ async function showNews() {
         returnView: "showNews",
         compact: true
       })}
-      ${renderFavoritePersonalPulseCard({
+      ${isExpertMode() ? renderFavoritePersonalPulseCard({
         favorite,
         raceName,
         predictData,
         context: state.weekendContext,
         title: "Contexto del favorito en noticias",
         expert: isExpertMode()
-      })}
+      }) : ""}
 
       ${isExpertMode() ? renderNewsPhaseCard(phase) : ""}
 

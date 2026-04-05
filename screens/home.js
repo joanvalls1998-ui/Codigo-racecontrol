@@ -160,23 +160,15 @@ function renderHomeDynamicBlocks(context, favorite) {
   return `
     ${renderHomePhaseHero(context)}
     ${renderWeekendModeHub(context, { source: "home" })}
-    ${renderFavoriteQuickSelectorCard({
-      title: "Favorito central",
-      subtitle: expert
-        ? "Cambio rápido: actualiza de inmediato Home, Predict, Noticias y Favorito."
-        : "Cámbialo al instante sin entrar en Clasificación.",
-      returnView: "showHome",
-      compact: true
-    })}
     ${renderHomeNowCard(context, favorite, { compact: !expert })}
-    ${renderFavoritePersonalPulseCard({
+    ${expert ? renderFavoritePersonalPulseCard({
       favorite,
       raceName,
       predictData,
       context,
       title: "Favorito central · lectura rápida",
       expert
-    })}
+    }) : ""}
     ${renderHomeQuickLinks(context)}
     ${getHomeSimpleNewsPreview()}
     ${renderHomeCompetitivePulse(favorite, raceName, predictData)}
