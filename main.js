@@ -1438,19 +1438,6 @@ async function showSessions() {
         </div>
       </div>
 
-      <div class="card sessions-status-card">
-        <div class="card-head">
-          <div class="card-head-left">
-            <div class="card-title">Estado de sesiones</div>
-            <div class="card-sub">Seguimiento operativo del fin de semana.</div>
-          </div>
-          <div class="card-head-actions">
-            <span class="tag statement">Live</span>
-            <span class="tag market">Next</span>
-          </div>
-        </div>
-      </div>
-
       ${(context?.sessions || []).length
         ? sessionsView.visible.map(session => renderSessionCard(session, favorite, context)).join("")
         : `
@@ -3541,7 +3528,7 @@ function showMore() {
 
   contentEl().innerHTML = `
     <div class="card more-hub-card">
-      <div class="card-title">MÁS</div>
+      <div class="card-title">Más</div>
       <div class="card-sub">${isExpert ? "Centro de control rápido con contexto del estado actual." : "Centro de control rápido para usar RaceControl sin fricción."}</div>
 
       <div class="more-section">
@@ -3602,10 +3589,10 @@ function showMore() {
             <div class="more-card-sub">Configuración completa y opciones secundarias.</div>
           </div>
           <div class="more-control-card">
-            <div class="more-card-title">Limpieza total / reset</div>
-            <div class="more-card-sub">Restaura el favorito por defecto en un toque.</div>
+            <div class="more-card-title">Reset rápido de favorito</div>
+            <div class="more-card-sub">Restaura el favorito por defecto sin tocar el resto de ajustes.</div>
             <div class="action-row">
-              <button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset completo</button>
+              <button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset favorito</button>
             </div>
           </div>
         </div>

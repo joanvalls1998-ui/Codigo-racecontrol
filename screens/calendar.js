@@ -152,6 +152,9 @@ async function showCalendar(force = false) {
     const nextRace = getNextRaceFromCalendar(events);
     const upcoming = events.filter(event => event.status === "next" || event.status === "upcoming");
     const completed = events.filter(event => event.status === "completed");
+    const casual = isCasualMode();
+    const completedVisible = casual ? completed.slice(0, 6) : completed;
+    const completedHiddenCount = Math.max(0, completed.length - completedVisible.length);
     const context = getHomeWeekendContext();
 
     contentEl().innerHTML = `
@@ -177,11 +180,12 @@ async function showCalendar(force = false) {
         <div class="card-head">
           <div class="card-head-left">
             <div class="card-title">Citas completadas</div>
-            <div class="card-sub">Histórico rápido del progreso de la temporada.</div>
+            <div class="card-sub">${casual ? "Histórico resumido para mantener foco en lo próximo." : "Histórico rápido del progreso de la temporada."}</div>
           </div>
         </div>
 
-        ${completed.length ? completed.map(event => renderCalendarEventCard(event, { secondary: true })).join("") : `<div class="empty-line">No hay citas completadas registradas.</div>`}
+        ${completedVisible.length ? completedVisible.map(event => renderCalendarEventCard(event, { secondary: true })).join("") : `<div class="empty-line">No hay citas completadas registradas.</div>`}
+        ${completedHiddenCount > 0 ? `<div class="empty-line">Se ocultaron ${completedHiddenCount} citas ya cerradas para reducir scroll en modo casual.</div>` : ""}
       </div>
     `;
   } catch (error) {

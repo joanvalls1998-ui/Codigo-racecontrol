@@ -338,7 +338,7 @@ function showPredict() {
 
     <div class="card predict-v2-secondary">
       <div class="card-title">${escapeHtml(predict.copy.textTitle)}</div>
-      <pre id="predictOutput" class="ai-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción avanzada..."}</pre>
+      <pre id="predictOutput" class="ai-output predict-v2-raw-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción avanzada..."}</pre>
     </div>
 
     <div class="card predict-v2-secondary">
