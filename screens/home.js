@@ -23,7 +23,7 @@ function getHomeSimpleNewsPreview() {
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">Noticias</div>
-          ${isCasualMode() ? `<div class="card-sub">1 clave rápida para no perder contexto.</div>` : ""}
+          
         </div>
         <div class="card-head-actions">
           <a href="#" class="home-news-cta" onclick="showNews(); return false;">Ver noticias</a>
@@ -159,8 +159,8 @@ function renderHomeDynamicBlocks(context, favorite) {
 
   return `
     ${renderHomePhaseHero(context)}
-    ${renderWeekendModeHub(context, { source: "home" })}
     ${renderHomeNowCard(context, favorite, { compact: !expert })}
+    ${renderHomeCompetitivePulse(favorite, raceName, predictData)}
     ${expert ? renderFavoritePersonalPulseCard({
       favorite,
       raceName,
@@ -169,11 +169,9 @@ function renderHomeDynamicBlocks(context, favorite) {
       title: "Favorito central",
       expert
     }) : ""}
-    ${expert ? "" : renderHomeQuickLinks(context)}
     ${getHomeSimpleNewsPreview()}
-    ${renderHomeCompetitivePulse(favorite, raceName, predictData)}
-    ${expert ? renderHomeWhatToWatchCard(context) : ""}
-    ${expert ? renderHomeHierarchy(context, favorite) : ""}
+    ${expert ? renderHomeWhatToWatchCard(context) : renderHomeQuickLinks(context)}
+    ${renderWeekendModeHub(context, { compact: true, source: "home" })}
     ${expert ? renderHomeTeamStatus(favorite) : ""}
     ${expert ? renderContextGlossaryCard("home", phase) : ""}
   `;

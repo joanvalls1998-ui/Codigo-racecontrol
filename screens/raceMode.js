@@ -135,7 +135,7 @@ function renderRaceModeQuickRead(favorite, raceName, predictData, stage) {
   return `
     <div class="card race-mode-v2-primary">
       <div class="card-title">Lectura rápida de carrera</div>
-      ${expert ? "" : `<div class="card-sub">Tres ideas para entender el GP en segundos.</div>`}
+      
       <div class="insight-list">
         ${items.map(item => `
           <div class="insight-item">
@@ -157,7 +157,7 @@ function renderRaceModeFavoriteSummary(favorite, raceName, predictData) {
   return `
     <div class="card race-mode-v2-primary">
       <div class="card-title">Resumen del favorito</div>
-      ${expert ? "" : `<div class="card-sub">Tu referencia central del fin de semana.</div>`}
+      
 
       <div class="predict-grid">
         <div class="stat-tile">
@@ -218,7 +218,7 @@ function renderRaceModeTop10(predictData, favorite) {
   return `
     <div class="card race-mode-v2-primary">
       <div class="card-title">Top estimado</div>
-      ${isCasualMode() ? `<div class="card-sub">Top 10 esperado + referencia principal del GP.</div>` : ""}
+      
       <div class="mode-race-top10">
         ${top10.length ? top10.map(driver => {
           const badges = [];
@@ -267,7 +267,7 @@ function renderRaceModeExecutionPanel(favorite, raceName, predictData, stage) {
   return `
     <div class="card race-mode-v2-primary">
       <div class="card-title">Panel operativo</div>
-      ${expert ? "" : `<div class="card-sub">Resumen operativo para seguir la carrera sin ruido.</div>`}
+      
       <div class="meta-grid">
         <div class="meta-tile">
           <div class="meta-kicker">Sábado</div>
@@ -305,7 +305,7 @@ function renderRaceModeComparativeCard(favorite, raceName, predictData) {
   return `
     <div class="card race-mode-v2-primary">
       <div class="card-title">Comparativa útil del GP</div>
-      ${isExpertMode() ? "" : `<div class="card-sub">Referencia rápida contra rival directo.</div>`}
+      
       <div class="meta-grid">
         <div class="meta-tile">
           <div class="meta-kicker">Rival directo</div>
@@ -328,7 +328,7 @@ function renderRaceModeObjectiveCard(favorite, raceName, predictData) {
   return `
     <div class="card race-mode-v2-primary">
       <div class="card-title">Objetivo realista del fin de semana</div>
-      <div class="card-sub">Mínimo, razonable y techo para no perder el foco durante el GP.</div>
+      
       <div class="predict-grid">
         <div class="stat-tile">
           <div class="stat-kicker">Mínimo</div>
@@ -366,13 +366,6 @@ async function showRaceMode() {
     const stage = getRaceWeekendStage(nextRaceEvent);
     const phase = state.weekendContext?.phase || "pre_weekend";
     const expert = isExpertMode();
-    const keyFactorsSub = expert
-      ? "Oportunidad, riesgo y punto de vigilancia con lectura de ejecución."
-      : "Lo más importante para no perder el guion del GP.";
-    const strategySub = expert
-      ? "Plan base + narrativa técnica de ventanas e impacto sobre el resultado."
-      : "Plan simple para entender cómo puede romperse la carrera.";
-
     contentEl().innerHTML = `
       ${renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData)}
       ${expert ? renderFavoritePersonalPulseCard({
@@ -385,9 +378,8 @@ async function showRaceMode() {
       }) : ""}
       ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
       ${renderRaceModeExecutionPanel(favorite, raceName, predictData, stage)}
-      ${expert ? renderRaceModeFavoriteSummary(favorite, raceName, predictData) : ""}
       ${renderRaceModeComparativeCard(favorite, raceName, predictData)}
-      ${expert ? renderRaceModeObjectiveCard(favorite, raceName, predictData) : ""}
+      ${expert ? renderRaceModeFavoriteSummary(favorite, raceName, predictData) : ""}
 
       <div class="card race-mode-v2-primary">
         <div class="card-title">Escenarios</div>
@@ -396,13 +388,13 @@ async function showRaceMode() {
 
       <div class="card race-mode-v2-primary">
         <div class="card-title">Claves del GP</div>
-        <div class="card-sub">${escapeHtml(keyFactorsSub)}</div>
+        
         ${renderPredictKeyFactors(favorite, raceName, predictData)}
       </div>
 
       <div class="card race-mode-v2-primary">
         <div class="card-title">Estrategia</div>
-        <div class="card-sub">${escapeHtml(strategySub)}</div>
+        
         ${renderPredictStrategyDetail(favorite, raceName, predictData)}
       </div>
 

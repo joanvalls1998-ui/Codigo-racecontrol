@@ -404,7 +404,7 @@ function showFavorito() {
     ${renderFavoriteCard()}
     ${renderFavoriteQuickSelectorCard({
       title: "Cambiar favorito",
-      subtitle: "Actualiza la referencia principal en un toque.",
+      subtitle: "",
       returnView: "showFavorito",
       compact: true
     })}

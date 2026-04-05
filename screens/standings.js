@@ -209,7 +209,7 @@ function renderStandingsFavoriteContextCard() {
   return `
     <div class="card standings-overview-v2">
       <div class="card-title">Lectura fina del campeonato</div>
-      ${isExpertMode() ? "" : `<div class="card-sub">Qué pelea importa para tu favorito.</div>`}
+      
       <div class="meta-grid" style="margin-top:12px;">
         <div class="meta-tile">
           <div class="meta-kicker">Objetivo razonable</div>
