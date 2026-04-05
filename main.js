@@ -3320,15 +3320,112 @@ function renderFavoritoComparisonCard(favorite, teamName, teamData, accent) {
 function showMore() {
   setActiveNav("nav-more");
   updateSubtitle();
+
+  const experienceMode = getExperienceMode();
+  const allowSecondary = experienceMode === "expert";
+  const weekendContext = state.weekendContext;
+  const favorite = getFavorite();
+  const nextRaceEvent = getNextRaceFromCalendar(state.calendarCache?.events || []) || weekendContext?.raceEvent || null;
+  const nextRaceName = mapCalendarEventToPredictRace(nextRaceEvent) || weekendContext?.raceName || state.detectedNextRaceName || null;
+  const settingsModeLabel = experienceMode === "expert" ? "Experto" : "Casual";
+
+  const sessionsPrimary = weekendContext?.currentSession
+    ? `Ahora: ${weekendContext.currentSession.label}`
+    : weekendContext?.nextSession
+      ? `Próxima: ${weekendContext.nextSession.label}`
+      : "Estado del fin de semana";
+  const sessionsSecondary = weekendContext?.focusDescription || "Vista rápida de sesiones, fase actual y próximos horarios.";
+
+  const calendarPrimary = nextRaceName ? `Siguiente GP: ${nextRaceName}` : "Siguiente GP pendiente de cargar";
+  const calendarSecondary = nextRaceEvent?.startDate && nextRaceEvent?.endDate
+    ? `Fechas: ${formatCalendarDateRange(nextRaceEvent.startDate, nextRaceEvent.endDate)}`
+    : "Consulta fines de semana completados, en curso y próximos.";
+
+  const standingsPrimary = favorite.type === "driver"
+    ? `Favorito: ${favorite.name} · P${favorite.pos || "—"}`
+    : `Favorito: ${favorite.name} · P${favorite.pos || "—"}`;
+  const standingsSecondary = favorite.type === "driver"
+    ? `${favorite.team} · ${favorite.points || "0"} pts`
+    : `${favorite.points || "0"} pts del constructor`;
+
+  const raceModePrimary = state.lastPredictData
+    ? "Predicción disponible"
+    : `GP seleccionado: ${getSelectedRace()}`;
+  const raceModeSecondary = state.lastPredictContext?.phaseLabel
+    ? `Contexto: ${state.lastPredictContext.phaseLabel}`
+    : "Acceso a predicción, simulación y lectura táctica.";
+
+  const settingsPrimary = `Modo actual: ${settingsModeLabel}`;
+  const settingsSecondary = experienceMode === "expert"
+    ? "Personaliza detalle, automatizaciones y lectura avanzada."
+    : "Ajusta idioma, preferencia de experiencia y opciones básicas.";
+
+  const renderMoreCard = ({ title, subtitle, context, onclick }) => `
+    <a href="#" class="menu-link more-card" onclick="${onclick}; return false;">
+      <div class="more-card-title">${escapeHtml(title)}</div>
+      <div class="more-card-sub">${escapeHtml(subtitle)}</div>
+      ${allowSecondary && context ? `<div class="more-card-context">${escapeHtml(context)}</div>` : ""}
+    </a>
+  `;
+
   contentEl().innerHTML = `
-    <div class="card">
+    <div class="card more-hub-card">
       <div class="card-title">MÁS</div>
-      <a href="#" class="menu-link" onclick="showStandings(); return false;">Clasificación</a>
-      <a href="#" class="menu-link" onclick="showCalendar(); return false;">Calendario</a>
-      <a href="#" class="menu-link" onclick="showRaceMode(); return false;">Modo carrera</a>
-      <a href="#" class="menu-link" onclick="showSessions(); return false;">Sesiones</a>
-      <a href="#" class="menu-link" onclick="showGlossary(); return false;">Glosario F1</a>
-      <a href="#" class="menu-link" onclick="showSettingsPanel(); return false;">Ajustes</a>
+      <div class="card-sub">Accesos organizados para seguir la temporada sin perder contexto.</div>
+
+      <div class="more-section">
+        <div class="more-section-title">Seguimiento</div>
+        <div class="more-card-grid">
+          ${renderMoreCard({
+            title: "Sesiones",
+            subtitle: sessionsPrimary,
+            context: sessionsSecondary,
+            onclick: "showSessions()"
+          })}
+          ${renderMoreCard({
+            title: "Calendario",
+            subtitle: calendarPrimary,
+            context: calendarSecondary,
+            onclick: "showCalendar()"
+          })}
+          ${renderMoreCard({
+            title: "Clasificación",
+            subtitle: standingsPrimary,
+            context: standingsSecondary,
+            onclick: "showStandings()"
+          })}
+          ${renderMoreCard({
+            title: "Modo carrera",
+            subtitle: raceModePrimary,
+            context: raceModeSecondary,
+            onclick: "showRaceMode()"
+          })}
+        </div>
+      </div>
+
+      <div class="more-section">
+        <div class="more-section-title">Recursos</div>
+        <div class="more-card-grid">
+          ${renderMoreCard({
+            title: "Glosario F1",
+            subtitle: "Conceptos clave en lenguaje claro y rápido.",
+            context: "Útil para entender términos técnicos durante el fin de semana.",
+            onclick: "showGlossary()"
+          })}
+        </div>
+      </div>
+
+      <div class="more-section">
+        <div class="more-section-title">Sistema</div>
+        <div class="more-card-grid">
+          ${renderMoreCard({
+            title: "Ajustes",
+            subtitle: settingsPrimary,
+            context: settingsSecondary,
+            onclick: "showSettingsPanel()"
+          })}
+        </div>
+      </div>
     </div>
   `;
 }

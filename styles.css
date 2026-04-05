@@ -1202,6 +1202,70 @@ nav,
   border-top: 1px solid rgba(255,255,255,0.07);
 }
 
+.more-hub-card .card-sub {
+  margin-bottom: 14px;
+}
+
+.more-section + .more-section {
+  margin-top: 16px;
+}
+
+.more-section-title {
+  margin-bottom: 10px;
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.more-card-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.more-card {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  text-decoration: none;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.more-card:hover {
+  background: rgba(255,255,255,0.075);
+  border-color: rgba(255,255,255,0.2);
+  transform: translateY(-1px);
+}
+
+.more-card:active {
+  transform: translateY(0);
+}
+
+.more-card + .more-card {
+  border-top: none;
+}
+
+.more-card-title {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.more-card-sub,
+.more-card-context {
+  margin-top: 4px;
+  color: rgba(255,255,255,0.78);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.more-card-context {
+  color: rgba(255,255,255,0.63);
+}
+
 .settings-line {
   display: flex;
   align-items: center;
