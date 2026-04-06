@@ -598,21 +598,28 @@ function renderTelemetrySelector(options, current) {
 }
 
 function renderTelemetryTrace(title, values = [], kind = "speed") {
-  if (!Array.isArray(values) || !values.length) return `<div class="empty-line">${escapeHtml(title)} no disponible para esta combinación.</div>`;
+  if (!Array.isArray(values) || !values.length) return `<div class="empty-line">${escapeHtml(title)} no disponible.</div>`;
   const maxValue = Math.max(...values.map(item => Number.isFinite(item) ? item : 0), 1);
+  const points = values.slice(0, 40).map((item, index) => {
+    const x = (index / 39) * 100;
+    const y = 100 - ((Number.isFinite(item) ? item : 0) / maxValue) * 100;
+    return `${x.toFixed(2)},${Math.min(100, Math.max(0, y)).toFixed(2)}`;
+  });
+  const latest = values[values.length - 1];
+  const latestLabel = kind === "speed"
+    ? formatTelemetrySpeed(latest)
+    : kind === "percent"
+      ? `${Math.round(latest || 0)} %`
+      : `${Math.round(latest || 0)}`;
   return `
-    <div class="telemetry-trace-grid">
-      ${values.slice(0, 32).map((item, index) => {
-        const pct = Number.isFinite(item) ? (item / maxValue) * 100 : 0;
-        const label = kind === "speed" ? formatTelemetrySpeed(item) : kind === "percent" ? `${Math.round(item || 0)} %` : `${Math.round(item || 0)}`;
-        return `
-          <div class="telemetry-trace-row">
-            <div class="telemetry-trace-index">T${index + 1}</div>
-            <div class="telemetry-trace-bars"><div class="trace-a" style="width:${pct.toFixed(2)}%"></div></div>
-            <div class="telemetry-trace-values"><span>${escapeHtml(label)}</span></div>
-          </div>
-        `;
-      }).join("")}
+    <div class="telemetry-wave">
+      <div class="telemetry-wave-head">
+        <span>${escapeHtml(title)}</span>
+        <strong>${escapeHtml(latestLabel)}</strong>
+      </div>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="${escapeHtml(title)}">
+        <polyline points="${points.join(" ")}"></polyline>
+      </svg>
     </div>
   `;
 }
@@ -640,6 +647,12 @@ function renderStintEvolution(items = []) {
 function renderTelemetryDashboard(payload) {
   const summary = payload.summary || {};
   const weather = payload.weather || {};
+  const availability = payload.availability || {};
+  const evolution = payload.session_evolution || [];
+  const primaryStatus = payload.source?.fallback_chain?.find(item => item.provider === payload.source?.primary);
+  const evolutionRows = evolution.length
+    ? evolution.map(item => `<div class="telemetry-evolution-line"><div><strong>${escapeHtml(item.session_label || item.session_type || "Sesión")}</strong></div><div><span>${escapeHtml(formatTelemetrySeconds(item.averagePace))}</span><span>Δ ref ${escapeHtml(formatTelemetryDelta(item.deltaToReference))}</span></div></div>`).join("")
+    : `<div class="empty-line">Sin evolución inter-sesión para este piloto.</div>`;
 
   return `
     <section class="card engineer-card telemetry-ops-hero">
@@ -649,7 +662,7 @@ function renderTelemetryDashboard(payload) {
           <div class="card-sub">${escapeHtml(payload.labels?.session || "Sesión")} · Piloto: ${escapeHtml(payload.labels?.driver || "N/D")}</div>
         </div>
       </div>
-      <div class="telemetry-wall-hero-grid">
+      <div class="telemetry-wall-hero-grid telemetry-wall-grid-compact">
         <div class="telemetry-wall-row"><div class="telemetry-wall-row-head"><strong>Vuelta referencia</strong></div><div class="telemetry-wall-row-values"><span>${escapeHtml(formatTelemetrySeconds(summary.referenceLap))}</span></div></div>
         <div class="telemetry-wall-row"><div class="telemetry-wall-row-head"><strong>Ritmo medio</strong></div><div class="telemetry-wall-row-values"><span>${escapeHtml(formatTelemetrySeconds(summary.averagePace))}</span></div></div>
         <div class="telemetry-wall-row"><div class="telemetry-wall-row-head"><strong>Velocidad punta</strong></div><div class="telemetry-wall-row-values"><span>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))}</span></div></div>
@@ -659,6 +672,9 @@ function renderTelemetryDashboard(payload) {
         <div class="telemetry-wall-row"><div class="telemetry-wall-row-head"><strong>Sector 3</strong></div><div class="telemetry-wall-row-values"><span>${escapeHtml(formatTelemetrySeconds(summary.sector3))}</span></div></div>
         <div class="telemetry-wall-row"><div class="telemetry-wall-row-head"><strong>Δ ritmo vs referencia</strong></div><div class="telemetry-wall-row-values"><span>${escapeHtml(formatTelemetryDelta(summary.deltaToReference))}</span></div></div>
         <div class="telemetry-wall-row"><div class="telemetry-wall-row-head"><strong>Degradación</strong></div><div class="telemetry-wall-row-values"><span>${escapeHtml(formatTelemetryDelta(summary.degradation))}</span></div></div>
+      </div>
+      <div class="telemetry-callout" style="margin-top:10px;">
+        <div class="card-sub">Provider activo: <strong>${escapeHtml(payload.source?.primary || "openf1")}</strong> · Estado: ${escapeHtml(primaryStatus?.reason || "OK")}</div>
       </div>
     </section>
 
@@ -673,17 +689,22 @@ function renderTelemetryDashboard(payload) {
       <div><span>Fuentes</span><strong>${escapeHtml((payload.source?.active_sources || ["openf1"]).join(" + "))}</strong></div>
     </section>
 
-    <section class="telemetry-main-grid telemetry-main-grid-v2">
-      <div class="card engineer-card telemetry-graph-panel">
-        <div class="card-title">Speed trace</div>
+    <section class="telemetry-main-grid telemetry-main-grid-v2 telemetry-wall-focus">
+      <div class="card engineer-card telemetry-graph-panel telemetry-primary-chart">
+        <div class="card-title">Panel central de trazas</div>
         ${renderTelemetryTrace("Speed trace", payload.traces?.speed || [], "speed")}
+        ${renderTelemetryTrace("Track position", payload.traces?.trackPosition || [], "value")}
       </div>
       <div class="card engineer-card telemetry-graph-panel">
-        <div class="card-title">Throttle / Brake / Gear / RPM</div>
+        <div class="card-title">Entrada de piloto</div>
         ${renderTelemetryTrace("Throttle", payload.traces?.throttle || [], "percent")}
         ${renderTelemetryTrace("Brake", payload.traces?.brake || [], "percent")}
-        ${renderTelemetryTrace("Gear", payload.traces?.gear || [], "value")}
-        ${renderTelemetryTrace("RPM", payload.traces?.rpm || [], "value")}
+        <div class="telemetry-mini-kpis">
+          <div><span>Gear</span><strong>${escapeHtml(availability.speedTrace === "available" ? "OK" : "N/D")}</strong></div>
+          <div><span>RPM</span><strong>${escapeHtml(payload.traces?.rpm?.length ? "OK" : "N/D")}</strong></div>
+          <div><span>Stints</span><strong>${escapeHtml(availability.stints === "available" ? "OK" : "N/D")}</strong></div>
+          <div><span>Evolución</span><strong>${escapeHtml(availability.evolution === "available" ? "OK" : "N/D")}</strong></div>
+        </div>
       </div>
     </section>
 
@@ -695,6 +716,10 @@ function renderTelemetryDashboard(payload) {
       <div class="card engineer-card">
         <div class="card-title">Evolución de stint</div>
         <div class="telemetry-evolution-wall">${renderStintEvolution(payload.stints?.evolution || [])}</div>
+      </div>
+      <div class="card engineer-card">
+        <div class="card-title">Evolución entre sesiones</div>
+        <div class="telemetry-evolution-wall">${evolutionRows}</div>
       </div>
     </section>
   `;
