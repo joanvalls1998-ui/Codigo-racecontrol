@@ -162,6 +162,7 @@ async function showCalendar(force = false) {
 
     contentEl().innerHTML = `
       ${renderCalendarIntelligenceHero(nextRace, context)}
+      ${renderCalendarFlowCard(context)}
       <div class="card app-panel-card">
         <div class="card-head">
           <div class="card-head-left"><div class="card-title">Temporada</div></div>
@@ -169,11 +170,11 @@ async function showCalendar(force = false) {
         </div>
         <div class="app-calendar-columns">
           <div>
-            <div class="app-section-title">Próximos</div>
-            ${upcoming.length ? upcoming.map(event => renderCalendarEventCard(event)).join("") : `<div class="empty-line">No hay próximas citas cargadas.</div>`}
+            <div class="app-section-title">Siguientes citas</div>
+            ${upcoming.slice(0, 5).length ? upcoming.slice(0, 5).map(event => renderCalendarEventCard(event)).join("") : `<div class="empty-line">No hay próximas citas cargadas.</div>`}
           </div>
           <div>
-            <div class="app-section-title">Últimos</div>
+            <div class="app-section-title">Últimos GP</div>
             ${completed.slice(0, 4).map(event => renderCalendarEventCard(event, { secondary: true })).join("") || `<div class="empty-line">Sin carreras completadas.</div>`}
           </div>
         </div>

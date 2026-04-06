@@ -1861,13 +1861,14 @@ async function showSessions() {
         </div>
         <div class="card-title">Seguimiento de sesiones</div>
         <div class="app-hero-mainline">${escapeHtml(lead?.label || "Sin sesión activa")}${context?.nextSessionCountdown ? ` · ${escapeHtml(context.nextSessionCountdown)}` : ""}</div>
+        <div class="app-two-actions" style="margin-top:10px;">
+          <button class="btn" onclick="showSessions()">Refrescar</button>
+          <button class="icon-btn" onclick="showRaceMode()">Modo carrera</button>
+        </div>
       </div>
 
       <div class="card app-panel-card">
-        <div class="card-head">
-          <div class="card-head-left"><div class="card-title">Live / Next</div></div>
-          <div class="card-head-actions"><button class="icon-btn" onclick="showSessions()">Refrescar</button></div>
-        </div>
+        <div class="card-title">Live / Next</div>
         <div class="app-session-grid">
           ${sessions.length ? sessions.map(session => `
             <button class="app-session-tile ${session.status}" onclick="openDetailModal('<div class=\"card\" style=\"margin-bottom:0;\"><div class=\"card-title\">${escapeHtml(session.label)}<\/div><div class=\"info-line\">${escapeHtml(getSessionImpactOnFavorite(session.key, favorite))}<\/div><\/div>')">
@@ -1882,9 +1883,9 @@ async function showSessions() {
       </div>
 
       <div class="card app-quick-grid-card">
-        <a href="#" class="app-quick-link" onclick="showRaceMode(); return false;">Modo carrera</a>
         <a href="#" class="app-quick-link" onclick="showPredict(); return false;">Predict</a>
         <a href="#" class="app-quick-link" onclick="showCalendar(); return false;">Calendario</a>
+        <a href="#" class="app-quick-link" onclick="showHome(); return false;">Home</a>
       </div>
     `;
   } catch (error) {
@@ -3409,9 +3410,6 @@ async function showHome() {
     : [];
 
   const favoriteAvatar = renderHomeFavoriteIdentity(favorite);
-  const previousGpReference = context?.lastCompletedSession
-    ? `${context.lastCompletedSession.label} · ${getSessionStatusLabel(context.lastCompletedSession.status)}`
-    : "Sin sesión final registrada";
   const nextSessionLine = lead
     ? `${lead.label}${context?.nextSessionCountdown ? ` · ${context.nextSessionCountdown}` : ""}`
     : "Sin sesión próxima cargada";
@@ -3434,26 +3432,31 @@ async function showHome() {
 
       <div class="home-main-kpis">
         <div class="meta-tile">
-          <div class="meta-kicker">Objetivo</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(snapshot?.objective?.realistic || "Sin objetivo")}</div>
-          <div class="meta-caption">Cómo está tu favorito ahora</div>
+          <div class="meta-kicker">GP</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(nextRace?.title || raceName)}</div>
+          <div class="meta-caption">${escapeHtml(context?.phaseLabel || "Previa")}</div>
         </div>
         <div class="meta-tile">
-          <div class="meta-kicker">Referencia inmediata</div>
+          <div class="meta-kicker">Ahora</div>
           <div class="meta-value" style="font-size:16px; line-height:1.25;">${escapeHtml(nextSessionLine)}</div>
-          <div class="meta-caption">Siguiente punto de control</div>
+          <div class="meta-caption">Siguiente referencia</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Favorito</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(snapshot?.objective?.realistic || "Sin objetivo")}</div>
+          <div class="meta-caption">${escapeHtml(snapshot?.metrics?.trendInfo?.label || "Sin señal")}</div>
         </div>
       </div>
 
-      <div class="news-meta-row" style="margin-top:10px;">
-        <span class="tag ${getWeekendPhaseTagClass(context?.phase || "pre_weekend")}">${escapeHtml(context?.phaseLabel || "Previa")}</span>
-        <span class="tag ${escapeHtml(operation.tagClass)}">${escapeHtml(operation.label)}</span>
+      <div class="app-two-actions" style="margin-top:12px;">
+        <button class="btn" onclick="showSessions()">Ir a sesiones</button>
+        <button class="icon-btn" onclick="showPredict()">Abrir Predict</button>
       </div>
     </div>
 
     <div class="card app-panel-card">
       <div class="card-head">
-        <div class="card-head-left"><div class="card-title">3 titulares del favorito</div></div>
+        <div class="card-head-left"><div class="card-title">Portada</div></div>
         <div class="card-head-actions"><a href="#" class="home-news-cta" onclick="showNews(); return false;">Noticias</a></div>
       </div>
       ${favoriteNewsItems.length
@@ -3470,20 +3473,15 @@ async function showHome() {
       }
     </div>
 
-    <div class="card app-panel-card">
-      <div class="card-title">Próximo GP</div>
-      <div class="app-hero-mainline" style="margin-top:6px;">${escapeHtml(nextRace?.title || raceName)}</div>
-      <div class="app-hero-subline">${escapeHtml(nextSessionLine)}</div>
-      <div class="news-meta-row" style="margin-top:10px;">
-        <span class="tag technical">${escapeHtml(formatLabel)}</span>
-        <span class="tag ${context?.isSprint ? "statement" : "general"}">${context?.isSprint ? "Sprint weekend" : "Formato normal"}</span>
-      </div>
-    </div>
-
     <div class="card app-mini-card">
-      <div class="card-title">Referencia del GP anterior</div>
-      <div class="info-line">${escapeHtml(previousGp ? `${previousGp.title || "GP completado"} · ${formatCalendarDateRange(previousGp.start, previousGp.end)}` : "Sin GP completado reciente")}</div>
-      <div class="info-line">${escapeHtml(previousGpReference)}</div>
+      <div class="card-title">Contexto de fin de semana</div>
+      <div class="news-meta-row">
+        <span class="tag ${getWeekendPhaseTagClass(context?.phase || "pre_weekend")}">${escapeHtml(context?.phaseLabel || "Previa")}</span>
+        <span class="tag ${escapeHtml(operation.tagClass)}">${escapeHtml(operation.label)}</span>
+        <span class="tag technical">${escapeHtml(formatLabel)}</span>
+      </div>
+      <div class="info-line" style="margin-top:8px;">${escapeHtml(operation.detail)}</div>
+      ${previousGp ? `<div class="info-line">${escapeHtml(`Último GP: ${previousGp.title} · ${formatCalendarDateRange(previousGp.start, previousGp.end)}`)}</div>` : ""}
     </div>
 
     ${renderHomeWeekendModeBlock(context)}
@@ -4078,29 +4076,34 @@ function showMore() {
 
   const settings = getSettings();
   const isExpert = isExpertMode();
+  const quick = getMoreQuickAccessContext();
 
   contentEl().innerHTML = `
     <div class="card highlight-card app-panel-card">
       <div class="card-title">Más</div>
-      <div class="app-hero-subline">Accesos secundarios y utilidades.</div>
+      <div class="app-hero-subline">Panel de control</div>
     </div>
 
     <div class="card app-panel-card">
-      <div class="card-title">Noticias</div>
-      <div class="app-hero-subline">La sección completa de noticias vive aquí.</div>
+      <div class="card-head">
+        <div class="card-head-left"><div class="card-title">Favorito</div></div>
+        <div class="card-head-actions"><button class="icon-btn" onclick="runSettingsMaintenanceAction('resetFavoriteToDefault')">Reset</button></div>
+      </div>
+      ${renderFavoriteQuickSelectorCard({ title: "", subtitle: "", returnView: "showMore", compact: true })}
       <div class="app-two-actions" style="margin-top:10px;">
-        <button class="btn" onclick="showNews()">Abrir noticias</button>
-        <button class="icon-btn" onclick="showHome()">Volver a Home</button>
+        <button class="btn" onclick="showFavorito()">Perfil favorito</button>
+        <button class="icon-btn" onclick="showHome()">Home</button>
       </div>
     </div>
 
     <div class="card app-panel-card">
-      <div class="card-title">Sistema</div>
+      <div class="card-title">Accesos</div>
       <div class="app-quick-grid-card app-quick-grid-3" style="margin-top:10px;">
-        <a href="#" class="app-quick-link" onclick="showSettingsPanel(); return false;">Ajustes</a>
-        <a href="#" class="app-quick-link" onclick="showGlossary(); return false;">Glosario</a>
+        <a href="#" class="app-quick-link" onclick="showNews(); return false;">Noticias</a>
         <a href="#" class="app-quick-link" onclick="showSessions(); return false;">Sesiones</a>
+        <a href="#" class="app-quick-link" onclick="showRaceMode(); return false;">Modo carrera</a>
       </div>
+      <div class="info-line" style="margin-top:8px;">${escapeHtml(quick.sessions)}</div>
     </div>
 
     <div class="card app-panel-card">
@@ -4116,12 +4119,13 @@ function showMore() {
     </div>
 
     <div class="card app-panel-card">
-      <div class="card-title">Utilidades</div>
+      <div class="card-title">Sistema</div>
       <div class="app-quick-grid-card app-quick-grid-3" style="margin-top:10px;">
-        <a href="#" class="app-quick-link" onclick="showRaceMode(); return false;">Modo carrera</a>
         <a href="#" class="app-quick-link" onclick="showPredict(); return false;">Predict</a>
-        <a href="#" class="app-quick-link" onclick="showFavorito(); return false;">Favorito</a>
+        <a href="#" class="app-quick-link" onclick="showSettingsPanel(); return false;">Ajustes</a>
+        <a href="#" class="app-quick-link" onclick="showGlossary(); return false;">Glosario</a>
       </div>
+      <div class="info-line" style="margin-top:8px;">${escapeHtml(isExpert ? quick.predict : quick.calendar)}</div>
     </div>
   `;
 }

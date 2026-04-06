@@ -616,7 +616,7 @@ function renderNewsPhaseCard(phase) {
   return `
     <div class="card news-phase-v2">
       <div class="card-title">${escapeHtml(copy.title)}</div>
-      ${isCasualMode() ? `<div class="card-sub">${escapeHtml(copy.sub)}</div>` : ""}
+      ${isCasualMode() ? `<div class="info-line">${escapeHtml(copy.sub)}</div>` : ""}
       <div class="news-meta-row" style="margin-top:10px;">
         <span class="tag ${getWeekendPhaseTagClass(phase)}">${escapeHtml(getWeekendPhaseLabel(phase))}</span>
       </div>
@@ -671,6 +671,7 @@ async function showNews() {
         ${renderNewsFilters()}
         ${renderNewsSecondaryFilters()}
       </div>
+      ${renderNewsPhaseCard(phase)}
 
       <div class="card highlight-card news-portada-v2 app-panel-card">
         ${featured ? renderFeaturedNews(featured, filter, phase) : `<div class="empty-line">No hay noticia destacada ahora mismo.</div>`}

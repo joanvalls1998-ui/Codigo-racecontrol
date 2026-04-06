@@ -403,11 +403,11 @@ function showFavorito() {
     ${renderFavoritoHeroContextCard(favorite, raceName, predictData, context)}
     ${renderFavoriteQuickSelectorCard({ title: "Cambiar favorito", subtitle: "", returnView: "showFavorito", compact: true })}
     <div class="card app-panel-card">
-      <div class="card-title">Estado actual</div>
+      <div class="card-title">Estado competitivo</div>
       ${renderFavoritoTechnicalCard(favorite, teamData, accent, raceName, context, predictData, expert)}
     </div>
     <div class="card app-panel-card">
-      <div class="card-title">Objetivo y pelea</div>
+      <div class="card-title">Objetivo · rival · riesgo</div>
       ${renderFavoritoObjectiveCard(favorite, raceName, predictData, context)}
       ${renderFavoritoChampionshipCard(favorite, raceName, predictData, expert)}
     </div>
