@@ -93,6 +93,11 @@ function cleanLabel(value = "") {
     .trim();
 }
 
+
+function normalizeKey(value = "") {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 function normalizeSessionType(name = "") {
   const normalized = String(name || "").toLowerCase().trim();
   const exact = SESSION_TYPES.find(type => type.aliases.some(alias => alias.toLowerCase() === normalized));
@@ -229,21 +234,25 @@ async function getEntities(sessionKey) {
   if (!byDriverId.size) collect(await fetchOpenF1("position", { session_key: sessionKey }).catch(() => []));
 
   const drivers = [...byDriverId.values()]
-    .map(driver => ({ ...driver, team: driver.team || "Equipo" }))
+    .map(driver => ({
+      ...driver,
+      team: driver.team || "Equipo",
+      entity_id: `driver:${driver.id}`
+    }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const teamsMap = new Map();
   drivers.forEach(driver => {
     const name = String(driver.team || "").trim();
     if (!name) return;
-    const key = name.toLowerCase();
-    const current = teamsMap.get(key) || { id: name, name, drivers: [], color: "" };
+    const key = normalizeKey(name);
+    const current = teamsMap.get(key) || { id: `team:${key}`, name, drivers: [], color: "", key };
     current.drivers.push(driver.name);
     teamsMap.set(key, current);
   });
 
   const teams = [...teamsMap.values()]
-    .map(team => ({ ...team, drivers: team.drivers.sort((a, b) => a.localeCompare(b)) }))
+    .map(team => ({ ...team, entity_id: team.id, drivers: team.drivers.sort((a, b) => a.localeCompare(b)) }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return setCached(cache.entitiesBySession, String(sessionKey), { drivers, teams });
@@ -383,12 +392,34 @@ function pickWinner(lowerIsBetter, aValue, bValue) {
   return aValue > bValue ? "a" : "b";
 }
 
+
+function resolveDriverEntity(drivers = [], value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const byId = drivers.find(driver => String(driver.entity_id || `driver:${driver.id}`) === raw || String(driver.id) === raw.replace(/^driver:/, ""));
+  if (byId) return byId;
+  const normalized = normalizeKey(raw);
+  return drivers.find(driver => normalizeKey(driver.name) === normalized) || null;
+}
+
+function resolveTeamEntities(drivers = [], teams = [], value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return { team: null, drivers: [] };
+  const normalized = normalizeKey(raw.replace(/^team:/, ""));
+  const team = teams.find(item => normalizeKey(item.name) === normalized || String(item.entity_id || item.id) === raw) || null;
+  const teamName = team?.name || raw.replace(/^team:/, "");
+  const linkedDrivers = drivers.filter(driver => normalizeKey(driver.team) === normalizeKey(teamName));
+  return { team: team || (teamName ? { name: teamName, entity_id: `team:${normalizeKey(teamName)}` } : null), drivers: linkedDrivers };
+}
+
 async function buildBaseComparison({ sessionKey, type, a, b }) {
   const entities = await getEntities(sessionKey);
 
   if (type === "team") {
-    const aDrivers = entities.drivers.filter(driver => driver.team === a);
-    const bDrivers = entities.drivers.filter(driver => driver.team === b);
+    const aResolved = resolveTeamEntities(entities.drivers, entities.teams, a);
+    const bResolved = resolveTeamEntities(entities.drivers, entities.teams, b);
+    const aDrivers = aResolved.drivers;
+    const bDrivers = bResolved.drivers;
     if (!aDrivers.length || !bDrivers.length) {
       const error = new Error("No hay datos de comparación para esta combinación");
       error.code = "NO_COMPARISON";
@@ -401,13 +432,13 @@ async function buildBaseComparison({ sessionKey, type, a, b }) {
     ]);
 
     return {
-      a: { label: a, team: a, image: "", drivers: aDrivers.map(item => item.name), metrics: aggregateTeamMetrics(aMetricsList) },
-      b: { label: b, team: b, image: "", drivers: bDrivers.map(item => item.name), metrics: aggregateTeamMetrics(bMetricsList) }
+      a: { label: aResolved.team?.name || a, team: aResolved.team?.name || a, image: "", drivers: aDrivers.map(item => item.name), metrics: aggregateTeamMetrics(aMetricsList) },
+      b: { label: bResolved.team?.name || b, team: bResolved.team?.name || b, image: "", drivers: bDrivers.map(item => item.name), metrics: aggregateTeamMetrics(bMetricsList) }
     };
   }
 
-  const driverA = entities.drivers.find(driver => driver.name === a);
-  const driverB = entities.drivers.find(driver => driver.name === b);
+  const driverA = resolveDriverEntity(entities.drivers, a);
+  const driverB = resolveDriverEntity(entities.drivers, b);
   if (!driverA || !driverB) {
     const error = new Error("No hay participantes para esta sesión");
     error.code = "NO_PARTICIPANTS";
@@ -573,13 +604,28 @@ async function resolveTelemetryContext({ year = DEFAULT_YEAR, meetingKey = "", s
 
   const selectedMeeting = meetings.find(item => String(item.meeting_key) === String(meetingKey)) || meetings[0];
   const sessions = await getSessions(selectedMeeting.meeting_key, year);
-  const selectedSession = sessions.find(item => item.type_key === sessionType) || sessions[sessions.length - 1] || null;
-  const entities = selectedSession ? await getEntities(selectedSession.session_key) : { drivers: [], teams: [] };
+  let selectedSession = sessions.find(item => item.type_key === sessionType) || sessions[sessions.length - 1] || null;
+  let entities = selectedSession ? await getEntities(selectedSession.session_key) : { drivers: [], teams: [] };
+  if (selectedSession && !entities.drivers.length) {
+    for (let i = sessions.length - 1; i >= 0; i -= 1) {
+      const probe = sessions[i];
+      const probeEntities = await getEntities(probe.session_key);
+      if (probeEntities.drivers.length) {
+        selectedSession = probe;
+        entities = probeEntities;
+        break;
+      }
+    }
+  }
 
-  const sourceOptions = type === "team" ? entities.teams.map(item => item.name) : entities.drivers.map(item => item.name);
-  const selectedA = sourceOptions.includes(a) ? a : (sourceOptions[0] || "");
-  const bPool = sourceOptions.filter(item => item !== selectedA);
-  const selectedB = bPool.includes(b) ? b : (bPool[0] || "");
+  const sourceOptions = type === "team"
+    ? entities.teams.map(item => ({ value: item.entity_id || item.id, label: item.name }))
+    : entities.drivers.map(item => ({ value: item.entity_id || `driver:${item.id}`, label: `${item.name} · ${item.team}` }));
+
+  const optionValues = sourceOptions.map(item => item.value);
+  const selectedA = optionValues.includes(a) ? a : (optionValues[0] || "");
+  const bPool = sourceOptions.filter(item => item.value !== selectedA);
+  const selectedB = bPool.some(item => item.value === b) ? b : (bPool[0]?.value || "");
 
   const payload = {
     year,
