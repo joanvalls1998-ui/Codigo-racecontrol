@@ -499,6 +499,7 @@ const engineerState = {
   submode: "prediction",
   telemetry: {
     status: "idle",
+    phase: "idle",
     error: "",
     userMessage: "",
     gp: "",
@@ -506,16 +507,42 @@ const engineerState = {
     sessionKey: "",
     driver: "",
     context: null,
-    payload: null
+    payload: null,
+    perf: null
   }
 };
 
 const engineerCache = {
   context: new Map(),
-  telemetry: new Map()
+  telemetry: new Map(),
+  telemetryCore: new Map(),
+  meetings: new Map(),
+  sessions: new Map(),
+  drivers: new Map()
 };
 
 let telemetryRequestId = 0;
+const TELEMETRY_CACHE_TTL_MS = 1000 * 60 * 10;
+
+function nowMs() {
+  if (typeof performance !== "undefined" && typeof performance.now === "function") return performance.now();
+  return Date.now();
+}
+
+function cacheGet(map, key) {
+  const entry = map.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt < Date.now()) {
+    map.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function cacheSet(map, key, value, ttlMs = TELEMETRY_CACHE_TTL_MS) {
+  map.set(key, { value, expiresAt: Date.now() + Math.max(1000, ttlMs) });
+  return value;
+}
 
 function isTelemetryMetricReady(value, kind = "default") {
   if (!Number.isFinite(value)) return false;
@@ -570,14 +597,14 @@ function formatTelemetryDelta(value, kind = "seconds") {
   return `${sign}${value.toFixed(3)} s`;
 }
 
-async function fetchEngineerApi(endpoint, params = {}) {
+async function fetchEngineerApi(endpoint, params = {}, options = {}) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value === undefined || value === null || value === "") return;
     query.set(key, String(value));
   });
 
-  const response = await fetch(`/api/engineer/${endpoint}?${query.toString()}`, { cache: "no-store" });
+  const response = await fetch(`/api/engineer/${endpoint}?${query.toString()}`, { cache: options.cacheMode || "no-store" });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(payload?.error?.message || `Engineer API ${endpoint} (${response.status})`);
@@ -589,12 +616,12 @@ async function fetchEngineerApi(endpoint, params = {}) {
 
 function telemetryContextKey() {
   const t = engineerState.telemetry;
-  return `${t.gp}:${t.sessionType}:${t.driver}`;
+  return `${TELEMETRY_SEASON_YEAR}:${t.gp || "auto"}:${t.sessionType || "auto"}:${t.driver || "auto"}`;
 }
 
 function telemetryPayloadKey() {
   const t = engineerState.telemetry;
-  return `${t.gp}:${t.sessionKey}:${t.driver}`;
+  return `${TELEMETRY_SEASON_YEAR}:${t.gp}:${t.sessionKey}:${t.driver}`;
 }
 
 function telemetryErrorMessage(error) {
@@ -608,15 +635,87 @@ function telemetryErrorMessage(error) {
 
 async function loadTelemetryContext() {
   const key = telemetryContextKey();
-  if (engineerCache.context.has(key)) return engineerCache.context.get(key);
-  const payload = await fetchEngineerApi("context", {
-    year: TELEMETRY_SEASON_YEAR,
-    meeting_key: engineerState.telemetry.gp,
-    session_type: engineerState.telemetry.sessionType,
-    driver: engineerState.telemetry.driver
-  });
-  engineerCache.context.set(key, payload);
-  return payload;
+  const cached = cacheGet(engineerCache.context, key);
+  if (cached) return cached;
+  const t = engineerState.telemetry;
+  try {
+    const meetings = await loadMeetingsCached();
+    const selectedMeeting = meetings.find(item => String(item.meeting_key) === String(t.gp)) || meetings[0] || null;
+    if (!selectedMeeting?.meeting_key) throw new Error("NO_MEETINGS");
+    const sessions = await loadSessionsCached(selectedMeeting.meeting_key);
+    const selectedSession = sessions.find(item => String(item.type_key) === String(t.sessionType))
+      || sessions.find(item => String(item.session_key) === String(t.sessionKey))
+      || sessions[0]
+      || null;
+    const drivers = selectedSession?.session_key ? await loadDriversCached(selectedSession.session_key) : [];
+    const selectedDriver = drivers.find(item => String(item.id) === String(t.driver)) || drivers[0] || null;
+    const payload = {
+      year: TELEMETRY_SEASON_YEAR,
+      season_focus: TELEMETRY_SEASON_YEAR,
+      selections: {
+        meeting_key: selectedMeeting?.meeting_key || "",
+        session_type: selectedSession?.type_key || "",
+        session_key: selectedSession?.session_key || "",
+        driver: selectedDriver?.id || ""
+      },
+      meetings,
+      sessions,
+      drivers
+    };
+    return cacheSet(engineerCache.context, key, payload);
+  } catch (_error) {
+    const payload = await fetchEngineerApi("context", {
+      year: TELEMETRY_SEASON_YEAR,
+      meeting_key: t.gp,
+      session_type: t.sessionType,
+      driver: t.driver
+    });
+    return cacheSet(engineerCache.context, key, payload);
+  }
+}
+
+async function loadMeetingsCached() {
+  const key = `${TELEMETRY_SEASON_YEAR}`;
+  const cached = cacheGet(engineerCache.meetings, key);
+  if (cached) return cached;
+  const payload = await fetchEngineerApi("meetings", { year: TELEMETRY_SEASON_YEAR });
+  return cacheSet(engineerCache.meetings, key, payload.meetings || [], 1000 * 60 * 30);
+}
+
+async function loadSessionsCached(meetingKey) {
+  const key = `${TELEMETRY_SEASON_YEAR}:${meetingKey}`;
+  const cached = cacheGet(engineerCache.sessions, key);
+  if (cached) return cached;
+  const payload = await fetchEngineerApi("sessions", { year: TELEMETRY_SEASON_YEAR, meeting_key: meetingKey });
+  return cacheSet(engineerCache.sessions, key, payload.sessions || []);
+}
+
+async function loadDriversCached(sessionKey) {
+  const key = `${TELEMETRY_SEASON_YEAR}:${sessionKey}`;
+  const cached = cacheGet(engineerCache.drivers, key);
+  if (cached) return cached;
+  const payload = await fetchEngineerApi("entities", { year: TELEMETRY_SEASON_YEAR, session_key: sessionKey });
+  return cacheSet(engineerCache.drivers, key, payload.drivers || []);
+}
+
+async function prefetchTelemetryContextLayers(context) {
+  const selectedMeetingKey = context?.selections?.meeting_key;
+  const selectedSessionKey = context?.selections?.session_key;
+  const meetings = Array.isArray(context?.meetings) ? context.meetings : [];
+  const sessions = Array.isArray(context?.sessions) ? context.sessions : [];
+
+  if (meetings.length) cacheSet(engineerCache.meetings, `${TELEMETRY_SEASON_YEAR}`, meetings, 1000 * 60 * 30);
+  if (selectedMeetingKey && sessions.length) {
+    cacheSet(engineerCache.sessions, `${TELEMETRY_SEASON_YEAR}:${selectedMeetingKey}`, sessions);
+  }
+  if (selectedSessionKey && Array.isArray(context?.drivers) && context.drivers.length) {
+    cacheSet(engineerCache.drivers, `${TELEMETRY_SEASON_YEAR}:${selectedSessionKey}`, context.drivers);
+  }
+
+  const likelyNextMeeting = meetings.find(item => String(item.meeting_key) !== String(selectedMeetingKey));
+  if (likelyNextMeeting?.meeting_key) {
+    loadSessionsCached(String(likelyNextMeeting.meeting_key)).catch(() => null);
+  }
 }
 
 function renderTelemetrySelector(options, current) {
@@ -726,7 +825,7 @@ function renderTelemetryDashboard(payload) {
         </div>
       `;
     }).join("")
-    : `<div class="empty-line">Sin evolución inter-sesión para este piloto.</div>`;
+    : `<div class="empty-line">${payload.__partial ? "Evolución cargando…" : "Sin evolución inter-sesión para este piloto."}</div>`;
 
   return `
     <section class="card engineer-card telemetry-f1-hero">
@@ -785,16 +884,20 @@ function renderTelemetryDashboard(payload) {
 
     <section class="card engineer-card telemetry-traces-block">
       <div class="telemetry-line-head"><strong>Trazas</strong><span>Speed / Throttle / Brake</span></div>
-      <div class="telemetry-speed-main">${renderTelemetryTrace("Speed", speedTrace, "speed")}</div>
-      <div class="telemetry-trace-compact">
-        ${renderTelemetryTrace("Throttle", throttleTrace, "percent")}
-        ${renderTelemetryTrace("Brake", brakeTrace, "brake")}
-      </div>
-      <div class="telemetry-secondary-signals">
-        <div><span>Gear</span><strong>${escapeHtml(availability.speedTrace === "available" ? "ON" : "N/D")}</strong></div>
-        <div><span>RPM</span><strong>${escapeHtml(payload.traces?.rpm?.length ? "ON" : "N/D")}</strong></div>
-        <div><span>DRS</span><strong>${escapeHtml(payload.traces?.gear?.length ? "SYNC" : "N/D")}</strong></div>
-      </div>
+      ${payload.__partial
+        ? `<div class="empty-line">Cargando trazas pesadas…</div>`
+        : `
+          <div class="telemetry-speed-main">${renderTelemetryTrace("Speed", speedTrace, "speed")}</div>
+          <div class="telemetry-trace-compact">
+            ${renderTelemetryTrace("Throttle", throttleTrace, "percent")}
+            ${renderTelemetryTrace("Brake", brakeTrace, "brake")}
+          </div>
+          <div class="telemetry-secondary-signals">
+            <div><span>Gear</span><strong>${escapeHtml(availability.speedTrace === "available" ? "ON" : "N/D")}</strong></div>
+            <div><span>RPM</span><strong>${escapeHtml(payload.traces?.rpm?.length ? "ON" : "N/D")}</strong></div>
+            <div><span>DRS</span><strong>${escapeHtml(payload.traces?.gear?.length ? "SYNC" : "N/D")}</strong></div>
+          </div>
+        `}
     </section>
 
     <section class="card engineer-card telemetry-session-bar">
@@ -816,7 +919,7 @@ function renderTelemetryDashboard(payload) {
 
 function renderTelemetryPanelBody() {
   const telemetry = engineerState.telemetry;
-  if (telemetry.status === "loading") return `<div class="card engineer-card"><div class="empty-line">Cargando telemetría real 2026…</div></div>`;
+  if (telemetry.status === "loading" && !telemetry.payload) return `<div class="card engineer-card"><div class="empty-line">Cargando telemetría real 2026…</div></div>`;
   if (telemetry.status === "error") return `<div class="card engineer-card"><div class="card-title">Telemetría no disponible</div><div class="empty-line">${escapeHtml(telemetry.userMessage || "Sin telemetría")}</div><div class="card-sub">Prueba otra sesión del mismo GP.</div></div>`;
   if (telemetry.status === "empty") return `<div class="card engineer-card"><div class="card-title">Sin datos</div><div class="empty-line">${escapeHtml(telemetry.userMessage || "No hay datos para esta combinación")}</div></div>`;
   if (!telemetry.payload) return `<div class="card engineer-card"><div class="empty-line">Selecciona GP, sesión y piloto para cargar telemetría real.</div></div>`;
@@ -827,6 +930,7 @@ function renderTelemetryPanel() {
   const telemetry = engineerState.telemetry;
   const context = telemetry.context || { meetings: [], sessions: [], drivers: [] };
   const disableSelectors = telemetry.status === "loading" && !telemetry.context;
+  const perf = telemetry.perf || null;
   const gpOptions = (context.meetings || []).map(item => ({ value: String(item.meeting_key), label: item.gp_label }));
   const sessionOptions = (context.sessions || []).map(item => ({ value: item.type_key, label: item.type_label }));
   const driverOptions = (context.drivers || []).map(item => ({
@@ -838,7 +942,7 @@ function renderTelemetryPanel() {
     <section class="card engineer-card telemetry-control-panel">
       <div class="telemetry-control-top">
         <div class="card-title">Telemetría · 2026</div>
-        <div class="card-sub">Control wall</div>
+        <div class="card-sub">Control wall${perf?.coreMs ? ` · Core ${Math.round(perf.coreMs)} ms` : ""}${perf?.fullMs ? ` · Full ${Math.round(perf.fullMs)} ms` : ""}</div>
       </div>
       <div class="telemetry-control-strip">
         <label><span>GP</span><select class="select-input" onchange="setEngineerTelemetryGp(this.value)" ${disableSelectors ? "disabled" : ""}>${renderTelemetrySelector(gpOptions, telemetry.gp)}</select></label>
@@ -854,12 +958,16 @@ async function loadTelemetryData() {
   const telemetry = engineerState.telemetry;
   const requestId = ++telemetryRequestId;
   telemetry.status = "loading";
+  telemetry.phase = "context";
   telemetry.error = "";
   telemetry.userMessage = "";
   renderEngineerScreen();
 
   try {
+    const perf = { startedAt: nowMs() };
+    const contextStartedAt = nowMs();
     const context = await loadTelemetryContext();
+    perf.contextMs = nowMs() - contextStartedAt;
     if (requestId !== telemetryRequestId) return;
 
     telemetry.context = context;
@@ -867,6 +975,8 @@ async function loadTelemetryData() {
     telemetry.sessionType = context.selections?.session_type || "";
     telemetry.sessionKey = context.selections?.session_key || "";
     telemetry.driver = context.selections?.driver || "";
+    telemetry.perf = perf;
+    prefetchTelemetryContextLayers(context).catch(() => null);
 
     if (!telemetry.sessionKey || !telemetry.driver) {
       telemetry.status = "empty";
@@ -877,23 +987,36 @@ async function loadTelemetryData() {
     }
 
     const payloadKey = telemetryPayloadKey();
-    if (engineerCache.telemetry.has(payloadKey)) {
-      telemetry.payload = engineerCache.telemetry.get(payloadKey);
+    const cachedFull = cacheGet(engineerCache.telemetry, payloadKey);
+    if (cachedFull) {
+      telemetry.payload = cachedFull;
       telemetry.status = "ready";
+      telemetry.phase = "full";
+      telemetry.perf = { ...perf, coreMs: 0, fullMs: 0 };
       renderEngineerScreen();
       return;
     }
 
-    const payload = await fetchEngineerApi("telemetry", {
+    const cachedCore = cacheGet(engineerCache.telemetryCore, payloadKey);
+    if (cachedCore) {
+      telemetry.payload = cachedCore;
+      telemetry.status = "ready";
+      telemetry.phase = "core";
+      renderEngineerScreen();
+    }
+
+    const coreStartedAt = nowMs();
+    const corePayload = cachedCore || await fetchEngineerApi("telemetry", {
       year: TELEMETRY_SEASON_YEAR,
       meeting_key: telemetry.gp,
       session_key: telemetry.sessionKey,
-      driver_number: telemetry.driver
+      driver_number: telemetry.driver,
+      mode: "core"
     });
-
     if (requestId !== telemetryRequestId) return;
+    perf.coreMs = nowMs() - coreStartedAt;
 
-    if (!hasTelemetryPayloadData(payload)) {
+    if (!hasTelemetryPayloadData(corePayload)) {
       telemetry.status = "empty";
       telemetry.payload = null;
       telemetry.userMessage = "La fuente actual no ofrece suficientes datos para esta combinación.";
@@ -901,13 +1024,42 @@ async function loadTelemetryData() {
       return;
     }
 
-    engineerCache.telemetry.set(payloadKey, payload);
-    telemetry.payload = payload;
+    const partialPayload = { ...corePayload, __partial: true };
+    cacheSet(engineerCache.telemetryCore, payloadKey, partialPayload);
+    telemetry.payload = partialPayload;
     telemetry.status = "ready";
+    telemetry.phase = "core";
+    telemetry.perf = perf;
     renderEngineerScreen();
+
+    const fullStartedAt = nowMs();
+    const fullPayload = await fetchEngineerApi("telemetry", {
+      year: TELEMETRY_SEASON_YEAR,
+      meeting_key: telemetry.gp,
+      session_key: telemetry.sessionKey,
+      driver_number: telemetry.driver
+    });
+    if (requestId !== telemetryRequestId) return;
+    perf.fullMs = nowMs() - fullStartedAt;
+    cacheSet(engineerCache.telemetry, payloadKey, fullPayload);
+    telemetry.payload = fullPayload;
+    telemetry.phase = "full";
+    telemetry.status = "ready";
+    telemetry.perf = perf;
+    renderEngineerScreen();
+    console.info("[telemetry.perf]", {
+      gp: telemetry.gp,
+      session_key: telemetry.sessionKey,
+      driver: telemetry.driver,
+      context_ms: Math.round(perf.contextMs || 0),
+      core_ms: Math.round(perf.coreMs || 0),
+      full_ms: Math.round(perf.fullMs || 0),
+      total_ms: Math.round((perf.contextMs || 0) + (perf.coreMs || 0) + (perf.fullMs || 0))
+    });
   } catch (error) {
     if (requestId !== telemetryRequestId) return;
     telemetry.status = "error";
+    telemetry.phase = "error";
     telemetry.error = String(error?.message || "");
     telemetry.userMessage = telemetryErrorMessage(error);
     telemetry.payload = null;
@@ -918,7 +1070,10 @@ async function loadTelemetryData() {
 function setEngineerSubmode(mode) {
   engineerState.submode = mode === "telemetry" ? "telemetry" : "prediction";
   renderEngineerScreen();
-  if (engineerState.submode === "telemetry") loadTelemetryData();
+  if (engineerState.submode === "telemetry") {
+    loadMeetingsCached().catch(() => null);
+    loadTelemetryData();
+  }
 }
 
 function setEngineerTelemetryGp(value) {
@@ -928,6 +1083,10 @@ function setEngineerTelemetryGp(value) {
   engineerState.telemetry.sessionKey = "";
   engineerState.telemetry.driver = "";
   engineerState.telemetry.payload = null;
+  const nextGp = engineerState.telemetry.gp;
+  if (nextGp) {
+    loadSessionsCached(nextGp).catch(() => null);
+  }
   loadTelemetryData();
 }
 

@@ -8,13 +8,15 @@ export default async function handler(req, res) {
     const meetingKey = String(req.query?.meeting_key || "").trim();
     const sessionKey = String(req.query?.session_key || "").trim();
     const driverNumber = String(req.query?.driver_number || "").trim();
+    const mode = String(req.query?.mode || "full").trim().toLowerCase();
+    const includeHeavy = mode !== "core";
 
     if (year !== DEFAULT_YEAR) return apiError(res, 400, "Ingeniero solo admite temporada 2026", "INVALID_YEAR");
     if (!meetingKey || !sessionKey || !driverNumber) {
       return apiError(res, 400, "Faltan parámetros GP + sesión + piloto", "MISSING_PARAMS");
     }
 
-    const payload = await buildDriverTelemetry({ year, meetingKey, sessionKey, driverNumber });
+    const payload = await buildDriverTelemetry({ year, meetingKey, sessionKey, driverNumber, includeHeavy });
     return res.status(200).json(payload);
   } catch (error) {
     if (error?.code === "MEETING_NOT_FOUND") return apiError(res, 404, "GP no válido para 2026", "MEETING_NOT_FOUND");
