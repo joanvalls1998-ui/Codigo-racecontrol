@@ -542,6 +542,10 @@ function telemetryDelta(aValue, bValue) {
   return aValue - bValue;
 }
 
+function telemetryWinnerClass(winner) {
+  return winner === "a" ? "win-a" : winner === "b" ? "win-b" : "";
+}
+
 async function fetchEngineerApi(endpoint, params = {}) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -561,11 +565,11 @@ async function fetchEngineerApi(endpoint, params = {}) {
 
 function telemetryFriendlyErrorMessage(error) {
   const message = String(error?.message || "");
-  if (message.includes("No hay participantes para esta sesión")) return "No hay participantes para esta sesión.";
-  if (message.includes("No hay datos de comparación para esta combinación")) return "No hay datos suficientes para esta combinación.";
-  if (message.includes("Ingeniero solo admite temporada 2026")) return "Ingeniero está limitado a temporada 2026.";
-  if (message.includes("Failed to fetch")) return "No se pudo conectar con el backend técnico. Reintenta en unos segundos.";
-  return "No hay datos técnicos históricos disponibles para este caso.";
+  if (message.includes("No hay participantes para esta sesión")) return "No hay participantes disponibles en la sesión elegida.";
+  if (message.includes("No hay datos de comparación para esta combinación")) return "No hay datos suficientes para comparar esta combinación todavía.";
+  if (message.includes("Ingeniero solo admite temporada 2026")) return "Ingeniero está centrado exclusivamente en la temporada 2026.";
+  if (message.includes("Failed to fetch")) return "No se pudo conectar con la capa técnica. Reintenta en unos segundos.";
+  return "No se pudieron cargar datos técnicos de esta combinación.";
 }
 
 function contextCacheKey() {
@@ -593,62 +597,87 @@ async function loadTelemetryContext() {
   return payload;
 }
 
-function renderTelemetryMetricTile(label, aValue, bValue, formatter, sameValue = false) {
+function renderTelemetryMetricTile(label, aValue, bValue, formatter, winner = "none", deltaValue = null) {
   if (!Number.isFinite(aValue) && !Number.isFinite(bValue)) return "";
-  const delta = telemetryDelta(aValue, bValue);
+  const delta = Number.isFinite(deltaValue) ? deltaValue : telemetryDelta(aValue, bValue);
   return `
-    <div class="meta-tile telemetry-metric-tile">
+    <div class="meta-tile telemetry-metric-tile ${telemetryWinnerClass(winner)}">
       <div class="meta-kicker">${escapeHtml(label)}</div>
       <div class="telemetry-vs-row">
         <div><strong>A</strong> ${escapeHtml(formatter(aValue))}</div>
-        <div><strong>B</strong> ${escapeHtml(formatter(sameValue ? aValue : bValue))}</div>
+        <div><strong>B</strong> ${escapeHtml(formatter(bValue))}</div>
       </div>
-      <div class="meta-caption">${sameValue ? "Señal global de sesión." : (Number.isFinite(delta) ? `Δ ${escapeHtml(formatTelemetryDelta(delta))}` : "Delta no disponible para esta combinación.")}</div>
+      <div class="meta-caption">${Number.isFinite(delta) ? `Δ ${escapeHtml(formatTelemetryDelta(delta))}` : "Sin delta disponible."}</div>
     </div>
   `;
 }
 
+function renderTelemetryStintRows(items = []) {
+  if (!items.length) return `<div class="empty-line">Sin stints trazables para esta entidad.</div>`;
+  return items.slice(0, 4).map(stint => `
+    <div class="standing-row">
+      <div><strong>Stint ${escapeHtml(String(stint.number || "-"))}</strong> · ${escapeHtml(stint.compound || "N/D")}</div>
+      <div class="news-meta-row">
+        <span>${Number.isFinite(stint.laps) ? `${stint.laps} vueltas` : "Vueltas N/D"}</span>
+        <span>${Number.isFinite(stint.tyreAgeStart) ? `Tyre age ${stint.tyreAgeStart}` : "Tyre age N/D"}</span>
+      </div>
+    </div>
+  `).join("");
+}
+
 function renderTelemetryDashboard(technicalData) {
-  const { comparison, evolution, type, dashboard } = technicalData;
-  const context = comparison.context?.summary || {};
+  const blocks = technicalData.blocks || {};
+  const summary = blocks.summary || {};
+  const sectors = blocks.sectors || {};
+  const stints = blocks.stints || {};
+  const sessionContext = blocks.sessionContext || {};
+  const evolution = blocks.evolution || [];
+  const comparison = blocks.comparison || technicalData.comparison || {};
 
   const summaryTiles = [
-    renderTelemetryMetricTile("Vuelta referencia", dashboard.summary.referenceLap.a, dashboard.summary.referenceLap.b, formatTelemetryTime),
-    renderTelemetryMetricTile("Ritmo medio", dashboard.summary.averagePace.a, dashboard.summary.averagePace.b, formatTelemetryTime),
-    renderTelemetryMetricTile("Velocidad punta", dashboard.summary.topSpeed.a, dashboard.summary.topSpeed.b, formatTelemetrySpeed),
-    renderTelemetryMetricTile("Speed trap", dashboard.summary.speedTrap.a, dashboard.summary.speedTrap.b, formatTelemetrySpeed)
+    renderTelemetryMetricTile("Vuelta referencia", summary.referenceLap?.a, summary.referenceLap?.b, formatTelemetryTime, summary.referenceLap?.winner, summary.referenceLap?.delta),
+    renderTelemetryMetricTile("Ritmo medio", summary.averagePace?.a, summary.averagePace?.b, formatTelemetryTime, summary.averagePace?.winner, summary.averagePace?.delta),
+    renderTelemetryMetricTile("Velocidad punta", summary.topSpeed?.a, summary.topSpeed?.b, formatTelemetrySpeed, summary.topSpeed?.winner),
+    renderTelemetryMetricTile("Speed trap", summary.speedTrap?.a, summary.speedTrap?.b, formatTelemetrySpeed, summary.speedTrap?.winner),
+    renderTelemetryMetricTile("Posición media", summary.avgPosition?.a, summary.avgPosition?.b, value => Number.isFinite(value) ? `P${value.toFixed(1)}` : "N/D", summary.avgPosition?.winner)
   ].filter(Boolean);
 
   const sectorTiles = [
-    renderTelemetryMetricTile("Sector 1", dashboard.sectors.sector1.a, dashboard.sectors.sector1.b, formatTelemetryTime),
-    renderTelemetryMetricTile("Sector 2", dashboard.sectors.sector2.a, dashboard.sectors.sector2.b, formatTelemetryTime),
-    renderTelemetryMetricTile("Sector 3", dashboard.sectors.sector3.a, dashboard.sectors.sector3.b, formatTelemetryTime)
+    renderTelemetryMetricTile("Sector 1", sectors.sector1?.a, sectors.sector1?.b, formatTelemetryTime, sectors.sector1?.winner, sectors.sector1?.delta),
+    renderTelemetryMetricTile("Sector 2", sectors.sector2?.a, sectors.sector2?.b, formatTelemetryTime, sectors.sector2?.winner, sectors.sector2?.delta),
+    renderTelemetryMetricTile("Sector 3", sectors.sector3?.a, sectors.sector3?.b, formatTelemetryTime, sectors.sector3?.winner, sectors.sector3?.delta)
   ].filter(Boolean);
 
   return `
+    <div class="card engineer-card telemetry-dashboard-card telemetry-hero-card">
+      <div class="card-title">Telemetría</div>
+      <div class="card-sub">Plataforma comparativa 2026 · datos normalizados y consolidados por backend interno</div>
+    </div>
+
     <div class="card engineer-card telemetry-dashboard-card">
       <div class="card-title">0 · Contexto de sesión</div>
       <div class="telemetry-summary-grid" style="margin-top:10px;">
-        ${renderTelemetryMetricTile("Temperatura pista", context.avgTrackTemp, context.avgTrackTemp, (v) => Number.isFinite(v) ? `${v.toFixed(1)} °C` : "N/D", true)}
-        ${renderTelemetryMetricTile("Temperatura aire", context.avgAirTemp, context.avgAirTemp, (v) => Number.isFinite(v) ? `${v.toFixed(1)} °C` : "N/D", true)}
-        ${renderTelemetryMetricTile("Race control", context.raceControlMessages, context.raceControlMessages, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D", true)}
-        ${renderTelemetryMetricTile("Pit lane", context.pitStops, context.pitStops, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D", true)}
-        ${renderTelemetryMetricTile("Overtakes", context.overtakes, context.overtakes, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D", true)}
-        ${renderTelemetryMetricTile("Team radio", context.teamRadios, context.teamRadios, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D", true)}
+        <div class="meta-tile"><div class="meta-kicker">Temp pista</div><div class="meta-value">${Number.isFinite(sessionContext.avgTrackTemp) ? `${sessionContext.avgTrackTemp.toFixed(1)} °C` : "N/D"}</div></div>
+        <div class="meta-tile"><div class="meta-kicker">Temp aire</div><div class="meta-value">${Number.isFinite(sessionContext.avgAirTemp) ? `${sessionContext.avgAirTemp.toFixed(1)} °C` : "N/D"}</div></div>
+        <div class="meta-tile"><div class="meta-kicker">Race control</div><div class="meta-value">${Number.isFinite(sessionContext.raceControlMessages) ? sessionContext.raceControlMessages : "N/D"}</div></div>
+        <div class="meta-tile"><div class="meta-kicker">Safety car / VSC</div><div class="meta-value">${Number.isFinite(sessionContext.safetyCarFlags) ? sessionContext.safetyCarFlags : "N/D"}</div></div>
+        <div class="meta-tile"><div class="meta-kicker">Pit stops</div><div class="meta-value">${Number.isFinite(sessionContext.pitStops) ? sessionContext.pitStops : "N/D"}</div></div>
+        <div class="meta-tile"><div class="meta-kicker">Overtakes / Radio</div><div class="meta-value">${Number.isFinite(sessionContext.overtakes) ? sessionContext.overtakes : "N/D"} / ${Number.isFinite(sessionContext.teamRadios) ? sessionContext.teamRadios : "N/D"}</div></div>
       </div>
     </div>
 
     <div class="card engineer-card telemetry-dashboard-card">
       <div class="card-title">1 · Resumen técnico</div>
       <div class="telemetry-summary-grid" style="margin-top:10px;">
-        ${summaryTiles.length ? summaryTiles.join("") : `<div class="empty-line">No hay datos suficientes para esta combinación.</div>`}
+        ${summaryTiles.length ? summaryTiles.join("") : `<div class="empty-line">No hay datos suficientes para este resumen.</div>`}
       </div>
+      <div class="info-line" style="margin-top:10px;">${summary.primaryDelta?.advantage === "a" ? "A llega con ventaja de referencia." : summary.primaryDelta?.advantage === "b" ? "B llega con ventaja de referencia." : "Sin ventaja clara de referencia."}</div>
     </div>
 
     <div class="card engineer-card telemetry-dashboard-card">
       <div class="card-title">2 · Sectores</div>
       <div class="telemetry-summary-grid" style="margin-top:10px;">
-        ${sectorTiles.length ? sectorTiles.join("") : `<div class="empty-line">No hay datos suficientes para esta combinación.</div>`}
+        ${sectorTiles.length ? sectorTiles.join("") : `<div class="empty-line">No hay sectores comparables en esta sesión.</div>`}
       </div>
     </div>
 
@@ -656,15 +685,19 @@ function renderTelemetryDashboard(technicalData) {
       <div class="card-title">3 · Stint</div>
       <div class="telemetry-stint-grid" style="margin-top:10px;">
         <div class="meta-tile">
-          <div class="meta-kicker">Degradación simple A/B</div>
-          <div class="meta-value" style="font-size:17px;">${escapeHtml(formatTelemetryDelta(dashboard.stint.degradation.a))} / ${escapeHtml(formatTelemetryDelta(dashboard.stint.degradation.b))}</div>
-          <div class="meta-caption">Lectura de caída de ritmo entre inicio y final del stint.</div>
+          <div class="meta-kicker">Degradación A/B</div>
+          <div class="meta-value" style="font-size:17px;">${escapeHtml(formatTelemetryDelta(stints.degradation?.a))} / ${escapeHtml(formatTelemetryDelta(stints.degradation?.b))}</div>
+          <div class="meta-caption">Delta: ${escapeHtml(formatTelemetryDelta(stints.degradation?.delta))}</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Ritmo por stint</div>
-          <div class="meta-value" style="font-size:17px;">A ${escapeHtml(formatTelemetryTime(dashboard.stint.averagePace.a))} · B ${escapeHtml(formatTelemetryTime(dashboard.stint.averagePace.b))}</div>
-          <div class="meta-caption">Comparativa ${type === "driver" ? "piloto/piloto" : "equipo/equipo"} en la misma sesión.</div>
+          <div class="meta-value" style="font-size:17px;">A ${escapeHtml(formatTelemetryTime(stints.averagePace?.a))} · B ${escapeHtml(formatTelemetryTime(stints.averagePace?.b))}</div>
+          <div class="meta-caption">Comparativa ${engineerState.telemetry.type === "driver" ? "piloto/piloto" : "equipo/equipo"} en misma sesión.</div>
         </div>
+      </div>
+      <div class="telemetry-summary-grid" style="margin-top:10px;">
+        <div class="meta-tile"><div class="meta-kicker">Stints A</div>${renderTelemetryStintRows(stints.stintsA || [])}</div>
+        <div class="meta-tile"><div class="meta-kicker">Stints B</div>${renderTelemetryStintRows(stints.stintsB || [])}</div>
       </div>
     </div>
 
@@ -691,10 +724,11 @@ function renderTelemetryDashboard(technicalData) {
             <div class="news-meta-row">
               <span>A ritmo ${escapeHtml(formatTelemetryTime(item.aPace))}</span>
               <span>B ritmo ${escapeHtml(formatTelemetryTime(item.bPace))}</span>
-              <span>Δ ref ${escapeHtml(formatTelemetryDelta(telemetryDelta(item.aRef, item.bRef)))}</span>
+              <span>Δ ritmo ${escapeHtml(formatTelemetryDelta(item.paceDelta))}</span>
+              <span>Δ ref ${escapeHtml(formatTelemetryDelta(item.refDelta))}</span>
             </div>
           </div>
-        `).join("") : `<div class="empty-line">No hay suficientes sesiones para construir evolución fiable todavía.</div>`}
+        `).join("") : `<div class="empty-line">No hay sesiones suficientes para evolución comparativa fiable.</div>`}
       </div>
     </div>
   `;
@@ -707,7 +741,7 @@ function renderTelemetrySelector(options, currentValue) {
 function renderTelemetryPanelBody() {
   const telemetry = engineerState.telemetry;
   if (telemetry.status === "loading") {
-    return `<div class="card engineer-card"><div class="empty-line">Cargando dashboard técnico 2026…</div></div>`;
+    return `<div class="card engineer-card"><div class="empty-line">Cargando stack técnico 2026…</div></div>`;
   }
 
   if (telemetry.status === "error") {
@@ -719,7 +753,7 @@ function renderTelemetryPanelBody() {
   }
 
   if (!telemetry.technicalData) {
-    return `<div class="card engineer-card"><div class="empty-line">Selecciona dos ${telemetry.type === "driver" ? "pilotos" : "equipos"} válidos.</div></div>`;
+    return `<div class="card engineer-card"><div class="empty-line">Selecciona dos ${telemetry.type === "driver" ? "pilotos" : "equipos"} válidos para iniciar análisis.</div></div>`;
   }
 
   return renderTelemetryDashboard(telemetry.technicalData);
@@ -741,18 +775,18 @@ function renderTelemetryPanel() {
   return `
     <div class="card engineer-card telemetry-controls-card">
       <div class="card-title">Telemetría</div>
-      <div class="card-sub">Dashboard técnico OpenF1 · temporada 2026 · arquitectura con backend de agregación</div>
+      <div class="card-sub">Control técnico de sesión · temporada fija 2026 · backend agregador interno</div>
       <div class="telemetry-control-grid" style="margin-top:10px;">
         <label class="telemetry-control-item">
           <span>GP</span>
           <select class="select-input" onchange="setEngineerTelemetryGp(this.value)">
-            ${renderTelemetrySelector(gpOptions.length ? gpOptions : [{ value: "", label: "No hay GP de 2026 disponibles" }], telemetry.gp)}
+            ${renderTelemetrySelector(gpOptions.length ? gpOptions : [{ value: "", label: "No hay GP disponibles en 2026" }], telemetry.gp)}
           </select>
         </label>
         <label class="telemetry-control-item">
           <span>Sesión</span>
           <select class="select-input" onchange="setEngineerTelemetrySessionType(this.value)">
-            ${renderTelemetrySelector(sessionOptions.length ? sessionOptions : [{ value: "", label: "No hay sesiones válidas" }], telemetry.sessionType)}
+            ${renderTelemetrySelector(sessionOptions.length ? sessionOptions : [{ value: "", label: "No hay sesiones disponibles" }], telemetry.sessionType)}
           </select>
         </label>
         <label class="telemetry-control-item">
@@ -764,13 +798,13 @@ function renderTelemetryPanel() {
         <label class="telemetry-control-item">
           <span>A</span>
           <select class="select-input" onchange="setEngineerTelemetryA(this.value)">
-            ${renderTelemetrySelector(aOptions.length ? aOptions : [{ value: "", label: "No hay participantes para esta sesión." }], telemetry.a)}
+            ${renderTelemetrySelector(aOptions.length ? aOptions : [{ value: "", label: "No hay entidades para esta sesión" }], telemetry.a)}
           </select>
         </label>
         <label class="telemetry-control-item">
           <span>B</span>
           <select class="select-input" onchange="setEngineerTelemetryB(this.value)">
-            ${renderTelemetrySelector(bOptions.length ? bOptions : [{ value: "", label: "Prueba otra sesión o entidad." }], telemetry.b)}
+            ${renderTelemetrySelector(bOptions.length ? bOptions : [{ value: "", label: "Selecciona una entidad A primero" }], telemetry.b)}
           </select>
         </label>
       </div>
@@ -802,9 +836,7 @@ async function loadTelemetryData() {
     if (!telemetry.sessionKey || !telemetry.a || !telemetry.b) {
       telemetry.status = "empty";
       telemetry.technicalData = null;
-      telemetry.userMessage = !telemetry.sessionKey
-        ? "No hay datos técnicos históricos disponibles para este caso."
-        : "No hay participantes para esta sesión.";
+      telemetry.userMessage = !telemetry.sessionKey ? "No hay sesiones válidas para este GP en 2026." : "No hay entidades suficientes para comparar en esta sesión.";
       renderEngineerScreen();
       return;
     }
@@ -827,11 +859,10 @@ async function loadTelemetryData() {
     });
     if (requestId !== telemetryLoadRequestId) return;
 
-    const hasData = comparison?.comparison?.a?.metrics?.lapCount || comparison?.comparison?.b?.metrics?.lapCount;
-    if (!hasData) {
+    if (!comparison?.comparison?.a?.metrics?.lapCount && !comparison?.comparison?.b?.metrics?.lapCount) {
       telemetry.status = "empty";
       telemetry.technicalData = null;
-      telemetry.userMessage = "No hay datos suficientes para esta combinación.";
+      telemetry.userMessage = "No hay datos técnicos suficientes en la sesión seleccionada.";
       renderEngineerScreen();
       return;
     }
@@ -853,9 +884,7 @@ async function loadTelemetryData() {
 function setEngineerSubmode(mode) {
   engineerState.submode = mode === "telemetry" ? "telemetry" : "prediction";
   renderEngineerScreen();
-  if (engineerState.submode === "telemetry") {
-    loadTelemetryData();
-  }
+  if (engineerState.submode === "telemetry") loadTelemetryData();
 }
 
 function setEngineerTelemetryGp(value) {
