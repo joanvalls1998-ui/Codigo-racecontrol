@@ -41,9 +41,11 @@ const OPENF1_GP_ALIASES = Object.freeze({
 });
 
 const OPENF1_TIMEOUT_MS = 9000;
+const ENGINEER_DATASETS = Object.freeze(["sessions", "drivers", "laps", "car_data", "stints", "location"]);
 
 const EngineerTelemetryProvider = {
   _cache: new Map(),
+  _sessionValidity: new Map(),
   _metaPromise: null,
 
   getGrandPrixOptions() {
@@ -52,10 +54,21 @@ const EngineerTelemetryProvider = {
 
   async ensureMetadata() {
     if (this._metaPromise) return this._metaPromise;
-    this._metaPromise = this.fetchJson("https://api.openf1.org/v1/sessions?year=2026")
-      .then(rows => this.normalizeSessions(rows))
+    const year = new Date().getUTCFullYear();
+    const urls = [year, year - 1]
+      .map(item => this.openF1Url("sessions", { year: item }));
+    this._metaPromise = Promise.all(urls.map(url => this.fetchJson(url)))
+      .then(chunks => this.normalizeSessions(chunks.flat()))
       .catch(() => ({ sessionsByGp: {}, latest: null }));
     return this._metaPromise;
+  },
+
+  openF1Url(dataset, params = {}) {
+    const query = Object.entries(params)
+      .filter(([, value]) => value !== null && value !== undefined && value !== "")
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .join("&");
+    return `https://api.openf1.org/v1/${dataset}${query ? `?${query}` : ""}`;
   },
 
   normalizeSessions(rows) {
@@ -119,6 +132,23 @@ const EngineerTelemetryProvider = {
 
   async resolveLatestSelection() {
     const meta = await this.ensureMetadata();
+    const ranking = [];
+    Object.entries(meta?.sessionsByGp || {}).forEach(([gp, bucket]) => {
+      ENGINEER_SESSIONS.forEach(def => {
+        const session = bucket[def.key];
+        if (!session) return;
+        const ts = new Date(session?.date_end || session?.date_start || 0).getTime();
+        if (!Number.isFinite(ts) || ts > Date.now()) return;
+        ranking.push({ gp, session: def.key, ref: session, ts });
+      });
+    });
+    ranking.sort((a, b) => b.ts - a.ts);
+
+    for (const candidate of ranking) {
+      const valid = await this.sessionHasData(candidate.ref);
+      if (valid.ok) return { gp: candidate.gp, session: candidate.session };
+    }
+
     if (meta?.latest?.gp && meta?.latest?.session) {
       return { gp: meta.latest.gp, session: meta.latest.session };
     }
@@ -147,19 +177,26 @@ const EngineerTelemetryProvider = {
     const targetA = { ref: primaryRef, compareType: engineer.compareType, entity: currentA };
     const targetB = { ref: secondaryRef, compareType: engineer.compareType, entity: currentB };
 
-    const [dataA, dataB, evolution] = await Promise.all([
+    const [dataA, dataB, evolution, availabilityA, availabilityB] = await Promise.all([
       this.buildEntitySnapshot(targetA),
       this.buildEntitySnapshot(targetB),
-      this.buildEvolution(meta, engineer)
+      this.buildEvolution(meta, engineer),
+      this.sessionHasData(primaryRef),
+      this.sessionHasData(secondaryRef)
     ]);
 
+    const hasAnyData = dataA.available || dataB.available;
     return {
       entityOptions,
       meta,
       metrics: this.composeMetrics(dataA, dataB),
       dataA,
       dataB,
-      evolution
+      evolution,
+      hasAnyData,
+      availabilityA,
+      availabilityB,
+      datasetCoverage: ENGINEER_DATASETS
     };
   },
 
@@ -223,7 +260,37 @@ const EngineerTelemetryProvider = {
 
   async fetchSessionDrivers(sessionKey) {
     if (!sessionKey) return [];
-    return this.fetchJson(`https://api.openf1.org/v1/drivers?session_key=${encodeURIComponent(sessionKey)}`);
+    return this.fetchJson(this.openF1Url("drivers", { session_key: sessionKey }));
+  },
+
+  async sessionHasData(ref) {
+    if (!ref?.session_key) return { ok: false, reason: "Sesión no disponible en OpenF1." };
+    if (this._sessionValidity.has(ref.session_key)) return this._sessionValidity.get(ref.session_key);
+
+    const probe = (async () => {
+      const drivers = await this.fetchSessionDrivers(ref.session_key);
+      if (!drivers.length) return { ok: false, reason: "La sesión no tiene pilotos en OpenF1." };
+      const number = drivers.find(item => item?.driver_number !== undefined && item?.driver_number !== null)?.driver_number;
+      if (number === undefined || number === null) return { ok: false, reason: "OpenF1 no publicó número de piloto para esta sesión." };
+
+      const [laps, carData, stints, location] = await Promise.all([
+        this.fetchPerDriver(ref.session_key, [String(number)], "laps"),
+        this.fetchPerDriver(ref.session_key, [String(number)], "car_data"),
+        this.fetchPerDriver(ref.session_key, [String(number)], "stints"),
+        this.fetchPerDriver(ref.session_key, [String(number)], "location")
+      ]);
+      const lapRows = Object.values(laps).flat();
+      const speedRows = Object.values(carData).flat();
+      const stintRows = Object.values(stints).flat();
+      const locRows = Object.values(location).flat();
+      const ok = lapRows.length > 0 || speedRows.length > 0 || stintRows.length > 0 || locRows.length > 0;
+      return ok
+        ? { ok: true, reason: "" }
+        : { ok: false, reason: "La sesión existe, pero OpenF1 no tiene vueltas/telemetría para esta combinación." };
+    })();
+
+    this._sessionValidity.set(ref.session_key, probe);
+    return probe;
   },
 
   async buildEntitySnapshot({ ref, compareType, entity }) {
@@ -241,34 +308,37 @@ const EngineerTelemetryProvider = {
 
     if (!driverNumbers.length) return this.emptySnapshot(entity);
 
-    const [lapsByDriver, carDataByDriver, stintsByDriver] = await Promise.all([
+    const [lapsByDriver, carDataByDriver, stintsByDriver, locationByDriver] = await Promise.all([
       this.fetchPerDriver(ref.session_key, driverNumbers, "laps"),
       this.fetchPerDriver(ref.session_key, driverNumbers, "car_data"),
-      this.fetchPerDriver(ref.session_key, driverNumbers, "stints")
+      this.fetchPerDriver(ref.session_key, driverNumbers, "stints"),
+      this.fetchPerDriver(ref.session_key, driverNumbers, "location")
     ]);
 
     const mergedLaps = Object.values(lapsByDriver).flat();
     const mergedCarData = Object.values(carDataByDriver).flat();
     const mergedStints = Object.values(stintsByDriver).flat();
+    const mergedLocations = Object.values(locationByDriver).flat();
 
     return this.computeSnapshotFromRows({
       label: entity,
       laps: mergedLaps,
       carData: mergedCarData,
-      stints: mergedStints
+      stints: mergedStints,
+      location: mergedLocations
     });
   },
 
   async fetchPerDriver(sessionKey, driverNumbers, dataset) {
     const entries = await Promise.all(driverNumbers.map(async number => {
-      const url = `https://api.openf1.org/v1/${dataset}?session_key=${encodeURIComponent(sessionKey)}&driver_number=${encodeURIComponent(number)}`;
+      const url = this.openF1Url(dataset, { session_key: sessionKey, driver_number: number });
       const rows = await this.fetchJson(url).catch(() => []);
       return [number, Array.isArray(rows) ? rows : []];
     }));
     return Object.fromEntries(entries);
   },
 
-  computeSnapshotFromRows({ label, laps, carData, stints }) {
+  computeSnapshotFromRows({ label, laps, carData, stints, location }) {
     const validLaps = (Array.isArray(laps) ? laps : []).filter(lap => {
       const duration = Number(lap?.lap_duration);
       return Number.isFinite(duration) && duration > 40 && duration < 200 && !lap?.is_pit_out_lap;
@@ -304,8 +374,17 @@ const EngineerTelemetryProvider = {
 
     const degradation = this.computeDegradation(validLaps, stints);
 
+    const dataPresence = {
+      laps: validLaps.length,
+      carData: Array.isArray(carData) ? carData.length : 0,
+      stints: Array.isArray(stints) ? stints.length : 0,
+      location: Array.isArray(location) ? location.length : 0
+    };
+
     return {
       label,
+      available: Object.values(dataPresence).some(count => count > 0),
+      dataPresence,
       referenceLap,
       avgPace,
       sectors,
@@ -377,6 +456,8 @@ const EngineerTelemetryProvider = {
   emptySnapshot(label = "") {
     return {
       label,
+      available: false,
+      dataPresence: { laps: 0, carData: 0, stints: 0, location: 0 },
       referenceLap: null,
       avgPace: null,
       sectors: { s1: null, s2: null, s3: null },
@@ -473,6 +554,8 @@ function getEngineerState() {
       entityB: "",
       tab: "resumen",
       loading: true,
+      status: "loading",
+      statusMessage: "Cargando telemetría histórica OpenF1…",
       error: "",
       entityOptions: [],
       telemetry: null,
@@ -550,6 +633,15 @@ function renderEngineerHub() {
       : EngineerTelemetryProvider.getTeamOptionsFromStandings());
 
   const metrics = engineer.telemetry?.metrics;
+  const availabilityA = engineer.telemetry?.availabilityA;
+  const availabilityB = engineer.telemetry?.availabilityB;
+  const statusBanner = engineer.loading
+    ? '<div class="engineer-loading">Cargando telemetría histórica OpenF1…</div>'
+    : engineer.error
+      ? `<div class="engineer-error">${escapeHtml(engineer.error)}</div>`
+      : engineer.status === "empty"
+        ? `<div class="engineer-empty-state">${escapeHtml(engineer.statusMessage || "Sin datos para la selección actual.")}</div>`
+        : `<div class="engineer-status">Datos reales OpenF1 cargados · endpoints: ${ENGINEER_DATASETS.join(", ")}</div>`;
 
   contentEl().innerHTML = `
     <section class="engineer-shell">
@@ -569,8 +661,13 @@ function renderEngineerHub() {
         </div>
       </header>
 
-      ${engineer.loading ? '<div class="engineer-loading">Cargando telemetría histórica OpenF1…</div>' : ""}
-      ${engineer.error ? `<div class="engineer-error">${escapeHtml(engineer.error)}</div>` : ""}
+      ${statusBanner}
+      ${!engineer.loading && !engineer.error ? `
+        <div class="engineer-availability">
+          <span>A: ${escapeHtml(availabilityA?.ok ? "Con datos" : (availabilityA?.reason || "Sin datos"))}</span>
+          <span>B: ${escapeHtml(availabilityB?.ok ? "Con datos" : (availabilityB?.reason || "Sin datos"))}</span>
+        </div>
+      ` : ""}
 
       <section class="engineer-quick-summary">
         ${renderEngineerSummaryKpi("REFERENCIA", formatMetric(metrics?.refLapA, 3, "s"), `${engineer.entityA || "A"}`)}
@@ -591,12 +688,12 @@ function renderEngineerHub() {
 }
 
 function formatMetric(value, decimals, suffix = "") {
-  if (!Number.isFinite(value)) return "N/D";
+  if (!Number.isFinite(value)) return "No disponible";
   return `${Number(value).toFixed(decimals)}${suffix ? ` ${suffix}` : ""}`;
 }
 
 function formatSignedMetric(value, decimals, suffix = "") {
-  if (!Number.isFinite(value)) return "N/D";
+  if (!Number.isFinite(value)) return "No disponible";
   const fixed = Number(value).toFixed(decimals);
   return `${value >= 0 ? "+" : ""}${fixed}${suffix ? ` ${suffix}` : ""}`;
 }
@@ -622,7 +719,7 @@ function renderEngineerMetricRow(label, valueA, valueB, { suffix = "", highlight
 }
 
 function formatRowValue(value, suffix) {
-  if (!Number.isFinite(value)) return "N/D";
+  if (!Number.isFinite(value)) return "No disponible";
   return `${value.toFixed(suffix.includes("km") ? 1 : 3)}${suffix}`;
 }
 
@@ -669,7 +766,7 @@ function renderDeltaBars(metrics) {
           <div class="bar-row">
             <span>${item.label}</span>
             <div class="bar-track ${side}"><i style="width:${pct}%"></i></div>
-            <strong>${Number.isFinite(item.value) ? `${item.value >= 0 ? "+" : ""}${item.value.toFixed(3)}s` : "N/D"}</strong>
+            <strong>${Number.isFinite(item.value) ? `${item.value >= 0 ? "+" : ""}${item.value.toFixed(3)}s` : "No disponible"}</strong>
           </div>
         `;
       }).join("")}
@@ -784,6 +881,8 @@ async function refreshEngineerTelemetry() {
   engineer.requestId += 1;
   const requestId = engineer.requestId;
   engineer.loading = true;
+  engineer.status = "loading";
+  engineer.statusMessage = "Cargando telemetría histórica OpenF1…";
   engineer.error = "";
   renderEngineerHub();
 
@@ -793,15 +892,22 @@ async function refreshEngineerTelemetry() {
     engineer.telemetry = telemetry;
     engineer.entityOptions = telemetry.entityOptions;
     engineer.loading = false;
+    engineer.status = telemetry.hasAnyData ? "ready" : "empty";
+    engineer.statusMessage = telemetry.hasAnyData
+      ? ""
+      : "Sin datos suficientes para la combinación seleccionada. Ajusta GP, sesión o entidades A/B.";
     engineer.error = "";
     renderEngineerHub();
   } catch {
     if (requestId !== engineer.requestId) return;
     engineer.loading = false;
-    engineer.error = "No se pudo cargar OpenF1 para esta selección. Mostrando datos no disponibles.";
+    engineer.status = "error";
+    engineer.error = "Error de carga OpenF1. Verifica red o cambia GP/sesión.";
     engineer.telemetry = {
       metrics: EngineerTelemetryProvider.composeMetrics(EngineerTelemetryProvider.emptySnapshot(), EngineerTelemetryProvider.emptySnapshot()),
-      evolution: []
+      evolution: [],
+      availabilityA: { ok: false, reason: "No se pudo evaluar la sesión A." },
+      availabilityB: { ok: false, reason: "No se pudo evaluar la sesión B." }
     };
     renderEngineerHub();
   }
