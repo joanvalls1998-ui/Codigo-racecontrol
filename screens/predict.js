@@ -363,6 +363,43 @@ function shouldAutoGeneratePredict(favorite, raceName) {
   );
 }
 
+function renderPredictPrimaryFocusCard(favorite, raceName, activePredictData) {
+  const mainFocus = getPredictMainFocus(favorite, raceName, activePredictData);
+  const scenarios = getPredictScenarios(favorite, raceName, activePredictData);
+  const baseScenario = scenarios[1] || scenarios[0] || { title: "Escenario base", text: "Sin escenario base cargado." };
+  const riskLabel = mainFocus.riskFactor?.title || "Riesgo principal";
+  const riskText = mainFocus.riskFactor?.text || "Escenario sensible a la ejecución.";
+  const keyData = activePredictData?.favoritePrediction?.race || activePredictData?.summary?.predictedWinner || mainFocus.strategy.label;
+
+  return `
+    <div class="card app-panel-card">
+      <div class="card-title">Lectura principal</div>
+      <div class="meta-grid" style="margin-top:12px;">
+        <div class="meta-tile">
+          <div class="meta-kicker">Predicción principal</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(mainFocus.strategy.label)}</div>
+          <div class="meta-caption">${escapeHtml(mainFocus.focus)}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Escenario base</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(baseScenario.title)}</div>
+          <div class="meta-caption">${escapeHtml(baseScenario.text)}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">${escapeHtml(riskLabel)}</div>
+          <div class="meta-value" style="font-size:18px;">Controlar</div>
+          <div class="meta-caption">${escapeHtml(riskText)}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Dato clave</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(keyData)}</div>
+          <div class="meta-caption">Referencia rápida del escenario</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function showPredict() {
   setActiveNav("nav-predict");
   rememberScreen("predict");
@@ -377,6 +414,8 @@ function showPredict() {
   contentEl().innerHTML = `
     ${renderPredictHeroV2({ predict: renderPredictContent(), favorite, raceName: selectedRace, expert, activePredictData })}
 
+    ${renderPredictPrimaryFocusCard(favorite, selectedRace, activePredictData)}
+
     <div class="card app-panel-card">
       <div class="card-head">
         <div class="card-head-left"><div class="card-title">Resumen predictivo</div></div>
@@ -384,12 +423,12 @@ function showPredict() {
       </div>
       <div id="predictSummaryCards">${activePredictData ? renderPredictSummaryCards(activePredictData) : renderPredictPreviewCards(favorite, selectedRace)}</div>
       <div id="predictKeyFactors">${renderPredictWeekendKeyCard(favorite, selectedRace, activePredictData, expert)}</div>
-      <div id="predictScenarioCards" style="margin-top:10px;">${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}</div>
     </div>
 
     <div class="card app-panel-card">
       <details>
         <summary style="cursor:pointer; font-weight:700;">Más info técnica</summary>
+        <div id="predictScenarioCards" style="margin-top:12px;">${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}</div>
         <div id="predictQualyRace" style="margin-top:12px;">${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, expert)}</div>
         <div id="predictStrategyDetail" style="margin-top:10px;">${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}</div>
         ${expert ? `<div id="predictGridRead" style="margin-top:10px;">${renderPredictGridRead(favorite, selectedRace, activePredictData)}</div>` : ""}
