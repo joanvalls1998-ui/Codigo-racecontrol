@@ -3558,3 +3558,79 @@ nav > *,
     grid-column: 1 / -1;
   }
 }
+
+.telemetry-wall-focus {
+  grid-template-columns: 1.2fr 0.8fr;
+}
+
+.telemetry-wall-grid-compact {
+  gap: 8px;
+}
+
+.telemetry-wave {
+  background: #06080d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px;
+  margin-top: 8px;
+}
+
+.telemetry-wave-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #a9b4c5;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.telemetry-wave-head strong {
+  color: #f4f7ff;
+  font-size: 12px;
+}
+
+.telemetry-wave svg {
+  width: 100%;
+  height: 110px;
+  margin-top: 6px;
+}
+
+.telemetry-wave polyline {
+  fill: none;
+  stroke: #2ad4ff;
+  stroke-width: 1.8;
+}
+
+.telemetry-primary-chart .telemetry-wave polyline {
+  stroke: #41ff9c;
+}
+
+.telemetry-mini-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.telemetry-mini-kpis > div {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.telemetry-mini-kpis span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8e99ad;
+}
+
+.telemetry-mini-kpis strong {
+  color: #e5ecfa;
+  font-size: 12px;
+}
