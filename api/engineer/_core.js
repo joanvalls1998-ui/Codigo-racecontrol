@@ -4,14 +4,16 @@ const TTL = Object.freeze({
   meetings: 1000 * 60 * 30,
   sessions: 1000 * 60 * 30,
   entities: 1000 * 60 * 10,
-  compare: 1000 * 60 * 5
+  compare: 1000 * 60 * 5,
+  context: 1000 * 60 * 10
 });
 
 const cache = {
   meetings: new Map(),
   sessionsByMeeting: new Map(),
   entitiesBySession: new Map(),
-  compare: new Map()
+  compare: new Map(),
+  context: new Map()
 };
 
 const SESSION_TYPES = Object.freeze([
@@ -45,7 +47,7 @@ async function fetchOpenF1(endpoint, params = {}) {
   });
 
   const response = await fetch(`${OPENF1_BASE_URL}/${endpoint}?${query.toString()}`, {
-    headers: { "User-Agent": "RaceControlEngineer/1.0" },
+    headers: { "User-Agent": "RaceControlEngineer/2.0" },
     cache: "no-store"
   });
 
@@ -308,7 +310,7 @@ function aggregateTeamMetrics(list = []) {
     sector2: average(valid.map(item => item.sector2)),
     sector3: average(valid.map(item => item.sector3)),
     degradation: average(valid.map(item => item.degradation)),
-    stints: valid.flatMap(item => item.stints || []).slice(0, 6)
+    stints: valid.flatMap(item => item.stints || []).slice(0, 8)
   };
 }
 
@@ -421,6 +423,30 @@ async function buildBaseComparison({ sessionKey, type, a, b }) {
   return { a: entityA, b: entityB };
 }
 
+function buildDashboardBlocks(baseComparison = {}) {
+  const aMetrics = baseComparison.a?.metrics || {};
+  const bMetrics = baseComparison.b?.metrics || {};
+  return {
+    summary: {
+      referenceLap: { a: aMetrics.referenceLap ?? null, b: bMetrics.referenceLap ?? null },
+      averagePace: { a: aMetrics.averagePace ?? null, b: bMetrics.averagePace ?? null },
+      topSpeed: { a: aMetrics.topSpeed ?? null, b: bMetrics.topSpeed ?? null },
+      speedTrap: { a: aMetrics.speedTrap ?? null, b: bMetrics.speedTrap ?? null }
+    },
+    sectors: {
+      sector1: { a: aMetrics.sector1 ?? null, b: bMetrics.sector1 ?? null },
+      sector2: { a: aMetrics.sector2 ?? null, b: bMetrics.sector2 ?? null },
+      sector3: { a: aMetrics.sector3 ?? null, b: bMetrics.sector3 ?? null }
+    },
+    stint: {
+      degradation: { a: aMetrics.degradation ?? null, b: bMetrics.degradation ?? null },
+      averagePace: { a: aMetrics.averagePace ?? null, b: bMetrics.averagePace ?? null },
+      stintsA: aMetrics.stints || [],
+      stintsB: bMetrics.stints || []
+    }
+  };
+}
+
 async function buildComparison({ meetingKey, sessionKey, type, a, b, year = DEFAULT_YEAR }) {
   const cacheKey = `${year}:${meetingKey}:${sessionKey}:${type}:${a}:${b}`;
   const cached = getCached(cache.compare, cacheKey, TTL.compare);
@@ -443,6 +469,7 @@ async function buildComparison({ meetingKey, sessionKey, type, a, b, year = DEFA
 
       evolution.push({
         label: session.type_label,
+        type_key: session.type_key,
         aPace: perSession.a?.metrics?.averagePace ?? null,
         bPace: perSession.b?.metrics?.averagePace ?? null,
         aRef: perSession.a?.metrics?.referenceLap ?? null,
@@ -464,10 +491,65 @@ async function buildComparison({ meetingKey, sessionKey, type, a, b, year = DEFA
       b: baseComparison.b,
       context
     },
+    dashboard: buildDashboardBlocks(baseComparison),
     evolution
   };
 
   return setCached(cache.compare, cacheKey, payload);
+}
+
+async function resolveTelemetryContext({ year = DEFAULT_YEAR, meetingKey = "", sessionType = "", type = "driver", a = "", b = "" }) {
+  const cacheKey = `${year}:${meetingKey}:${sessionType}:${type}:${a}:${b}`;
+  const cached = getCached(cache.context, cacheKey, TTL.context);
+  if (cached) return cached;
+
+  const meetings = await getMeetings(year);
+  if (!meetings.length) {
+    return setCached(cache.context, cacheKey, {
+      year,
+      selections: { meeting_key: "", session_type: "", session_key: "", type, a: "", b: "" },
+      meetings: [],
+      sessions: [],
+      entities: { drivers: [], teams: [] },
+      options: { a: [], b: [] }
+    });
+  }
+
+  const selectedMeeting = meetings.find(item => String(item.meeting_key) === String(meetingKey)) || meetings[0];
+  const sessions = await getSessions(selectedMeeting.meeting_key, year);
+  const sessionPool = sessions.filter(item => ["fp1", "fp2", "fp3", "qualy", "race"].includes(item.type_key));
+
+  const selectedSession = sessionPool.find(item => item.type_key === sessionType) || sessionPool[sessionPool.length - 1] || null;
+  const entities = selectedSession ? await getEntities(selectedSession.session_key) : { drivers: [], teams: [] };
+
+  const sourceOptions = type === "team"
+    ? entities.teams.map(item => item.name)
+    : entities.drivers.map(item => item.name);
+
+  const selectedA = sourceOptions.includes(a) ? a : (sourceOptions[0] || "");
+  const bPool = sourceOptions.filter(name => name !== selectedA);
+  const selectedB = bPool.includes(b) ? b : (bPool[0] || "");
+
+  const payload = {
+    year,
+    selections: {
+      meeting_key: String(selectedMeeting.meeting_key),
+      session_type: selectedSession?.type_key || "",
+      session_key: selectedSession?.session_key || "",
+      type,
+      a: selectedA,
+      b: selectedB
+    },
+    meetings,
+    sessions: sessionPool,
+    entities,
+    options: {
+      a: sourceOptions,
+      b: bPool
+    }
+  };
+
+  return setCached(cache.context, cacheKey, payload);
 }
 
 function apiError(res, status, message, code = "ENGINEER_ERROR") {
@@ -487,5 +569,6 @@ export {
   getEntities,
   getMeetings,
   getSessions,
-  parseYear
+  parseYear,
+  resolveTelemetryContext
 };
