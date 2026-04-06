@@ -3320,6 +3320,38 @@ function getContextGlossaryTitle(screen, phase) {
   };
 }
 
+function renderHomeFavoriteIdentity(favorite) {
+  if (favorite.type !== "driver") {
+    return `<div class="team-stripe ${favorite.colorClass}" style="height:52px;"></div>`;
+  }
+
+  const safeImage = favorite.image || getDefaultFavorite().image;
+  return `
+    <img class="row-avatar" src="${safeImage}" alt="${escapeHtml(favorite.name)}"
+      onerror="this.onerror=null; this.src='${escapeHtml(getDefaultFavorite().image)}';">
+  `;
+}
+
+function renderHomeWeekendModeBlock(context) {
+  if (state.weekendModeEnabled) {
+    return renderWeekendModeHub(context, { compact: true, source: "home" });
+  }
+
+  return `
+    <div class="card weekend-mode-card weekend-mode-compact">
+      <div class="card-head">
+        <div class="card-head-left">
+          <div class="card-title">Modo fin de semana</div>
+          <div class="card-sub">Está oculto. Vuelve a activarlo para tener acceso rápido.</div>
+        </div>
+        <div class="card-head-actions">
+          <button class="btn-secondary" onclick="toggleWeekendModeEnabled('home')">Activar</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 
 /* ===== HOME ===== */
 
@@ -3361,9 +3393,7 @@ async function showHome() {
   const favoriteNewsItems = Array.isArray(state.homeNewsCache?.[favoriteNewsCacheKey]?.items)
     ? sortNewsItems(state.homeNewsCache[favoriteNewsCacheKey].items, favoriteNewsFilter, getNewsWeekendPhase()).slice(0, 3)
     : [];
-  const favoriteAvatar = favorite.type === "driver"
-    ? `<img class="row-avatar" src="${favorite.image}" alt="${escapeHtml(favorite.name)}" onerror="this.style.display='none'">`
-    : `<div class="team-stripe ${favorite.colorClass}" style="height:52px;"></div>`;
+  const favoriteAvatar = renderHomeFavoriteIdentity(favorite);
   const previousGpLine = previousGp
     ? `${previousGp.title || "GP completado"} · ${formatCalendarDateRange(previousGp.start, previousGp.end)}`
     : "Sin GP completado reciente";
@@ -3375,7 +3405,7 @@ async function showHome() {
     : "Sin sesión próxima cargada";
 
   contentEl().innerHTML = `
-    <div class="card app-home-favorite">
+    <div class="card highlight-card app-home-favorite">
       <div class="card-head">
         <div class="card-head-left"><div class="card-title">Home · Favorito</div></div>
         <div class="card-head-actions"><button class="icon-btn" onclick="openFavoriteSelectorModal('showHome')">Cambiar</button></div>
@@ -3411,7 +3441,7 @@ async function showHome() {
       }
     </div>
 
-    <div class="card highlight-card app-home-hero">
+    <div class="card app-home-hero">
       <div class="app-panel-topline">
         <span class="tag ${getWeekendPhaseTagClass(context?.phase || "pre_weekend")}">${escapeHtml(context?.phaseLabel || "Previa")}</span>
         <span class="tag ${context?.isSprint ? "statement" : "general"}">${context?.isSprint ? "Sprint weekend" : "Formato normal"}</span>
@@ -3431,7 +3461,7 @@ async function showHome() {
       <div class="info-line">${escapeHtml(previousGpReference)}</div>
     </div>
 
-    ${renderWeekendModeHub(context, { compact: true, source: "home" })}
+    ${renderHomeWeekendModeBlock(context)}
 
     ${calendarError ? renderErrorCard("Inicio", "No se pudo cargar el calendario del GP", calendarError.message) : ""}
 
@@ -4034,7 +4064,7 @@ function showMore() {
   contentEl().innerHTML = `
     <div class="card highlight-card app-panel-card">
       <div class="card-title">Más</div>
-      <div class="app-hero-subline">Centro de control rápido.</div>
+      <div class="app-hero-subline">Noticias y utilidades secundarias.</div>
     </div>
 
     <div class="card app-panel-card">
@@ -4063,13 +4093,22 @@ function showMore() {
       </div>
     </div>
 
-    <div class="card app-quick-grid-card app-quick-grid-3">
-      <a href="#" class="app-quick-link" onclick="showNews(); return false;">Noticias</a>
-      <a href="#" class="app-quick-link" onclick="showSettingsPanel(); return false;">Ajustes</a>
-      <a href="#" class="app-quick-link" onclick="showGlossary(); return false;">Glosario</a>
-      <a href="#" class="app-quick-link" onclick="showRaceMode(); return false;">Modo carrera</a>
-      <a href="#" class="app-quick-link" onclick="showSessions(); return false;">Sesiones</a>
-      <a href="#" class="app-quick-link" onclick="showPredict(); return false;">Predict</a>
+    <div class="card app-panel-card">
+      <div class="card-title">Contenido</div>
+      <div class="app-quick-grid-card app-quick-grid-3" style="margin-top:10px;">
+        <a href="#" class="app-quick-link" onclick="showNews(); return false;">Noticias</a>
+        <a href="#" class="app-quick-link" onclick="showGlossary(); return false;">Glosario</a>
+        <a href="#" class="app-quick-link" onclick="showRaceMode(); return false;">Modo carrera</a>
+      </div>
+    </div>
+
+    <div class="card app-panel-card">
+      <div class="card-title">Sistema</div>
+      <div class="app-quick-grid-card app-quick-grid-3" style="margin-top:10px;">
+        <a href="#" class="app-quick-link" onclick="showSettingsPanel(); return false;">Ajustes</a>
+        <a href="#" class="app-quick-link" onclick="showSessions(); return false;">Sesiones</a>
+        <a href="#" class="app-quick-link" onclick="showPredict(); return false;">Predict</a>
+      </div>
     </div>
   `;
 }
