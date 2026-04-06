@@ -64,6 +64,11 @@ function getCached(map, key, ttl) {
   return entry.value;
 }
 
+function getStaleCached(map, key) {
+  const entry = map.get(key);
+  return entry?.value ?? null;
+}
+
 async function fetchOpenF1(endpoint, params = {}) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -111,6 +116,22 @@ async function fetchOpenF1(endpoint, params = {}) {
     last_error: null
   };
   return Array.isArray(payload) ? payload : [];
+}
+
+async function fetchOpenF1WithRetry(endpoint, params = {}, options = {}) {
+  const retries = Number.isFinite(options?.retries) ? Number(options.retries) : 2;
+  const retryDelayMs = Number.isFinite(options?.retryDelayMs) ? Number(options.retryDelayMs) : 250;
+  let lastError = null;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await fetchOpenF1(endpoint, params);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= retries) break;
+      await new Promise(resolve => setTimeout(resolve, retryDelayMs * (attempt + 1)));
+    }
+  }
+  throw lastError || new Error(`OpenF1 ${endpoint} failed`);
 }
 
 function parseMaybeNumber(value) {
@@ -231,7 +252,14 @@ async function getMeetings(year = DEFAULT_YEAR) {
   const cached = getCached(cache.meetings, key, TTL.meetings);
   if (cached) return cached;
 
-  const meetings = await fetchOpenF1("meetings", { year }).catch(() => []);
+  const meetings = await fetchOpenF1WithRetry("meetings", { year }).catch(() => {
+    const stale = getStaleCached(cache.meetings, key);
+    if (stale?.length) {
+      telemetryLog("warn", "meetings.using_stale_cache", { year, count: stale.length });
+      return stale;
+    }
+    return [];
+  });
   const rows = meetings
     .filter(item => getYearFromRow(item) === year)
     .map(item => ({
@@ -280,7 +308,15 @@ async function getSessions(meetingKey, year = DEFAULT_YEAR) {
   const cached = getCached(cache.sessionsByMeeting, key, TTL.sessions);
   if (cached) return cached;
 
-  const rows = await fetchOpenF1("sessions", { meeting_key: meetingKey }).catch(() => []);
+  const rows = await fetchOpenF1WithRetry("sessions", { meeting_key: meetingKey }).catch(error => {
+    const stale = getStaleCached(cache.sessionsByMeeting, key);
+    if (stale?.length) {
+      telemetryLog("warn", "sessions.using_stale_cache", { year, meeting_key: meetingKey, count: stale.length });
+      return stale;
+    }
+    telemetryLog("warn", "sessions.fetch_unavailable", { year, meeting_key: meetingKey, reason: String(error?.message || "OPENF1_SESSIONS_FAIL") });
+    return [];
+  });
   const payload = rows
     .map(row => {
       const type_key = mapSessionType(row.session_name);
@@ -306,12 +342,12 @@ async function getDrivers(sessionKey) {
   if (cached) return cached;
 
   const [driversRows, lapsRows, resultRows, positionRows, stintsRows, carDataRows] = await Promise.all([
-    fetchOpenF1("drivers", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("laps", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("session_result", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("position", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("stints", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("car_data", { session_key: sessionKey }).catch(() => [])
+    fetchOpenF1WithRetry("drivers", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
+    fetchOpenF1WithRetry("laps", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
+    fetchOpenF1WithRetry("session_result", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
+    fetchOpenF1WithRetry("position", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
+    fetchOpenF1WithRetry("stints", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
+    fetchOpenF1WithRetry("car_data", { session_key: sessionKey }, { retries: 1 }).catch(() => [])
   ]);
 
   const byDriver = new Map();
@@ -369,11 +405,11 @@ function resolveDriverSelection(drivers = [], driverInput = "") {
 
 async function loadSessionContext(sessionKey) {
   const [weather, raceControl, pit, overtakes, teamRadio] = await Promise.all([
-    fetchOpenF1("weather", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("race_control", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("pit", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("overtakes", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("team_radio", { session_key: sessionKey }).catch(() => [])
+    fetchOpenF1WithRetry("weather", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
+    fetchOpenF1WithRetry("race_control", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
+    fetchOpenF1WithRetry("pit", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
+    fetchOpenF1WithRetry("overtakes", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
+    fetchOpenF1WithRetry("team_radio", { session_key: sessionKey }, { retries: 1 }).catch(() => [])
   ]);
 
   return {
@@ -389,11 +425,11 @@ async function loadSessionContext(sessionKey) {
 
 async function getDriverMetricsOpenF1(sessionKey, driverNumber) {
   const [lapsRows, carDataRows, stintsRows, positionRows, resultRows] = await Promise.all([
-    fetchOpenF1("laps", { session_key: sessionKey, driver_number: driverNumber }).catch(() => []),
-    fetchOpenF1("car_data", { session_key: sessionKey, driver_number: driverNumber }).catch(() => []),
-    fetchOpenF1("stints", { session_key: sessionKey, driver_number: driverNumber }).catch(() => []),
-    fetchOpenF1("position", { session_key: sessionKey, driver_number: driverNumber }).catch(() => []),
-    fetchOpenF1("session_result", { session_key: sessionKey, driver_number: driverNumber }).catch(() => [])
+    fetchOpenF1WithRetry("laps", { session_key: sessionKey, driver_number: driverNumber }, { retries: 2 }).catch(() => []),
+    fetchOpenF1WithRetry("car_data", { session_key: sessionKey, driver_number: driverNumber }, { retries: 2 }).catch(() => []),
+    fetchOpenF1WithRetry("stints", { session_key: sessionKey, driver_number: driverNumber }, { retries: 2 }).catch(() => []),
+    fetchOpenF1WithRetry("position", { session_key: sessionKey, driver_number: driverNumber }, { retries: 2 }).catch(() => []),
+    fetchOpenF1WithRetry("session_result", { session_key: sessionKey, driver_number: driverNumber }, { retries: 2 }).catch(() => [])
   ]);
 
   const lapTimes = lapsRows.map(item => parseMaybeNumber(item.lap_duration)).filter(Number.isFinite);

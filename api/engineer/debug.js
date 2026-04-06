@@ -3,7 +3,10 @@ import { DEFAULT_YEAR, apiError, buildTelemetryDebugReport, parseYear } from "./
 export default async function handler(req, res) {
   if (req.method !== "GET") return apiError(res, 405, "Method not allowed", "METHOD_NOT_ALLOWED");
 
-  const allowDebug = process.env.NODE_ENV !== "production" || process.env.ENGINEER_DEBUG_API === "1";
+  const debugToken = String(req.query?.token || req.headers["x-engineer-debug-token"] || "").trim();
+  const expectedToken = String(process.env.ENGINEER_DEBUG_TOKEN || "").trim();
+  const allowTokenBypass = expectedToken && debugToken && debugToken === expectedToken;
+  const allowDebug = process.env.NODE_ENV !== "production" || process.env.ENGINEER_DEBUG_API === "1" || allowTokenBypass;
   if (!allowDebug) {
     return apiError(res, 403, "Debug endpoint deshabilitado en producción", "DEBUG_DISABLED");
   }
