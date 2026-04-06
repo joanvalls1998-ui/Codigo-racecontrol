@@ -494,13 +494,6 @@ function renderEngineerPredictionPanel(favorite, raceName, activePredictData, ex
 }
 
 const TELEMETRY_SEASON_YEAR = 2026;
-const TELEMETRY_SESSION_TYPES = Object.freeze([
-  { key: "fp1", label: "FP1" },
-  { key: "fp2", label: "FP2" },
-  { key: "fp3", label: "FP3" },
-  { key: "qualy", label: "Qualy" },
-  { key: "race", label: "Carrera" }
-]);
 
 const engineerState = {
   submode: "prediction",
@@ -514,30 +507,17 @@ const engineerState = {
     type: "driver",
     a: "",
     b: "",
-    lastLoadedKey: "",
-    initialized: false,
-    technicalData: null,
-    attemptedResolution: false
+    context: null,
+    technicalData: null
   }
 };
 
 const engineerCache = {
-  meetings: [],
-  meetingsPromise: null,
-  sessionsByMeeting: new Map(),
-  sessionsByGp: new Map(),
-  sessionsPromiseByMeeting: new Map(),
-  participantsBySession: new Map(),
-  participantsPromiseBySession: new Map(),
-  comparisonByKey: new Map(),
-  dataBySelection: new Map()
+  context: new Map(),
+  compare: new Map()
 };
 
 let telemetryLoadRequestId = 0;
-
-function telemetryTypeLabel(key) {
-  return TELEMETRY_SESSION_TYPES.find(type => type.key === key)?.label || key;
-}
 
 function formatTelemetryTime(seconds) {
   if (!Number.isFinite(seconds) || seconds <= 0) return "N/D";
@@ -555,6 +535,11 @@ function formatTelemetryDelta(value) {
 function formatTelemetrySpeed(value) {
   if (!Number.isFinite(value)) return "N/D";
   return `${Math.round(value)} km/h`;
+}
+
+function telemetryDelta(aValue, bValue) {
+  if (!Number.isFinite(aValue) || !Number.isFinite(bValue)) return null;
+  return aValue - bValue;
 }
 
 async function fetchEngineerApi(endpoint, params = {}) {
@@ -577,86 +562,38 @@ async function fetchEngineerApi(endpoint, params = {}) {
 function telemetryFriendlyErrorMessage(error) {
   const message = String(error?.message || "");
   if (message.includes("No hay participantes para esta sesión")) return "No hay participantes para esta sesión.";
-  if (message.includes("No hay datos de comparación para esta combinación")) return "No hay datos de comparación para esta combinación.";
+  if (message.includes("No hay datos de comparación para esta combinación")) return "No hay datos suficientes para esta combinación.";
   if (message.includes("Ingeniero solo admite temporada 2026")) return "Ingeniero está limitado a temporada 2026.";
   if (message.includes("Failed to fetch")) return "No se pudo conectar con el backend técnico. Reintenta en unos segundos.";
-  return "No se pudieron cargar datos técnicos. Intenta otra sesión.";
+  return "No hay datos técnicos históricos disponibles para este caso.";
 }
 
-async function loadTelemetrySessionCatalog() {
-  if (engineerCache.meetings.length) return engineerCache.meetings;
-  if (engineerCache.meetingsPromise) return engineerCache.meetingsPromise;
-
-  engineerCache.meetingsPromise = fetchEngineerApi("meetings", { year: TELEMETRY_SEASON_YEAR })
-    .then(data => Array.isArray(data?.meetings) ? data.meetings : [])
-    .finally(() => { engineerCache.meetingsPromise = null; });
-
-  engineerCache.meetings = await engineerCache.meetingsPromise;
-  return engineerCache.meetings;
+function contextCacheKey() {
+  const telemetry = engineerState.telemetry;
+  return `${telemetry.gp}:${telemetry.sessionType}:${telemetry.type}:${telemetry.a}:${telemetry.b}`;
 }
 
-function getTelemetrySessionForGp(gpKey, typeKey) {
-  const sessions = engineerCache.sessionsByGp.get(String(gpKey)) || [];
-  return sessions.filter(session => session.type_key === typeKey);
+function compareCacheKey() {
+  const telemetry = engineerState.telemetry;
+  return `${telemetry.gp}:${telemetry.sessionKey}:${telemetry.type}:${telemetry.a}:${telemetry.b}`;
 }
 
-async function loadTelemetryParticipants(sessionKey) {
-  if (engineerCache.participantsBySession.has(sessionKey)) {
-    return engineerCache.participantsBySession.get(sessionKey);
-  }
-  if (engineerCache.participantsPromiseBySession.has(sessionKey)) {
-    return engineerCache.participantsPromiseBySession.get(sessionKey);
-  }
-
-  const promise = fetchEngineerApi("entities", {
-    year: TELEMETRY_SEASON_YEAR,
-    session_key: sessionKey,
-    type: "driver"
-  })
-    .then(data => ({
-      drivers: Array.isArray(data?.drivers) ? data.drivers : [],
-      teams: Array.isArray(data?.teams) ? data.teams.map(item => item.name) : []
-    }))
-    .finally(() => engineerCache.participantsPromiseBySession.delete(sessionKey));
-
-  engineerCache.participantsPromiseBySession.set(sessionKey, promise);
-  const payload = await promise;
-  engineerCache.participantsBySession.set(sessionKey, payload);
-  return payload;
-}
-
-async function buildTelemetryComparison({ sessionKey, type, a, b, participants }) {
-  const cacheKey = `${engineerState.telemetry.gp}:${sessionKey}:${type}:${a}:${b}`;
-  if (engineerCache.comparisonByKey.has(cacheKey)) return engineerCache.comparisonByKey.get(cacheKey);
-  const payload = await fetchEngineerApi("compare", {
+async function loadTelemetryContext() {
+  const key = contextCacheKey();
+  if (engineerCache.context.has(key)) return engineerCache.context.get(key);
+  const payload = await fetchEngineerApi("context", {
     year: TELEMETRY_SEASON_YEAR,
     meeting_key: engineerState.telemetry.gp,
-    session_key: sessionKey,
-    type,
-    a,
-    b
+    session_type: engineerState.telemetry.sessionType,
+    type: engineerState.telemetry.type,
+    a: engineerState.telemetry.a,
+    b: engineerState.telemetry.b
   });
-  engineerCache.comparisonByKey.set(cacheKey, payload);
+  engineerCache.context.set(key, payload);
   return payload;
 }
 
-async function buildTelemetryEvolution({ gpKey, type, a, b, participants }) {
-  const comparison = await buildTelemetryComparison({
-    sessionKey: engineerState.telemetry.sessionKey,
-    type,
-    a,
-    b,
-    participants
-  });
-  return Array.isArray(comparison?.evolution) ? comparison.evolution : [];
-}
-
-function telemetryDelta(aValue, bValue) {
-  if (!Number.isFinite(aValue) || !Number.isFinite(bValue)) return null;
-  return aValue - bValue;
-}
-
-function renderTelemetryMetricTile(label, aValue, bValue, formatter) {
+function renderTelemetryMetricTile(label, aValue, bValue, formatter, sameValue = false) {
   if (!Number.isFinite(aValue) && !Number.isFinite(bValue)) return "";
   const delta = telemetryDelta(aValue, bValue);
   return `
@@ -664,57 +601,54 @@ function renderTelemetryMetricTile(label, aValue, bValue, formatter) {
       <div class="meta-kicker">${escapeHtml(label)}</div>
       <div class="telemetry-vs-row">
         <div><strong>A</strong> ${escapeHtml(formatter(aValue))}</div>
-        <div><strong>B</strong> ${escapeHtml(formatter(bValue))}</div>
+        <div><strong>B</strong> ${escapeHtml(formatter(sameValue ? aValue : bValue))}</div>
       </div>
-      <div class="meta-caption">${Number.isFinite(delta) ? `Δ ${escapeHtml(formatTelemetryDelta(delta))}` : "Delta no disponible para esta combinación."}</div>
+      <div class="meta-caption">${sameValue ? "Señal global de sesión." : (Number.isFinite(delta) ? `Δ ${escapeHtml(formatTelemetryDelta(delta))}` : "Delta no disponible para esta combinación.")}</div>
     </div>
   `;
 }
 
 function renderTelemetryDashboard(technicalData) {
-  const { comparison, evolution, type } = technicalData;
-  const aMetrics = comparison.a?.metrics || {};
-  const bMetrics = comparison.b?.metrics || {};
+  const { comparison, evolution, type, dashboard } = technicalData;
   const context = comparison.context?.summary || {};
 
   const summaryTiles = [
-    renderTelemetryMetricTile("Vuelta referencia", aMetrics.referenceLap, bMetrics.referenceLap, formatTelemetryTime),
-    renderTelemetryMetricTile("Ritmo medio", aMetrics.averagePace, bMetrics.averagePace, formatTelemetryTime),
-    renderTelemetryMetricTile("Velocidad punta", aMetrics.topSpeed, bMetrics.topSpeed, formatTelemetrySpeed),
-    renderTelemetryMetricTile("Speed trap", aMetrics.speedTrap, bMetrics.speedTrap, formatTelemetrySpeed)
+    renderTelemetryMetricTile("Vuelta referencia", dashboard.summary.referenceLap.a, dashboard.summary.referenceLap.b, formatTelemetryTime),
+    renderTelemetryMetricTile("Ritmo medio", dashboard.summary.averagePace.a, dashboard.summary.averagePace.b, formatTelemetryTime),
+    renderTelemetryMetricTile("Velocidad punta", dashboard.summary.topSpeed.a, dashboard.summary.topSpeed.b, formatTelemetrySpeed),
+    renderTelemetryMetricTile("Speed trap", dashboard.summary.speedTrap.a, dashboard.summary.speedTrap.b, formatTelemetrySpeed)
   ].filter(Boolean);
 
   const sectorTiles = [
-    renderTelemetryMetricTile("Sector 1", aMetrics.sector1, bMetrics.sector1, formatTelemetryTime),
-    renderTelemetryMetricTile("Sector 2", aMetrics.sector2, bMetrics.sector2, formatTelemetryTime),
-    renderTelemetryMetricTile("Sector 3", aMetrics.sector3, bMetrics.sector3, formatTelemetryTime)
+    renderTelemetryMetricTile("Sector 1", dashboard.sectors.sector1.a, dashboard.sectors.sector1.b, formatTelemetryTime),
+    renderTelemetryMetricTile("Sector 2", dashboard.sectors.sector2.a, dashboard.sectors.sector2.b, formatTelemetryTime),
+    renderTelemetryMetricTile("Sector 3", dashboard.sectors.sector3.a, dashboard.sectors.sector3.b, formatTelemetryTime)
   ].filter(Boolean);
 
   return `
     <div class="card engineer-card telemetry-dashboard-card">
       <div class="card-title">0 · Contexto de sesión</div>
       <div class="telemetry-summary-grid" style="margin-top:10px;">
-        ${renderTelemetryMetricTile("Temperatura pista", context.avgTrackTemp, context.avgTrackTemp, (v) => Number.isFinite(v) ? `${v.toFixed(1)} °C` : "N/D")}
-        ${renderTelemetryMetricTile("Temperatura aire", context.avgAirTemp, context.avgAirTemp, (v) => Number.isFinite(v) ? `${v.toFixed(1)} °C` : "N/D")}
-        ${renderTelemetryMetricTile("Mensajes race control", context.raceControlMessages, context.raceControlMessages, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D")}
-        ${renderTelemetryMetricTile("Paradas en pit lane", context.pitStops, context.pitStops, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D")}
-        ${renderTelemetryMetricTile("Overtakes registrados", context.overtakes, context.overtakes, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D")}
-        ${renderTelemetryMetricTile("Team radio", context.teamRadios, context.teamRadios, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D")}
+        ${renderTelemetryMetricTile("Temperatura pista", context.avgTrackTemp, context.avgTrackTemp, (v) => Number.isFinite(v) ? `${v.toFixed(1)} °C` : "N/D", true)}
+        ${renderTelemetryMetricTile("Temperatura aire", context.avgAirTemp, context.avgAirTemp, (v) => Number.isFinite(v) ? `${v.toFixed(1)} °C` : "N/D", true)}
+        ${renderTelemetryMetricTile("Race control", context.raceControlMessages, context.raceControlMessages, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D", true)}
+        ${renderTelemetryMetricTile("Pit lane", context.pitStops, context.pitStops, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D", true)}
+        ${renderTelemetryMetricTile("Overtakes", context.overtakes, context.overtakes, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D", true)}
+        ${renderTelemetryMetricTile("Team radio", context.teamRadios, context.teamRadios, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D", true)}
       </div>
-      <div class="meta-caption" style="margin-top:10px;">Resumen derivado de endpoints gratuitos históricos de OpenF1 para 2026.</div>
     </div>
 
     <div class="card engineer-card telemetry-dashboard-card">
       <div class="card-title">1 · Resumen técnico</div>
       <div class="telemetry-summary-grid" style="margin-top:10px;">
-        ${summaryTiles.length ? summaryTiles.join("") : `<div class="empty-line">No hay métricas de resumen disponibles para esta combinación.</div>`}
+        ${summaryTiles.length ? summaryTiles.join("") : `<div class="empty-line">No hay datos suficientes para esta combinación.</div>`}
       </div>
     </div>
 
     <div class="card engineer-card telemetry-dashboard-card">
       <div class="card-title">2 · Sectores</div>
       <div class="telemetry-summary-grid" style="margin-top:10px;">
-        ${sectorTiles.length ? sectorTiles.join("") : `<div class="empty-line">No hay sectores disponibles para esta combinación.</div>`}
+        ${sectorTiles.length ? sectorTiles.join("") : `<div class="empty-line">No hay datos suficientes para esta combinación.</div>`}
       </div>
     </div>
 
@@ -723,19 +657,19 @@ function renderTelemetryDashboard(technicalData) {
       <div class="telemetry-stint-grid" style="margin-top:10px;">
         <div class="meta-tile">
           <div class="meta-kicker">Degradación simple A/B</div>
-          <div class="meta-value" style="font-size:17px;">${escapeHtml(formatTelemetryDelta(aMetrics.degradation))} / ${escapeHtml(formatTelemetryDelta(bMetrics.degradation))}</div>
-          <div class="meta-caption">Calculada con la diferencia entre las 3 primeras y 3 últimas vueltas válidas.</div>
+          <div class="meta-value" style="font-size:17px;">${escapeHtml(formatTelemetryDelta(dashboard.stint.degradation.a))} / ${escapeHtml(formatTelemetryDelta(dashboard.stint.degradation.b))}</div>
+          <div class="meta-caption">Lectura de caída de ritmo entre inicio y final del stint.</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Ritmo por stint</div>
-          <div class="meta-value" style="font-size:17px;">A ${escapeHtml(formatTelemetryTime(aMetrics.averagePace))} · B ${escapeHtml(formatTelemetryTime(bMetrics.averagePace))}</div>
-          <div class="meta-caption">Stint básico con ritmo medio agregado por selección ${type === "driver" ? "piloto/piloto" : "equipo/equipo"}.</div>
+          <div class="meta-value" style="font-size:17px;">A ${escapeHtml(formatTelemetryTime(dashboard.stint.averagePace.a))} · B ${escapeHtml(formatTelemetryTime(dashboard.stint.averagePace.b))}</div>
+          <div class="meta-caption">Comparativa ${type === "driver" ? "piloto/piloto" : "equipo/equipo"} en la misma sesión.</div>
         </div>
       </div>
     </div>
 
     <div class="card engineer-card telemetry-dashboard-card">
-      <div class="card-title">4 · Comparativa</div>
+      <div class="card-title">4 · Comparativa A vs B</div>
       <div class="telemetry-compare-head" style="margin-top:10px;">
         <div class="telemetry-entity-block">
           ${comparison.a?.image ? `<img src="${escapeHtml(comparison.a.image)}" alt="${escapeHtml(comparison.a.label)}" class="telemetry-driver-photo" />` : ""}
@@ -746,7 +680,6 @@ function renderTelemetryDashboard(technicalData) {
           <div><strong>${escapeHtml(comparison.b?.label || "B")}</strong><div class="meta-caption">${escapeHtml(comparison.b?.team || "")}</div></div>
         </div>
       </div>
-      <div class="meta-caption" style="margin-top:10px;">Comparativa directa con métricas fiables de OpenF1 histórico para el mismo GP y sesión.</div>
     </div>
 
     <div class="card engineer-card telemetry-dashboard-card">
@@ -767,22 +700,22 @@ function renderTelemetryDashboard(technicalData) {
   `;
 }
 
-function renderTelemetrySelector(options, currentValue, attrs = "") {
+function renderTelemetrySelector(options, currentValue) {
   return options.map(option => `<option value="${escapeHtml(option.value)}" ${option.value === currentValue ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("");
 }
 
 function renderTelemetryPanelBody() {
   const telemetry = engineerState.telemetry;
   if (telemetry.status === "loading") {
-    return `<div class="card engineer-card"><div class="empty-line">Cargando telemetría histórica de OpenF1…</div></div>`;
+    return `<div class="card engineer-card"><div class="empty-line">Cargando dashboard técnico 2026…</div></div>`;
   }
 
   if (telemetry.status === "error") {
-    return `<div class="card engineer-card"><div class="card-title">Telemetría no disponible</div><div class="empty-line">${escapeHtml(telemetry.userMessage || "No se pudieron cargar datos técnicos. Intenta otra sesión.")}</div></div>`;
+    return `<div class="card engineer-card"><div class="card-title">Telemetría no disponible</div><div class="empty-line">${escapeHtml(telemetry.userMessage || "No hay datos técnicos históricos disponibles para este caso.")}</div></div>`;
   }
 
   if (telemetry.status === "empty") {
-    return `<div class="card engineer-card"><div class="card-title">Sin datos técnicos</div><div class="empty-line">${escapeHtml(telemetry.userMessage || "No hay datos de telemetría para esta combinación.")}</div></div>`;
+    return `<div class="card engineer-card"><div class="card-title">Sin datos técnicos</div><div class="empty-line">${escapeHtml(telemetry.userMessage || "No hay datos técnicos históricos disponibles para este caso.")}</div></div>`;
   }
 
   if (!telemetry.technicalData) {
@@ -792,48 +725,34 @@ function renderTelemetryPanelBody() {
   return renderTelemetryDashboard(telemetry.technicalData);
 }
 
-function renderTelemetryPanel(gpList = [], participants = { drivers: [], teams: [] }) {
+function renderTelemetryPanel() {
   const telemetry = engineerState.telemetry;
-  const gpOptions = gpList.map(item => ({ value: item.gpKey, label: item.label }));
-  const gpSessions = engineerCache.sessionsByGp.get(String(telemetry.gp)) || [];
-  const validTypeKeys = [...new Set(gpSessions.map(item => item.type_key))];
-  const sessionOptions = TELEMETRY_SESSION_TYPES
-    .filter(item => validTypeKeys.includes(item.key))
-    .map(item => ({ value: item.key, label: item.label }));
+  const context = telemetry.context || { meetings: [], sessions: [], options: { a: [], b: [] } };
+  const gpOptions = context.meetings.map(item => ({ value: String(item.meeting_key), label: item.gp_label }));
+  const sessionOptions = context.sessions.map(item => ({ value: item.type_key, label: item.type_label }));
   const typeOptions = [
     { value: "driver", label: "Piloto / Piloto" },
     { value: "team", label: "Equipo / Equipo" }
   ];
-  const aOptionsSource = telemetry.type === "driver" ? participants.drivers.map(item => item.name) : participants.teams;
-  const bOptionsSource = aOptionsSource.filter(name => name !== telemetry.a);
-  const aOptions = aOptionsSource.map(item => ({ value: item, label: item }));
-  const bOptions = bOptionsSource.map(item => ({ value: item, label: item }));
-  const gpPlaceholder = telemetry.status === "loading" && !gpOptions.length
-    ? [{ value: "", label: "Cargando GP 2026…" }]
-    : [{ value: "", label: "No hay GP de 2026 disponibles ahora." }];
-  const sessionPlaceholder = !telemetry.gp
-    ? [{ value: "", label: "Selecciona GP primero" }]
-    : [{ value: "", label: "No hay sesiones válidas para este GP" }];
-  const entitiesPending = !telemetry.sessionKey || !telemetry.attemptedResolution;
-  const entityPlaceholder = entitiesPending
-    ? [{ value: "", label: "Selecciona GP y sesión" }]
-    : [{ value: "", label: "No hay participantes disponibles para esa sesión" }];
+
+  const aOptions = (context.options?.a || []).map(item => ({ value: item, label: item }));
+  const bOptions = (context.options?.b || []).map(item => ({ value: item, label: item }));
 
   return `
     <div class="card engineer-card telemetry-controls-card">
       <div class="card-title">Telemetría</div>
-      <div class="card-sub">OpenF1 histórico gratis · temporada 2026 · comparativa directa</div>
+      <div class="card-sub">Dashboard técnico OpenF1 · temporada 2026 · arquitectura con backend de agregación</div>
       <div class="telemetry-control-grid" style="margin-top:10px;">
         <label class="telemetry-control-item">
           <span>GP</span>
           <select class="select-input" onchange="setEngineerTelemetryGp(this.value)">
-            ${renderTelemetrySelector(gpOptions.length ? gpOptions : gpPlaceholder, telemetry.gp)}
+            ${renderTelemetrySelector(gpOptions.length ? gpOptions : [{ value: "", label: "No hay GP de 2026 disponibles" }], telemetry.gp)}
           </select>
         </label>
         <label class="telemetry-control-item">
           <span>Sesión</span>
           <select class="select-input" onchange="setEngineerTelemetrySessionType(this.value)">
-            ${renderTelemetrySelector(sessionOptions.length ? sessionOptions : sessionPlaceholder, telemetry.sessionType)}
+            ${renderTelemetrySelector(sessionOptions.length ? sessionOptions : [{ value: "", label: "No hay sesiones válidas" }], telemetry.sessionType)}
           </select>
         </label>
         <label class="telemetry-control-item">
@@ -845,94 +764,19 @@ function renderTelemetryPanel(gpList = [], participants = { drivers: [], teams: 
         <label class="telemetry-control-item">
           <span>A</span>
           <select class="select-input" onchange="setEngineerTelemetryA(this.value)">
-            ${renderTelemetrySelector(aOptions.length ? aOptions : entityPlaceholder, telemetry.a)}
+            ${renderTelemetrySelector(aOptions.length ? aOptions : [{ value: "", label: "No hay participantes para esta sesión." }], telemetry.a)}
           </select>
         </label>
         <label class="telemetry-control-item">
           <span>B</span>
           <select class="select-input" onchange="setEngineerTelemetryB(this.value)">
-            ${renderTelemetrySelector(bOptions.length ? bOptions : entityPlaceholder, telemetry.b)}
+            ${renderTelemetrySelector(bOptions.length ? bOptions : [{ value: "", label: "Prueba otra sesión o entidad." }], telemetry.b)}
           </select>
         </label>
       </div>
     </div>
     ${renderTelemetryPanelBody()}
   `;
-}
-
-async function ensureTelemetrySelection() {
-  const telemetry = engineerState.telemetry;
-  telemetry.attemptedResolution = false;
-  const meetings = await loadTelemetrySessionCatalog();
-  const gpList = meetings.map(item => ({ gpKey: String(item.meeting_key), label: item.gp_label }));
-  if (!gpList.length) {
-    telemetry.status = "empty";
-    telemetry.userMessage = "No hay reuniones de 2026 disponibles en OpenF1 ahora mismo.";
-    return { gpList, participants: { drivers: [], teams: [] } };
-  }
-
-  if (!telemetry.gp || !gpList.some(item => item.gpKey === telemetry.gp)) {
-    telemetry.gp = gpList[0].gpKey;
-  }
-
-  if (!engineerCache.sessionsByMeeting.has(String(telemetry.gp))) {
-    if (!engineerCache.sessionsPromiseByMeeting.has(String(telemetry.gp))) {
-      engineerCache.sessionsPromiseByMeeting.set(
-        String(telemetry.gp),
-        fetchEngineerApi("sessions", {
-          year: TELEMETRY_SEASON_YEAR,
-          meeting_key: telemetry.gp
-        }).then(data => Array.isArray(data?.sessions) ? data.sessions : [])
-      );
-    }
-    const loadedSessions = await engineerCache.sessionsPromiseByMeeting.get(String(telemetry.gp));
-    engineerCache.sessionsByMeeting.set(String(telemetry.gp), loadedSessions);
-    engineerCache.sessionsByGp.set(String(telemetry.gp), loadedSessions);
-    engineerCache.sessionsPromiseByMeeting.delete(String(telemetry.gp));
-  }
-
-  const sessionsForGp = engineerCache.sessionsByGp.get(String(telemetry.gp)) || [];
-  const allowedSessions = sessionsForGp.filter(item =>
-    item.session_key
-    && TELEMETRY_SESSION_TYPES.some(type => type.key === item.type_key)
-  );
-  if (!allowedSessions.length) {
-    telemetry.status = "empty";
-    telemetry.sessionType = "";
-    telemetry.sessionKey = "";
-    telemetry.userMessage = "Este GP de 2026 no tiene sesiones válidas de FP, Qualy o Carrera.";
-    return { gpList, participants: { drivers: [], teams: [] } };
-  }
-
-  if (!telemetry.sessionType || !allowedSessions.some(item => item.type_key === telemetry.sessionType)) {
-    telemetry.sessionType = allowedSessions[allowedSessions.length - 1].type_key;
-  }
-
-  const sessionCandidates = allowedSessions.filter(item => item.type_key === telemetry.sessionType);
-  const selectedSession = sessionCandidates[sessionCandidates.length - 1] || allowedSessions[allowedSessions.length - 1];
-  telemetry.sessionType = selectedSession.type_key;
-  telemetry.sessionKey = selectedSession.session_key;
-
-  const participants = await loadTelemetryParticipants(telemetry.sessionKey);
-  telemetry.attemptedResolution = true;
-  const options = telemetry.type === "driver"
-    ? participants.drivers.map(item => item.name)
-    : participants.teams;
-
-  if (!options.length) {
-    telemetry.a = "";
-    telemetry.b = "";
-    telemetry.status = "empty";
-    telemetry.userMessage = "No hay participantes disponibles para esa sesión.";
-    return { gpList, participants };
-  }
-
-  if (!options.includes(telemetry.a)) telemetry.a = options[0] || "";
-  const bOptions = options.filter(name => name !== telemetry.a);
-  if (!bOptions.includes(telemetry.b)) telemetry.b = bOptions[0] || "";
-  if (!telemetry.b && bOptions.length) telemetry.b = bOptions[0];
-
-  return { gpList, participants };
 }
 
 async function loadTelemetryData() {
@@ -944,42 +788,42 @@ async function loadTelemetryData() {
   renderEngineerScreen();
 
   try {
-    const { gpList, participants } = await ensureTelemetrySelection();
+    const context = await loadTelemetryContext();
     if (requestId !== telemetryLoadRequestId) return;
 
-    if (!telemetry.sessionKey) {
+    telemetry.context = context;
+    telemetry.gp = context.selections?.meeting_key || "";
+    telemetry.sessionType = context.selections?.session_type || "";
+    telemetry.sessionKey = context.selections?.session_key || "";
+    telemetry.type = context.selections?.type || telemetry.type;
+    telemetry.a = context.selections?.a || "";
+    telemetry.b = context.selections?.b || "";
+
+    if (!telemetry.sessionKey || !telemetry.a || !telemetry.b) {
       telemetry.status = "empty";
       telemetry.technicalData = null;
-      telemetry.userMessage = telemetry.userMessage || "Selecciona GP y sesión válidos para comparar.";
-      renderEngineerScreen(gpList, participants);
+      telemetry.userMessage = !telemetry.sessionKey
+        ? "No hay datos técnicos históricos disponibles para este caso."
+        : "No hay participantes para esta sesión.";
+      renderEngineerScreen();
       return;
     }
 
-    if (!telemetry.a || !telemetry.b || !telemetry.sessionKey) {
-      telemetry.status = "empty";
-      telemetry.technicalData = null;
-      telemetry.userMessage = telemetry.type === "driver"
-        ? "Selecciona dos pilotos válidos."
-        : "Selecciona dos equipos válidos.";
-      renderEngineerScreen(gpList, participants);
-      return;
-    }
-
-    const selectionKey = `${telemetry.gp}:${telemetry.sessionKey}:${telemetry.type}:${telemetry.a}:${telemetry.b}`;
-    if (engineerCache.dataBySelection.has(selectionKey)) {
-      telemetry.technicalData = engineerCache.dataBySelection.get(selectionKey);
+    const compareKey = compareCacheKey();
+    if (engineerCache.compare.has(compareKey)) {
+      telemetry.technicalData = engineerCache.compare.get(compareKey);
       telemetry.status = "ready";
-      telemetry.lastLoadedKey = selectionKey;
-      renderEngineerScreen(gpList, participants);
+      renderEngineerScreen();
       return;
     }
 
-    const comparison = await buildTelemetryComparison({
-      sessionKey: telemetry.sessionKey,
+    const comparison = await fetchEngineerApi("compare", {
+      year: TELEMETRY_SEASON_YEAR,
+      meeting_key: telemetry.gp,
+      session_key: telemetry.sessionKey,
       type: telemetry.type,
       a: telemetry.a,
-      b: telemetry.b,
-      participants
+      b: telemetry.b
     });
     if (requestId !== telemetryLoadRequestId) return;
 
@@ -987,33 +831,17 @@ async function loadTelemetryData() {
     if (!hasData) {
       telemetry.status = "empty";
       telemetry.technicalData = null;
-      telemetry.userMessage = "No hay datos de comparación para esa combinación.";
-      renderEngineerScreen(gpList, participants);
+      telemetry.userMessage = "No hay datos suficientes para esta combinación.";
+      renderEngineerScreen();
       return;
     }
 
-    const evolution = await buildTelemetryEvolution({
-      gpKey: telemetry.gp,
-      type: telemetry.type,
-      a: telemetry.a,
-      b: telemetry.b,
-      participants
-    });
-    if (requestId !== telemetryLoadRequestId) return;
-
-    const technicalData = {
-      comparison: comparison.comparison,
-      evolution,
-      type: telemetry.type
-    };
-    engineerCache.dataBySelection.set(selectionKey, technicalData);
-    telemetry.technicalData = technicalData;
-    telemetry.lastLoadedKey = selectionKey;
+    engineerCache.compare.set(compareKey, comparison);
+    telemetry.technicalData = comparison;
     telemetry.status = "ready";
-    renderEngineerScreen(gpList, participants);
+    renderEngineerScreen();
   } catch (error) {
     if (requestId !== telemetryLoadRequestId) return;
-    console.error("[telemetry] load failed", error);
     telemetry.status = "error";
     telemetry.error = String(error?.message || "");
     telemetry.userMessage = telemetryFriendlyErrorMessage(error);
@@ -1031,10 +859,8 @@ function setEngineerSubmode(mode) {
 }
 
 function setEngineerTelemetryGp(value) {
-  if (!value) return;
-  engineerState.telemetry.gp = value;
+  engineerState.telemetry.gp = value || "";
   engineerState.telemetry.sessionType = "";
-  engineerState.telemetry.sessionKey = "";
   engineerState.telemetry.a = "";
   engineerState.telemetry.b = "";
   engineerState.telemetry.technicalData = null;
@@ -1042,9 +868,7 @@ function setEngineerTelemetryGp(value) {
 }
 
 function setEngineerTelemetrySessionType(value) {
-  if (!value) return;
-  engineerState.telemetry.sessionType = value;
-  engineerState.telemetry.sessionKey = "";
+  engineerState.telemetry.sessionType = value || "";
   engineerState.telemetry.a = "";
   engineerState.telemetry.b = "";
   engineerState.telemetry.technicalData = null;
@@ -1060,21 +884,19 @@ function setEngineerTelemetryType(value) {
 }
 
 function setEngineerTelemetryA(value) {
-  if (!value) return;
-  engineerState.telemetry.a = value;
-  if (engineerState.telemetry.b === value) engineerState.telemetry.b = "";
+  engineerState.telemetry.a = value || "";
+  if (engineerState.telemetry.b === engineerState.telemetry.a) engineerState.telemetry.b = "";
   engineerState.telemetry.technicalData = null;
   loadTelemetryData();
 }
 
 function setEngineerTelemetryB(value) {
-  if (!value) return;
-  engineerState.telemetry.b = value;
+  engineerState.telemetry.b = value || "";
   engineerState.telemetry.technicalData = null;
   loadTelemetryData();
 }
 
-function renderEngineerScreen(gpList = [], participants = { drivers: [], teams: [] }) {
+function renderEngineerScreen() {
   const selectedRace = getSelectedRace();
   const favorite = getFavorite();
   const needFreshPredict = shouldAutoGeneratePredict(favorite, selectedRace);
@@ -1097,7 +919,7 @@ function renderEngineerScreen(gpList = [], participants = { drivers: [], teams: 
 
     ${engineerState.submode === "prediction"
       ? renderEngineerPredictionPanel(favorite, selectedRace, activePredictData, expert)
-      : renderTelemetryPanel(gpList, participants)}
+      : renderTelemetryPanel()}
   `;
 
   if (engineerState.submode === "prediction" && needFreshPredict) {
