@@ -1843,29 +1843,49 @@ async function showSessions() {
   rememberScreen("sessions");
   updateSubtitle();
 
-  contentEl().innerHTML = renderLoadingCard("Sesiones", "Preparando centro de seguimiento…", true);
+  contentEl().innerHTML = renderLoadingCard("Sesiones", "Preparando seguimiento en vivo…", true);
 
   try {
     await fetchCalendarData();
-    const context = state.weekendContext;
+    const context = getHomeWeekendContext();
     const favorite = getFavorite();
-    const expert = isExpertMode();
-    const watchNowItems = getWhatToWatchNowItems(context, favorite, expert);
-    const sessionsView = getVisibleSessions(context, expert);
+    const sessions = Array.isArray(context?.sessions) ? context.sessions : [];
+    const lead = context?.currentSession || context?.nextSession || context?.lastCompletedSession;
+    const operational = getWeekendOperationalFocus(context);
 
     contentEl().innerHTML = `
-      ${renderSessionsHero(context)}
-
-      <div class="card highlight-card sessions-watch-card">
-        <div class="card-title">Ahora / siguiente</div>
-        <div class="insight-list">${watchNowItems.map(item => `<div class="insight-item">${escapeHtml(item)}</div>`).join("")}</div>
+      <div class="card highlight-card app-panel-card">
+        <div class="app-panel-topline">
+          <span class="tag ${getWeekendPhaseTagClass(context?.phase || "pre_weekend")}">${escapeHtml(context?.phaseLabel || "Previa")}</span>
+          <span class="tag ${escapeHtml(operational.tagClass)}">${escapeHtml(operational.label)}</span>
+        </div>
+        <div class="card-title">Seguimiento de sesiones</div>
+        <div class="app-hero-mainline">${escapeHtml(lead?.label || "Sin sesión activa")}${context?.nextSessionCountdown ? ` · ${escapeHtml(context.nextSessionCountdown)}` : ""}</div>
       </div>
 
-      ${(context?.sessions || []).length
-        ? sessionsView.visible.map(session => renderSessionCard(session, favorite, context)).join("")
-        : `<div class="card"><div class="card-title">Sesiones</div><div class="empty-line">${escapeHtml(context?.scheduleReason || "No se han podido construir las sesiones del GP ahora mismo.")}</div></div>`}
+      <div class="card app-panel-card">
+        <div class="card-head">
+          <div class="card-head-left"><div class="card-title">Live / Next</div></div>
+          <div class="card-head-actions"><button class="icon-btn" onclick="showSessions()">Refrescar</button></div>
+        </div>
+        <div class="app-session-grid">
+          ${sessions.length ? sessions.map(session => `
+            <button class="app-session-tile ${session.status}" onclick="openDetailModal('<div class=\"card\" style=\"margin-bottom:0;\"><div class=\"card-title\">${escapeHtml(session.label)}<\/div><div class=\"info-line\">${escapeHtml(getSessionImpactOnFavorite(session.key, favorite))}<\/div><\/div>')">
+              <div class="app-session-row-top">
+                <strong>${escapeHtml(session.label)}</strong>
+                <span class="tag ${getSessionStatusTagClass(session.status)}">${escapeHtml(getSessionStatusLabel(session.status))}</span>
+              </div>
+              <div class="app-session-time">${escapeHtml(formatSessionDateTime(session.start))}</div>
+            </button>
+          `).join("") : `<div class="empty-line">${escapeHtml(context?.scheduleReason || "No hay sesiones cargadas ahora mismo.")}</div>`}
+        </div>
+      </div>
 
-      ${expert ? renderContextGlossaryCard("sessions", context?.phase || "pre_weekend") : ""}
+      <div class="card app-quick-grid-card">
+        <a href="#" class="app-quick-link" onclick="showRaceMode(); return false;">Modo carrera</a>
+        <a href="#" class="app-quick-link" onclick="showPredict(); return false;">Predict</a>
+        <a href="#" class="app-quick-link" onclick="showCalendar(); return false;">Calendario</a>
+      </div>
     `;
   } catch (error) {
     contentEl().innerHTML = renderErrorCard("Sesiones", "Error al preparar esta pantalla", error.message);
@@ -3308,41 +3328,66 @@ async function showHome() {
   rememberScreen("home");
   updateSubtitle();
 
-  contentEl().innerHTML = `
-    ${renderHomeHero()}
-    ${renderLoadingCard("Cargando centro de control…", "Leyendo fase del GP, sesión actual y accesos rápidos.", true)}
-  `;
+  contentEl().innerHTML = renderLoadingCard("Inicio", "Preparando panel principal…", true);
 
   const favorite = getFavorite();
   let calendarError = null;
 
   try {
     const calendarData = await fetchCalendarData();
-
     const nextRace = getNextRaceFromCalendar(calendarData?.events || []);
     if (nextRace) {
       const mappedRace = mapCalendarEventToPredictRace(nextRace);
-      if (mappedRace && getSettings().autoSelectNextRace) {
-        state.detectedNextRaceName = mappedRace;
-      }
+      if (mappedRace && getSettings().autoSelectNextRace) state.detectedNextRaceName = mappedRace;
     }
   } catch (error) {
     calendarError = error;
   }
 
   const context = getHomeWeekendContext();
+  const raceName = context?.raceName || getSelectedRace();
+  const lead = context?.currentSession || context?.nextSession || context?.lastCompletedSession;
+  const operation = getWeekendOperationalFocus(context);
+  const predictData = getActivePredictDataForRace(favorite, raceName);
+  const snapshot = getFavoriteComparativeSnapshot(favorite, raceName, predictData);
 
-  try {
-    await fetchNewsDataForFavorite(favorite, false);
-  } catch {
-    // silencioso: la home mantiene fallback sin romper la carga
-  }
+  try { await fetchNewsDataForFavorite(favorite, false); } catch {}
 
   contentEl().innerHTML = `
-    <div class="home-stack${isExpertMode() ? " home-stack-expert" : ""}">
-      ${renderHomeHero()}
-      ${calendarError ? renderErrorCard("Inicio", "No se pudo cargar el calendario del GP", calendarError.message) : ""}
-      ${renderHomeDynamicBlocks(context, favorite)}
+    <div class="card highlight-card app-home-hero">
+      <div class="app-panel-topline">
+        <span class="tag ${getWeekendPhaseTagClass(context?.phase || "pre_weekend")}">${escapeHtml(context?.phaseLabel || "Previa")}</span>
+        <span class="tag ${escapeHtml(operation.tagClass)}">${escapeHtml(operation.label)}</span>
+      </div>
+      <div class="card-title">${escapeHtml(raceName)}</div>
+      <div class="app-hero-mainline">${escapeHtml(lead?.label || "Sin sesión próxima")}${context?.nextSessionCountdown ? ` · ${escapeHtml(context.nextSessionCountdown)}` : ""}</div>
+      <div class="app-hero-subline">${escapeHtml(operation.detail)}</div>
+    </div>
+
+    ${calendarError ? renderErrorCard("Inicio", "No se pudo cargar el calendario del GP", calendarError.message) : ""}
+
+    <div class="card app-home-favorite">
+      <div class="card-head">
+        <div class="card-head-left"><div class="card-title">Favorito</div></div>
+        <div class="card-head-actions"><button class="icon-btn" onclick="openFavoriteSelectorModal('showHome')">Cambiar</button></div>
+      </div>
+      <div class="app-favorite-row">
+        <strong>${escapeHtml(favorite.name)}</strong>
+        <span class="tag favorite">P${escapeHtml(favorite.pos || "—")}</span>
+      </div>
+      <div class="info-line">Objetivo: ${escapeHtml(snapshot?.objective?.realistic || "Sin objetivo definido todavía")}</div>
+    </div>
+
+    <div class="card app-mini-card">
+      <div class="card-title">Referencia anterior</div>
+      <div class="info-line">${escapeHtml(context?.lastCompletedSession ? `${context.lastCompletedSession.label} completada` : "Sin sesión cerrada reciente")}</div>
+    </div>
+
+    <div class="card app-quick-grid-card">
+      <a href="#" class="app-quick-link" onclick="showSessions(); return false;">Sesiones</a>
+      <a href="#" class="app-quick-link" onclick="showPredict(); return false;">Predict</a>
+      <a href="#" class="app-quick-link" onclick="showFavorito(); return false;">Favorito</a>
+      <a href="#" class="app-quick-link" onclick="showRaceMode(); return false;">Modo carrera</a>
     </div>
   `;
 }
@@ -3930,68 +3975,49 @@ function showMore() {
   rememberScreen("more");
   updateSubtitle();
 
-  const isExpert = isExpertMode();
   const settings = getSettings();
   const favorite = getFavorite();
-  const favoriteTypeLabel = favorite.type === "driver" ? "Piloto" : "Equipo";
-  const favoriteTeamLine = favorite.type === "driver" ? `Equipo: ${favorite.team}` : (favorite.drivers ? `Pilotos: ${favorite.drivers}` : "Constructor");
-  const quickContext = getMoreQuickAccessContext();
-
-  const renderNavCard = ({ title, contextLine, onclick }) => `
-    <a href="#" class="menu-link more-card more-quick-card" onclick="${onclick}; return false;">
-      <div class="more-card-title">${escapeHtml(title)}</div>
-      ${contextLine ? `<div class="more-card-context">${escapeHtml(contextLine)}</div>` : ""}
-    </a>
-  `;
+  const isExpert = isExpertMode();
 
   contentEl().innerHTML = `
-    <div class="card more-hub-card">
-      <div class="card-title">Panel de control</div>
+    <div class="card highlight-card app-panel-card">
+      <div class="card-title">Más</div>
+      <div class="app-hero-subline">Centro de control rápido.</div>
+    </div>
 
-      <div class="more-section">
-        <div class="more-section-title">Favorito</div>
-        <div class="more-control-card">
-          <div class="more-card-title">${escapeHtml(favorite.name)}</div>
-          <div class="more-card-context">${escapeHtml(favoriteTypeLabel)} · ${escapeHtml(favoriteTeamLine)}</div>
-          <div class="action-row">
-            <button class="btn" onclick="openFavoriteSelectorModal('showMore')">Cambiar</button>
-            <button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset</button>
-          </div>
-        </div>
+    <div class="card app-panel-card">
+      <div class="card-head">
+        <div class="card-head-left"><div class="card-title">Favorito</div></div>
       </div>
+      <div class="app-favorite-row">
+        <strong>${escapeHtml(favorite.name)}</strong>
+        <span class="tag general">${favorite.type === "driver" ? "Piloto" : "Equipo"}</span>
+      </div>
+      <div class="app-two-actions">
+        <button class="btn" onclick="openFavoriteSelectorModal('showMore')">Cambiar favorito</button>
+        <button class="danger-btn" onclick="resetFavoriteToDefault(); showMore();">Reset</button>
+      </div>
+    </div>
 
-      <div class="more-section">
-        <div class="more-section-title">Modo</div>
-        <div class="more-control-card">
-          <div class="quick-row more-experience-row">
-            <button class="chip ${!isExpert ? "active" : ""}" onclick="setExperienceMode('casual')">Casual</button>
-            <button class="chip ${isExpert ? "active" : ""}" onclick="setExperienceMode('expert')">Experto</button>
-          </div>
-          <div class="quick-row more-toggle-row" style="margin-top:8px;">
-            <button class="toggle-btn ${settings.homeCompactMode ? "active" : ""}" onclick="togglePremiumSetting('homeCompactMode')">Inicio compacto</button>
-            <button class="toggle-btn ${settings.autoSelectNextRace ? "active" : ""}" onclick="togglePremiumSetting('autoSelectNextRace')">Auto GP</button>
-          </div>
-        </div>
+    <div class="card app-panel-card">
+      <div class="card-title">Modo</div>
+      <div class="app-two-actions" style="margin-top:10px;">
+        <button class="chip ${!isExpert ? "active" : ""}" onclick="setExperienceMode('casual')">Casual</button>
+        <button class="chip ${isExpert ? "active" : ""}" onclick="setExperienceMode('expert')">Experto</button>
       </div>
+      <div class="app-two-actions" style="margin-top:8px;">
+        <button class="toggle-btn ${settings.homeCompactMode ? "active" : ""}" onclick="togglePremiumSetting('homeCompactMode')">Inicio compacto</button>
+        <button class="toggle-btn ${settings.autoSelectNextRace ? "active" : ""}" onclick="togglePremiumSetting('autoSelectNextRace')">Auto GP</button>
+      </div>
+    </div>
 
-      <div class="more-section">
-        <div class="more-section-title">Atajos</div>
-        <div class="more-card-grid">
-          ${renderNavCard({ title: "Sesiones", contextLine: quickContext.sessions, onclick: "showSessions()" })}
-          ${renderNavCard({ title: "Calendario", contextLine: quickContext.calendar, onclick: "showCalendar()" })}
-          ${renderNavCard({ title: "Clasificación", contextLine: quickContext.standings, onclick: "showStandings()" })}
-          ${renderNavCard({ title: "Modo carrera", contextLine: quickContext.raceMode, onclick: "showRaceMode()" })}
-          ${renderNavCard({ title: "Noticias", contextLine: quickContext.news, onclick: "showNews()" })}
-          ${renderNavCard({ title: "Predict", contextLine: quickContext.predict, onclick: "showPredict()" })}
-        </div>
-      </div>
-
-      <div class="more-section">
-        <div class="more-control-stack">
-          <div class="more-control-card more-system-card" onclick="showGlossary()"><div class="more-card-title">Glosario</div></div>
-          <div class="more-control-card more-system-card" onclick="showSettingsPanel()"><div class="more-card-title">Ajustes</div></div>
-        </div>
-      </div>
+    <div class="card app-quick-grid-card app-quick-grid-3">
+      <a href="#" class="app-quick-link" onclick="showCalendar(); return false;">Calendario</a>
+      <a href="#" class="app-quick-link" onclick="showStandings(); return false;">Clasificación</a>
+      <a href="#" class="app-quick-link" onclick="showNews(); return false;">Noticias</a>
+      <a href="#" class="app-quick-link" onclick="showRaceMode(); return false;">Modo carrera</a>
+      <a href="#" class="app-quick-link" onclick="showSettingsPanel(); return false;">Ajustes</a>
+      <a href="#" class="app-quick-link" onclick="showGlossary(); return false;">Glosario</a>
     </div>
   `;
 }

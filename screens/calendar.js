@@ -162,19 +162,21 @@ async function showCalendar(force = false) {
 
     contentEl().innerHTML = `
       ${renderCalendarIntelligenceHero(nextRace, context)}
-      ${renderCalendarFlowCard(context)}
-
-      <div class="card">
+      <div class="card app-panel-card">
         <div class="card-head">
-          <div class="card-head-left"><div class="card-title">Próximos GP</div></div>
+          <div class="card-head-left"><div class="card-title">Temporada</div></div>
           <div class="card-head-actions"><button class="icon-btn" onclick="refreshCalendar()">Refrescar</button></div>
         </div>
-        ${upcoming.length ? upcoming.map(event => renderCalendarEventCard(event)).join("") : `<div class="empty-line">No hay próximas citas cargadas.</div>`}
-      </div>
-
-      <div class="card calendar-secondary-card">
-        <div class="card-title">Completados</div>
-        ${completed.slice(0, 5).map(event => renderCalendarEventCard(event, { secondary: true })).join("") || `<div class="empty-line">Sin carreras completadas.</div>`}
+        <div class="app-calendar-columns">
+          <div>
+            <div class="app-section-title">Próximos</div>
+            ${upcoming.length ? upcoming.map(event => renderCalendarEventCard(event)).join("") : `<div class="empty-line">No hay próximas citas cargadas.</div>`}
+          </div>
+          <div>
+            <div class="app-section-title">Últimos</div>
+            ${completed.slice(0, 4).map(event => renderCalendarEventCard(event, { secondary: true })).join("") || `<div class="empty-line">Sin carreras completadas.</div>`}
+          </div>
+        </div>
       </div>
     `;
   } catch (error) {
