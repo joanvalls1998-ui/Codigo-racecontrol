@@ -1,5 +1,5 @@
 function renderExperienceModeLine(settings) {
-  const mode = settings.experienceMode === "engineer" ? "engineer" : (settings.experienceMode === "expert" ? "expert" : "casual");
+  const mode = settings.experienceMode === "expert" ? "expert" : "casual";
 
   return `
     <div class="settings-line" style="padding-top:8px;">
@@ -12,7 +12,6 @@ function renderExperienceModeLine(settings) {
       <div class="filters-row" style="margin-top:0;">
         <button class="chip ${mode === "casual" ? "active" : ""}" onclick="setExperienceMode('casual')" aria-pressed="${mode === "casual"}">Casual</button>
         <button class="chip ${mode === "expert" ? "active" : ""}" onclick="setExperienceMode('expert')" aria-pressed="${mode === "expert"}">Experto</button>
-        <button class="chip ${mode === "engineer" ? "active" : ""}" onclick="setExperienceMode('engineer')" aria-pressed="${mode === "engineer"}">Ingeniero</button>
       </div>
     </div>
   `;
