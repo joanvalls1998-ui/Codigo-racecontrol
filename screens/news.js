@@ -633,7 +633,7 @@ async function refreshCurrentNews() {
 }
 
 async function showNews() {
-  setActiveNav("nav-news");
+  setActiveNav("nav-more");
   rememberScreen("news");
   updateSubtitle();
 
