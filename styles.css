@@ -2900,6 +2900,21 @@ body.experience-engineer #content {
   gap: 8px;
 }
 
+.engineer-loading,
+.engineer-error {
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  border: 1px solid rgba(109, 136, 165, 0.34);
+  background: rgba(10, 16, 30, 0.86);
+  color: rgba(208, 230, 253, 0.88);
+}
+
+.engineer-error {
+  border-color: rgba(232, 112, 88, 0.38);
+  color: rgba(255, 184, 164, 0.95);
+}
+
 .engineer-field {
   display: grid;
   gap: 5px;
@@ -3019,6 +3034,82 @@ body.experience-engineer #content {
 .engineer-row.good .b { color: #39e1bf; }
 .engineer-row.bad .a,
 .engineer-row.bad .b { color: #ff7a55; }
+
+.engineer-linechart {
+  width: 100%;
+  margin-top: 10px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(11, 18, 31, 0.96), rgba(5, 10, 18, 0.96));
+  border: 1px solid rgba(113, 134, 160, 0.25);
+}
+
+.engineer-linechart polyline {
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.engineer-linechart polyline.a { stroke: #42e8ff; }
+.engineer-linechart polyline.b { stroke: #ffd24d; }
+
+.engineer-empty {
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(167, 191, 216, 0.76);
+}
+
+.engineer-delta-bars {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.engineer-delta-bars .bar-row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.engineer-delta-bars .bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(20, 33, 53, 0.88);
+  position: relative;
+  overflow: hidden;
+}
+
+.engineer-delta-bars .bar-track i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(66, 232, 255, 0.95), rgba(58, 152, 255, 0.95));
+}
+
+.engineer-delta-bars .bar-track.right i {
+  margin-left: auto;
+  background: linear-gradient(90deg, rgba(255, 188, 82, 0.95), rgba(255, 133, 75, 0.95));
+}
+
+.engineer-footnote {
+  margin-top: 10px;
+  font-size: 11px;
+  color: rgba(166, 188, 212, 0.68);
+}
+
+.engineer-evo-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.engineer-evo-legend {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(163, 188, 214, 0.7);
+}
 
 .engineer-compare-head {
   display: grid;
