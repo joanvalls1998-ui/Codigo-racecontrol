@@ -861,6 +861,7 @@ import sys
 
 try:
     import fastf1
+    import pandas as pd
 except Exception:
     print(json.dumps({"ok": False, "reason": "FASTF1_UNAVAILABLE"}))
     sys.exit(0)
@@ -881,9 +882,16 @@ session_map = {
 
 try:
     fastf1.Cache.enable_cache("/tmp/fastf1")
-    session = fastf1.get_session(2026, meeting_name, session_map.get(session_type, "R"))
-    session.load(laps=True, telemetry=True, weather=True, messages=False)
-    laps = session.laps.pick_drivers([driver_number]).pick_quicklaps()
+    schedule = fastf1.get_event_schedule(2026, include_testing=False)
+    event = fastf1.get_event(2026, meeting_name)
+    session_code = session_map.get(session_type, "R")
+    session = fastf1.get_session(2026, meeting_name, session_code)
+    session.load(laps=True, telemetry=True, weather=True, messages=True)
+
+    driver_laps_all = session.laps.pick_drivers([driver_number])
+    laps = driver_laps_all.pick_quicklaps()
+    if laps.empty:
+        laps = driver_laps_all
     if laps.empty:
         print(json.dumps({"ok": False, "reason": "NO_DRIVER_LAPS"}))
         sys.exit(0)
@@ -894,19 +902,116 @@ try:
         sys.exit(0)
 
     fastest = laps.pick_fastest()
-    telemetry = fastest.get_car_data().add_distance() if fastest is not None else None
+    telemetry = None
+    position_data = None
+    merged_tel = None
+
+    if fastest is not None:
+        try:
+            telemetry = fastest.get_car_data()
+        except Exception:
+            telemetry = None
+        try:
+            position_data = fastest.get_pos_data()
+        except Exception:
+            position_data = None
+
+    if telemetry is not None and not telemetry.empty:
+        try:
+            telemetry = telemetry.add_distance()
+        except Exception:
+            pass
+        try:
+            telemetry = telemetry.add_relative_distance()
+        except Exception:
+            pass
+
+    if telemetry is not None and not telemetry.empty and position_data is not None and not position_data.empty:
+        try:
+            merged_tel = telemetry.merge_channels(position_data)
+        except Exception:
+            merged_tel = telemetry
+    else:
+        merged_tel = telemetry
+
+    if merged_tel is not None and not merged_tel.empty:
+        try:
+            merged_tel = merged_tel.resample_channels(rule="100ms")
+        except Exception:
+            pass
+        try:
+            merged_tel = merged_tel.fill_missing()
+        except Exception:
+            pass
+
     speed_line = []
     throttle_line = []
     brake_line = []
     gear_line = []
     rpm_line = []
+    distance_line = []
+    relative_distance_line = []
+    x_line = []
+    y_line = []
 
-    if telemetry is not None and not telemetry.empty:
-        speed_line = [float(v) for v in telemetry["Speed"].dropna().tolist()[:400]]
-        throttle_line = [float(v) for v in telemetry["Throttle"].dropna().tolist()[:400]]
-        brake_line = [float(v) for v in telemetry["Brake"].dropna().astype(float).tolist()[:400]]
-        gear_line = [float(v) for v in telemetry["nGear"].dropna().tolist()[:400]]
-        rpm_line = [float(v) for v in telemetry["RPM"].dropna().tolist()[:400]]
+    if merged_tel is not None and not merged_tel.empty:
+        if "Speed" in merged_tel.columns:
+            speed_line = [float(v) for v in merged_tel["Speed"].dropna().tolist()[:400]]
+        if "Throttle" in merged_tel.columns:
+            throttle_line = [float(v) for v in merged_tel["Throttle"].dropna().tolist()[:400]]
+        if "Brake" in merged_tel.columns:
+            brake_line = [float(v) for v in merged_tel["Brake"].dropna().astype(float).tolist()[:400]]
+        if "nGear" in merged_tel.columns:
+            gear_line = [float(v) for v in merged_tel["nGear"].dropna().tolist()[:400]]
+        if "RPM" in merged_tel.columns:
+            rpm_line = [float(v) for v in merged_tel["RPM"].dropna().tolist()[:400]]
+        if "Distance" in merged_tel.columns:
+            distance_line = [float(v) for v in merged_tel["Distance"].dropna().tolist()[:400]]
+        if "RelativeDistance" in merged_tel.columns:
+            relative_distance_line = [float(v) for v in merged_tel["RelativeDistance"].dropna().tolist()[:400]]
+        if "X" in merged_tel.columns:
+            x_line = [float(v) for v in merged_tel["X"].dropna().tolist()[:400]]
+        if "Y" in merged_tel.columns:
+            y_line = [float(v) for v in merged_tel["Y"].dropna().tolist()[:400]]
+
+    sector1 = None
+    sector2 = None
+    sector3 = None
+    if "Sector1Time" in laps.columns:
+        vals = [float(item.total_seconds()) for item in laps["Sector1Time"].dropna().tolist()]
+        sector1 = sum(vals)/len(vals) if vals else None
+    if "Sector2Time" in laps.columns:
+        vals = [float(item.total_seconds()) for item in laps["Sector2Time"].dropna().tolist()]
+        sector2 = sum(vals)/len(vals) if vals else None
+    if "Sector3Time" in laps.columns:
+        vals = [float(item.total_seconds()) for item in laps["Sector3Time"].dropna().tolist()]
+        sector3 = sum(vals)/len(vals) if vals else None
+
+    stint_rows = []
+    try:
+        if "Stint" in driver_laps_all.columns:
+            grouped = driver_laps_all.dropna(subset=["LapNumber"]).groupby("Stint")
+            for stint_id, frame in grouped:
+                lap_numbers = [int(v) for v in frame["LapNumber"].dropna().tolist()]
+                compounds = [str(v) for v in frame.get("Compound", pd.Series(dtype="object")).dropna().tolist()]
+                stint_rows.append({
+                    "number": int(stint_id) if pd.notna(stint_id) else None,
+                    "compound": compounds[0] if compounds else "N/D",
+                    "lapStart": min(lap_numbers) if lap_numbers else None,
+                    "lapEnd": max(lap_numbers) if lap_numbers else None,
+                    "laps": len(lap_numbers) if lap_numbers else None
+                })
+    except Exception:
+        stint_rows = []
+
+    degradation = None
+    try:
+        ordered = driver_laps_all.dropna(subset=["LapNumber", "LapTime"]).sort_values("LapNumber")
+        laps_secs = [float(v.total_seconds()) for v in ordered["LapTime"].tolist()]
+        if len(laps_secs) >= 6:
+            degradation = (sum(laps_secs[-3:]) / 3) - (sum(laps_secs[:3]) / 3)
+    except Exception:
+        degradation = None
 
     weather = session.weather_data if hasattr(session, "weather_data") else None
     weather_state = "Seco"
@@ -922,6 +1027,76 @@ try:
         if "Rainfall" in weather.columns and float(weather["Rainfall"].fillna(0).sum()) > 0:
             weather_state = "Lluvia"
 
+    session_status = session.session_status if hasattr(session, "session_status") else None
+    track_status = session.track_status if hasattr(session, "track_status") else None
+    race_control_messages = session.race_control_messages if hasattr(session, "race_control_messages") else None
+    results_rows = session.results if hasattr(session, "results") else None
+
+    driver_meta = {}
+    try:
+        driver_meta = session.get_driver(driver_number) or {}
+    except Exception:
+        driver_meta = {}
+
+    circuit_payload = {
+        "corners": 0,
+        "marshalLights": 0,
+        "marshalSectors": 0,
+        "rotation": None
+    }
+    try:
+        circuit = session.get_circuit_info()
+        if circuit is not None:
+            corners = getattr(circuit, "corners", None)
+            marshal_lights = getattr(circuit, "marshal_lights", None)
+            marshal_sectors = getattr(circuit, "marshal_sectors", None)
+            rotation = getattr(circuit, "rotation", None)
+            circuit_payload = {
+                "corners": int(len(corners.index)) if corners is not None and hasattr(corners, "index") else 0,
+                "marshalLights": int(len(marshal_lights.index)) if marshal_lights is not None and hasattr(marshal_lights, "index") else 0,
+                "marshalSectors": int(len(marshal_sectors.index)) if marshal_sectors is not None and hasattr(marshal_sectors, "index") else 0,
+                "rotation": float(rotation) if rotation is not None else None
+            }
+    except Exception:
+        pass
+
+    driver_position_avg = None
+    try:
+        if results_rows is not None and not results_rows.empty:
+            filtered = results_rows[results_rows["DriverNumber"].astype(str) == str(driver_number)]
+            if not filtered.empty and "Position" in filtered.columns:
+                vals = [float(v) for v in filtered["Position"].dropna().tolist()]
+                driver_position_avg = sum(vals)/len(vals) if vals else None
+    except Exception:
+        driver_position_avg = None
+
+    evolution = []
+    try:
+        for maybe_code in ["FP1", "FP2", "FP3", "SQ", "S", "Q", "R"]:
+            try:
+                evo = fastf1.get_session(2026, meeting_name, maybe_code)
+                evo.load(laps=True, telemetry=False, weather=False, messages=False)
+                evo_laps = evo.laps.pick_drivers([driver_number]).pick_quicklaps()
+                if evo_laps.empty:
+                    evo_laps = evo.laps.pick_drivers([driver_number])
+                if evo_laps.empty or "LapTime" not in evo_laps.columns:
+                    continue
+                evo_secs = [float(v.total_seconds()) for v in evo_laps["LapTime"].dropna().tolist()]
+                if not evo_secs:
+                    continue
+                evo_ref = min(evo_secs)
+                evo_avg = sum(evo_secs)/len(evo_secs)
+                evolution.append({
+                    "session_code": maybe_code,
+                    "referenceLap": evo_ref,
+                    "averagePace": evo_avg,
+                    "deltaToReference": evo_avg - evo_ref
+                })
+            except Exception:
+                continue
+    except Exception:
+        evolution = []
+
     print(json.dumps({
         "ok": True,
         "source": "fastf1",
@@ -929,18 +1104,56 @@ try:
         "averagePace": sum(lap_times)/len(lap_times),
         "topSpeed": max(speed_line) if speed_line else None,
         "speedTrap": max(speed_line) if speed_line else None,
+        "positionAverage": driver_position_avg,
+        "degradation": degradation,
+        "sectors": {
+            "sector1": sector1,
+            "sector2": sector2,
+            "sector3": sector3
+        },
+        "lapCount": len(lap_times),
+        "totalLaps": int(session.total_laps) if hasattr(session, "total_laps") and session.total_laps is not None else None,
+        "stints": stint_rows,
+        "evolution": evolution,
         "traces": {
             "speed": speed_line,
             "throttle": throttle_line,
             "brake": brake_line,
             "gear": gear_line,
-            "rpm": rpm_line
+            "rpm": rpm_line,
+            "distance": distance_line,
+            "relativeDistance": relative_distance_line,
+            "x": x_line,
+            "y": y_line
         },
         "weather": {
             "avgAirTemp": avg_air,
             "avgTrackTemp": avg_track,
             "weatherState": weather_state
-        }
+        },
+        "context": {
+            "sessionStatusCount": int(len(session_status.index)) if session_status is not None and hasattr(session_status, "index") else 0,
+            "trackStatusCount": int(len(track_status.index)) if track_status is not None and hasattr(track_status, "index") else 0,
+            "raceControlMessages": int(len(race_control_messages.index)) if race_control_messages is not None and hasattr(race_control_messages, "index") else 0
+        },
+        "event": {
+            "eventName": str(event.get("EventName", "")) if hasattr(event, "get") else "",
+            "eventRound": int(event.get("RoundNumber", 0)) if hasattr(event, "get") else 0,
+            "scheduleRows": int(len(schedule.index)) if schedule is not None and hasattr(schedule, "index") else 0
+        },
+        "driverMeta": {
+            "abbreviation": str(driver_meta.get("Abbreviation", "")) if hasattr(driver_meta, "get") else "",
+            "teamName": str(driver_meta.get("TeamName", "")) if hasattr(driver_meta, "get") else "",
+            "fullName": str(driver_meta.get("FullName", "")) if hasattr(driver_meta, "get") else ""
+        },
+        "circuit": circuit_payload,
+        "used_public_api": [
+            "get_event_schedule", "get_event", "get_session", "Session", "Session.load",
+            "drivers", "results", "laps", "total_laps", "weather_data", "car_data", "pos_data",
+            "session_status", "track_status", "race_control_messages", "get_driver", "get_circuit_info",
+            "Telemetry", "merge_channels", "add_distance", "add_relative_distance",
+            "resample_channels", "fill_missing", "CircuitInfo", "Cache.enable_cache"
+        ]
     }))
 except Exception as exc:
     print(json.dumps({"ok": False, "reason": "FASTF1_LOAD_FAIL", "detail": str(exc)[:140]}))
@@ -976,31 +1189,41 @@ except Exception as exc:
 }
 
 function mergeTelemetry(baseTelemetry, fastf1) {
-  const baseHasCore = Number.isFinite(baseTelemetry?.referenceLap)
-    || Number.isFinite(baseTelemetry?.averagePace)
-    || Number.isFinite(baseTelemetry?.topSpeed)
-    || Number.isFinite(baseTelemetry?.speedTrap)
-    || Object.values(baseTelemetry?.traces || {}).some(trace => Array.isArray(trace) && trace.length > 0)
-    || (Array.isArray(baseTelemetry?.stints) && baseTelemetry.stints.length > 0);
-
   if (!fastf1?.ok) return { ...baseTelemetry, primarySource: baseTelemetry?.source || "openf1", sources: [baseTelemetry?.source || "openf1"] };
 
   const merged = {
     ...baseTelemetry,
-    source: baseHasCore ? baseTelemetry.source : "fastf1",
-    primarySource: baseHasCore ? (baseTelemetry.source || "openf1") : "fastf1",
-    sources: [baseTelemetry.source || "openf1", "fastf1"],
-    referenceLap: Number.isFinite(baseTelemetry.referenceLap) ? baseTelemetry.referenceLap : fastf1.referenceLap,
-    averagePace: Number.isFinite(baseTelemetry.averagePace) ? baseTelemetry.averagePace : fastf1.averagePace,
-    topSpeed: Number.isFinite(baseTelemetry.topSpeed) ? baseTelemetry.topSpeed : fastf1.topSpeed,
-    speedTrap: Number.isFinite(baseTelemetry.speedTrap) ? baseTelemetry.speedTrap : fastf1.speedTrap,
+    source: "fastf1",
+    primarySource: "fastf1",
+    sources: ["fastf1", baseTelemetry.source || "openf1"],
+    referenceLap: Number.isFinite(fastf1.referenceLap) ? fastf1.referenceLap : baseTelemetry.referenceLap,
+    averagePace: Number.isFinite(fastf1.averagePace) ? fastf1.averagePace : baseTelemetry.averagePace,
+    topSpeed: Number.isFinite(fastf1.topSpeed) ? fastf1.topSpeed : baseTelemetry.topSpeed,
+    speedTrap: Number.isFinite(fastf1.speedTrap) ? fastf1.speedTrap : baseTelemetry.speedTrap,
+    sectors: {
+      sector1: Number.isFinite(fastf1?.sectors?.sector1) ? fastf1.sectors.sector1 : baseTelemetry?.sectors?.sector1 ?? null,
+      sector2: Number.isFinite(fastf1?.sectors?.sector2) ? fastf1.sectors.sector2 : baseTelemetry?.sectors?.sector2 ?? null,
+      sector3: Number.isFinite(fastf1?.sectors?.sector3) ? fastf1.sectors.sector3 : baseTelemetry?.sectors?.sector3 ?? null
+    },
+    positionAverage: Number.isFinite(fastf1.positionAverage) ? fastf1.positionAverage : baseTelemetry.positionAverage,
+    degradation: Number.isFinite(fastf1.degradation) ? fastf1.degradation : baseTelemetry.degradation,
+    stints: Array.isArray(fastf1.stints) && fastf1.stints.length ? fastf1.stints : (baseTelemetry.stints || []),
+    evolution: Array.isArray(fastf1.evolution) && fastf1.evolution.length ? fastf1.evolution : (baseTelemetry.evolution || []),
     traces: {
-      speed: baseTelemetry.traces.speed?.length ? baseTelemetry.traces.speed : buildLineFromSamples(fastf1.traces?.speed || [], item => parseMaybeNumber(item), 36),
-      throttle: baseTelemetry.traces.throttle?.length ? baseTelemetry.traces.throttle : buildLineFromSamples(fastf1.traces?.throttle || [], item => parseMaybeNumber(item), 36),
-      brake: baseTelemetry.traces.brake?.length ? baseTelemetry.traces.brake : buildLineFromSamples(fastf1.traces?.brake || [], item => parseMaybeNumber(item), 36),
-      gear: baseTelemetry.traces.gear?.length ? baseTelemetry.traces.gear : buildLineFromSamples(fastf1.traces?.gear || [], item => parseMaybeNumber(item), 36),
-      rpm: baseTelemetry.traces.rpm?.length ? baseTelemetry.traces.rpm : buildLineFromSamples(fastf1.traces?.rpm || [], item => parseMaybeNumber(item), 36)
-    }
+      speed: (fastf1.traces?.speed || []).length ? buildLineFromSamples(fastf1.traces.speed, item => parseMaybeNumber(item), 36) : (baseTelemetry.traces?.speed || []),
+      throttle: (fastf1.traces?.throttle || []).length ? buildLineFromSamples(fastf1.traces.throttle, item => parseMaybeNumber(item), 36) : (baseTelemetry.traces?.throttle || []),
+      brake: (fastf1.traces?.brake || []).length ? buildLineFromSamples(fastf1.traces.brake, item => parseMaybeNumber(item), 36) : (baseTelemetry.traces?.brake || []),
+      gear: (fastf1.traces?.gear || []).length ? buildLineFromSamples(fastf1.traces.gear, item => parseMaybeNumber(item), 36) : (baseTelemetry.traces?.gear || []),
+      rpm: (fastf1.traces?.rpm || []).length ? buildLineFromSamples(fastf1.traces.rpm, item => parseMaybeNumber(item), 36) : (baseTelemetry.traces?.rpm || []),
+      distance: (fastf1.traces?.distance || []).length ? buildLineFromSamples(fastf1.traces.distance, item => parseMaybeNumber(item), 36) : [],
+      relativeDistance: (fastf1.traces?.relativeDistance || []).length ? buildLineFromSamples(fastf1.traces.relativeDistance, item => parseMaybeNumber(item), 36) : [],
+      x: (fastf1.traces?.x || []).length ? buildLineFromSamples(fastf1.traces.x, item => parseMaybeNumber(item), 36) : [],
+      y: (fastf1.traces?.y || []).length ? buildLineFromSamples(fastf1.traces.y, item => parseMaybeNumber(item), 36) : []
+    },
+    fastf1Context: fastf1.context || {},
+    fastf1Circuit: fastf1.circuit || {},
+    fastf1Event: fastf1.event || {},
+    fastf1UsedPublicApi: fastf1.used_public_api || []
   };
 
   return merged;
@@ -1168,12 +1391,21 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
   const openf1Base = mergeTelemetryBlock(openf1, aggregate || {});
   const merged = mergeTelemetry(openf1Base, fastf1);
   const weather = await loadSessionContext(session.session_key);
-  const sessionEvolution = await buildSessionEvolutionSummary({
-    meetingKey,
-    currentSessionKey: session.session_key,
-    driverNumber: driver.id,
-    year
-  }).catch(() => []);
+  const sessionEvolution = Array.isArray(fastf1?.evolution) && fastf1.evolution.length
+    ? fastf1.evolution.map(item => ({
+      session_key: item.session_code || "",
+      session_type: item.session_code || "",
+      session_label: item.session_code || "",
+      referenceLap: Number.isFinite(item.referenceLap) ? item.referenceLap : null,
+      averagePace: Number.isFinite(item.averagePace) ? item.averagePace : null,
+      deltaToReference: Number.isFinite(item.deltaToReference) ? item.deltaToReference : null
+    }))
+    : await buildSessionEvolutionSummary({
+      meetingKey,
+      currentSessionKey: session.session_key,
+      driverNumber: driver.id,
+      year
+    }).catch(() => []);
 
   telemetryLog("info", "telemetry.sources_evaluated", {
     year,
@@ -1187,8 +1419,8 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     fastf1_reason: fastf1?.reason || "FASTF1_ACTIVE",
     aggregate_counts: aggregate?.diagnostics?.counts || {},
     aggregate_blocks: aggregate?.diagnostics?.blocks || {},
-    merged_primary: merged.primarySource || "openf1",
-    merged_sources: merged.sources || ["openf1", "openf1_aggregate"]
+    merged_primary: merged.primarySource || "fastf1",
+    merged_sources: merged.sources || ["fastf1", "openf1", "openf1_aggregate"]
   });
 
   if (!hasAnyTelemetryData(merged)) {
@@ -1225,9 +1457,9 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
       fastf1_status: fastf1?.reason || "FASTF1_ACTIVE",
       active_sources: [...new Set([...(merged.sources || []), "openf1_aggregate"])].filter(Boolean),
       fallback_chain: [
+        { provider: "fastf1", ok: !!fastf1?.ok, reason: fastf1?.reason || "FASTF1_ACTIVE" },
         { provider: "openf1", ok: hasAnyTelemetryData(openf1), reason: hasAnyTelemetryData(openf1) ? "OK" : "OPENF1_PARTIAL_OR_EMPTY" },
-        { provider: "openf1_aggregate", ok: hasAnyTelemetryData(aggregate || {}), reason: hasAnyTelemetryData(aggregate || {}) ? "OK" : "OPENF1_AGGREGATE_EMPTY" },
-        { provider: "fastf1", ok: !!fastf1?.ok, reason: fastf1?.reason || "FASTF1_ACTIVE" }
+        { provider: "openf1_aggregate", ok: hasAnyTelemetryData(aggregate || {}), reason: hasAnyTelemetryData(aggregate || {}) ? "OK" : "OPENF1_AGGREGATE_EMPTY" }
       ]
     },
     summary: {
@@ -1275,13 +1507,29 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     weather: {
       avgTrackTemp: Number.isFinite(weather.avgTrackTemp) ? weather.avgTrackTemp : fastf1?.weather?.avgTrackTemp ?? null,
       avgAirTemp: Number.isFinite(weather.avgAirTemp) ? weather.avgAirTemp : fastf1?.weather?.avgAirTemp ?? null,
-      weatherState: weather.weatherState || fastf1?.weather?.weatherState || "N/D",
-      raceControlMessages: weather.raceControlMessages,
+      weatherState: fastf1?.weather?.weatherState || weather.weatherState || "N/D",
+      raceControlMessages: Number.isFinite(fastf1?.context?.raceControlMessages) ? fastf1.context.raceControlMessages : weather.raceControlMessages,
       pitStops: weather.pitStops,
       overtakes: weather.overtakes,
       teamRadios: weather.teamRadios
     },
-    session_evolution: sessionEvolution
+    session_context: {
+      sessionStatusCount: Number.isFinite(merged?.fastf1Context?.sessionStatusCount) ? merged.fastf1Context.sessionStatusCount : null,
+      trackStatusCount: Number.isFinite(merged?.fastf1Context?.trackStatusCount) ? merged.fastf1Context.trackStatusCount : null,
+      raceControlMessages: Number.isFinite(merged?.fastf1Context?.raceControlMessages) ? merged.fastf1Context.raceControlMessages : null,
+      totalLaps: Number.isFinite(fastf1?.totalLaps) ? fastf1.totalLaps : null
+    },
+    circuit: {
+      corners: Number.isFinite(merged?.fastf1Circuit?.corners) ? merged.fastf1Circuit.corners : null,
+      marshalLights: Number.isFinite(merged?.fastf1Circuit?.marshalLights) ? merged.fastf1Circuit.marshalLights : null,
+      marshalSectors: Number.isFinite(merged?.fastf1Circuit?.marshalSectors) ? merged.fastf1Circuit.marshalSectors : null,
+      rotation: Number.isFinite(merged?.fastf1Circuit?.rotation) ? merged.fastf1Circuit.rotation : null
+    },
+    session_evolution: sessionEvolution,
+    diagnostics: {
+      fastf1_used_public_api: merged.fastf1UsedPublicApi || [],
+      fastf1_event: merged.fastf1Event || {}
+    }
   };
 
   telemetryLog("info", "telemetry.success", {
