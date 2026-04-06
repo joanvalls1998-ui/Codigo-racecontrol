@@ -207,16 +207,48 @@ function gpLabelFromMeeting(meeting = {}) {
   return base.endsWith("2026") ? base : `${base} 2026`;
 }
 
+function isGenericDriverName(name = "") {
+  const value = normalizeKey(name);
+  if (!value) return true;
+  return value.startsWith("driver #")
+    || value.startsWith("driver ")
+    || value.startsWith("piloto ")
+    || value === "n/d";
+}
+
+function normalizeDriverDisplayName(name = "") {
+  const clean = cleanLabel(name);
+  if (!clean) return "";
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return clean;
+  const surname = parts[parts.length - 1].toUpperCase();
+  return `${parts.slice(0, -1).join(" ")} ${surname}`.trim();
+}
+
+function pickBetterDriverName(current = "", incoming = "") {
+  const currentClean = cleanLabel(current);
+  const incomingClean = cleanLabel(incoming);
+  if (!incomingClean) return currentClean;
+  if (!currentClean) return incomingClean;
+  const currentGeneric = isGenericDriverName(currentClean);
+  const incomingGeneric = isGenericDriverName(incomingClean);
+  if (currentGeneric && !incomingGeneric) return incomingClean;
+  if (!currentGeneric && incomingGeneric) return currentClean;
+  return currentClean;
+}
+
 function mapDriverRow(row = {}) {
   const id = String(row.driver_number || row.racing_number || row.number || "").trim();
-  const name = String(
-    row.full_name
-      || `${row.first_name || ""} ${row.last_name || ""}`.trim()
-      || row.driver_name
-      || row.broadcast_name
-      || row.name_acronym
-      || (id ? `Driver #${id}` : "")
-  ).trim();
+  const fromFirstLast = normalizeDriverDisplayName(`${row.first_name || ""} ${row.last_name || ""}`.trim());
+  const fromFull = normalizeDriverDisplayName(row.full_name || "");
+  const fromDriverName = normalizeDriverDisplayName(row.driver_name || "");
+  const fromBroadcast = normalizeDriverDisplayName(row.broadcast_name || "");
+  const fromAcronym = cleanLabel(row.name_acronym || "");
+  const fallback = id ? `Piloto ${id}` : "";
+  const name = [fromFirstLast, fromFull, fromDriverName, fromBroadcast, fromAcronym, fallback]
+    .map(cleanLabel)
+    .find(item => item && !isGenericDriverName(item))
+    || fallback;
   return {
     id,
     name,
@@ -361,7 +393,7 @@ async function getDrivers(sessionKey) {
       const driver = mapDriverRow(row);
       if (!driver.id || !driver.name) return;
       const current = byDriver.get(driver.id) || { id: driver.id, name: driver.name, team: "", headshot: "" };
-      current.name = current.name || driver.name;
+      current.name = pickBetterDriverName(current.name, driver.name);
       current.team = current.team || driver.team;
       current.headshot = current.headshot || driver.headshot;
       byDriver.set(driver.id, current);
@@ -370,7 +402,7 @@ async function getDrivers(sessionKey) {
 
   const drivers = [...byDriver.values()]
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map(item => ({ id: item.id, name: item.name, team: item.team || "Equipo", headshot: item.headshot }));
+    .map(item => ({ id: item.id, name: item.name, team: item.team || "", headshot: item.headshot }));
 
   return setCached(cache.driversBySession, key, drivers);
 }
