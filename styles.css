@@ -2864,15 +2864,45 @@ body.engineer-mode-active #content {
   overflow: hidden;
 }
 
-.engineer-header {
+.engineer-mode-switch {
   position: sticky;
   top: 0;
+  z-index: 14;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  background: linear-gradient(180deg, rgba(8, 12, 21, 0.98), rgba(8, 12, 21, 0.9));
+  border-bottom: 1px solid rgba(122, 187, 255, 0.28);
+}
+
+.engineer-mode-chip {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(138, 198, 255, 0.28);
+  background: rgba(15, 24, 38, 0.78);
+  color: rgba(214, 234, 255, 0.88);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 0 10px;
+}
+
+.engineer-mode-chip.active {
+  background: linear-gradient(135deg, rgba(80, 151, 249, 0.52), rgba(59, 113, 205, 0.45));
+  border-color: rgba(173, 217, 255, 0.85);
+  color: #f7fbff;
+  box-shadow: 0 0 0 1px rgba(194, 228, 255, 0.22) inset;
+}
+
+.engineer-header {
+  position: sticky;
+  top: calc(64px + env(safe-area-inset-top));
   z-index: 10;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: calc(10px + env(safe-area-inset-top)) 16px 12px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px 12px;
   background: linear-gradient(180deg, rgba(12, 18, 31, 0.95), rgba(10, 15, 26, 0.88));
   border-bottom: 1px solid rgba(122, 187, 255, 0.24);
 }
@@ -2881,21 +2911,6 @@ body.engineer-mode-active #content {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.engineer-back {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  border: 1px solid rgba(160, 217, 255, 0.32);
-  background: rgba(20, 32, 52, 0.8);
-  color: #f2f7ff;
-  font-size: 23px;
-  font-weight: 700;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .engineer-title-wrap {
@@ -2917,14 +2932,6 @@ body.engineer-mode-active #content {
   font-size: clamp(21px, 2.5vw, 26px);
   line-height: 1.15;
   color: #f5fbff;
-}
-
-.engineer-header-controls {
-  width: 32%;
-  min-height: 44px;
-  border: 1px dashed rgba(154, 213, 255, 0.26);
-  border-radius: 12px;
-  background: rgba(17, 27, 43, 0.45);
 }
 
 .engineer-tabs {
@@ -3012,8 +3019,9 @@ body.engineer-mode-active #content {
     padding-right: 12px;
   }
 
-  .engineer-header-controls {
-    width: 24%;
+  .engineer-mode-switch {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   .engineer-tabs {

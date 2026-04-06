@@ -33,6 +33,31 @@ function exitEngineerMode() {
   showHome();
 }
 
+function handleEngineerModeSwitch(mode) {
+  if (mode === "engineer") {
+    if (!state.engineerModeActive) enterEngineerMode();
+    return;
+  }
+
+  const nextMode = mode === "expert" ? "expert" : "casual";
+  const settings = getSettings();
+  const isModeChange = settings.experienceMode !== nextMode;
+
+  state.engineerModeActive = false;
+  state.engineerActiveTab = "summary";
+  applyEngineerModeState();
+
+  if (isModeChange) {
+    saveSettings({
+      ...settings,
+      experienceMode: nextMode
+    });
+  }
+
+  applyExperienceTheme();
+  showHome();
+}
+
 function renderEngineerPlaceholder(tabKey) {
   if (tabKey === "summary") {
     return `
@@ -115,15 +140,32 @@ function renderEngineerMode() {
 
   return `
     <section class="engineer-shell">
+      <nav class="engineer-mode-switch" aria-label="Selector de modo">
+        <button
+          class="engineer-mode-chip ${!state.engineerModeActive && getExperienceMode() === "casual" ? "active" : ""}"
+          onclick="handleEngineerModeSwitch('casual')"
+          aria-pressed="${!state.engineerModeActive && getExperienceMode() === "casual"}">
+          Casual
+        </button>
+        <button
+          class="engineer-mode-chip ${!state.engineerModeActive && getExperienceMode() === "expert" ? "active" : ""}"
+          onclick="handleEngineerModeSwitch('expert')"
+          aria-pressed="${!state.engineerModeActive && getExperienceMode() === "expert"}">
+          Experto
+        </button>
+        <button
+          class="engineer-mode-chip ${state.engineerModeActive ? "active" : ""}"
+          onclick="handleEngineerModeSwitch('engineer')"
+          aria-pressed="${state.engineerModeActive}">
+          Ingeniero
+        </button>
+      </nav>
+
       <header class="engineer-header">
-        <div class="engineer-header-main">
-          <button class="engineer-back" onclick="exitEngineerMode()" aria-label="Salir del modo Ingeniero">←</button>
-          <div class="engineer-title-wrap">
-            <div class="engineer-kicker">Modo técnico</div>
-            <h1 class="engineer-title">Ingeniero</h1>
-          </div>
+        <div class="engineer-title-wrap">
+          <div class="engineer-kicker">Modo técnico</div>
+          <h1 class="engineer-title">Ingeniero</h1>
         </div>
-        <div class="engineer-header-controls" aria-hidden="true"></div>
       </header>
 
       <nav class="engineer-tabs" aria-label="Pestañas del modo Ingeniero">
