@@ -146,7 +146,7 @@ function renderCalendarFlowCard(context) {
 }
 
 async function showCalendar(force = false) {
-  setActiveNav("nav-more");
+  setActiveNav("nav-calendar");
   rememberScreen("calendar");
   updateSubtitle();
 

@@ -185,7 +185,7 @@ nav,
   bottom: calc(var(--bottom-nav-offset) + env(safe-area-inset-bottom));
   z-index: 60;
   display: grid !important;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   align-items: center;
   gap: 8px;
   padding: 10px;
@@ -200,7 +200,8 @@ nav,
 #nav-home,
 #nav-predict,
 #nav-favorito,
-#nav-news,
+#nav-calendar,
+#nav-standings,
 #nav-more {
   width: 100%;
   min-width: 0;
@@ -226,7 +227,8 @@ nav,
 #nav-home.active,
 #nav-predict.active,
 #nav-favorito.active,
-#nav-news.active,
+#nav-calendar.active,
+#nav-standings.active,
 #nav-more.active {
   background: linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 28%, rgba(255,255,255,0.14)), rgba(255,255,255,0.06));
   color: var(--text);
@@ -236,7 +238,8 @@ nav,
 #nav-home:active,
 #nav-predict:active,
 #nav-favorito:active,
-#nav-news:active,
+#nav-calendar:active,
+#nav-standings:active,
 #nav-more:active {
   transform: scale(0.98);
 }
@@ -2335,7 +2338,8 @@ nav > *,
 #nav-home,
 #nav-predict,
 #nav-favorito,
-#nav-news,
+#nav-calendar,
+#nav-standings,
 #nav-more {
   flex: 1 1 0 !important;
   width: auto !important;
@@ -2365,7 +2369,8 @@ nav > *,
 #nav-home.active,
 #nav-predict.active,
 #nav-favorito.active,
-#nav-news.active,
+#nav-calendar.active,
+#nav-standings.active,
 #nav-more.active {
   background: linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 28%, rgba(255,255,255,0.14)), rgba(255,255,255,0.06)) !important;
   color: rgba(255,255,255,0.96) !important;
@@ -2375,7 +2380,8 @@ nav > *,
 #nav-home:active,
 #nav-predict:active,
 #nav-favorito:active,
-#nav-news:active,
+#nav-calendar:active,
+#nav-standings:active,
 #nav-more:active {
   transform: scale(0.98) !important;
 }

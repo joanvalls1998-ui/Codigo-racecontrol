@@ -239,7 +239,7 @@ function renderStandingsSummaryBlock() {
 }
 
 async function showStandings(force = false) {
-  setActiveNav("nav-more");
+  setActiveNav("nav-standings");
   rememberScreen("standings");
   updateSubtitle();
 

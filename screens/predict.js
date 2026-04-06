@@ -383,27 +383,28 @@ function showPredict() {
         <div class="card-head-actions"><button class="icon-btn" onclick="sharePrediction()">Compartir</button></div>
       </div>
       <div id="predictSummaryCards">${activePredictData ? renderPredictSummaryCards(activePredictData) : renderPredictPreviewCards(favorite, selectedRace)}</div>
+      <div id="predictKeyFactors">${renderPredictWeekendKeyCard(favorite, selectedRace, activePredictData, expert)}</div>
       <div id="predictScenarioCards" style="margin-top:10px;">${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}</div>
     </div>
 
     <div class="card app-panel-card">
-      <div class="card-title">Operativa</div>
-      <div id="predictKeyFactors">${renderPredictWeekendKeyCard(favorite, selectedRace, activePredictData, expert)}</div>
-      <div id="predictQualyRace" style="margin-top:10px;">${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, expert)}</div>
-      <div id="predictStrategyDetail" style="margin-top:10px;">${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}</div>
-      ${expert ? `<div id="predictGridRead" style="margin-top:10px;">${renderPredictGridRead(favorite, selectedRace, activePredictData)}</div>` : ""}
+      <details>
+        <summary style="cursor:pointer; font-weight:700;">Más info técnica</summary>
+        <div id="predictQualyRace" style="margin-top:12px;">${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, expert)}</div>
+        <div id="predictStrategyDetail" style="margin-top:10px;">${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}</div>
+        ${expert ? `<div id="predictGridRead" style="margin-top:10px;">${renderPredictGridRead(favorite, selectedRace, activePredictData)}</div>` : ""}
+        <div style="margin-top:12px;">
+          <div class="card-head" style="margin-bottom:8px;">
+            <div class="card-head-left"><div class="card-title">Salida técnica</div></div>
+            <div class="card-head-actions"><button class="icon-btn" onclick="clearPredictionHistory()">Vaciar</button></div>
+          </div>
+          <pre id="predictOutput" class="ai-output predict-v2-raw-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción…"}</pre>
+          <div id="predictionHistoryBox" style="margin-top:10px;">${renderPredictionHistory()}</div>
+        </div>
+      </details>
     </div>
 
     ${renderFavoriteQuickSelectorCard({ title: "Favorito", subtitle: "", returnView: "showPredict", compact: true })}
-
-    <div class="card app-panel-card">
-      <div class="card-head">
-        <div class="card-head-left"><div class="card-title">Salida técnica</div></div>
-        <div class="card-head-actions"><button class="icon-btn" onclick="clearPredictionHistory()">Vaciar</button></div>
-      </div>
-      <pre id="predictOutput" class="ai-output predict-v2-raw-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción…"}</pre>
-      <div id="predictionHistoryBox" style="margin-top:10px;">${renderPredictionHistory()}</div>
-    </div>
   `;
 
   if (needFreshPredict) setTimeout(() => runPredict(), 80);

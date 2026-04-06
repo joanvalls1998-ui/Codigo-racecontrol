@@ -115,7 +115,7 @@ function modalContentEl() {
 }
 
 function setActiveNav(tabId) {
-  const ids = ["nav-home", "nav-predict", "nav-favorito", "nav-news", "nav-more"];
+  const ids = ["nav-home", "nav-predict", "nav-favorito", "nav-calendar", "nav-standings", "nav-more"];
   ids.forEach(id => document.getElementById(id)?.classList.remove("active"));
   document.getElementById(tabId)?.classList.add("active");
 }
@@ -3348,46 +3348,98 @@ async function showHome() {
   const raceName = context?.raceName || getSelectedRace();
   const lead = context?.currentSession || context?.nextSession || context?.lastCompletedSession;
   const operation = getWeekendOperationalFocus(context);
+  const formatLabel = getCalendarFormatLabel(raceName);
   const predictData = getActivePredictDataForRace(favorite, raceName);
   const snapshot = getFavoriteComparativeSnapshot(favorite, raceName, predictData);
+  const previousGp = (state.calendarCache?.events || [])
+    .filter(event => event.type === "race" && event.status === "completed")
+    .sort((a, b) => new Date(b.end || b.start || 0) - new Date(a.end || a.start || 0))[0] || null;
 
   try { await fetchNewsDataForFavorite(favorite, false); } catch {}
+  const favoriteNewsFilter = { key: "favorite", favoritePayload: favorite };
+  const favoriteNewsCacheKey = getNewsCacheKey(favoriteNewsFilter.favoritePayload);
+  const favoriteNewsItems = Array.isArray(state.homeNewsCache?.[favoriteNewsCacheKey]?.items)
+    ? sortNewsItems(state.homeNewsCache[favoriteNewsCacheKey].items, favoriteNewsFilter, getNewsWeekendPhase()).slice(0, 3)
+    : [];
+  const favoriteAvatar = favorite.type === "driver"
+    ? `<img class="row-avatar" src="${favorite.image}" alt="${escapeHtml(favorite.name)}" onerror="this.style.display='none'">`
+    : `<div class="team-stripe ${favorite.colorClass}" style="height:52px;"></div>`;
+  const previousGpLine = previousGp
+    ? `${previousGp.title || "GP completado"} · ${formatCalendarDateRange(previousGp.start, previousGp.end)}`
+    : "Sin GP completado reciente";
+  const previousGpReference = context?.lastCompletedSession
+    ? `${context.lastCompletedSession.label} · ${getSessionStatusLabel(context.lastCompletedSession.status)}`
+    : "Sin sesión final registrada";
+  const nextSessionLine = lead
+    ? `${lead.label}${context?.nextSessionCountdown ? ` · ${context.nextSessionCountdown}` : ""}`
+    : "Sin sesión próxima cargada";
 
   contentEl().innerHTML = `
-    <div class="card highlight-card app-home-hero">
-      <div class="app-panel-topline">
+    <div class="card app-home-favorite">
+      <div class="card-head">
+        <div class="card-head-left"><div class="card-title">Home · Favorito</div></div>
+        <div class="card-head-actions"><button class="icon-btn" onclick="openFavoriteSelectorModal('showHome')">Cambiar</button></div>
+      </div>
+      <div class="app-favorite-row" style="align-items:center; gap:12px;">
+        ${favoriteAvatar}
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <strong>${escapeHtml(favorite.name)}</strong>
+          <div class="info-line" style="margin:0;">${escapeHtml(favorite.type === "driver" ? favorite.team : (favorite.drivers || "Equipo"))}</div>
+        </div>
+        <span class="tag favorite" style="margin-left:auto;">P${escapeHtml(favorite.pos || "—")}</span>
+      </div>
+      <div class="info-line">Objetivo: ${escapeHtml(snapshot?.objective?.realistic || "Sin objetivo definido todavía")}</div>
+      <div class="news-meta-row" style="margin-top:10px;">
         <span class="tag ${getWeekendPhaseTagClass(context?.phase || "pre_weekend")}">${escapeHtml(context?.phaseLabel || "Previa")}</span>
         <span class="tag ${escapeHtml(operation.tagClass)}">${escapeHtml(operation.label)}</span>
       </div>
-      <div class="card-title">${escapeHtml(raceName)}</div>
-      <div class="app-hero-mainline">${escapeHtml(lead?.label || "Sin sesión próxima")}${context?.nextSessionCountdown ? ` · ${escapeHtml(context.nextSessionCountdown)}` : ""}</div>
-      <div class="app-hero-subline">${escapeHtml(operation.detail)}</div>
     </div>
 
-    ${calendarError ? renderErrorCard("Inicio", "No se pudo cargar el calendario del GP", calendarError.message) : ""}
-
-    <div class="card app-home-favorite">
+    <div class="card app-panel-card">
       <div class="card-head">
-        <div class="card-head-left"><div class="card-title">Favorito</div></div>
-        <div class="card-head-actions"><button class="icon-btn" onclick="openFavoriteSelectorModal('showHome')">Cambiar</button></div>
+        <div class="card-head-left"><div class="card-title">3 titulares del favorito</div></div>
+        <div class="card-head-actions"><a href="#" class="home-news-cta" onclick="showNews(); return false;">Ver más</a></div>
       </div>
-      <div class="app-favorite-row">
-        <strong>${escapeHtml(favorite.name)}</strong>
-        <span class="tag favorite">P${escapeHtml(favorite.pos || "—")}</span>
+      ${favoriteNewsItems.length
+        ? favoriteNewsItems.map(item => `
+          <div class="news-item" style="margin-top:8px;">
+            <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
+            <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
+          </div>
+        `).join("")
+        : `<div class="empty-line">Aún no hay titulares en caché para el favorito.</div>`
+      }
+    </div>
+
+    <div class="card highlight-card app-home-hero">
+      <div class="app-panel-topline">
+        <span class="tag ${getWeekendPhaseTagClass(context?.phase || "pre_weekend")}">${escapeHtml(context?.phaseLabel || "Previa")}</span>
+        <span class="tag ${context?.isSprint ? "statement" : "general"}">${context?.isSprint ? "Sprint weekend" : "Formato normal"}</span>
       </div>
-      <div class="info-line">Objetivo: ${escapeHtml(snapshot?.objective?.realistic || "Sin objetivo definido todavía")}</div>
+      <div class="card-title">${escapeHtml(raceName)}</div>
+      <div class="app-hero-mainline">${escapeHtml(nextSessionLine)}</div>
+      <div class="app-hero-subline">${escapeHtml(operation.detail)}</div>
+      <div class="news-meta-row" style="margin-top:10px;">
+        <span class="tag technical">${escapeHtml(formatLabel)}</span>
+        <span class="tag ${escapeHtml(operation.tagClass)}">Siguiente: ${escapeHtml(lead?.label || "Sin sesión")}</span>
+      </div>
     </div>
 
     <div class="card app-mini-card">
-      <div class="card-title">Referencia anterior</div>
-      <div class="info-line">${escapeHtml(context?.lastCompletedSession ? `${context.lastCompletedSession.label} completada` : "Sin sesión cerrada reciente")}</div>
+      <div class="card-title">Referencia del GP anterior</div>
+      <div class="info-line">${escapeHtml(previousGpLine)}</div>
+      <div class="info-line">${escapeHtml(previousGpReference)}</div>
     </div>
 
+    ${renderWeekendModeHub(context, { compact: true, source: "home" })}
+
+    ${calendarError ? renderErrorCard("Inicio", "No se pudo cargar el calendario del GP", calendarError.message) : ""}
+
     <div class="card app-quick-grid-card">
-      <a href="#" class="app-quick-link" onclick="showSessions(); return false;">Sesiones</a>
       <a href="#" class="app-quick-link" onclick="showPredict(); return false;">Predict</a>
       <a href="#" class="app-quick-link" onclick="showFavorito(); return false;">Favorito</a>
-      <a href="#" class="app-quick-link" onclick="showRaceMode(); return false;">Modo carrera</a>
+      <a href="#" class="app-quick-link" onclick="showCalendar(); return false;">Calendario</a>
+      <a href="#" class="app-quick-link" onclick="showStandings(); return false;">Clasificación</a>
     </div>
   `;
 }
@@ -4012,12 +4064,12 @@ function showMore() {
     </div>
 
     <div class="card app-quick-grid-card app-quick-grid-3">
-      <a href="#" class="app-quick-link" onclick="showCalendar(); return false;">Calendario</a>
-      <a href="#" class="app-quick-link" onclick="showStandings(); return false;">Clasificación</a>
       <a href="#" class="app-quick-link" onclick="showNews(); return false;">Noticias</a>
-      <a href="#" class="app-quick-link" onclick="showRaceMode(); return false;">Modo carrera</a>
       <a href="#" class="app-quick-link" onclick="showSettingsPanel(); return false;">Ajustes</a>
       <a href="#" class="app-quick-link" onclick="showGlossary(); return false;">Glosario</a>
+      <a href="#" class="app-quick-link" onclick="showRaceMode(); return false;">Modo carrera</a>
+      <a href="#" class="app-quick-link" onclick="showSessions(); return false;">Sesiones</a>
+      <a href="#" class="app-quick-link" onclick="showPredict(); return false;">Predict</a>
     </div>
   `;
 }
@@ -4908,7 +4960,8 @@ function refreshCurrentView() {
   if (active === "nav-home") return showHome();
   if (active === "nav-predict") return showPredict();
   if (active === "nav-favorito") return showFavorito();
-  if (active === "nav-news") return showNews();
+  if (active === "nav-calendar") return showCalendar();
+  if (active === "nav-standings") return showStandings();
 
   if (openScreenByKey(state.lastScreen)) return;
 
