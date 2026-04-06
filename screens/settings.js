@@ -74,7 +74,7 @@ function renderSettingsSecondaryPreferencesBlock(state) {
           <div class="settings-line-title">Modo explicativo</div>
           
         </div>
-        <button class="toggle-btn ${settings.weekendExplainerMode ? "active" : ""}" onclick="togglePremiumSetting('weekendExplainerMode')" aria-pressed="${settings.weekendExplainerMode}">${settings.weekendExplainerMode ? "ON · Activado" : "OFF · Desactivado"}</button>
+        <button class="toggle-btn ${settings.weekendExplainerMode ? "active" : ""}" onclick="togglePremiumSetting('weekendExplainerMode')" aria-pressed="${settings.weekendExplainerMode}">${settings.weekendExplainerMode ? "ON · Visible" : "OFF · Oculto"}</button>
       </div>
 
       <div class="settings-line">
@@ -84,6 +84,8 @@ function renderSettingsSecondaryPreferencesBlock(state) {
         </div>
         <button class="toggle-btn ${state.weekendModeEnabled ? "active" : ""}" onclick="toggleWeekendModeEnabled('showSettingsPanel')" aria-pressed="${state.weekendModeEnabled}">${state.weekendModeEnabled ? "ON · Visible" : "OFF · Oculto"}</button>
       </div>
+
+      <div class="control-status-line">Explicativo: <strong>${settings.weekendExplainerMode ? "Activo" : "Inactivo"}</strong> · Modo fin de semana: <strong>${state.weekendModeEnabled ? "Visible" : "Oculto"}</strong>.</div>
     </div>
   `;
 }

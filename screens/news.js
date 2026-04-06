@@ -448,6 +448,7 @@ function renderNewsKeyLines(items, filter, phase = getNewsWeekendPhase()) {
 
 function renderNewsFilters() {
   const filters = buildNewsFilterPresets();
+  const activeFilter = filters.find(filter => filter.key === state.currentNewsFilterKey) || filters[0];
   return `
     <div class="news-filters-v2 filters-row">
       ${filters.map(filter => `
@@ -457,6 +458,7 @@ function renderNewsFilters() {
         </button>
       `).join("")}
     </div>
+    <div class="control-status-line">Filtro principal activo: <strong>${escapeHtml(activeFilter?.label || "Favorito")}</strong>.</div>
   `;
 }
 
@@ -522,6 +524,7 @@ function renderNewsSecondaryFilters() {
         </button>
       `).join("")}
     </div>
+    <div class="control-status-line">Filtro secundario activo: <strong>${escapeHtml((chips.find(chip => chip.key === active) || chips[0]).label)}</strong>.</div>
   `;
 }
 
