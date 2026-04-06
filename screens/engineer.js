@@ -140,13 +140,6 @@ function renderEngineerMode() {
 
   return `
     <section class="engineer-shell">
-      <header class="engineer-header">
-        <div class="engineer-title-wrap">
-          <div class="engineer-kicker">Modo técnico</div>
-          <h1 class="engineer-title">Ingeniero</h1>
-        </div>
-      </header>
-
       <nav class="engineer-mode-switch" aria-label="Selector de modo">
         <button
           class="engineer-mode-chip ${!state.engineerModeActive && getExperienceMode() === "casual" ? "active" : ""}"
@@ -168,7 +161,18 @@ function renderEngineerMode() {
         </button>
       </nav>
 
+      <header class="engineer-header">
+        <div class="engineer-title-wrap">
+          <div class="engineer-kicker">Modo técnico</div>
+          <h1 class="engineer-title">Ingeniero</h1>
+        </div>
+      </header>
+
       <section class="engineer-main">
+        <main class="engineer-content">
+          ${renderEngineerPlaceholder(activeTab)}
+        </main>
+
         <nav class="engineer-tabs" aria-label="Pestañas del modo Ingeniero">
           ${tabs.map(tab => `
             <button
@@ -179,10 +183,6 @@ function renderEngineerMode() {
             </button>
           `).join("")}
         </nav>
-
-        <main class="engineer-content">
-          ${renderEngineerPlaceholder(activeTab)}
-        </main>
       </section>
     </section>
   `;

@@ -2871,9 +2871,12 @@ body.engineer-mode-active #content {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 9px;
-  padding: 10px 16px 12px;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 12px;
   background: linear-gradient(180deg, rgba(10, 15, 26, 0.94), rgba(8, 12, 21, 0.9));
   border-bottom: 1px solid rgba(122, 187, 255, 0.22);
+  position: sticky;
+  top: 0;
+  z-index: 7;
 }
 
 .engineer-mode-chip {
@@ -2899,7 +2902,7 @@ body.engineer-mode-active #content {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: calc(10px + env(safe-area-inset-top)) 16px 8px;
+  padding: 10px 16px 8px;
   background: linear-gradient(180deg, rgba(12, 18, 31, 0.97), rgba(10, 15, 26, 0.9));
   border-bottom: 1px solid rgba(122, 187, 255, 0.2);
 }
@@ -2932,7 +2935,8 @@ body.engineer-mode-active #content {
 }
 
 .engineer-main {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0;
   flex: 1;
 }
@@ -2967,6 +2971,7 @@ body.engineer-mode-active #content {
   padding: 12px 16px 16px;
   display: grid;
   gap: 10px;
+  flex: 1;
 }
 
 .engineer-grid {
@@ -3026,7 +3031,7 @@ body.engineer-mode-active #content {
   .engineer-mode-switch {
     padding-left: 12px;
     padding-right: 12px;
-    padding-top: 9px;
+    padding-top: calc(9px + env(safe-area-inset-top));
     padding-bottom: 10px;
   }
 
