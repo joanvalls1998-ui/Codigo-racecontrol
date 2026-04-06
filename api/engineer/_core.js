@@ -31,6 +31,23 @@ const cache = {
   telemetry: new Map(),
   fastf1: new Map()
 };
+const sourceHealth = {
+  openf1: { ok: true, last_error: null, last_success_ts: null },
+  fastf1: { ok: true, last_error: null, last_success_ts: null }
+};
+
+const TELEMETRY_LOG_LEVEL = String(process.env.ENGINEER_TELEMETRY_LOG_LEVEL || "info").toLowerCase();
+const LOG_LEVEL_WEIGHT = Object.freeze({ error: 0, warn: 1, info: 2, debug: 3 });
+
+function telemetryLog(level = "info", event = "event", details = {}) {
+  const normalized = LOG_LEVEL_WEIGHT[level] !== undefined ? level : "info";
+  const currentWeight = LOG_LEVEL_WEIGHT[TELEMETRY_LOG_LEVEL] ?? LOG_LEVEL_WEIGHT.info;
+  if ((LOG_LEVEL_WEIGHT[normalized] ?? 2) > currentWeight) return;
+  const line = JSON.stringify({ scope: "engineer.telemetry", event, ...details });
+  if (normalized === "error") console.error(line);
+  else if (normalized === "warn") console.warn(line);
+  else console.log(line);
+}
 
 function setCached(map, key, value) {
   map.set(key, { ts: Date.now(), value });
@@ -53,16 +70,46 @@ async function fetchOpenF1(endpoint, params = {}) {
     if (value === undefined || value === null || value === "") return;
     query.set(key, String(value));
   });
-  const response = await fetch(`${OPENF1_BASE_URL}/${endpoint}?${query.toString()}`, {
-    headers: { "User-Agent": "RaceControlEngineer/6.0" },
-    cache: "no-store"
-  });
+  let response;
+  try {
+    response = await fetch(`${OPENF1_BASE_URL}/${endpoint}?${query.toString()}`, {
+      headers: { "User-Agent": "RaceControlEngineer/6.0" },
+      cache: "no-store"
+    });
+  } catch (error) {
+    sourceHealth.openf1 = {
+      ok: false,
+      last_success_ts: sourceHealth.openf1.last_success_ts,
+      last_error: {
+        endpoint,
+        reason: String(error?.code || error?.message || "OPENF1_FETCH_ERROR"),
+        ts: Date.now()
+      }
+    };
+    telemetryLog("warn", "openf1.fetch_failed", { endpoint, reason: String(error?.code || error?.message || "OPENF1_FETCH_ERROR") });
+    throw error;
+  }
   if (!response.ok) {
+    sourceHealth.openf1 = {
+      ok: false,
+      last_success_ts: sourceHealth.openf1.last_success_ts,
+      last_error: {
+        endpoint,
+        reason: `HTTP_${response.status}`,
+        ts: Date.now()
+      }
+    };
+    telemetryLog("warn", "openf1.http_error", { endpoint, status: response.status });
     const error = new Error(`OpenF1 ${endpoint} (${response.status})`);
     error.status = response.status;
     throw error;
   }
   const payload = await response.json();
+  sourceHealth.openf1 = {
+    ok: true,
+    last_success_ts: Date.now(),
+    last_error: null
+  };
   return Array.isArray(payload) ? payload : [];
 }
 
@@ -98,6 +145,12 @@ function cleanLabel(value = "") {
     .trim();
 }
 
+function parseDateMs(value) {
+  if (!value) return Number.NaN;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : Number.NaN;
+}
+
 function getYearFromRow(row = {}) {
   if (Number.isFinite(Number(row.year))) return Number(row.year);
   const dateLike = row.date_start || row.date || row.session_start || row.session_start_date || "";
@@ -113,8 +166,8 @@ function mapSessionType(name = "") {
   if (lower.includes("practice 1") || lower === "fp1") return "fp1";
   if (lower.includes("practice 2") || lower === "fp2") return "fp2";
   if (lower.includes("practice 3") || lower === "fp3") return "fp3";
-  if (lower.includes("sprint quali") || lower.includes("sprint shootout") || lower === "sq") return "sprint_qualy";
-  if (lower === "sprint" || lower.includes("sprint race") || lower === "sr") return "sprint_race";
+  if (lower.includes("sprint quali") || lower.includes("sprint shootout") || lower.includes("sprint qualifying") || lower === "sq") return "sprint_qualy";
+  if (lower === "sprint" || lower.includes("sprint race") || (lower.includes("sprint") && lower.includes("session")) || lower === "sr") return "sprint_race";
   if (lower.includes("qual")) return "qualy";
   if (lower.includes("race") || lower.includes("grand prix")) return "race";
   return "";
@@ -125,7 +178,7 @@ function sessionLabel(type) {
 }
 
 function gpLabelFromMeeting(meeting = {}) {
-  const candidates = [meeting.country_name, meeting.location, meeting.meeting_name, meeting.circuit_short_name]
+  const candidates = [meeting.location, meeting.country_name, meeting.meeting_name, meeting.circuit_short_name]
     .map(cleanLabel)
     .filter(Boolean);
   const base = candidates[0] || "Grand Prix";
@@ -179,18 +232,45 @@ async function getMeetings(year = DEFAULT_YEAR) {
   if (cached) return cached;
 
   const meetings = await fetchOpenF1("meetings", { year }).catch(() => []);
-  const payload = meetings
+  const rows = meetings
     .filter(item => getYearFromRow(item) === year)
     .map(item => ({
       meeting_key: String(item.meeting_key || "").trim(),
-      gp_label: gpLabelFromMeeting(item),
       meeting_name: cleanLabel(item.meeting_name || ""),
       country_name: cleanLabel(item.country_name || ""),
       location: cleanLabel(item.location || ""),
+      circuit_short_name: cleanLabel(item.circuit_short_name || ""),
+      date_start: item.date_start || item.date || "",
+      sort_ts: parseDateMs(item.date_start || item.date || ""),
       year
     }))
-    .filter(item => item.meeting_key)
-    .sort((a, b) => a.gp_label.localeCompare(b.gp_label));
+    .filter(item => item.meeting_key);
+
+  const countryUsage = new Map();
+  rows.forEach(item => {
+    const countryKey = normalizeKey(item.country_name);
+    if (!countryKey) return;
+    countryUsage.set(countryKey, (countryUsage.get(countryKey) || 0) + 1);
+  });
+
+  const payload = rows
+    .map(item => {
+      const countryKey = normalizeKey(item.country_name);
+      const countryCount = countryUsage.get(countryKey) || 0;
+      const preferredBase = countryCount > 1
+        ? (item.location || item.meeting_name || item.country_name || item.circuit_short_name || "Grand Prix")
+        : (item.country_name || item.location || item.meeting_name || item.circuit_short_name || "Grand Prix");
+      return {
+        ...item,
+        gp_label: gpLabelFromMeeting({ ...item, location: preferredBase, country_name: preferredBase })
+      };
+    })
+    .sort((a, b) => {
+      const aTs = Number.isFinite(a.sort_ts) ? a.sort_ts : Number.MAX_SAFE_INTEGER;
+      const bTs = Number.isFinite(b.sort_ts) ? b.sort_ts : Number.MAX_SAFE_INTEGER;
+      if (aTs !== bTs) return aTs - bTs;
+      return a.gp_label.localeCompare(b.gp_label);
+    });
 
   return setCached(cache.meetings, key, payload);
 }
@@ -225,15 +305,17 @@ async function getDrivers(sessionKey) {
   const cached = getCached(cache.driversBySession, key, TTL.drivers);
   if (cached) return cached;
 
-  const [driversRows, lapsRows, resultRows, positionRows] = await Promise.all([
+  const [driversRows, lapsRows, resultRows, positionRows, stintsRows, carDataRows] = await Promise.all([
     fetchOpenF1("drivers", { session_key: sessionKey }).catch(() => []),
     fetchOpenF1("laps", { session_key: sessionKey }).catch(() => []),
     fetchOpenF1("session_result", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("position", { session_key: sessionKey }).catch(() => [])
+    fetchOpenF1("position", { session_key: sessionKey }).catch(() => []),
+    fetchOpenF1("stints", { session_key: sessionKey }).catch(() => []),
+    fetchOpenF1("car_data", { session_key: sessionKey }).catch(() => [])
   ]);
 
   const byDriver = new Map();
-  [driversRows, lapsRows, resultRows, positionRows].forEach(rows => {
+  [driversRows, lapsRows, resultRows, positionRows, stintsRows, carDataRows].forEach(rows => {
     rows.forEach(row => {
       const driver = mapDriverRow(row);
       if (!driver.id || !driver.name) return;
@@ -250,6 +332,39 @@ async function getDrivers(sessionKey) {
     .map(item => ({ id: item.id, name: item.name, team: item.team || "Equipo", headshot: item.headshot }));
 
   return setCached(cache.driversBySession, key, drivers);
+}
+
+function resolveMeetingSelection(meetings = [], meetingInput = "") {
+  const raw = String(meetingInput || "").trim();
+  if (!raw) return meetings[0] || null;
+  const byKey = meetings.find(item => item.meeting_key === raw);
+  if (byKey) return byKey;
+  const normalized = normalizeKey(raw);
+  return meetings.find(item => normalizeKey(item.gp_label) === normalized)
+    || meetings.find(item => normalizeKey(item.meeting_name) === normalized)
+    || meetings.find(item => normalizeKey(item.location) === normalized)
+    || null;
+}
+
+function resolveSessionSelection(sessions = [], sessionInput = "") {
+  const raw = String(sessionInput || "").trim();
+  if (!raw) return sessions[0] || null;
+  const byKey = sessions.find(item => item.session_key === raw);
+  if (byKey) return byKey;
+  const normalized = normalizeKey(raw);
+  return sessions.find(item => normalizeKey(item.type_key) === normalized)
+    || sessions.find(item => normalizeKey(item.type_label) === normalized)
+    || sessions.find(item => normalizeKey(item.session_name) === normalized)
+    || null;
+}
+
+function resolveDriverSelection(drivers = [], driverInput = "") {
+  const raw = String(driverInput || "").trim();
+  if (!raw) return drivers[0] || null;
+  const byId = drivers.find(item => item.id === raw);
+  if (byId) return byId;
+  const normalized = normalizeKey(raw);
+  return drivers.find(item => normalizeKey(item.name) === normalized) || null;
 }
 
 async function loadSessionContext(sessionKey) {
@@ -367,6 +482,22 @@ async function getDriverMetricsOpenF1(sessionKey, driverNumber) {
       brake: brakeProfile.length > 0,
       gear: gearProfile.length > 0,
       rpm: rpmProfile.length > 0
+    },
+    diagnostics: {
+      counts: {
+        laps: lapsRows.length,
+        carData: carDataRows.length,
+        stints: stintsRows.length,
+        position: positionRows.length,
+        sessionResult: resultRows.length
+      },
+      blocks: {
+        laps: lapTimes.length > 0,
+        telemetry_trace: speedProfile.length > 0 || throttleProfile.length > 0 || brakeProfile.length > 0 || gearProfile.length > 0 || rpmProfile.length > 0,
+        sectors: Object.values(sectors).some(Number.isFinite),
+        stints: stintRows.length > 0,
+        position: positionRows.some(item => Number.isFinite(parseMaybeNumber(item.position)))
+      }
     }
   };
 }
@@ -484,15 +615,32 @@ except Exception as exc:
     }, 9000);
   });
 
+  sourceHealth.fastf1 = result?.ok
+    ? { ok: true, last_success_ts: Date.now(), last_error: null }
+    : {
+      ok: false,
+      last_success_ts: sourceHealth.fastf1.last_success_ts,
+      last_error: { reason: result?.reason || "FASTF1_UNKNOWN", ts: Date.now() }
+    };
+  if (!result?.ok) telemetryLog("warn", "fastf1.fetch_failed", { reason: result?.reason || "FASTF1_UNKNOWN" });
+
   return setCached(cache.fastf1, key, result);
 }
 
 function mergeTelemetry(openf1, fastf1) {
-  if (!fastf1?.ok) return { ...openf1, sources: ["openf1"] };
+  const openf1HasCore = Number.isFinite(openf1?.referenceLap)
+    || Number.isFinite(openf1?.averagePace)
+    || Number.isFinite(openf1?.topSpeed)
+    || Number.isFinite(openf1?.speedTrap)
+    || Object.values(openf1?.traces || {}).some(trace => Array.isArray(trace) && trace.length > 0)
+    || (Array.isArray(openf1?.stints) && openf1.stints.length > 0);
+
+  if (!fastf1?.ok) return { ...openf1, primarySource: "openf1", sources: ["openf1"] };
 
   const merged = {
     ...openf1,
-    source: openf1.source,
+    source: openf1HasCore ? openf1.source : "fastf1",
+    primarySource: openf1HasCore ? "openf1" : "fastf1",
     sources: ["openf1", "fastf1"],
     referenceLap: Number.isFinite(openf1.referenceLap) ? openf1.referenceLap : fastf1.referenceLap,
     averagePace: Number.isFinite(openf1.averagePace) ? openf1.averagePace : fastf1.averagePace,
@@ -508,6 +656,15 @@ function mergeTelemetry(openf1, fastf1) {
   };
 
   return merged;
+}
+
+function hasAnyTelemetryData(payload = {}) {
+  if (Number.isFinite(payload.referenceLap) || Number.isFinite(payload.averagePace)) return true;
+  if (Number.isFinite(payload.topSpeed) || Number.isFinite(payload.speedTrap)) return true;
+  if (Number.isFinite(payload.positionAverage) || Number.isFinite(payload.degradation)) return true;
+  if (Array.isArray(payload.stints) && payload.stints.length > 0) return true;
+  if (Array.isArray(payload.evolution) && payload.evolution.length > 0) return true;
+  return Object.values(payload.traces || {}).some(values => Array.isArray(values) && values.length > 0);
 }
 
 async function resolveTelemetryContext({ year = DEFAULT_YEAR, meetingKey = "", sessionType = "", driver = "" }) {
@@ -540,11 +697,17 @@ async function resolveTelemetryContext({ year = DEFAULT_YEAR, meetingKey = "", s
 async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKey, driverNumber }) {
   const cacheKey = `${year}:${meetingKey}:${sessionKey}:${driverNumber}`;
   const cached = getCached(cache.telemetry, cacheKey, TTL.telemetry);
-  if (cached) return cached;
+  if (cached) {
+    telemetryLog("debug", "telemetry.cache_hit", { year, meeting_key: meetingKey, session_key: sessionKey, driver_number: driverNumber });
+    return cached;
+  }
+
+  telemetryLog("info", "telemetry.request", { year, meeting_key: meetingKey, session_key: sessionKey, driver_number: driverNumber });
 
   const meetings = await getMeetings(year);
   const meeting = meetings.find(item => item.meeting_key === String(meetingKey));
   if (!meeting) {
+    telemetryLog("warn", "telemetry.meeting_not_found", { year, meeting_key: meetingKey });
     const error = new Error("GP no válido para 2026");
     error.code = "MEETING_NOT_FOUND";
     throw error;
@@ -553,6 +716,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
   const sessions = await getSessions(meetingKey, year);
   const session = sessions.find(item => item.session_key === String(sessionKey));
   if (!session) {
+    telemetryLog("warn", "telemetry.session_not_found", { year, meeting_key: meetingKey, session_key: sessionKey });
     const error = new Error("Sesión no disponible para este GP");
     error.code = "SESSION_NOT_FOUND";
     throw error;
@@ -561,6 +725,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
   const drivers = await getDrivers(session.session_key);
   const driver = drivers.find(item => item.id === String(driverNumber));
   if (!driver) {
+    telemetryLog("warn", "telemetry.driver_not_found", { year, meeting_key: meetingKey, session_key: session.session_key, driver_number: driverNumber });
     const error = new Error("Piloto no disponible en esta sesión");
     error.code = "DRIVER_NOT_FOUND";
     throw error;
@@ -568,7 +733,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
 
   const openf1 = await getDriverMetricsOpenF1(session.session_key, driver.id);
   const fastf1 = await getFastF1DriverMetrics({
-    meetingName: meeting.location || meeting.country_name || meeting.meeting_name,
+    meetingName: meeting.meeting_name || meeting.location || meeting.country_name,
     sessionType: session.type_key,
     driverNumber: driver.id
   }).catch(() => ({ ok: false, reason: "FASTF1_ERROR" }));
@@ -576,7 +741,30 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
   const merged = mergeTelemetry(openf1, fastf1);
   const weather = await loadSessionContext(session.session_key);
 
-  if (!Number.isFinite(merged.referenceLap) && !merged.traces.speed.length) {
+  telemetryLog("info", "telemetry.sources_evaluated", {
+    year,
+    meeting_key: meetingKey,
+    session_key: session.session_key,
+    session_type: session.type_key,
+    driver_number: driver.id,
+    openf1_counts: openf1?.diagnostics?.counts || {},
+    openf1_blocks: openf1?.diagnostics?.blocks || {},
+    fastf1_ok: !!fastf1?.ok,
+    fastf1_reason: fastf1?.reason || "FASTF1_ACTIVE",
+    merged_primary: merged.primarySource || "openf1",
+    merged_sources: merged.sources || ["openf1"]
+  });
+
+  if (!hasAnyTelemetryData(merged)) {
+    telemetryLog("warn", "telemetry.no_data", {
+      year,
+      meeting_key: meetingKey,
+      session_key: session.session_key,
+      driver_number: driver.id,
+      openf1_blocks: openf1?.diagnostics?.blocks || {},
+      fastf1_ok: !!fastf1?.ok,
+      fastf1_reason: fastf1?.reason || "FASTF1_ACTIVE"
+    });
     const error = new Error("No hay telemetría histórica disponible para este piloto en esta sesión.");
     error.code = "NO_TELEMETRY";
     throw error;
@@ -595,7 +783,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     },
     driver,
     source: {
-      primary: "openf1",
+      primary: merged.primarySource || "openf1",
       enrichment: fastf1?.ok ? "fastf1" : "none",
       fastf1_status: fastf1?.reason || "FASTF1_ACTIVE",
       active_sources: merged.sources
@@ -631,7 +819,154 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     }
   };
 
+  telemetryLog("info", "telemetry.success", {
+    year,
+    meeting_key: meetingKey,
+    session_key: session.session_key,
+    driver_number: driver.id,
+    source_primary: payload.source.primary,
+    source_enrichment: payload.source.enrichment
+  });
+
   return setCached(cache.telemetry, cacheKey, payload);
+}
+
+async function buildTelemetryDebugReport({ year = DEFAULT_YEAR, gp = "", session = "", driver = "" }) {
+  const refreshHealth = report => {
+    report.sources.health = {
+      openf1: sourceHealth.openf1,
+      fastf1: sourceHealth.fastf1
+    };
+  };
+
+  const report = {
+    input: { year, gp: String(gp || ""), session: String(session || ""), driver: String(driver || "") },
+    resolved: {
+      meeting: null,
+      session: null,
+      driver: null
+    },
+    sources: {
+      consulted: ["openf1", "fastf1"],
+      health: {
+        openf1: sourceHealth.openf1,
+        fastf1: sourceHealth.fastf1
+      },
+      openf1: { ok: false, counts: {}, blocks: {} },
+      fastf1: { ok: false, reason: "NOT_RUN" },
+      merged: { ok: false, primary: "none", active: [] }
+    },
+    chain: {
+      meeting: { ok: false, reason: "NOT_RUN" },
+      session: { ok: false, reason: "NOT_RUN" },
+      driver_mapping: { ok: false, reason: "NOT_RUN" },
+      laps: { ok: false, reason: "NOT_RUN" },
+      telemetry_trace: { ok: false, reason: "NOT_RUN" },
+      sectors: { ok: false, reason: "NOT_RUN" },
+      stints: { ok: false, reason: "NOT_RUN" },
+      weather: { ok: false, reason: "NOT_RUN" },
+      position: { ok: false, reason: "NOT_RUN" }
+    },
+    final: {
+      ok: false,
+      reason: "NOT_RUN",
+      message: "No ejecutado"
+    }
+  };
+
+  try {
+    const meetings = await getMeetings(year);
+    const meeting = resolveMeetingSelection(meetings, gp);
+    if (!meeting) {
+      refreshHealth(report);
+      report.chain.meeting = { ok: false, reason: "MEETING_NOT_FOUND" };
+      report.final = { ok: false, reason: "MEETING_NOT_FOUND", message: "No se pudo resolver el GP seleccionado." };
+      return report;
+    }
+    report.resolved.meeting = meeting;
+    report.chain.meeting = { ok: true, reason: "OK" };
+
+    const sessions = await getSessions(meeting.meeting_key, year);
+    const selectedSession = resolveSessionSelection(sessions, session);
+    if (!selectedSession) {
+      refreshHealth(report);
+      report.chain.session = { ok: false, reason: "SESSION_NOT_FOUND" };
+      report.final = { ok: false, reason: "SESSION_NOT_FOUND", message: "No se pudo resolver la sesión seleccionada." };
+      return report;
+    }
+    report.resolved.session = selectedSession;
+    report.chain.session = { ok: true, reason: "OK" };
+
+    const drivers = await getDrivers(selectedSession.session_key);
+    const selectedDriver = resolveDriverSelection(drivers, driver);
+    if (!selectedDriver) {
+      refreshHealth(report);
+      report.chain.driver_mapping = { ok: false, reason: "DRIVER_NOT_FOUND" };
+      report.final = { ok: false, reason: "DRIVER_NOT_FOUND", message: "No se pudo resolver el piloto seleccionado." };
+      return report;
+    }
+    report.resolved.driver = selectedDriver;
+    report.chain.driver_mapping = { ok: true, reason: "OK" };
+
+    const openf1 = await getDriverMetricsOpenF1(selectedSession.session_key, selectedDriver.id);
+    report.sources.openf1 = {
+      ok: hasAnyTelemetryData(openf1),
+      counts: openf1?.diagnostics?.counts || {},
+      blocks: openf1?.diagnostics?.blocks || {}
+    };
+    report.chain.laps = { ok: !!openf1?.diagnostics?.blocks?.laps, reason: openf1?.diagnostics?.blocks?.laps ? "OK" : "OPENF1_NO_LAPS" };
+    report.chain.telemetry_trace = { ok: !!openf1?.diagnostics?.blocks?.telemetry_trace, reason: openf1?.diagnostics?.blocks?.telemetry_trace ? "OK" : "OPENF1_NO_TRACE" };
+    report.chain.sectors = { ok: !!openf1?.diagnostics?.blocks?.sectors, reason: openf1?.diagnostics?.blocks?.sectors ? "OK" : "OPENF1_NO_SECTORS" };
+    report.chain.stints = { ok: !!openf1?.diagnostics?.blocks?.stints, reason: openf1?.diagnostics?.blocks?.stints ? "OK" : "OPENF1_NO_STINTS" };
+    report.chain.position = { ok: !!openf1?.diagnostics?.blocks?.position, reason: openf1?.diagnostics?.blocks?.position ? "OK" : "OPENF1_NO_POSITION" };
+
+    const fastf1 = await getFastF1DriverMetrics({
+      meetingName: meeting.meeting_name || meeting.location || meeting.country_name,
+      sessionType: selectedSession.type_key,
+      driverNumber: selectedDriver.id
+    }).catch(() => ({ ok: false, reason: "FASTF1_ERROR" }));
+    report.sources.fastf1 = { ok: !!fastf1?.ok, reason: fastf1?.reason || "FASTF1_ACTIVE" };
+
+    const weather = await loadSessionContext(selectedSession.session_key);
+    report.chain.weather = {
+      ok: Number.isFinite(weather.avgTrackTemp) || Number.isFinite(weather.avgAirTemp) || Number.isFinite(weather.raceControlMessages),
+      reason: (Number.isFinite(weather.avgTrackTemp) || Number.isFinite(weather.avgAirTemp) || Number.isFinite(weather.raceControlMessages)) ? "OK" : "OPENF1_NO_WEATHER_CONTEXT"
+    };
+
+    const merged = mergeTelemetry(openf1, fastf1);
+    report.sources.merged = {
+      ok: hasAnyTelemetryData(merged),
+      primary: merged.primarySource || "openf1",
+      active: merged.sources || ["openf1"]
+    };
+
+    if (!hasAnyTelemetryData(merged)) {
+      refreshHealth(report);
+      report.final = {
+        ok: false,
+        reason: "NO_TELEMETRY",
+        message: "No hay telemetría histórica disponible para este piloto en esta sesión."
+      };
+      return report;
+    }
+
+    report.final = {
+      ok: true,
+      reason: "OK",
+      message: "Telemetría resuelta correctamente."
+    };
+    refreshHealth(report);
+    return report;
+  } catch (error) {
+    telemetryLog("error", "telemetry.debug_failed", { reason: error?.code || "DEBUG_BUILD_FAILED", message: String(error?.message || "") });
+    refreshHealth(report);
+    report.final = {
+      ok: false,
+      reason: error?.code || "DEBUG_BUILD_FAILED",
+      message: String(error?.message || "No se pudo construir el diagnóstico.")
+    };
+    return report;
+  }
 }
 
 function apiError(res, status, message, code = "ENGINEER_ERROR") {
@@ -659,6 +994,7 @@ export {
   SESSION_TYPES,
   apiError,
   buildComparison,
+  buildTelemetryDebugReport,
   buildDriverTelemetry,
   getDrivers,
   getEntities,
