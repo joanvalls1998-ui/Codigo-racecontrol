@@ -3363,6 +3363,17 @@ function getDriverImageByName(name, fallback = "") {
   return driver?.image || fallback || "";
 }
 
+function buildDriverAvatarFallback(name = "") {
+  const initials = String(name || "Piloto")
+    .split(" ")
+    .map(token => token[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "DR";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#17263c"/><stop offset="1" stop-color="#0b1424"/></linearGradient></defs><rect width="96" height="96" rx="16" fill="url(#g)"/><text x="50%" y="56%" dominant-baseline="middle" text-anchor="middle" fill="#e5f2ff" font-family="system-ui, -apple-system, Segoe UI, Roboto" font-size="32" font-weight="700">${initials}</text></svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 function findDriverMentionInText(text) {
   const normalized = normalizeText(text);
   if (!normalized) return null;
@@ -3375,9 +3386,10 @@ function findDriverMentionInText(text) {
 }
 
 function renderDriverAvatar(name, image = "", className = "row-avatar") {
-  const fallback = getDefaultFavorite().image;
-  const safeImage = image || getDriverImageByName(name, fallback) || fallback;
-  return `<img class="${escapeHtml(className)}" src="${escapeHtml(safeImage)}" alt="${escapeHtml(name || "Piloto")}" onerror="this.onerror=null; this.src='${escapeHtml(fallback)}';">`;
+  const photoFallback = getDefaultFavorite().image;
+  const initialsFallback = buildDriverAvatarFallback(name);
+  const safeImage = image || getDriverImageByName(name, photoFallback) || photoFallback;
+  return `<img class="${escapeHtml(className)}" src="${escapeHtml(safeImage)}" alt="${escapeHtml(name || "Piloto")}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='${escapeHtml(initialsFallback)}';">`;
 }
 
 function renderHomeWeekendModeBlock(context) {
