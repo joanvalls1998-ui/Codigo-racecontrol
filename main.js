@@ -35,7 +35,9 @@ function createInitialRuntimeState() {
     lastScreen: DEFAULT_UI_STATE.lastScreen,
     weekendModeEnabled: DEFAULT_UI_STATE.weekendModeEnabled,
     weekendContext: null,
-    weekendNowIso: null
+    weekendNowIso: null,
+    engineerModeActive: false,
+    engineerActiveTab: "summary"
   };
 }
 
@@ -481,6 +483,15 @@ function applyExperienceTheme() {
   root.classList.remove("experience-casual", "experience-expert");
   const mode = getExperienceMode();
   root.classList.add(mode === "expert" ? "experience-expert" : "experience-casual");
+}
+
+function applyEngineerModeState() {
+  const root = document.body;
+  const bottomNav = document.getElementById("bottomNav");
+  if (!root || !bottomNav) return;
+
+  root.classList.toggle("engineer-mode-active", state.engineerModeActive === true);
+  bottomNav.setAttribute("aria-hidden", state.engineerModeActive ? "true" : "false");
 }
 
 function getPredictRaceOptions() {
@@ -3400,6 +3411,11 @@ function renderHomeWeekendModeControl() {
 /* ===== HOME ===== */
 
 async function showHome() {
+  if (state.engineerModeActive) {
+    state.engineerModeActive = false;
+    applyEngineerModeState();
+  }
+
   setActiveNav("nav-home");
   rememberScreen("home");
   updateSubtitle();
@@ -3519,8 +3535,9 @@ async function showHome() {
       </div>
 
       <div class="home-mode-switch" style="margin-top:10px;">
-        <button class="chip ${getExperienceMode() === "casual" ? "active" : ""}" onclick="setExperienceMode('casual')" aria-pressed="${getExperienceMode() === "casual"}">Casual</button>
-        <button class="chip ${getExperienceMode() === "expert" ? "active" : ""}" onclick="setExperienceMode('expert')" aria-pressed="${getExperienceMode() === "expert"}">Experto</button>
+        <button class="chip ${!state.engineerModeActive && getExperienceMode() === "casual" ? "active" : ""}" onclick="setExperienceMode('casual')" aria-pressed="${!state.engineerModeActive && getExperienceMode() === "casual"}">Casual</button>
+        <button class="chip ${!state.engineerModeActive && getExperienceMode() === "expert" ? "active" : ""}" onclick="setExperienceMode('expert')" aria-pressed="${!state.engineerModeActive && getExperienceMode() === "expert"}">Experto</button>
+        <button class="chip ${state.engineerModeActive ? "active" : ""}" onclick="enterEngineerMode()" aria-pressed="${state.engineerModeActive}">Ingeniero</button>
       </div>
 
       ${compactHomeEnabled ? `<div class="home-compact-pill">Inicio compacto activo · foco en lo esencial</div>` : ""}
@@ -5118,6 +5135,9 @@ function toggleWeekendModeEnabled(returnView = "showSettingsPanel") {
 
 function refreshCurrentView() {
   applyExperienceTheme();
+  applyEngineerModeState();
+
+  if (state.engineerModeActive) return showEngineerMode();
 
   const active = document.querySelector("#bottomNav a.active")?.id;
 
@@ -5215,6 +5235,7 @@ function bootRaceControl() {
     saveFavorite(repairedFavorite);
     applyFavoriteTheme();
     applyExperienceTheme();
+    applyEngineerModeState();
 
     updateSubtitle();
 
