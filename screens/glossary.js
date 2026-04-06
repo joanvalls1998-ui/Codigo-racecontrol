@@ -173,12 +173,14 @@ function showGlossary(focusTerm = null) {
   const focusItem = focusTerm ? findGlossaryItemByTerm(focusTerm) : null;
 
   contentEl().innerHTML = `
-    <div class="card highlight-card glossary-hero-card">
-      <div class="card-title">Glosario F1</div>
-      <div class="news-meta-row"><span class="tag general">Herramienta rápida</span></div>
+    <div class="card highlight-card glossary-hero-card app-panel-card">
+      <div class="card-title">Glosario</div>
+      <div class="app-hero-subline">Consulta rápida de términos.</div>
     </div>
     ${focusItem ? renderGlossaryFocusCard(focusItem) : ""}
-    ${sections.map(renderGlossarySection).join("")}
+    <div class="card app-panel-card">
+      ${sections.map(renderGlossarySection).join("")}
+    </div>
   `;
 }
 

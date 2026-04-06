@@ -644,7 +644,7 @@ async function showNews() {
   const predictData = getActivePredictDataForRace(favorite, raceName);
 
   contentEl().innerHTML = `
-    <div class="card news-header-v2">
+    <div class="card news-header-v2 app-panel-card">
       <div class="card-head">
         <div class="card-head-left"><div class="card-title">Noticias</div></div>
         <div class="card-head-actions"><button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button></div>
@@ -658,12 +658,12 @@ async function showNews() {
   try {
     const data = await fetchNewsDataForFavorite(filter.favoritePayload, false);
     const sorted = sortNewsItems(Array.isArray(data?.items) ? data.items : [], filter, phase);
-    const sortedItems = applyNewsSecondaryFilter(sorted, filter, phase).slice(0, 10);
+    const sortedItems = applyNewsSecondaryFilter(sorted, filter, phase).slice(0, 8);
     const featured = sortedItems[0] || null;
     const rest = sortedItems.slice(1);
 
     contentEl().innerHTML = `
-      <div class="card news-header-v2">
+      <div class="card news-header-v2 app-panel-card">
         <div class="card-head">
           <div class="card-head-left"><div class="card-title">Noticias</div></div>
           <div class="card-head-actions"><button class="icon-btn" onclick="refreshCurrentNews()">Refrescar</button></div>
@@ -672,33 +672,20 @@ async function showNews() {
         ${renderNewsSecondaryFilters()}
       </div>
 
-      <div class="card highlight-card news-portada-v2">
+      <div class="card highlight-card news-portada-v2 app-panel-card">
         ${featured ? renderFeaturedNews(featured, filter, phase) : `<div class="empty-line">No hay noticia destacada ahora mismo.</div>`}
       </div>
 
-      <div class="card news-list-v2">
-        <div class="card-title">Seguimiento</div>
+      <div class="card news-list-v2 app-panel-card">
         ${rest.length ? rest.map(item => renderNewsListItem(item, filter, phase)).join("") : `<div class="empty-line">No hay más titulares relevantes ahora mismo.</div>`}
       </div>
 
-      ${isExpertMode() ? `
-        <div class="card news-keys-v2">
-          <div class="card-title">Radar paddock</div>
-          ${renderNewsKeyLines(sortedItems, filter, phase)}
-        </div>
-        ${renderFavoritePersonalPulseCard({
-          favorite,
-          raceName,
-          predictData,
-          context: state.weekendContext,
-          title: "Impacto en tu favorito",
-          expert: true
-        })}
-      ` : ""}
+      ${isExpertMode() ? `<div class="card news-keys-v2 app-panel-card">${renderNewsKeyLines(sortedItems, filter, phase)}</div>` : ""}
+      ${isExpertMode() ? renderFavoritePersonalPulseCard({ favorite, raceName, predictData, context: state.weekendContext, title: "Impacto en tu favorito", expert: true }) : ""}
     `;
   } catch (error) {
     contentEl().innerHTML = `
-      <div class="card">
+      <div class="card app-panel-card">
         <div class="card-head">
           <div class="card-head-left"><div class="card-title">Noticias</div></div>
           <div class="card-head-actions"><button class="icon-btn" onclick="refreshCurrentNews()">Reintentar</button></div>

@@ -368,7 +368,6 @@ function showPredict() {
   rememberScreen("predict");
   updateSubtitle();
 
-  const predict = renderPredictContent();
   const selectedRace = getSelectedRace();
   const favorite = getFavorite();
   const needFreshPredict = shouldAutoGeneratePredict(favorite, selectedRace);
@@ -376,45 +375,34 @@ function showPredict() {
   const expert = isExpertMode();
 
   contentEl().innerHTML = `
-    ${renderPredictHeroV2({ predict, favorite, raceName: selectedRace, expert, activePredictData })}
+    ${renderPredictHeroV2({ predict: renderPredictContent(), favorite, raceName: selectedRace, expert, activePredictData })}
 
-    <div class="card predict-v2-primary">
+    <div class="card app-panel-card">
       <div class="card-head">
-        <div class="card-head-left"><div class="card-title">Panel predictivo</div></div>
+        <div class="card-head-left"><div class="card-title">Resumen predictivo</div></div>
         <div class="card-head-actions"><button class="icon-btn" onclick="sharePrediction()">Compartir</button></div>
       </div>
       <div id="predictSummaryCards">${activePredictData ? renderPredictSummaryCards(activePredictData) : renderPredictPreviewCards(favorite, selectedRace)}</div>
-      <div id="predictScenarioCards" style="margin-top:12px;">${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}</div>
+      <div id="predictScenarioCards" style="margin-top:10px;">${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}</div>
     </div>
 
-    <div class="card predict-v2-primary">
-      <div class="card-title">Operativa GP</div>
+    <div class="card app-panel-card">
+      <div class="card-title">Operativa</div>
       <div id="predictKeyFactors">${renderPredictWeekendKeyCard(favorite, selectedRace, activePredictData, expert)}</div>
-      <div id="predictQualyRace" style="margin-top:12px;">${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, expert)}</div>
+      <div id="predictQualyRace" style="margin-top:10px;">${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, expert)}</div>
+      <div id="predictStrategyDetail" style="margin-top:10px;">${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}</div>
+      ${expert ? `<div id="predictGridRead" style="margin-top:10px;">${renderPredictGridRead(favorite, selectedRace, activePredictData)}</div>` : ""}
     </div>
-
-    ${expert ? `
-      <div class="card predict-v2-primary">
-        <div class="card-title">Lectura experta</div>
-        <div id="predictStrategyDetail">${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}</div>
-        <div id="predictGridRead" style="margin-top:12px;">${renderPredictGridRead(favorite, selectedRace, activePredictData)}</div>
-      </div>
-    ` : `
-      <div class="card predict-v2-primary">
-        <div class="card-title">Qué necesita tu favorito</div>
-        <div id="predictStrategyDetail">${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}</div>
-      </div>
-    `}
 
     ${renderFavoriteQuickSelectorCard({ title: "Favorito", subtitle: "", returnView: "showPredict", compact: true })}
 
-    <div class="card predict-v2-secondary">
+    <div class="card app-panel-card">
       <div class="card-head">
         <div class="card-head-left"><div class="card-title">Salida técnica</div></div>
-        <div class="card-head-actions"><button class="icon-btn" onclick="clearPredictionHistory()">Vaciar historial</button></div>
+        <div class="card-head-actions"><button class="icon-btn" onclick="clearPredictionHistory()">Vaciar</button></div>
       </div>
-      <pre id="predictOutput" class="ai-output predict-v2-raw-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción avanzada..."}</pre>
-      <div id="predictionHistoryBox" style="margin-top:12px;">${renderPredictionHistory()}</div>
+      <pre id="predictOutput" class="ai-output predict-v2-raw-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción…"}</pre>
+      <div id="predictionHistoryBox" style="margin-top:10px;">${renderPredictionHistory()}</div>
     </div>
   `;
 

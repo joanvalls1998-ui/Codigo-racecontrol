@@ -369,18 +369,19 @@ async function showRaceMode() {
 
     contentEl().innerHTML = `
       ${renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData)}
-      ${renderRaceModeExecutionPanel(favorite, raceName, predictData, stage)}
-      ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
-      ${renderRaceModeComparativeCard(favorite, raceName, predictData)}
-
-      <div class="card race-mode-v2-primary">
-        <div class="card-title">Escenario y estrategia</div>
-        ${renderPredictScenarioCards(favorite, raceName, predictData)}
-        <div style="margin-top:12px;">${renderPredictStrategyDetail(favorite, raceName, predictData)}</div>
+      <div class="card app-panel-card">
+        <div class="card-title">Panel de ejecución</div>
+        ${renderRaceModeExecutionPanel(favorite, raceName, predictData, stage)}
+        ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
       </div>
-
-      ${expert ? renderRaceModeFavoriteSummary(favorite, raceName, predictData) : renderRaceModeTop10(predictData, favorite)}
-      ${expert ? renderRaceModeTop10(predictData, favorite) : ""}
+      <div class="card app-panel-card">
+        <div class="card-title">Riesgo · rival · estrategia</div>
+        ${renderRaceModeComparativeCard(favorite, raceName, predictData)}
+        ${renderPredictScenarioCards(favorite, raceName, predictData)}
+        <div style="margin-top:10px;">${renderPredictStrategyDetail(favorite, raceName, predictData)}</div>
+      </div>
+      ${expert ? renderRaceModeFavoriteSummary(favorite, raceName, predictData) : ""}
+      ${renderRaceModeTop10(predictData, favorite)}
       ${expert ? renderContextGlossaryCard("raceMode", phase) : ""}
     `;
   } catch (error) {

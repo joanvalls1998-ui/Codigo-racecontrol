@@ -402,10 +402,15 @@ function showFavorito() {
   contentEl().innerHTML = `
     ${renderFavoritoHeroContextCard(favorite, raceName, predictData, context)}
     ${renderFavoriteQuickSelectorCard({ title: "Cambiar favorito", subtitle: "", returnView: "showFavorito", compact: true })}
-    ${renderFavoritoTechnicalCard(favorite, teamData, accent, raceName, context, predictData, expert)}
-    ${renderFavoritoObjectiveCard(favorite, raceName, predictData, context)}
-    ${renderFavoritoChampionshipCard(favorite, raceName, predictData, expert)}
+    <div class="card app-panel-card">
+      <div class="card-title">Estado actual</div>
+      ${renderFavoritoTechnicalCard(favorite, teamData, accent, raceName, context, predictData, expert)}
+    </div>
+    <div class="card app-panel-card">
+      <div class="card-title">Objetivo y pelea</div>
+      ${renderFavoritoObjectiveCard(favorite, raceName, predictData, context)}
+      ${renderFavoritoChampionshipCard(favorite, raceName, predictData, expert)}
+    </div>
     ${expert ? renderFavoritoDirectRivalsCard(favorite, predictData, true) : renderFavoritoComparisonAdvancedCard(favorite, false)}
-    ${expert ? renderFavoritoCircuitFitCard(favorite, raceName, true) : ""}
   `;
 }

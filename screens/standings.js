@@ -250,12 +250,11 @@ async function showStandings(force = false) {
 
     contentEl().innerHTML = `
       <div id="standingsSummaryContent"></div>
-      <div class="card">
+      <div class="card app-panel-card">
         <div class="card-head">
-          <div class="card-head-left"><div class="card-title">Tabla</div></div>
+          <div class="card-head-left"><div class="card-title">Clasificación</div></div>
           <div class="card-head-actions"><button class="icon-btn" onclick="refreshStandings()">Refrescar</button></div>
         </div>
-
         <div class="standings-toggle">
           <button class="toggle-btn ${state.standingsViewType === "drivers" ? "active" : ""}" onclick="setStandingsView('drivers')">Pilotos</button>
           <button class="toggle-btn ${state.standingsViewType === "teams" ? "active" : ""}" onclick="setStandingsView('teams')">Equipos</button>
