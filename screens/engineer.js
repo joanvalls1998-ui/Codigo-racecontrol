@@ -220,10 +220,6 @@ const EngineerTelemetryProvider = {
       });
     }
 
-    if (!options.length) {
-      return compareType === "driver" ? this.fallbackDrivers() : this.fallbackTeams();
-    }
-
     return options.sort((a, b) => a.localeCompare(b, "es"));
   },
 
@@ -603,11 +599,16 @@ async function showEngineerHub() {
 
 function renderEngineerSelect(label, value, options, onChange, { compact = false } = {}) {
   const cls = compact ? "engineer-field compact" : "engineer-field";
+  const safeOptions = Array.isArray(options) ? options : [];
+  const hasOptions = safeOptions.length > 0;
   return `
     <label class="${cls}">
       <span>${escapeHtml(label)}</span>
-      <select onchange="${onChange}(this.value)">
-        ${options.map(option => `<option value="${escapeHtml(option.value)}" ${option.value === value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+      <select onchange="${onChange}(this.value)" ${hasOptions ? "" : "disabled"}>
+        ${hasOptions
+          ? safeOptions.map(option => `<option value="${escapeHtml(option.value)}" ${option.value === value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")
+          : '<option value="">Sin opciones</option>'
+        }
       </select>
     </label>
   `;
@@ -626,11 +627,7 @@ function renderEngineerHub() {
     { value: "team", label: "Equipo / Equipo" }
   ];
 
-  const sourceOptions = engineer.entityOptions.length
-    ? engineer.entityOptions
-    : (engineer.compareType === "driver"
-      ? EngineerTelemetryProvider.getDriverOptionsFromStandings()
-      : EngineerTelemetryProvider.getTeamOptionsFromStandings());
+  const sourceOptions = engineer.entityOptions;
 
   const metrics = engineer.telemetry?.metrics;
   const availabilityA = engineer.telemetry?.availabilityA;
@@ -688,12 +685,12 @@ function renderEngineerHub() {
 }
 
 function formatMetric(value, decimals, suffix = "") {
-  if (!Number.isFinite(value)) return "No disponible";
+  if (!Number.isFinite(value)) return "—";
   return `${Number(value).toFixed(decimals)}${suffix ? ` ${suffix}` : ""}`;
 }
 
 function formatSignedMetric(value, decimals, suffix = "") {
-  if (!Number.isFinite(value)) return "No disponible";
+  if (!Number.isFinite(value)) return "—";
   const fixed = Number(value).toFixed(decimals);
   return `${value >= 0 ? "+" : ""}${fixed}${suffix ? ` ${suffix}` : ""}`;
 }
@@ -719,8 +716,12 @@ function renderEngineerMetricRow(label, valueA, valueB, { suffix = "", highlight
 }
 
 function formatRowValue(value, suffix) {
-  if (!Number.isFinite(value)) return "No disponible";
+  if (!Number.isFinite(value)) return "—";
   return `${value.toFixed(suffix.includes("km") ? 1 : 3)}${suffix}`;
+}
+
+function hasComparableData(valueA, valueB) {
+  return Number.isFinite(valueA) || Number.isFinite(valueB);
 }
 
 function renderLineChart(seriesA, seriesB, { height = 130 } = {}) {
@@ -766,7 +767,7 @@ function renderDeltaBars(metrics) {
           <div class="bar-row">
             <span>${item.label}</span>
             <div class="bar-track ${side}"><i style="width:${pct}%"></i></div>
-            <strong>${Number.isFinite(item.value) ? `${item.value >= 0 ? "+" : ""}${item.value.toFixed(3)}s` : "No disponible"}</strong>
+            <strong>${Number.isFinite(item.value) ? `${item.value >= 0 ? "+" : ""}${item.value.toFixed(3)}s` : "—"}</strong>
           </div>
         `;
       }).join("")}
@@ -795,39 +796,58 @@ function renderEvolutionChart(rows) {
 function renderEngineerTabContent(engineer, metrics) {
   const telemetry = engineer.telemetry || {};
   if (engineer.tab === "resumen") {
+    const speedRows = [
+      hasComparableData(metrics?.topSpeedA, metrics?.topSpeedB)
+        ? renderEngineerMetricRow("Top Speed", metrics?.topSpeedA, metrics?.topSpeedB, { suffix: " km/h" })
+        : "",
+      hasComparableData(metrics?.speedTrapA, metrics?.speedTrapB)
+        ? renderEngineerMetricRow("Speed Trap", metrics?.speedTrapA, metrics?.speedTrapB, { suffix: " km/h" })
+        : ""
+    ].filter(Boolean).join("");
+    const paceRows = [
+      hasComparableData(metrics?.refLapA, metrics?.refLapB)
+        ? renderEngineerMetricRow("Vuelta referencia", metrics?.refLapA, metrics?.refLapB, { suffix: " s" })
+        : "",
+      hasComparableData(metrics?.avgPaceA, metrics?.avgPaceB)
+        ? renderEngineerMetricRow("Ritmo medio", metrics?.avgPaceA, metrics?.avgPaceB, { suffix: " s" })
+        : "",
+      hasComparableData(metrics?.deltaLap, Number.isFinite(metrics?.deltaLap) ? -metrics.deltaLap : null)
+        ? renderEngineerMetricRow("Delta principal", metrics?.deltaLap, Number.isFinite(metrics?.deltaLap) ? -metrics.deltaLap : null, { suffix: " s", highlight: Number(metrics?.deltaLap) <= 0 ? "good" : "bad" })
+        : ""
+    ].filter(Boolean).join("");
     return `
       <div class="engineer-grid">
         <article class="engineer-panel">
           <h3>VELOCIDAD · SPEED TRAP</h3>
-          ${renderEngineerMetricRow("Top Speed", metrics?.topSpeedA, metrics?.topSpeedB, { suffix: " km/h" })}
-          ${renderEngineerMetricRow("Speed Trap", metrics?.speedTrapA, metrics?.speedTrapB, { suffix: " km/h" })}
+          ${speedRows || '<div class="engineer-empty">Sin datos de velocidad para esta selección</div>'}
           ${renderLineChart(metrics?.lapSeriesA, metrics?.lapSeriesB)}
         </article>
         <article class="engineer-panel">
           <h3>REFERENCIA · RITMO</h3>
-          ${renderEngineerMetricRow("Vuelta referencia", metrics?.refLapA, metrics?.refLapB, { suffix: " s" })}
-          ${renderEngineerMetricRow("Ritmo medio", metrics?.avgPaceA, metrics?.avgPaceB, { suffix: " s" })}
-          ${renderEngineerMetricRow("Delta principal", metrics?.deltaLap, Number.isFinite(metrics?.deltaLap) ? -metrics.deltaLap : null, { suffix: " s", highlight: Number(metrics?.deltaLap) <= 0 ? "good" : "bad" })}
+          ${paceRows || '<div class="engineer-empty">Sin vueltas válidas para construir referencia o ritmo</div>'}
         </article>
       </div>
     `;
   }
 
   if (engineer.tab === "sectores") {
+    const sectorRows = [
+      hasComparableData(metrics?.sectorsA?.s1, metrics?.sectorsB?.s1)
+        ? renderEngineerMetricRow("Sector 1", metrics?.sectorsA?.s1, metrics?.sectorsB?.s1, { suffix: " s" })
+        : "",
+      hasComparableData(metrics?.sectorsA?.s2, metrics?.sectorsB?.s2)
+        ? renderEngineerMetricRow("Sector 2", metrics?.sectorsA?.s2, metrics?.sectorsB?.s2, { suffix: " s" })
+        : "",
+      hasComparableData(metrics?.sectorsA?.s3, metrics?.sectorsB?.s3)
+        ? renderEngineerMetricRow("Sector 3", metrics?.sectorsA?.s3, metrics?.sectorsB?.s3, { suffix: " s" })
+        : ""
+    ].filter(Boolean).join("");
     return `
       <div class="engineer-grid">
         <article class="engineer-panel">
           <h3>SECTORES Y DELTA</h3>
-          ${renderEngineerMetricRow("Sector 1", metrics?.sectorsA?.s1, metrics?.sectorsB?.s1, { suffix: " s" })}
-          ${renderEngineerMetricRow("Sector 2", metrics?.sectorsA?.s2, metrics?.sectorsB?.s2, { suffix: " s" })}
-          ${renderEngineerMetricRow("Sector 3", metrics?.sectorsA?.s3, metrics?.sectorsB?.s3, { suffix: " s" })}
-          ${renderDeltaBars(metrics)}
-        </article>
-        <article class="engineer-panel">
-          <h3>ZONAS RÁPIDAS / LENTAS</h3>
-          ${renderEngineerMetricRow("Rápidas", metrics?.fastSlowA?.fast, metrics?.fastSlowB?.fast, { suffix: " s" })}
-          ${renderEngineerMetricRow("Lentas", metrics?.fastSlowA?.slow, metrics?.fastSlowB?.slow, { suffix: " s" })}
-          <div class="engineer-footnote">Estimación derivada de sectores OpenF1 (S1+S3 vs S2).</div>
+          ${sectorRows || '<div class="engineer-empty">Sin sectores válidos en OpenF1 para esta selección</div>'}
+          ${sectorRows ? renderDeltaBars(metrics) : ""}
         </article>
       </div>
     `;
@@ -893,9 +913,19 @@ async function refreshEngineerTelemetry() {
     engineer.entityOptions = telemetry.entityOptions;
     engineer.loading = false;
     engineer.status = telemetry.hasAnyData ? "ready" : "empty";
+    const missingSelectors = [];
+    if (!telemetry.availabilityA?.ok) missingSelectors.push(`A (${engineer.gpA} · ${engineer.sessionA}): ${telemetry.availabilityA?.reason || "sin datos"}`);
+    if (!telemetry.availabilityB?.ok) {
+      const gpLabel = engineer.compareMode === "between_gp" ? engineer.gpB : engineer.gpA;
+      const sessionLabel = engineer.compareMode === "between_gp" ? engineer.sessionB : engineer.sessionA;
+      missingSelectors.push(`B (${gpLabel} · ${sessionLabel}): ${telemetry.availabilityB?.reason || "sin datos"}`);
+    }
+    if (!telemetry.entityOptions?.length) {
+      missingSelectors.push(`Tipo ${engineer.compareType === "driver" ? "Piloto/Piloto" : "Equipo/Equipo"} sin entidades reales para la sesión seleccionada`);
+    }
     engineer.statusMessage = telemetry.hasAnyData
       ? ""
-      : "Sin datos suficientes para la combinación seleccionada. Ajusta GP, sesión o entidades A/B.";
+      : `Sin datos útiles en OpenF1 para la combinación actual. ${missingSelectors.join(" · ")}`;
     engineer.error = "";
     renderEngineerHub();
   } catch {
@@ -993,6 +1023,7 @@ function setEngineerEntityB(value) {
 function exitEngineerMode() {
   const fallback = state.lastNonEngineerMode === "expert" ? "expert" : "casual";
   setExperienceMode(fallback);
+  setActiveNav("nav-home");
   showHome();
 }
 
