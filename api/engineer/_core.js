@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 
 const OPENF1_BASE_URL = "https://api.openf1.org/v1";
 const RACEOPTIDATA_BASE_URL = "https://api.raceoptidata.com";
+const JOLPICA_BASE_URL = "https://api.jolpi.ca/ergast/f1";
 const DEFAULT_YEAR = 2026;
 const SUPPORTED_SESSION_TYPES = ["fp1", "fp2", "fp3", "qualy", "race", "sprint_qualy", "sprint_race"];
 
@@ -12,7 +13,8 @@ const TTL = Object.freeze({
   context: 1000 * 60 * 8,
   telemetry: 1000 * 60 * 6,
   fastf1: 1000 * 60 * 20,
-  raceoptidata: 1000 * 60 * 30
+  raceoptidata: 1000 * 60 * 30,
+  jolpica: 1000 * 60 * 60
 });
 
 const SESSION_TYPES = Object.freeze([
@@ -32,10 +34,12 @@ const cache = {
   context: new Map(),
   telemetry: new Map(),
   fastf1: new Map(),
-  raceoptidata: new Map()
+  raceoptidata: new Map(),
+  jolpica: new Map()
 };
 const sourceHealth = {
   raceoptidata: { ok: true, last_error: null, last_success_ts: null },
+  jolpica: { ok: true, last_error: null, last_success_ts: null },
   openf1: { ok: true, last_error: null, last_success_ts: null },
   fastf1: { ok: true, last_error: null, last_success_ts: null },
   openf1_aggregate: { ok: true, last_error: null, last_success_ts: null }
@@ -139,6 +143,50 @@ async function fetchOpenF1WithRetry(endpoint, params = {}, options = {}) {
   throw lastError || new Error(`OpenF1 ${endpoint} failed`);
 }
 
+async function fetchJolpica(pathname = "") {
+  const trimmed = String(pathname || "").trim().replace(/^\/+/, "");
+  const url = `${JOLPICA_BASE_URL}/${trimmed}`;
+  let response;
+  try {
+    response = await fetch(url, {
+      headers: { "User-Agent": "RaceControlEngineer/8.0" },
+      cache: "no-store"
+    });
+  } catch (error) {
+    sourceHealth.jolpica = {
+      ok: false,
+      last_success_ts: sourceHealth.jolpica.last_success_ts,
+      last_error: {
+        path: pathname,
+        reason: String(error?.code || error?.message || "JOLPICA_FETCH_ERROR"),
+        ts: Date.now()
+      }
+    };
+    throw error;
+  }
+  if (!response.ok) {
+    sourceHealth.jolpica = {
+      ok: false,
+      last_success_ts: sourceHealth.jolpica.last_success_ts,
+      last_error: {
+        path: pathname,
+        reason: `HTTP_${response.status}`,
+        ts: Date.now()
+      }
+    };
+    const error = new Error(`Jolpica ${pathname} (${response.status})`);
+    error.status = response.status;
+    throw error;
+  }
+  const payload = await response.json();
+  sourceHealth.jolpica = {
+    ok: true,
+    last_success_ts: Date.now(),
+    last_error: null
+  };
+  return payload || {};
+}
+
 function getRaceOptiApiKey() {
   return String(process.env.RACEOPTIDATA_API_KEY || "").trim();
 }
@@ -232,6 +280,13 @@ function normalizeKey(value = "") {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function normalizeSlug(value = "") {
+  return normalizeKey(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
 function cleanLabel(value = "") {
   return String(value || "")
     .replace(/\s+/g, " ")
@@ -240,6 +295,19 @@ function cleanLabel(value = "") {
     .replace(/\b(ROLEX|QATAR AIRWAYS|AWS|ARAMCO|MSC CRUISES|HEINEKEN|LENOVO|P ZERO)\b/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+function buildMeetingSearchBag(meeting = {}) {
+  const values = [
+    meeting.gp_label,
+    meeting.meeting_name,
+    meeting.country_name,
+    meeting.location,
+    meeting.circuit_short_name
+  ]
+    .map(item => cleanLabel(item || ""))
+    .filter(Boolean);
+  return new Set(values.map(normalizeSlug).filter(Boolean));
 }
 
 function parseDateMs(value) {
@@ -407,12 +475,109 @@ async function getRaceOptiDriverCodeByNumber(driverNumber) {
   return String(match?.fastF1Code || match?.code || "").trim().toUpperCase();
 }
 
+async function getJolpicaCalendar(year = DEFAULT_YEAR) {
+  const key = `jolpica:calendar:${year}`;
+  const cached = getCached(cache.jolpica, key, TTL.jolpica);
+  if (cached) return cached;
+  const payload = await fetchJolpica(`${year}/races.json`).catch(() => ({}));
+  const rows = Array.isArray(payload?.MRData?.RaceTable?.Races) ? payload.MRData.RaceTable.Races : [];
+  const calendar = rows.map(row => {
+    const round = parseMaybeNumber(row.round);
+    const raceName = cleanLabel(row.raceName || "");
+    const country = cleanLabel(row?.Circuit?.Location?.country || "");
+    const locality = cleanLabel(row?.Circuit?.Location?.locality || "");
+    const circuitName = cleanLabel(row?.Circuit?.circuitName || "");
+    return {
+      round,
+      raceName,
+      country,
+      locality,
+      circuitName,
+      date: row.date || "",
+      time: row.time || "",
+      sort_ts: parseDateMs(`${row.date || ""}T${row.time || "00:00:00Z"}`)
+    };
+  }).filter(item => Number.isFinite(item.round));
+  return setCached(cache.jolpica, key, calendar);
+}
+
+function normalizeJolpicaDriver(entry = {}) {
+  const first = cleanLabel(entry?.Driver?.givenName || entry?.givenName || "");
+  const last = cleanLabel(entry?.Driver?.familyName || entry?.familyName || "");
+  const fullName = normalizeDriverDisplayName(`${first} ${last}`.trim() || cleanLabel(entry.fullName || ""));
+  const constructor = cleanLabel(entry?.Constructor?.name || entry?.constructor || "");
+  return {
+    number: String(entry?.Driver?.permanentNumber || entry?.number || "").trim(),
+    code: String(entry?.Driver?.code || entry?.code || "").trim().toUpperCase(),
+    driverId: String(entry?.Driver?.driverId || entry?.driverId || "").trim().toLowerCase(),
+    fullName,
+    constructor
+  };
+}
+
+async function getJolpicaDriversByRound(year = DEFAULT_YEAR, round) {
+  const roundNumber = Number(round);
+  if (!Number.isFinite(roundNumber)) return [];
+  const key = `jolpica:drivers:${year}:round:${roundNumber}`;
+  const cached = getCached(cache.jolpica, key, TTL.jolpica);
+  if (cached) return cached;
+
+  const [resultsPayload, qualyPayload, sprintPayload] = await Promise.all([
+    fetchJolpica(`${year}/${roundNumber}/results.json`).catch(() => ({})),
+    fetchJolpica(`${year}/${roundNumber}/qualifying.json`).catch(() => ({})),
+    fetchJolpica(`${year}/${roundNumber}/sprint.json`).catch(() => ({}))
+  ]);
+
+  const collect = [];
+  const race = resultsPayload?.MRData?.RaceTable?.Races?.[0];
+  if (Array.isArray(race?.Results)) collect.push(...race.Results.map(normalizeJolpicaDriver));
+  const qualy = qualyPayload?.MRData?.RaceTable?.Races?.[0];
+  if (Array.isArray(qualy?.QualifyingResults)) collect.push(...qualy.QualifyingResults.map(normalizeJolpicaDriver));
+  const sprint = sprintPayload?.MRData?.RaceTable?.Races?.[0];
+  if (Array.isArray(sprint?.SprintResults)) collect.push(...sprint.SprintResults.map(normalizeJolpicaDriver));
+
+  const byId = new Map();
+  collect.forEach(item => {
+    const keyByNumber = item.number ? `num:${item.number}` : "";
+    const keyByDriverId = item.driverId ? `id:${item.driverId}` : "";
+    const keyByCode = item.code ? `code:${item.code}` : "";
+    const key = keyByNumber || keyByDriverId || keyByCode;
+    if (!key) return;
+    const current = byId.get(key) || { ...item };
+    current.fullName = pickBetterDriverName(current.fullName, item.fullName);
+    current.constructor = current.constructor || item.constructor;
+    byId.set(key, current);
+  });
+  return setCached(cache.jolpica, key, [...byId.values()]);
+}
+
+async function getJolpicaWeekendProfile(year = DEFAULT_YEAR, round) {
+  const roundNumber = Number(round);
+  if (!Number.isFinite(roundNumber)) return { sprintWeekend: false, expectedSessionTypes: ["fp1", "fp2", "fp3", "qualy", "race"] };
+  const key = `jolpica:weekend:${year}:${roundNumber}`;
+  const cached = getCached(cache.jolpica, key, TTL.jolpica);
+  if (cached) return cached;
+  const sprintPayload = await fetchJolpica(`${year}/${roundNumber}/sprint.json`).catch(() => ({}));
+  const sprintRace = sprintPayload?.MRData?.RaceTable?.Races?.[0];
+  const sprintWeekend = Array.isArray(sprintRace?.SprintResults) && sprintRace.SprintResults.length > 0;
+  const profile = {
+    sprintWeekend,
+    expectedSessionTypes: sprintWeekend
+      ? ["fp1", "sprint_qualy", "sprint_race", "qualy", "race"]
+      : ["fp1", "fp2", "fp3", "qualy", "race"]
+  };
+  return setCached(cache.jolpica, key, profile);
+}
+
 async function getMeetings(year = DEFAULT_YEAR) {
   const key = `meetings:${year}`;
   const cached = getCached(cache.meetings, key, TTL.meetings);
   if (cached) return cached;
 
-  const meetings = await fetchOpenF1WithRetry("meetings", { year }).catch(() => []);
+  const [meetings, jolpicaCalendar] = await Promise.all([
+    fetchOpenF1WithRetry("meetings", { year }).catch(() => []),
+    getJolpicaCalendar(year).catch(() => [])
+  ]);
   if (!meetings.length) {
     const stale = getStaleCached(cache.meetings, key);
     if (stale?.length) {
@@ -449,19 +614,35 @@ async function getMeetings(year = DEFAULT_YEAR) {
       const preferredBase = countryCount > 1
         ? (item.location || item.meeting_name || item.country_name || item.circuit_short_name || "Grand Prix")
         : (item.country_name || item.location || item.meeting_name || item.circuit_short_name || "Grand Prix");
+      const bag = buildMeetingSearchBag({ ...item, gp_label: preferredBase });
+      const jolpicaMatch = jolpicaCalendar.find(jol => {
+        const options = [jol.raceName, jol.country, jol.locality, jol.circuitName]
+          .map(normalizeSlug)
+          .filter(Boolean);
+        return options.some(opt => bag.has(opt));
+      });
+      const canonicalGpName = cleanLabel(jolpicaMatch?.raceName || preferredBase);
       return {
         ...item,
-        gp_label: gpLabelFromMeeting({ ...item, location: preferredBase, country_name: preferredBase })
+        gp_label: gpLabelFromMeeting({ ...item, location: canonicalGpName, country_name: canonicalGpName }),
+        canonical_gp_name: canonicalGpName,
+        round_from_jolpica: Number.isFinite(jolpicaMatch?.round) ? jolpicaMatch.round : null,
+        calendar_date: jolpicaMatch?.date || item.date_start || ""
       };
     })
     .sort((a, b) => {
-      const aTs = Number.isFinite(a.sort_ts) ? a.sort_ts : Number.MAX_SAFE_INTEGER;
-      const bTs = Number.isFinite(b.sort_ts) ? b.sort_ts : Number.MAX_SAFE_INTEGER;
+      const aRound = Number.isFinite(a.round_from_jolpica) ? a.round_from_jolpica : Number.MAX_SAFE_INTEGER;
+      const bRound = Number.isFinite(b.round_from_jolpica) ? b.round_from_jolpica : Number.MAX_SAFE_INTEGER;
+      if (aRound !== bRound) return aRound - bRound;
+      const aTs = Number.isFinite(a.sort_ts) ? a.sort_ts : parseDateMs(a.calendar_date || "");
+      const bTs = Number.isFinite(b.sort_ts) ? b.sort_ts : parseDateMs(b.calendar_date || "");
       if (aTs !== bTs) return aTs - bTs;
       return a.gp_label.localeCompare(b.gp_label);
     });
-
-  const payload = payloadBase.map((item, idx) => ({ ...item, round: idx + 1 }));
+  const payload = payloadBase.map((item, idx) => ({
+    ...item,
+    round: Number.isFinite(item.round_from_jolpica) ? item.round_from_jolpica : idx + 1
+  }));
 
   return setCached(cache.meetings, key, payload);
 }
@@ -480,6 +661,13 @@ async function getSessions(meetingKey, year = DEFAULT_YEAR) {
     telemetryLog("warn", "sessions.fetch_unavailable", { year, meeting_key: meetingKey, reason: String(error?.message || "OPENF1_SESSIONS_FAIL") });
     return [];
   });
+  const meetings = await getMeetings(year).catch(() => []);
+  const selectedMeeting = meetings.find(item => item.meeting_key === String(meetingKey));
+  const weekendProfile = await getJolpicaWeekendProfile(year, selectedMeeting?.round).catch(() => ({
+    sprintWeekend: false,
+    expectedSessionTypes: ["fp1", "fp2", "fp3", "qualy", "race"]
+  }));
+  const sessionOrder = new Map(weekendProfile.expectedSessionTypes.map((type, index) => [type, index]));
   const payload = rows
     .map(row => {
       const type_key = mapSessionType(row.session_name);
@@ -494,7 +682,12 @@ async function getSessions(meetingKey, year = DEFAULT_YEAR) {
       };
     })
     .filter(item => item.session_key && item.meeting_key === String(meetingKey) && item.year === year && SUPPORTED_SESSION_TYPES.includes(item.type_key))
-    .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime());
+    .sort((a, b) => {
+      const aOrder = sessionOrder.has(a.type_key) ? sessionOrder.get(a.type_key) : Number.MAX_SAFE_INTEGER;
+      const bOrder = sessionOrder.has(b.type_key) ? sessionOrder.get(b.type_key) : Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return new Date(a.date_start).getTime() - new Date(b.date_start).getTime();
+    });
 
   return setCached(cache.sessionsByMeeting, key, payload);
 }
@@ -504,7 +697,8 @@ async function getDrivers(sessionKey, year = DEFAULT_YEAR) {
   const cached = getCached(cache.driversBySession, key, TTL.drivers);
   if (cached) return cached;
 
-  const [driversRows, lapsRows, resultRows, positionRows, stintsRows, carDataRows] = await Promise.all([
+  const [sessionRows, driversRows, lapsRows, resultRows, positionRows, stintsRows, carDataRows] = await Promise.all([
+    fetchOpenF1WithRetry("sessions", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
     fetchOpenF1WithRetry("drivers", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
     fetchOpenF1WithRetry("laps", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
     fetchOpenF1WithRetry("session_result", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
@@ -526,7 +720,39 @@ async function getDrivers(sessionKey, year = DEFAULT_YEAR) {
     });
   });
 
-  const drivers = [...byDriver.values()]
+  const meetingKey = String(sessionRows?.[0]?.meeting_key || "").trim();
+  const meetings = meetingKey ? await getMeetings(year).catch(() => []) : [];
+  const meeting = meetings.find(item => item.meeting_key === meetingKey);
+  const jolpicaDrivers = meeting?.round ? await getJolpicaDriversByRound(year, meeting.round).catch(() => []) : [];
+  const jolpicaByNumber = new Map(jolpicaDrivers.map(item => [String(item.number || "").trim(), item]));
+
+  const enriched = [...byDriver.values()].map(item => {
+    const jolpica = jolpicaByNumber.get(String(item.id || "").trim());
+    const name = pickBetterDriverName(item.name, jolpica?.fullName || "");
+    const team = cleanLabel(item.team || jolpica?.constructor || "");
+    return {
+      id: item.id,
+      name,
+      team,
+      headshot: item.headshot,
+      source: jolpica ? "openf1+jolpica" : (item.source || "openf1")
+    };
+  });
+
+  if (!enriched.length && jolpicaDrivers.length) {
+    jolpicaDrivers.forEach(item => {
+      if (!item.number || !item.fullName) return;
+      enriched.push({
+        id: item.number,
+        name: item.fullName,
+        team: item.constructor || "",
+        headshot: "",
+        source: "jolpica"
+      });
+    });
+  }
+
+  const drivers = enriched
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(item => ({ id: item.id, name: item.name, team: item.team || "", headshot: item.headshot, source: item.source || "openf1" }));
 
@@ -1453,10 +1679,12 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     driver,
     source: {
       primary: merged.primarySource || "openf1",
+      structural: "jolpica",
       enrichment: fastf1?.ok ? "fastf1" : "none",
       fastf1_status: fastf1?.reason || "FASTF1_ACTIVE",
-      active_sources: [...new Set([...(merged.sources || []), "openf1_aggregate"])].filter(Boolean),
+      active_sources: [...new Set([...(merged.sources || []), "openf1_aggregate", "jolpica"])].filter(Boolean),
       fallback_chain: [
+        { provider: "jolpica", ok: sourceHealth.jolpica.ok, reason: sourceHealth.jolpica.ok ? "OK" : "JOLPICA_UNAVAILABLE" },
         { provider: "fastf1", ok: !!fastf1?.ok, reason: fastf1?.reason || "FASTF1_ACTIVE" },
         { provider: "openf1", ok: hasAnyTelemetryData(openf1), reason: hasAnyTelemetryData(openf1) ? "OK" : "OPENF1_PARTIAL_OR_EMPTY" },
         { provider: "openf1_aggregate", ok: hasAnyTelemetryData(aggregate || {}), reason: hasAnyTelemetryData(aggregate || {}) ? "OK" : "OPENF1_AGGREGATE_EMPTY" }
@@ -1547,6 +1775,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
 async function buildTelemetryDebugReport({ year = DEFAULT_YEAR, gp = "", session = "", driver = "" }) {
   const refreshHealth = report => {
     report.sources.health = {
+      jolpica: sourceHealth.jolpica,
       openf1: sourceHealth.openf1,
       openf1_aggregate: sourceHealth.openf1_aggregate,
       fastf1: sourceHealth.fastf1
@@ -1561,8 +1790,9 @@ async function buildTelemetryDebugReport({ year = DEFAULT_YEAR, gp = "", session
       driver: null
     },
     sources: {
-      consulted: ["openf1", "openf1_aggregate", "fastf1"],
+      consulted: ["jolpica", "openf1", "openf1_aggregate", "fastf1"],
       health: {
+        jolpica: sourceHealth.jolpica,
         openf1: sourceHealth.openf1,
         openf1_aggregate: sourceHealth.openf1_aggregate,
         fastf1: sourceHealth.fastf1
