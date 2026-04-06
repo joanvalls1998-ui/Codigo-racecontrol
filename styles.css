@@ -2941,6 +2941,111 @@ nav > *,
   gap: 6px;
 }
 
+.telemetry-dashboard-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.telemetry-hero-grid {
+  display: grid;
+  grid-template-columns: 1.2fr .8fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.telemetry-hero-delta {
+  margin-top: 10px;
+  border: 1px solid rgba(133, 187, 255, 0.26);
+  background: rgba(9, 22, 36, 0.65);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.telemetry-hero-mini {
+  display: grid;
+  gap: 8px;
+}
+
+.telemetry-hero-chart {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.telemetry-context-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.telemetry-context-item {
+  border: 1px solid rgba(158, 178, 255, 0.18);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(13, 19, 31, 0.72);
+}
+
+.telemetry-bar-list {
+  display: grid;
+  gap: 8px;
+}
+
+.telemetry-bar-row {
+  border: 1px solid rgba(158, 178, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(11, 17, 28, 0.72);
+  padding: 8px 10px;
+}
+
+.telemetry-bar-head,
+.telemetry-bar-values {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.telemetry-bar-values {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.telemetry-dual-bar-track {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.telemetry-dual-bar-a,
+.telemetry-dual-bar-b {
+  height: 9px;
+  border-radius: 999px;
+}
+
+.telemetry-dual-bar-a {
+  justify-self: start;
+  background: linear-gradient(90deg, rgba(98, 216, 168, 0.5), rgba(98, 216, 168, 0.9));
+}
+
+.telemetry-dual-bar-b {
+  justify-self: end;
+  background: linear-gradient(90deg, rgba(255, 152, 124, 0.9), rgba(255, 152, 124, 0.5));
+}
+
+.telemetry-evolution-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.telemetry-evolution-item {
+  border: 1px solid rgba(158, 178, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(11, 17, 28, 0.72);
+  padding: 8px 10px;
+}
+
 .telemetry-hero-card {
   background: radial-gradient(circle at 10% 10%, rgba(84, 183, 255, 0.22), transparent 35%),
     radial-gradient(circle at 90% 90%, rgba(152, 108, 255, 0.2), transparent 38%),
@@ -2968,6 +3073,9 @@ nav > *,
 
   .engineer-compact-grid,
   .telemetry-summary-grid,
+  .telemetry-dashboard-split,
+  .telemetry-hero-grid,
+  .telemetry-context-panel,
   .telemetry-stint-grid,
   .telemetry-compare-head {
     grid-template-columns: 1fr;
