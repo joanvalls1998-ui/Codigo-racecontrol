@@ -494,6 +494,7 @@ function renderEngineerPredictionPanel(favorite, raceName, activePredictData, ex
 }
 
 const OPENF1_BASE_URL = "https://api.openf1.org/v1";
+const TELEMETRY_SEASON_YEAR = 2026;
 const TELEMETRY_SESSION_TYPES = Object.freeze([
   { key: "fp1", label: "FP1", aliases: ["Practice 1", "Free Practice 1"] },
   { key: "fp2", label: "FP2", aliases: ["Practice 2", "Free Practice 2"] },
@@ -522,12 +523,16 @@ const engineerState = {
 };
 
 const engineerCache = {
+  meetings2026: [],
+  meetingsPromise: null,
   sessionsByYear: new Map(),
+  sessionsByMeeting: new Map(),
   sessionsByGp: new Map(),
   gpCatalog: [],
   gpCatalogPromise: null,
   participantsBySession: new Map(),
   metricsBySession: new Map(),
+  contextBySession: new Map(),
   comparisonByKey: new Map(),
   evolutionByKey: new Map(),
   dataBySelection: new Map()
@@ -575,7 +580,8 @@ function buildReadableGpLabel(session = {}) {
     cleanGpName(session.circuit_short_name),
     cleanGpName(session.meeting_official_name)
   ].filter(Boolean);
-  const base = candidates.find(value => !/^gp\s*\d+/i.test(value)) || candidates[0] || `GP ${session.meeting_key || ""}`.trim();
+  const fallbackCountry = cleanGpName(session.country_name) || cleanGpName(session.location) || "Gran Premio";
+  const base = candidates.find(value => !/^gp\s*\d+/i.test(value)) || candidates[0] || fallbackCountry;
   const hasYear = year && new RegExp(`\\b${year}\\b`).test(base);
   return year && !hasYear ? `${base} ${year}` : base;
 }
@@ -647,67 +653,89 @@ async function loadTelemetrySessionCatalog() {
   if (engineerCache.gpCatalogPromise) return engineerCache.gpCatalogPromise;
 
   engineerCache.gpCatalogPromise = (async () => {
-  const currentYear = new Date().getUTCFullYear();
-  const years = [currentYear - 3, currentYear - 2, currentYear - 1, currentYear];
-  const allSessions = [];
-
-  for (const year of years) {
-    if (engineerCache.sessionsByYear.has(year)) {
-      allSessions.push(...engineerCache.sessionsByYear.get(year));
-      continue;
+    if (!engineerCache.meetings2026.length) {
+      if (!engineerCache.meetingsPromise) {
+        engineerCache.meetingsPromise = fetchOpenF1("meetings", { year: TELEMETRY_SEASON_YEAR })
+          .then(rows => Array.isArray(rows) ? rows : [])
+          .catch(() => [])
+          .finally(() => { engineerCache.meetingsPromise = null; });
+      }
+      engineerCache.meetings2026 = await engineerCache.meetingsPromise;
     }
-    try {
-      const sessions = await fetchOpenF1("sessions", { year });
-      engineerCache.sessionsByYear.set(year, Array.isArray(sessions) ? sessions : []);
-      allSessions.push(...(Array.isArray(sessions) ? sessions : []));
-    } catch (_error) {
-      engineerCache.sessionsByYear.set(year, []);
+
+    const meetings = engineerCache.meetings2026.filter(row => Number(row.year) === TELEMETRY_SEASON_YEAR);
+    if (!meetings.length) {
+      engineerCache.sessionsByYear.set(TELEMETRY_SEASON_YEAR, []);
+      engineerCache.gpCatalog = [];
+      engineerCache.gpCatalogPromise = null;
+      return [];
     }
-  }
 
-  const normalized = allSessions
-    .map(session => ({
-      ...session,
-      typeKey: telemetrySessionTypeFromName(session.session_name),
-      dateStart: session.date_start || session.date || ""
-    }))
-    .filter(session => session.typeKey);
+    const allSessions = [];
+    for (const meeting of meetings) {
+      const meetingKey = meeting.meeting_key;
+      if (!meetingKey) continue;
 
-  const gpMap = new Map();
-  normalized.forEach(session => {
-    const year = getSessionYear(session);
-    const gpKey = String(session.meeting_key || `${session.meeting_name || ""}-${year || ""}`);
-    if (!gpKey) return;
-    const existing = gpMap.get(gpKey) || {
-      gpKey,
-      label: buildReadableGpLabel(session),
-      sessions: []
-    };
-    existing.sessions.push(session);
-    gpMap.set(gpKey, existing);
-  });
+      if (engineerCache.sessionsByMeeting.has(meetingKey)) {
+        allSessions.push(...engineerCache.sessionsByMeeting.get(meetingKey));
+        continue;
+      }
 
-  const gpList = [...gpMap.values()]
-    .map(item => ({
-      ...item,
-      sessions: item.sessions
-        .sort((a, b) => new Date(a.dateStart) - new Date(b.dateStart))
-        .map(session => ({
-          ...session,
-          label: telemetryTypeLabel(session.typeKey)
-        }))
-    }))
-    .sort((a, b) => {
-      const aDate = new Date(a.sessions[a.sessions.length - 1]?.dateStart || 0).getTime();
-      const bDate = new Date(b.sessions[b.sessions.length - 1]?.dateStart || 0).getTime();
-      return bDate - aDate;
-    })
-    .map(item => ({ ...item, label: item.label }));
+      try {
+        const rows = await fetchOpenF1("sessions", { meeting_key: meetingKey });
+        const sessions = (Array.isArray(rows) ? rows : []).filter(session => getSessionYear(session) === TELEMETRY_SEASON_YEAR);
+        engineerCache.sessionsByMeeting.set(meetingKey, sessions);
+        allSessions.push(...sessions);
+      } catch (_error) {
+        engineerCache.sessionsByMeeting.set(meetingKey, []);
+      }
+    }
 
-  gpList.forEach(item => engineerCache.sessionsByGp.set(item.gpKey, item.sessions));
-  engineerCache.gpCatalog = gpList;
-  engineerCache.gpCatalogPromise = null;
-  return gpList;
+    engineerCache.sessionsByYear.set(TELEMETRY_SEASON_YEAR, allSessions);
+
+    const normalized = allSessions
+      .map(session => ({
+        ...session,
+        typeKey: telemetrySessionTypeFromName(session.session_name),
+        dateStart: session.date_start || session.date || ""
+      }))
+      .filter(session => session.typeKey && getSessionYear(session) === TELEMETRY_SEASON_YEAR);
+
+    const gpMap = new Map();
+    normalized.forEach(session => {
+      const year = getSessionYear(session);
+      const gpKey = String(session.meeting_key || `${session.meeting_name || ""}-${year || ""}`);
+      if (!gpKey) return;
+      const existing = gpMap.get(gpKey) || {
+        gpKey,
+        label: buildReadableGpLabel(session),
+        sessions: []
+      };
+      existing.sessions.push(session);
+      gpMap.set(gpKey, existing);
+    });
+
+    const gpList = [...gpMap.values()]
+      .map(item => ({
+        ...item,
+        sessions: item.sessions
+          .sort((a, b) => new Date(a.dateStart) - new Date(b.dateStart))
+          .map(session => ({
+            ...session,
+            label: telemetryTypeLabel(session.typeKey)
+          }))
+      }))
+      .sort((a, b) => {
+        const aDate = new Date(a.sessions[a.sessions.length - 1]?.dateStart || 0).getTime();
+        const bDate = new Date(b.sessions[b.sessions.length - 1]?.dateStart || 0).getTime();
+        return bDate - aDate;
+      })
+      .map(item => ({ ...item, label: item.label }));
+
+    gpList.forEach(item => engineerCache.sessionsByGp.set(item.gpKey, item.sessions));
+    engineerCache.gpCatalog = gpList;
+    engineerCache.gpCatalogPromise = null;
+    return gpList;
   })();
 
   try {
@@ -808,6 +836,61 @@ function getSimpleDegradation(laps) {
   return last - first;
 }
 
+function summarizeSessionContext(context = {}) {
+  const weatherRows = Array.isArray(context.weather) ? context.weather : [];
+  const raceControlRows = Array.isArray(context.race_control) ? context.race_control : [];
+  const pitRows = Array.isArray(context.pit) ? context.pit : [];
+  const overtakeRows = Array.isArray(context.overtakes) ? context.overtakes : [];
+  const radioRows = Array.isArray(context.team_radio) ? context.team_radio : [];
+  const intervalRows = Array.isArray(context.intervals) ? context.intervals : [];
+  const resultRows = Array.isArray(context.session_result) ? context.session_result : [];
+  const gridRows = Array.isArray(context.starting_grid) ? context.starting_grid : [];
+  const champDriverRows = Array.isArray(context.championship_drivers) ? context.championship_drivers : [];
+  const champTeamRows = Array.isArray(context.championship_teams) ? context.championship_teams : [];
+
+  return {
+    avgTrackTemp: average(weatherRows.map(item => Number(item.track_temperature))),
+    avgAirTemp: average(weatherRows.map(item => Number(item.air_temperature))),
+    raceControlMessages: raceControlRows.length,
+    pitStops: pitRows.length,
+    overtakes: overtakeRows.length,
+    teamRadios: radioRows.length,
+    intervalSamples: intervalRows.length,
+    sessionResultRows: resultRows.length,
+    startingGridRows: gridRows.length,
+    championshipDriverRows: champDriverRows.length,
+    championshipTeamRows: champTeamRows.length
+  };
+}
+
+async function loadSessionContext(sessionKey) {
+  if (engineerCache.contextBySession.has(sessionKey)) return engineerCache.contextBySession.get(sessionKey);
+
+  const endpoints = [
+    ["weather", { session_key: sessionKey }],
+    ["race_control", { session_key: sessionKey }],
+    ["pit", { session_key: sessionKey }],
+    ["overtakes", { session_key: sessionKey }],
+    ["team_radio", { session_key: sessionKey }],
+    ["intervals", { session_key: sessionKey }],
+    ["session_result", { session_key: sessionKey }],
+    ["starting_grid", { session_key: sessionKey }],
+    ["championship_drivers", { session_key: sessionKey }],
+    ["championship_teams", { session_key: sessionKey }]
+  ];
+  const settled = await Promise.allSettled(endpoints.map(([endpoint, params]) => fetchOpenF1(endpoint, params)));
+  const payload = {};
+  endpoints.forEach(([endpoint], index) => {
+    payload[endpoint] = settled[index].status === "fulfilled" && Array.isArray(settled[index].value)
+      ? settled[index].value
+      : [];
+  });
+
+  const normalized = { ...payload, summary: summarizeSessionContext(payload) };
+  engineerCache.contextBySession.set(sessionKey, normalized);
+  return normalized;
+}
+
 async function loadDriverSessionMetrics(sessionKey, driverNumber) {
   const metricKey = `${sessionKey}:${driverNumber}`;
   if (engineerCache.metricsBySession.has(metricKey)) return engineerCache.metricsBySession.get(metricKey);
@@ -844,6 +927,7 @@ async function loadDriverSessionMetrics(sessionKey, driverNumber) {
   }));
 
   const payload = {
+    meeting_key: lapRows[0]?.meeting_key || carData[0]?.meeting_key || stintRows[0]?.meeting_key || null,
     lapCount: lapRows.length,
     referenceLap: bestLap,
     averagePace: pace,
@@ -911,7 +995,8 @@ async function buildTelemetryComparison({ sessionKey, type, a, b, participants }
     entryB = { label: b, team: b, image: "", metrics: aggregateTeamMetrics(bMetricsList) };
   }
 
-  const payload = { a: entryA, b: entryB };
+  const context = await loadSessionContext(sessionKey);
+  const payload = { a: entryA, b: entryB, context };
   engineerCache.comparisonByKey.set(cacheKey, payload);
   return payload;
 }
@@ -974,6 +1059,7 @@ function renderTelemetryDashboard(technicalData) {
   const { comparison, evolution, type } = technicalData;
   const aMetrics = comparison.a?.metrics || {};
   const bMetrics = comparison.b?.metrics || {};
+  const context = comparison.context?.summary || {};
 
   const summaryTiles = [
     renderTelemetryMetricTile("Vuelta referencia", aMetrics.referenceLap, bMetrics.referenceLap, formatTelemetryTime),
@@ -989,6 +1075,19 @@ function renderTelemetryDashboard(technicalData) {
   ].filter(Boolean);
 
   return `
+    <div class="card engineer-card telemetry-dashboard-card">
+      <div class="card-title">0 · Contexto de sesión</div>
+      <div class="telemetry-summary-grid" style="margin-top:10px;">
+        ${renderTelemetryMetricTile("Temperatura pista", context.avgTrackTemp, context.avgTrackTemp, (v) => Number.isFinite(v) ? `${v.toFixed(1)} °C` : "N/D")}
+        ${renderTelemetryMetricTile("Temperatura aire", context.avgAirTemp, context.avgAirTemp, (v) => Number.isFinite(v) ? `${v.toFixed(1)} °C` : "N/D")}
+        ${renderTelemetryMetricTile("Mensajes race control", context.raceControlMessages, context.raceControlMessages, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D")}
+        ${renderTelemetryMetricTile("Paradas en pit lane", context.pitStops, context.pitStops, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D")}
+        ${renderTelemetryMetricTile("Overtakes registrados", context.overtakes, context.overtakes, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D")}
+        ${renderTelemetryMetricTile("Team radio", context.teamRadios, context.teamRadios, (v) => Number.isFinite(v) ? `${Math.round(v)}` : "N/D")}
+      </div>
+      <div class="meta-caption" style="margin-top:10px;">Resumen derivado de endpoints gratuitos históricos de OpenF1 para 2026.</div>
+    </div>
+
     <div class="card engineer-card telemetry-dashboard-card">
       <div class="card-title">1 · Resumen técnico</div>
       <div class="telemetry-summary-grid" style="margin-top:10px;">
@@ -1094,8 +1193,8 @@ function renderTelemetryPanel(gpList = [], participants = { drivers: [], teams: 
   const aOptions = aOptionsSource.map(item => ({ value: item, label: item }));
   const bOptions = bOptionsSource.map(item => ({ value: item, label: item }));
   const gpPlaceholder = telemetry.status === "loading" && !gpOptions.length
-    ? [{ value: "", label: "Cargando GP históricos…" }]
-    : [{ value: "", label: "No hay GP históricos disponibles ahora." }];
+    ? [{ value: "", label: "Cargando GP 2026…" }]
+    : [{ value: "", label: "No hay GP de 2026 disponibles ahora." }];
   const sessionPlaceholder = !telemetry.gp
     ? [{ value: "", label: "Selecciona GP primero" }]
     : [{ value: "", label: "No hay sesiones válidas para este GP" }];
@@ -1107,7 +1206,7 @@ function renderTelemetryPanel(gpList = [], participants = { drivers: [], teams: 
   return `
     <div class="card engineer-card telemetry-controls-card">
       <div class="card-title">Telemetría</div>
-      <div class="card-sub">OpenF1 histórico · mismo GP · comparativa directa</div>
+      <div class="card-sub">OpenF1 histórico gratis · temporada 2026 · comparativa directa</div>
       <div class="telemetry-control-grid" style="margin-top:10px;">
         <label class="telemetry-control-item">
           <span>GP</span>
@@ -1151,7 +1250,7 @@ async function ensureTelemetrySelection() {
   const gpList = await loadTelemetrySessionCatalog();
   if (!gpList.length) {
     telemetry.status = "empty";
-    telemetry.userMessage = "No hay datos históricos de telemetría disponibles ahora mismo.";
+    telemetry.userMessage = "No hay reuniones de 2026 disponibles en OpenF1 ahora mismo.";
     return { gpList, participants: { drivers: [], teams: [] } };
   }
 
@@ -1168,7 +1267,7 @@ async function ensureTelemetrySelection() {
     telemetry.status = "empty";
     telemetry.sessionType = "";
     telemetry.sessionKey = "";
-    telemetry.userMessage = "No hay sesiones válidas de FP, Qualy o Carrera para este GP.";
+    telemetry.userMessage = "Este GP de 2026 no tiene sesiones válidas de FP, Qualy o Carrera.";
     return { gpList, participants: { drivers: [], teams: [] } };
   }
 
