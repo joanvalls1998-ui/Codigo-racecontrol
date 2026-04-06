@@ -370,15 +370,14 @@ async function showRaceMode() {
     contentEl().innerHTML = `
       ${renderRaceModeHero(favorite, raceName, nextRaceEvent, predictData)}
       <div class="card app-panel-card">
-        <div class="card-title">Panel de ejecución</div>
+        <div class="card-title">Panel operativo</div>
         ${renderRaceModeExecutionPanel(favorite, raceName, predictData, stage)}
         ${renderRaceModeQuickRead(favorite, raceName, predictData, stage)}
       </div>
       <div class="card app-panel-card">
-        <div class="card-title">Riesgo · rival · estrategia</div>
+        <div class="card-title">Riesgo · rival</div>
         ${renderRaceModeComparativeCard(favorite, raceName, predictData)}
-        ${renderPredictScenarioCards(favorite, raceName, predictData)}
-        <div style="margin-top:10px;">${renderPredictStrategyDetail(favorite, raceName, predictData)}</div>
+        <div style="margin-top:10px;">${renderPredictExecutionSplitCard(favorite, raceName, predictData, expert)}</div>
       </div>
       ${expert ? renderRaceModeFavoriteSummary(favorite, raceName, predictData) : ""}
       ${renderRaceModeTop10(predictData, favorite)}

@@ -83,7 +83,6 @@ function renderGlossaryFocusCard(item) {
 
   return `
     <div class="card highlight-card glossary-focus-card">
-      <div class="mini-pill">TÉRMINO DESTACADO</div>
       <div class="card-title">${escapeHtml(item.term)}</div>
       
 
@@ -126,7 +125,6 @@ function renderContextGlossaryCard(screen, phase) {
   return `
     <div class="card glossary-context-card">
       <div class="card-title">${escapeHtml(copy.title)}</div>
-      
 
       <div class="insight-list glossary-context-list">
         ${items.map(item => `
@@ -146,9 +144,8 @@ function renderContextGlossaryCard(screen, phase) {
 /* Secciones del glosario completo con “Término ⓘ”. */
 function renderGlossarySection(section) {
   return `
-    <div class="card glossary-section-card">
+    <div class="glossary-section-card">
       <div class="card-title">${escapeHtml(section.title)}</div>
-      
 
       <div class="insight-list glossary-term-list">
         ${section.items.map(item => `
@@ -175,7 +172,7 @@ function showGlossary(focusTerm = null) {
   contentEl().innerHTML = `
     <div class="card highlight-card glossary-hero-card app-panel-card">
       <div class="card-title">Glosario</div>
-      <div class="app-hero-subline">Consulta rápida de términos.</div>
+      ${isCasualMode() ? `<div class="app-hero-subline">Consulta rápida de términos.</div>` : ""}
     </div>
     ${focusItem ? renderGlossaryFocusCard(focusItem) : ""}
     <div class="card app-panel-card">

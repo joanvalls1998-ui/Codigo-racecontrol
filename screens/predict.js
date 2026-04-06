@@ -194,12 +194,12 @@ function renderPredictHeroV2({ predict, favorite, raceName, expert, activePredic
         <div class="predict-hero-tile">
           <div class="meta-kicker">Favorito</div>
           <div class="meta-value predict-hero-favorite">${escapeHtml(favorite.name)}</div>
-          <div class="meta-caption">Referencia principal de la predicción</div>
+          ${expert ? "" : `<div class="meta-caption">Referencia principal</div>`}
         </div>
         <div class="predict-hero-tile">
           <div class="meta-kicker">GP seleccionado</div>
           <div class="meta-value predict-hero-race">${escapeHtml(raceName)}</div>
-          <div class="meta-caption">Puedes cambiarlo y regenerar</div>
+          ${expert ? "" : `<div class="meta-caption">Puedes cambiarlo y regenerar</div>`}
         </div>
       </div>
       
@@ -212,7 +212,6 @@ function renderPredictHeroV2({ predict, favorite, raceName, expert, activePredic
       <div class="action-row">
         <button class="btn" onclick="runPredict()">Generar</button>
         <button class="icon-btn" onclick="refreshPredict()">Actualizar</button>
-        <button class="icon-btn" onclick="sharePrediction()">Compartir</button>
       </div>
 
       ${expert ? "" : `<div class="info-line predict-hero-note">Separa sábado y domingo para no perder foco.</div>`}
@@ -376,24 +375,39 @@ function renderPredictPrimaryFocusCard(favorite, raceName, activePredictData) {
       <div class="card-title">Lectura principal</div>
       <div class="meta-grid" style="margin-top:12px;">
         <div class="meta-tile">
-          <div class="meta-kicker">Predicción principal</div>
+          <div class="meta-kicker">Base</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(mainFocus.strategy.label)}</div>
           <div class="meta-caption">${escapeHtml(mainFocus.focus)}</div>
         </div>
         <div class="meta-tile">
-          <div class="meta-kicker">Escenario base</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(baseScenario.title)}</div>
-          <div class="meta-caption">${escapeHtml(baseScenario.text)}</div>
+          <div class="meta-kicker">Suelo</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(scenarios[0]?.value || "—")}</div>
+          <div class="meta-caption">${escapeHtml(scenarios[0]?.text || "Escenario mínimo")}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Techo</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(scenarios[2]?.value || baseScenario.value || "—")}</div>
+          <div class="meta-caption">${escapeHtml(scenarios[2]?.text || "Escenario alto")}</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">${escapeHtml(riskLabel)}</div>
-          <div class="meta-value" style="font-size:18px;">Controlar</div>
+          <div class="meta-value" style="font-size:18px;">Riesgo</div>
           <div class="meta-caption">${escapeHtml(riskText)}</div>
         </div>
         <div class="meta-tile">
-          <div class="meta-kicker">Dato clave</div>
+          <div class="meta-kicker">Factor crítico</div>
           <div class="meta-value" style="font-size:18px;">${escapeHtml(keyData)}</div>
-          <div class="meta-caption">Referencia rápida del escenario</div>
+          <div class="meta-caption">${escapeHtml(baseScenario.title)}</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Sábado</div>
+          <div class="meta-value" style="font-size:18px;">${escapeHtml(isSprintRaceName(raceName) ? "Sprint" : "Qualy")}</div>
+          <div class="meta-caption">Bloque de entrada al domingo</div>
+        </div>
+        <div class="meta-tile">
+          <div class="meta-kicker">Domingo</div>
+          <div class="meta-value" style="font-size:18px;">Carrera</div>
+          <div class="meta-caption">${escapeHtml(mainFocus.needText)}</div>
         </div>
       </div>
     </div>
@@ -413,20 +427,22 @@ function showPredict() {
 
   contentEl().innerHTML = `
     ${renderPredictHeroV2({ predict: renderPredictContent(), favorite, raceName: selectedRace, expert, activePredictData })}
-
     ${renderPredictPrimaryFocusCard(favorite, selectedRace, activePredictData)}
 
     <div class="card app-panel-card">
-      <div class="card-title">Lectura rápida del GP</div>
+      <div class="card-head">
+        <div class="card-head-left"><div class="card-title">Bloque operativo</div></div>
+        <div class="card-head-actions"><button class="icon-btn" onclick="sharePrediction()">Compartir</button></div>
+      </div>
       <div id="predictKeyFactors" style="margin-top:10px;">${renderPredictWeekendKeyCard(favorite, selectedRace, activePredictData, false)}</div>
+      <div id="predictQualyRace" style="margin-top:10px;">${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, expert)}</div>
     </div>
 
     <div class="card app-panel-card">
       <details>
-        <summary style="cursor:pointer; font-weight:700;">Ampliar análisis</summary>
+        <summary style="cursor:pointer; font-weight:700;">Análisis ampliado</summary>
         <div id="predictSummaryCards" style="margin-top:12px;">${activePredictData ? renderPredictSummaryCards(activePredictData) : renderPredictPreviewCards(favorite, selectedRace)}</div>
         <div id="predictScenarioCards" style="margin-top:12px;">${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}</div>
-        <div id="predictQualyRace" style="margin-top:12px;">${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, expert)}</div>
         <div id="predictStrategyDetail" style="margin-top:10px;">${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}</div>
         ${expert ? `<div id="predictGridRead" style="margin-top:10px;">${renderPredictGridRead(favorite, selectedRace, activePredictData)}</div>` : `<div id="predictGridRead" style="display:none;"></div>`}
       </details>
@@ -434,15 +450,8 @@ function showPredict() {
 
     <div class="card app-panel-card">
       <details>
-        <summary style="cursor:pointer; font-weight:700;">Historial y salida técnica</summary>
+        <summary style="cursor:pointer; font-weight:700;">Historial técnico</summary>
         <div style="margin-top:12px;">
-          <div class="card-head" style="margin-bottom:8px;">
-            <div class="card-head-left"><div class="card-title">Salida técnica</div></div>
-            <div class="card-head-actions">
-              <button class="icon-btn" onclick="sharePrediction()">Compartir</button>
-              <button class="icon-btn" onclick="clearPredictionHistory()">Vaciar</button>
-            </div>
-          </div>
           <pre id="predictOutput" class="ai-output predict-v2-raw-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción…"}</pre>
           <div id="predictionHistoryBox" style="margin-top:10px;">${renderPredictionHistory()}</div>
         </div>

@@ -42,7 +42,7 @@ function renderSettingsSectionTitle(title, sub = "") {
   return `
     <div class="settings-system-section-head">
       <div class="settings-system-section-title">${escapeHtml(title)}</div>
-      ${sub ? `<div class="settings-system-section-sub">${escapeHtml(sub)}</div>` : ""}
+      ${isCasualMode() && sub ? `<div class="settings-system-section-sub">${escapeHtml(sub)}</div>` : ""}
     </div>
   `;
 }
@@ -53,7 +53,7 @@ function renderSettingsSecondaryPreferencesBlock(state) {
   return `
     <div class="card">
       ${renderSettingsSectionTitle(
-        "A. Preferencias secundarias",
+        "Preferencias",
         isExpert ? "" : "Ajustes poco frecuentes."
       )}
 
@@ -94,7 +94,7 @@ function renderSettingsLocalStateBlock(state) {
   return `
     <div class="card">
       ${renderSettingsSectionTitle(
-        "B. Estado local",
+        "Estado local",
         isExpert ? "" : "Qué hay guardado en este dispositivo."
       )}
 
@@ -134,7 +134,7 @@ function renderSettingsMaintenanceBlock(state) {
   return `
     <div class="card">
       ${renderSettingsSectionTitle(
-        "C. Limpieza / mantenimiento",
+        "Mantenimiento",
         isExpert ? "" : "Limpieza parcial y segura."
       )}
 
@@ -171,7 +171,7 @@ function renderSettingsHardResetBlock(state) {
   return `
     <div class="card settings-system-reset-card">
       ${renderSettingsSectionTitle(
-        "D. Reset total",
+        "Reset total",
         isExpert
           ? "Borra favoritos, historial y preferencias locales para reiniciar esta instalación desde cero."
           : "Borra todo lo local y reinicia la app."
