@@ -507,11 +507,14 @@ const engineerState = {
   telemetry: {
     status: "idle",
     error: "",
+    userMessage: "",
     gp: "",
     sessionType: "",
+    sessionKey: "",
     type: "driver",
     a: "",
     b: "",
+    lastLoadedKey: "",
     initialized: false,
     technicalData: null
   }
@@ -520,11 +523,16 @@ const engineerState = {
 const engineerCache = {
   sessionsByYear: new Map(),
   sessionsByGp: new Map(),
+  gpCatalog: [],
+  gpCatalogPromise: null,
   participantsBySession: new Map(),
   metricsBySession: new Map(),
   comparisonByKey: new Map(),
-  evolutionByKey: new Map()
+  evolutionByKey: new Map(),
+  dataBySelection: new Map()
 };
+
+let telemetryLoadRequestId = 0;
 
 function telemetrySessionTypeFromName(name = "") {
   const normalized = String(name || "").toLowerCase();
@@ -571,7 +579,18 @@ async function fetchOpenF1(endpoint, params = {}) {
   return response.json();
 }
 
+function telemetryFriendlyErrorMessage(error) {
+  const message = String(error?.message || "");
+  if (message.includes("(429)")) return "No se pudieron cargar datos técnicos ahora mismo. Intenta otra sesión en unos segundos.";
+  if (message.includes("(5")) return "El servicio técnico no está disponible temporalmente. Intenta de nuevo más tarde.";
+  return "No se pudieron cargar datos técnicos. Intenta otra sesión.";
+}
+
 async function loadTelemetrySessionCatalog() {
+  if (engineerCache.gpCatalog.length) return engineerCache.gpCatalog;
+  if (engineerCache.gpCatalogPromise) return engineerCache.gpCatalogPromise;
+
+  engineerCache.gpCatalogPromise = (async () => {
   const currentYear = new Date().getUTCFullYear();
   const years = [currentYear - 2, currentYear - 1, currentYear];
   const allSessions = [];
@@ -610,16 +629,39 @@ async function loadTelemetrySessionCatalog() {
   const gpList = [...gpMap.values()]
     .map(item => ({
       ...item,
-      sessions: item.sessions.sort((a, b) => new Date(a.dateStart) - new Date(b.dateStart))
+      sessions: item.sessions
+        .sort((a, b) => new Date(a.dateStart) - new Date(b.dateStart))
+        .map(session => ({
+          ...session,
+          label: telemetryTypeLabel(session.typeKey)
+        }))
     }))
     .sort((a, b) => {
       const aDate = new Date(a.sessions[a.sessions.length - 1]?.dateStart || 0).getTime();
       const bDate = new Date(b.sessions[b.sessions.length - 1]?.dateStart || 0).getTime();
       return bDate - aDate;
+    })
+    .map(item => {
+      const sessionDate = item.sessions[item.sessions.length - 1]?.dateStart || "";
+      const year = sessionDate ? new Date(sessionDate).getUTCFullYear() : "";
+      return {
+        ...item,
+        label: year ? `${item.label} · ${year}` : item.label
+      };
     });
 
   gpList.forEach(item => engineerCache.sessionsByGp.set(item.gpKey, item.sessions));
+  engineerCache.gpCatalog = gpList;
+  engineerCache.gpCatalogPromise = null;
   return gpList;
+  })();
+
+  try {
+    return await engineerCache.gpCatalogPromise;
+  } catch (error) {
+    engineerCache.gpCatalogPromise = null;
+    throw error;
+  }
 }
 
 function getTelemetrySessionForGp(gpKey, typeKey) {
@@ -919,15 +961,15 @@ function renderTelemetryPanelBody() {
   }
 
   if (telemetry.status === "error") {
-    return `<div class="card engineer-card"><div class="card-title">Telemetría no disponible</div><div class="empty-line">${escapeHtml(telemetry.error || "No se pudieron cargar los datos técnicos.")}</div></div>`;
+    return `<div class="card engineer-card"><div class="card-title">Telemetría no disponible</div><div class="empty-line">${escapeHtml(telemetry.userMessage || "No se pudieron cargar datos técnicos. Intenta otra sesión.")}</div></div>`;
   }
 
   if (telemetry.status === "empty") {
-    return `<div class="card engineer-card"><div class="card-title">Sin datos técnicos</div><div class="empty-line">No hay datos OpenF1 para la selección actual. Cambia GP o sesión.</div></div>`;
+    return `<div class="card engineer-card"><div class="card-title">Sin datos técnicos</div><div class="empty-line">${escapeHtml(telemetry.userMessage || "No hay datos de telemetría para esta combinación.")}</div></div>`;
   }
 
   if (!telemetry.technicalData) {
-    return `<div class="card engineer-card"><div class="empty-line">Selecciona GP, sesión y comparativa para ver telemetría.</div></div>`;
+    return `<div class="card engineer-card"><div class="empty-line">Selecciona GP, sesión y entidades válidas para comparar.</div></div>`;
   }
 
   return renderTelemetryDashboard(telemetry.technicalData);
@@ -936,13 +978,19 @@ function renderTelemetryPanelBody() {
 function renderTelemetryPanel(gpList = [], participants = { drivers: [], teams: [] }) {
   const telemetry = engineerState.telemetry;
   const gpOptions = gpList.map(item => ({ value: item.gpKey, label: item.label }));
-  const sessionOptions = TELEMETRY_SESSION_TYPES.map(item => ({ value: item.key, label: item.label }));
+  const gpSessions = engineerCache.sessionsByGp.get(String(telemetry.gp)) || [];
+  const validTypeKeys = [...new Set(gpSessions.map(item => item.typeKey))];
+  const sessionOptions = TELEMETRY_SESSION_TYPES
+    .filter(item => validTypeKeys.includes(item.key))
+    .map(item => ({ value: item.key, label: item.label }));
   const typeOptions = [
     { value: "driver", label: "Piloto / Piloto" },
     { value: "team", label: "Equipo / Equipo" }
   ];
   const aOptionsSource = telemetry.type === "driver" ? participants.drivers.map(item => item.name) : participants.teams;
   const bOptionsSource = aOptionsSource.filter(name => name !== telemetry.a);
+  const aOptions = aOptionsSource.map(item => ({ value: item, label: item }));
+  const bOptions = bOptionsSource.map(item => ({ value: item, label: item }));
 
   return `
     <div class="card engineer-card telemetry-controls-card">
@@ -958,7 +1006,7 @@ function renderTelemetryPanel(gpList = [], participants = { drivers: [], teams: 
         <label class="telemetry-control-item">
           <span>Sesión</span>
           <select class="select-input" onchange="setEngineerTelemetrySessionType(this.value)">
-            ${renderTelemetrySelector(sessionOptions, telemetry.sessionType)}
+            ${renderTelemetrySelector(sessionOptions.length ? sessionOptions : [{ value: "", label: "Sin sesiones válidas" }], telemetry.sessionType)}
           </select>
         </label>
         <label class="telemetry-control-item">
@@ -970,13 +1018,13 @@ function renderTelemetryPanel(gpList = [], participants = { drivers: [], teams: 
         <label class="telemetry-control-item">
           <span>A</span>
           <select class="select-input" onchange="setEngineerTelemetryA(this.value)">
-            ${renderTelemetrySelector(aOptionsSource.map(item => ({ value: item, label: item })), telemetry.a)}
+            ${renderTelemetrySelector(aOptions.length ? aOptions : [{ value: "", label: "Sin opciones disponibles" }], telemetry.a)}
           </select>
         </label>
         <label class="telemetry-control-item">
           <span>B</span>
           <select class="select-input" onchange="setEngineerTelemetryB(this.value)">
-            ${renderTelemetrySelector(bOptionsSource.map(item => ({ value: item, label: item })), telemetry.b)}
+            ${renderTelemetrySelector(bOptions.length ? bOptions : [{ value: "", label: "Sin opciones disponibles" }], telemetry.b)}
           </select>
         </label>
       </div>
@@ -990,7 +1038,7 @@ async function ensureTelemetrySelection() {
   const gpList = await loadTelemetrySessionCatalog();
   if (!gpList.length) {
     telemetry.status = "empty";
-    telemetry.error = "OpenF1 no devolvió sesiones históricas válidas.";
+    telemetry.userMessage = "No hay datos históricos de telemetría disponibles ahora mismo.";
     return { gpList, participants: { drivers: [], teams: [] } };
   }
 
@@ -998,16 +1046,22 @@ async function ensureTelemetrySelection() {
     telemetry.gp = gpList[0].gpKey;
   }
 
-  let selectedSession = chooseLatestSessionForGp(telemetry.gp, telemetry.sessionType);
-  if (!selectedSession) {
-    selectedSession = chooseLatestSessionForGp(telemetry.gp);
-  }
-
-  if (!selectedSession) {
+  const sessionsForGp = engineerCache.sessionsByGp.get(String(telemetry.gp)) || [];
+  const allowedSessions = sessionsForGp.filter(item => TELEMETRY_SESSION_TYPES.some(type => type.key === item.typeKey));
+  if (!allowedSessions.length) {
     telemetry.status = "empty";
+    telemetry.sessionType = "";
+    telemetry.sessionKey = "";
+    telemetry.userMessage = "No hay sesiones válidas de FP, Qualy o Carrera para este GP.";
     return { gpList, participants: { drivers: [], teams: [] } };
   }
 
+  if (!telemetry.sessionType || !allowedSessions.some(item => item.typeKey === telemetry.sessionType)) {
+    telemetry.sessionType = allowedSessions[allowedSessions.length - 1].typeKey;
+  }
+
+  const sessionCandidates = allowedSessions.filter(item => item.typeKey === telemetry.sessionType);
+  const selectedSession = sessionCandidates[sessionCandidates.length - 1] || allowedSessions[allowedSessions.length - 1];
   telemetry.sessionType = selectedSession.typeKey;
   telemetry.sessionKey = selectedSession.session_key;
 
@@ -1019,21 +1073,44 @@ async function ensureTelemetrySelection() {
   if (!options.includes(telemetry.a)) telemetry.a = options[0] || "";
   const bOptions = options.filter(name => name !== telemetry.a);
   if (!bOptions.includes(telemetry.b)) telemetry.b = bOptions[0] || "";
+  if (!telemetry.b && bOptions.length) telemetry.b = bOptions[0];
 
   return { gpList, participants };
 }
 
 async function loadTelemetryData() {
   const telemetry = engineerState.telemetry;
+  const requestId = ++telemetryLoadRequestId;
   telemetry.status = "loading";
   telemetry.error = "";
+  telemetry.userMessage = "";
   renderEngineerScreen();
 
   try {
     const { gpList, participants } = await ensureTelemetrySelection();
+    if (requestId !== telemetryLoadRequestId) return;
+
+    if (!telemetry.sessionKey) {
+      telemetry.status = "empty";
+      telemetry.technicalData = null;
+      telemetry.userMessage = telemetry.userMessage || "Selecciona GP y sesión válidos para comparar.";
+      renderEngineerScreen(gpList, participants);
+      return;
+    }
+
     if (!telemetry.a || !telemetry.b || !telemetry.sessionKey) {
       telemetry.status = "empty";
       telemetry.technicalData = null;
+      telemetry.userMessage = "Selecciona GP, sesión y entidades válidas para comparar.";
+      renderEngineerScreen(gpList, participants);
+      return;
+    }
+
+    const selectionKey = `${telemetry.gp}:${telemetry.sessionKey}:${telemetry.type}:${telemetry.a}:${telemetry.b}`;
+    if (engineerCache.dataBySelection.has(selectionKey)) {
+      telemetry.technicalData = engineerCache.dataBySelection.get(selectionKey);
+      telemetry.status = "ready";
+      telemetry.lastLoadedKey = selectionKey;
       renderEngineerScreen(gpList, participants);
       return;
     }
@@ -1045,11 +1122,13 @@ async function loadTelemetryData() {
       b: telemetry.b,
       participants
     });
+    if (requestId !== telemetryLoadRequestId) return;
 
     const hasData = comparison?.a?.metrics?.lapCount || comparison?.b?.metrics?.lapCount;
     if (!hasData) {
       telemetry.status = "empty";
       telemetry.technicalData = null;
+      telemetry.userMessage = "No hay suficientes datos para esta sesión.";
       renderEngineerScreen(gpList, participants);
       return;
     }
@@ -1061,17 +1140,24 @@ async function loadTelemetryData() {
       b: telemetry.b,
       participants
     });
+    if (requestId !== telemetryLoadRequestId) return;
 
-    telemetry.technicalData = {
+    const technicalData = {
       comparison,
       evolution,
       type: telemetry.type
     };
+    engineerCache.dataBySelection.set(selectionKey, technicalData);
+    telemetry.technicalData = technicalData;
+    telemetry.lastLoadedKey = selectionKey;
     telemetry.status = "ready";
     renderEngineerScreen(gpList, participants);
   } catch (error) {
+    if (requestId !== telemetryLoadRequestId) return;
+    console.error("[telemetry] load failed", error);
     telemetry.status = "error";
-    telemetry.error = error?.message || "Error al cargar OpenF1";
+    telemetry.error = String(error?.message || "");
+    telemetry.userMessage = telemetryFriendlyErrorMessage(error);
     telemetry.technicalData = null;
     renderEngineerScreen();
   }
@@ -1086,13 +1172,22 @@ function setEngineerSubmode(mode) {
 }
 
 function setEngineerTelemetryGp(value) {
+  if (!value) return;
   engineerState.telemetry.gp = value;
+  engineerState.telemetry.sessionType = "";
+  engineerState.telemetry.sessionKey = "";
+  engineerState.telemetry.a = "";
+  engineerState.telemetry.b = "";
   engineerState.telemetry.technicalData = null;
   loadTelemetryData();
 }
 
 function setEngineerTelemetrySessionType(value) {
+  if (!value) return;
   engineerState.telemetry.sessionType = value;
+  engineerState.telemetry.sessionKey = "";
+  engineerState.telemetry.a = "";
+  engineerState.telemetry.b = "";
   engineerState.telemetry.technicalData = null;
   loadTelemetryData();
 }
@@ -1106,6 +1201,7 @@ function setEngineerTelemetryType(value) {
 }
 
 function setEngineerTelemetryA(value) {
+  if (!value) return;
   engineerState.telemetry.a = value;
   if (engineerState.telemetry.b === value) engineerState.telemetry.b = "";
   engineerState.telemetry.technicalData = null;
@@ -1113,6 +1209,7 @@ function setEngineerTelemetryA(value) {
 }
 
 function setEngineerTelemetryB(value) {
+  if (!value) return;
   engineerState.telemetry.b = value;
   engineerState.telemetry.technicalData = null;
   loadTelemetryData();
