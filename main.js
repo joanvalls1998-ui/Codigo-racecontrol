@@ -183,7 +183,7 @@ function renderWeekendModeHub(context, { compact = false, source = "home" } = {}
       <div class="weekend-mode-actions">
         <button class="btn-secondary" onclick="showHome()">Inicio</button>
         <button class="btn-secondary" onclick="showSessions()">Sesiones</button>
-        <button class="btn-secondary" onclick="showPredict()">Predict</button>
+        <button class="btn-secondary" onclick="showPredict()">Ingeniero</button>
         <button class="btn-secondary" onclick="showRaceMode()">Modo carrera</button>
       </div>
     </div>
@@ -363,7 +363,7 @@ function encodeQuickFavoriteValue(option) {
 
 function renderFavoriteQuickSelectorCard({
   title = "Selector rápido de favorito",
-  subtitle = "Cámbialo en un toque y actualiza Home, Predict y Noticias.",
+  subtitle = "Cámbialo en un toque y actualiza Home, Ingeniero y Noticias.",
   returnView = "refreshCurrentView",
   compact = false
 } = {}) {
@@ -1885,7 +1885,7 @@ async function showSessions() {
       </div>
 
       <div class="card app-quick-grid-card">
-        <a href="#" class="app-quick-link" onclick="showPredict(); return false;">Predict</a>
+        <a href="#" class="app-quick-link" onclick="showPredict(); return false;">Ingeniero</a>
         <a href="#" class="app-quick-link" onclick="showCalendar(); return false;">Calendario</a>
         <a href="#" class="app-quick-link" onclick="showHome(); return false;">Home</a>
       </div>
@@ -4212,7 +4212,7 @@ function showMore() {
     <div class="card app-panel-card">
       <div class="card-title">Sistema</div>
       <div class="app-quick-grid-card app-quick-grid-3" style="margin-top:10px;">
-        <a href="#" class="app-quick-link" onclick="showPredict(); return false;">Predict</a>
+        <a href="#" class="app-quick-link" onclick="showPredict(); return false;">Ingeniero</a>
         <a href="#" class="app-quick-link" onclick="showSettingsPanel(); return false;">Ajustes</a>
         <a href="#" class="app-quick-link" onclick="showGlossary(); return false;">Glosario</a>
       </div>
