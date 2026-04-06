@@ -161,7 +161,7 @@ function openScreenByKey(screenKey) {
 }
 
 function renderWeekendModeHub(context, { compact = false, source = "home" } = {}) {
-  if (!state.weekendModeEnabled) return "";
+  if (!isWeekendModeEnabled()) return "";
 
   const raceName = context?.raceName || getSelectedRace();
   const phase = context?.phaseLabel || "Previa";
@@ -3373,19 +3373,21 @@ function renderDriverAvatar(name, image = "", className = "row-avatar") {
 }
 
 function renderHomeWeekendModeBlock(context) {
-  if (state.weekendModeEnabled) {
-    return renderWeekendModeHub(context, { compact: true, source: "home" });
-  }
+  if (!isWeekendModeEnabled()) return "";
+  return renderWeekendModeHub(context, { compact: true, source: "home" });
+}
 
+function renderHomeWeekendModeControl() {
+  const enabled = isWeekendModeEnabled();
   return `
-    <div class="card weekend-mode-card weekend-mode-compact">
+    <div class="card app-panel-card">
       <div class="card-head">
         <div class="card-head-left">
           <div class="card-title">Modo fin de semana</div>
-          <div class="card-sub">Está oculto. Vuelve a activarlo para tener acceso rápido.</div>
+          <div class="card-sub">${enabled ? "ON · Visible en Home" : "OFF · Oculto en Home"}</div>
         </div>
         <div class="card-head-actions">
-          <button class="btn-secondary" onclick="toggleWeekendModeEnabled('home')">Activar</button>
+          <button class="toggle-btn ${enabled ? "active" : ""}" onclick="toggleWeekendModeEnabled('home')" aria-pressed="${enabled}">${enabled ? "ON · Visible" : "OFF · Oculto"}</button>
         </div>
       </div>
     </div>
@@ -3527,7 +3529,6 @@ async function showHome() {
             <button class="icon-btn" onclick="showNews()">Noticias</button>
             <button class="icon-btn" onclick="showCalendar()">Calendario</button>
           </div>
-          ${expert ? "" : `<div class="app-two-actions" style="margin-top:8px;"><button class="toggle-btn ${state.weekendModeEnabled ? "active" : ""}" onclick="toggleWeekendModeEnabled('home')" aria-pressed="${state.weekendModeEnabled}">${state.weekendModeEnabled ? "ON · Modo GP visible" : "OFF · Modo GP oculto"}</button></div>`}
         </div>
       `
       : `
@@ -3563,7 +3564,8 @@ async function showHome() {
       ${previousGp && !expert ? `<div class="info-line">${escapeHtml(`Último GP: ${previousGp.title} · ${formatCalendarDateRange(previousGp.start, previousGp.end)}`)}</div>` : ""}
     </div>
 
-    ${expert || compactHomeEnabled ? "" : renderHomeWeekendModeBlock(context)}
+    ${renderHomeWeekendModeControl()}
+    ${renderHomeWeekendModeBlock(context)}
     ${fullHomeBlocks}
 
     ${calendarError ? `<div class="empty-line">No se pudo actualizar calendario: ${escapeHtml(calendarError.message || "error")}</div>` : ""}
@@ -5010,6 +5012,15 @@ function getUiState() {
   return sanitizeUiState(storageReadJson(STORAGE_KEYS.uiState, null));
 }
 
+function isWeekendModeEnabled() {
+  return state.weekendModeEnabled !== false;
+}
+
+function setWeekendModeEnabled(enabled) {
+  state.weekendModeEnabled = enabled !== false;
+  saveUiState();
+}
+
 function saveUiState() {
   storageWriteJson(STORAGE_KEYS.uiState, sanitizeUiState({
     standingsViewType: state.standingsViewType,
@@ -5087,8 +5098,7 @@ function setExperienceMode(mode) {
 }
 
 function toggleWeekendModeEnabled(returnView = "showSettingsPanel") {
-  state.weekendModeEnabled = !state.weekendModeEnabled;
-  saveUiState();
+  setWeekendModeEnabled(!isWeekendModeEnabled());
 
   if (returnView === "home") return showHome();
   if (returnView === "more") return showMore();

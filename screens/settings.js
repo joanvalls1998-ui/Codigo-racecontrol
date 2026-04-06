@@ -27,7 +27,7 @@ function getSettingsSystemState() {
     summary,
     isExpert,
     lastScreenLabel: getLastScreenLabel(),
-    weekendModeEnabled: state.weekendModeEnabled,
+    weekendModeEnabled: isWeekendModeEnabled(),
     raceModeLabel: settings.autoSelectNextRace
       ? "Automático"
       : `Manual · ${summary.selectedRace || "Sin selección"}`,
