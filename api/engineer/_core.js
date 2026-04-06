@@ -889,10 +889,13 @@ async function getDriverMetricsRaceOpti({ year = DEFAULT_YEAR, round, sessionTyp
   return setCached(cache.raceoptidata, key, payload);
 }
 
-async function getDriverMetricsOpenF1(sessionKey, driverNumber) {
+async function getDriverMetricsOpenF1(sessionKey, driverNumber, options = {}) {
+  const includeTraces = options.includeTraces !== false;
   const [lapsRows, carDataRows, stintsRows, positionRows, resultRows] = await Promise.all([
     fetchOpenF1WithRetry("laps", { session_key: sessionKey, driver_number: driverNumber }, { retries: 2 }).catch(() => []),
-    fetchOpenF1WithRetry("car_data", { session_key: sessionKey, driver_number: driverNumber }, { retries: 2 }).catch(() => []),
+    includeTraces
+      ? fetchOpenF1WithRetry("car_data", { session_key: sessionKey, driver_number: driverNumber }, { retries: 2 }).catch(() => [])
+      : Promise.resolve([]),
     fetchOpenF1WithRetry("stints", { session_key: sessionKey, driver_number: driverNumber }, { retries: 2 }).catch(() => []),
     fetchOpenF1WithRetry("position", { session_key: sessionKey, driver_number: driverNumber }, { retries: 2 }).catch(() => []),
     fetchOpenF1WithRetry("session_result", { session_key: sessionKey, driver_number: driverNumber }, { retries: 2 }).catch(() => [])
@@ -905,21 +908,20 @@ async function getDriverMetricsOpenF1(sessionKey, driverNumber) {
     sector3: average(lapsRows.map(item => parseMaybeNumber(item.duration_sector_3)))
   };
 
-  const topSpeedCandidates = [
-    ...carDataRows.map(item => parseMaybeNumber(item.speed)),
-    ...resultRows.map(item => parseMaybeNumber(item.top_speed))
-  ].filter(Number.isFinite);
+  const topSpeedCandidates = includeTraces
+    ? [...carDataRows.map(item => parseMaybeNumber(item.speed)), ...resultRows.map(item => parseMaybeNumber(item.top_speed))].filter(Number.isFinite)
+    : resultRows.map(item => parseMaybeNumber(item.top_speed)).filter(Number.isFinite);
 
   const speedTrapCandidates = [
     ...lapsRows.map(item => parseMaybeNumber(item.st_speed)),
     ...resultRows.map(item => parseMaybeNumber(item.speed_trap))
   ].filter(Number.isFinite);
 
-  const speedProfile = buildLineFromSamples(carDataRows, item => parseMaybeNumber(item.speed), 36);
-  const throttleProfile = buildLineFromSamples(carDataRows, item => parseMaybeNumber(item.throttle), 36);
-  const brakeProfile = buildLineFromSamples(carDataRows, item => parseMaybeNumber(item.brake), 36);
-  const gearProfile = buildLineFromSamples(carDataRows, item => parseMaybeNumber(item.n_gear), 36);
-  const rpmProfile = buildLineFromSamples(carDataRows, item => parseMaybeNumber(item.rpm), 36);
+  const speedProfile = includeTraces ? buildLineFromSamples(carDataRows, item => parseMaybeNumber(item.speed), 36) : [];
+  const throttleProfile = includeTraces ? buildLineFromSamples(carDataRows, item => parseMaybeNumber(item.throttle), 36) : [];
+  const brakeProfile = includeTraces ? buildLineFromSamples(carDataRows, item => parseMaybeNumber(item.brake), 36) : [];
+  const gearProfile = includeTraces ? buildLineFromSamples(carDataRows, item => parseMaybeNumber(item.n_gear), 36) : [];
+  const rpmProfile = includeTraces ? buildLineFromSamples(carDataRows, item => parseMaybeNumber(item.rpm), 36) : [];
 
   const stintRows = stintsRows
     .map(item => ({
@@ -1539,8 +1541,9 @@ async function resolveTelemetryContext({ year = DEFAULT_YEAR, meetingKey = "", s
   });
 }
 
-async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKey, driverNumber }) {
-  const cacheKey = `${year}:${meetingKey}:${sessionKey}:${driverNumber}`;
+async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKey, driverNumber, includeHeavy = true }) {
+  const modeKey = includeHeavy ? "full" : "core";
+  const cacheKey = `${year}:${meetingKey}:${sessionKey}:${driverNumber}:${modeKey}`;
   const cached = getCached(cache.telemetry, cacheKey, TTL.telemetry);
   if (cached) {
     telemetryLog("debug", "telemetry.cache_hit", { year, meeting_key: meetingKey, session_key: sessionKey, driver_number: driverNumber });
@@ -1579,7 +1582,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     throw error;
   }
 
-  const openf1 = await getDriverMetricsOpenF1(session.session_key, driver.id).catch(error => {
+  const openf1 = await getDriverMetricsOpenF1(session.session_key, driver.id, { includeTraces: includeHeavy }).catch(error => {
     telemetryLog("warn", "telemetry.provider_failed", {
       provider: "openf1",
       reason: String(error?.message || "OPENF1_PROVIDER_ERROR"),
@@ -1609,14 +1612,16 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     });
     return null;
   });
-  const fastf1 = await getFastF1DriverMetrics({
-    meetingName: meeting.meeting_name || meeting.location || meeting.country_name,
-    sessionType: session.type_key,
-    driverNumber: driver.id
-  }).catch(() => ({ ok: false, reason: "FASTF1_ERROR" }));
+  const fastf1 = includeHeavy
+    ? await getFastF1DriverMetrics({
+      meetingName: meeting.meeting_name || meeting.location || meeting.country_name,
+      sessionType: session.type_key,
+      driverNumber: driver.id
+    }).catch(() => ({ ok: false, reason: "FASTF1_ERROR" }))
+    : { ok: false, reason: "FASTF1_SKIPPED_CORE_MODE" };
   const openf1Base = mergeTelemetryBlock(openf1, aggregate || {});
   const merged = mergeTelemetry(openf1Base, fastf1);
-  const weather = await loadSessionContext(session.session_key);
+  const weather = includeHeavy ? await loadSessionContext(session.session_key) : {};
   const sessionEvolution = Array.isArray(fastf1?.evolution) && fastf1.evolution.length
     ? fastf1.evolution.map(item => ({
       session_key: item.session_code || "",
@@ -1626,12 +1631,12 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
       averagePace: Number.isFinite(item.averagePace) ? item.averagePace : null,
       deltaToReference: Number.isFinite(item.deltaToReference) ? item.deltaToReference : null
     }))
-    : await buildSessionEvolutionSummary({
+    : (includeHeavy ? await buildSessionEvolutionSummary({
       meetingKey,
       currentSessionKey: session.session_key,
       driverNumber: driver.id,
       year
-    }).catch(() => []);
+    }).catch(() => []) : []);
 
   telemetryLog("info", "telemetry.sources_evaluated", {
     year,
@@ -1709,14 +1714,16 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
       basic: merged.stints || [],
       evolution: merged.evolution || []
     },
-    traces: {
-      ...merged.traces,
-      trackPosition: buildLineFromSamples(
-        await fetchOpenF1WithRetry("position", { session_key: session.session_key, driver_number: driver.id }, { retries: 1 }).catch(() => []),
-        item => parseMaybeNumber(item.position),
-        36
-      )
-    },
+    traces: includeHeavy
+      ? {
+        ...merged.traces,
+        trackPosition: buildLineFromSamples(
+          await fetchOpenF1WithRetry("position", { session_key: session.session_key, driver_number: driver.id }, { retries: 1 }).catch(() => []),
+          item => parseMaybeNumber(item.position),
+          36
+        )
+      }
+      : { speed: [], throttle: [], brake: [], gear: [], rpm: [], trackPosition: [] },
     availability: {
       referenceLap: toAvailability(merged.referenceLap),
       averagePace: toAvailability(merged.averagePace),
@@ -1754,10 +1761,16 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
       rotation: Number.isFinite(merged?.fastf1Circuit?.rotation) ? merged.fastf1Circuit.rotation : null
     },
     session_evolution: sessionEvolution,
-    diagnostics: {
-      fastf1_used_public_api: merged.fastf1UsedPublicApi || [],
-      fastf1_event: merged.fastf1Event || {}
-    }
+    diagnostics: includeHeavy
+      ? {
+        fastf1_used_public_api: merged.fastf1UsedPublicApi || [],
+        fastf1_event: merged.fastf1Event || {}
+      }
+      : {
+        mode: "core",
+        fastf1_skipped: true,
+        heavy_blocks: ["traces", "session_evolution", "context"]
+      }
   };
 
   telemetryLog("info", "telemetry.success", {
