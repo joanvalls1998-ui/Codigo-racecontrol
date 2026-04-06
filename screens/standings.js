@@ -46,6 +46,7 @@ function renderBattleSlot(label, item, favoritePoints, type) {
     <div class="standings-battle-slot">
       <div class="standings-battle-label">${label}</div>
       <div class="standings-battle-row">
+        ${type === "drivers" ? renderDriverAvatar(entityName, item.image, "row-avatar tiny-avatar") : ""}
         <div class="row-stripe ${stripeClass}"></div>
         <div class="standings-battle-main">
           <div class="standings-battle-name">${escapeHtml(entityName)}</div>
@@ -127,7 +128,10 @@ function renderStandingsOverviewCard() {
         <div class="meta-grid" style="margin-top:14px;">
           <div class="meta-tile">
             <div class="meta-kicker">Líder</div>
-            <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.leader?.name || "—")}</div>
+            <div class="meta-value" style="font-size:18px; display:flex; align-items:center; gap:8px;">
+              ${overview.leader?.name ? renderDriverAvatar(overview.leader.name, overview.leader.image, "row-avatar tiny-avatar") : ""}
+              <span>${escapeHtml(overview.leader?.name || "—")}</span>
+            </div>
             <div class="meta-caption">${overview.leader ? `${overview.leader.points} pts` : "Sin datos"}</div>
           </div>
           <div class="meta-tile">
@@ -137,7 +141,10 @@ function renderStandingsOverviewCard() {
           </div>
           <div class="meta-tile">
             <div class="meta-kicker">Pelea directa</div>
-            <div class="meta-value" style="font-size:18px;">${escapeHtml(overview.directRival?.name || "—")}</div>
+            <div class="meta-value" style="font-size:18px; display:flex; align-items:center; gap:8px;">
+              ${overview.directRival?.name ? renderDriverAvatar(overview.directRival.name, overview.directRival.image, "row-avatar tiny-avatar") : ""}
+              <span>${escapeHtml(overview.directRival?.name || "—")}</span>
+            </div>
             <div class="meta-caption">${escapeHtml(overview.favoriteDriver && overview.directRival ? getStandingsGapLabel(overview.favoriteDriver.points, overview.directRival.points) : "Rival más cercano")}</div>
           </div>
         </div>
@@ -216,7 +223,10 @@ function renderStandingsFavoriteContextCard() {
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Rival directo</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(battleName || "—")}</div>
+          <div class="meta-value" style="font-size:18px; display:flex; align-items:center; gap:8px;">
+            ${snapshot.championship.type === "driver" && battleName ? renderDriverAvatar(battleName, snapshot.championship.directRival?.image, "row-avatar tiny-avatar") : ""}
+            <span>${escapeHtml(battleName || "—")}</span>
+          </div>
           <div class="meta-caption">${escapeHtml(snapshot.championship.rivalGap != null ? `${snapshot.championship.rivalGap} pts de margen` : "Sin brecha definida")}</div>
         </div>
         <div class="meta-tile">
