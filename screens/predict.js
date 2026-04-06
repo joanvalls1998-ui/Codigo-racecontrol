@@ -547,6 +547,58 @@ function telemetrySessionTypeFromName(name = "") {
   return "";
 }
 
+function getSessionYear(session = {}) {
+  if (Number.isFinite(Number(session.year))) return Number(session.year);
+  const rawDate = session.date_start || session.date || "";
+  const parsed = rawDate ? new Date(rawDate).getUTCFullYear() : NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function cleanGpName(raw = "") {
+  const text = String(raw || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const withoutBranding = text
+    .replace(/^FORMULA\s*1\b[^A-Z0-9]*?/i, "")
+    .replace(/^FIA\s*FORMULA\s*ONE\b[^A-Z0-9]*?/i, "")
+    .replace(/\b(ROLEX|QATAR AIRWAYS|AWS|ARAMCO|MSC CRUISES|HEINEKEN)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return withoutBranding || text;
+}
+
+function buildReadableGpLabel(session = {}) {
+  const year = getSessionYear(session);
+  const candidates = [
+    cleanGpName(session.country_name),
+    cleanGpName(session.meeting_name),
+    cleanGpName(session.location),
+    cleanGpName(session.circuit_short_name),
+    cleanGpName(session.meeting_official_name)
+  ].filter(Boolean);
+  const base = candidates.find(value => !/^gp\s*\d+/i.test(value)) || candidates[0] || `GP ${session.meeting_key || ""}`.trim();
+  const hasYear = year && new RegExp(`\\b${year}\\b`).test(base);
+  return year && !hasYear ? `${base} ${year}` : base;
+}
+
+function normalizeDriverIdentity(row = {}) {
+  const id = String(row.driver_number || row.racing_number || row.number || "").trim();
+  const name = String(
+    row.full_name
+      || `${row.first_name || ""} ${row.last_name || ""}`.trim()
+      || row.driver_name
+      || row.broadcast_name
+      || row.name_acronym
+      || ""
+  ).trim();
+  const team = String(row.team_name || row.team || row.teamName || "").trim();
+  return {
+    id,
+    name,
+    team: team || "Equipo",
+    headshot: String(row.headshot_url || "").trim()
+  };
+}
+
 function telemetryTypeLabel(key) {
   return TELEMETRY_SESSION_TYPES.find(type => type.key === key)?.label || key;
 }
@@ -623,11 +675,12 @@ async function loadTelemetrySessionCatalog() {
 
   const gpMap = new Map();
   normalized.forEach(session => {
-    const gpKey = String(session.meeting_key || session.meeting_name || "");
+    const year = getSessionYear(session);
+    const gpKey = String(session.meeting_key || `${session.meeting_name || ""}-${year || ""}`);
     if (!gpKey) return;
     const existing = gpMap.get(gpKey) || {
       gpKey,
-      label: session.meeting_name || session.meeting_official_name || `GP ${gpKey}`,
+      label: buildReadableGpLabel(session),
       sessions: []
     };
     existing.sessions.push(session);
@@ -649,14 +702,7 @@ async function loadTelemetrySessionCatalog() {
       const bDate = new Date(b.sessions[b.sessions.length - 1]?.dateStart || 0).getTime();
       return bDate - aDate;
     })
-    .map(item => {
-      const sessionDate = item.sessions[item.sessions.length - 1]?.dateStart || "";
-      const year = sessionDate ? new Date(sessionDate).getUTCFullYear() : "";
-      return {
-        ...item,
-        label: year ? `${item.label} · ${year}` : item.label
-      };
-    });
+    .map(item => ({ ...item, label: item.label }));
 
   gpList.forEach(item => engineerCache.sessionsByGp.set(item.gpKey, item.sessions));
   engineerCache.gpCatalog = gpList;
@@ -690,42 +736,55 @@ async function loadTelemetryParticipants(sessionKey) {
     return engineerCache.participantsBySession.get(sessionKey);
   }
 
-  let drivers = [];
-  try {
-    drivers = await fetchOpenF1("drivers", { session_key: sessionKey });
-  } catch (_error) {
-    drivers = [];
-  }
-  const normalizedDrivers = (Array.isArray(drivers) ? drivers : [])
-    .map(driver => ({
-      id: String(driver.driver_number),
-      name: driver.full_name || `${driver.first_name || ""} ${driver.last_name || ""}`.trim(),
-      team: driver.team_name || "Equipo",
-      headshot: driver.headshot_url || ""
-    }))
-    .filter(driver => driver.id && driver.name)
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  if (!normalizedDrivers.length) {
-    const fallbackRows = await fetchOpenF1("laps", { session_key: sessionKey });
-    const byDriver = new Map();
-    (Array.isArray(fallbackRows) ? fallbackRows : []).forEach(row => {
-      const id = String(row.driver_number || "");
-      const name = String(row.driver_name || "").trim();
-      if (!id || !name || byDriver.has(id)) return;
-      byDriver.set(id, {
-        id,
-        name,
-        team: row.team_name || "Equipo",
-        headshot: ""
-      });
+  const byDriverId = new Map();
+  function collectDriverRows(rows) {
+    (Array.isArray(rows) ? rows : []).forEach(row => {
+      const normalized = normalizeDriverIdentity(row);
+      if (!normalized.id || !normalized.name || byDriverId.has(normalized.id)) return;
+      byDriverId.set(normalized.id, normalized);
     });
-    normalizedDrivers.push(...[...byDriver.values()].sort((a, b) => a.name.localeCompare(b.name)));
   }
 
-  const teams = [...new Set(normalizedDrivers.map(driver => driver.team))]
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b));
+  try {
+    const drivers = await fetchOpenF1("drivers", { session_key: sessionKey });
+    collectDriverRows(drivers);
+  } catch (_driversError) {
+    // fallback chain below
+  }
+
+  if (!byDriverId.size) {
+    try {
+      const fallbackLaps = await fetchOpenF1("laps", { session_key: sessionKey });
+      collectDriverRows(fallbackLaps);
+    } catch (_lapsError) {
+      // keep trying
+    }
+  }
+
+  if (!byDriverId.size) {
+    try {
+      const fallbackPositions = await fetchOpenF1("position", { session_key: sessionKey });
+      collectDriverRows(fallbackPositions);
+    } catch (_positionsError) {
+      // no-op
+    }
+  }
+
+  const normalizedDrivers = [...byDriverId.values()].sort((a, b) => a.name.localeCompare(b.name));
+  if (!normalizedDrivers.length) {
+    const payload = { drivers: [], teams: [] };
+    engineerCache.participantsBySession.set(sessionKey, payload);
+    return payload;
+  }
+
+  const teamMap = new Map();
+  normalizedDrivers.forEach(driver => {
+    const cleanTeam = String(driver.team || "").replace(/\s+/g, " ").trim();
+    if (!cleanTeam) return;
+    const key = cleanTeam.toLowerCase();
+    if (!teamMap.has(key)) teamMap.set(key, cleanTeam);
+  });
+  const teams = [...teamMap.values()].sort((a, b) => a.localeCompare(b));
 
   const payload = { drivers: normalizedDrivers, teams };
   engineerCache.participantsBySession.set(sessionKey, payload);
@@ -753,11 +812,14 @@ async function loadDriverSessionMetrics(sessionKey, driverNumber) {
   const metricKey = `${sessionKey}:${driverNumber}`;
   if (engineerCache.metricsBySession.has(metricKey)) return engineerCache.metricsBySession.get(metricKey);
 
-  const [laps, carData, stints] = await Promise.all([
+  const [lapsResult, carDataResult, stintsResult] = await Promise.allSettled([
     fetchOpenF1("laps", { session_key: sessionKey, driver_number: driverNumber }),
     fetchOpenF1("car_data", { session_key: sessionKey, driver_number: driverNumber }),
     fetchOpenF1("stints", { session_key: sessionKey, driver_number: driverNumber })
   ]);
+  const laps = lapsResult.status === "fulfilled" ? lapsResult.value : [];
+  const carData = carDataResult.status === "fulfilled" ? carDataResult.value : [];
+  const stints = stintsResult.status === "fulfilled" ? stintsResult.value : [];
 
   const lapRows = (Array.isArray(laps) ? laps : []).filter(lap => Number.isFinite(lap.lap_duration));
   const bestLap = lapRows.length ? Math.min(...lapRows.map(lap => lap.lap_duration)) : null;
@@ -1009,7 +1071,7 @@ function renderTelemetryPanelBody() {
   }
 
   if (!telemetry.technicalData) {
-    return `<div class="card engineer-card"><div class="empty-line">Selecciona GP, sesión y entidades válidas para comparar.</div></div>`;
+    return `<div class="card engineer-card"><div class="empty-line">Selecciona dos ${telemetry.type === "driver" ? "pilotos" : "equipos"} válidos.</div></div>`;
   }
 
   return renderTelemetryDashboard(telemetry.technicalData);
@@ -1040,7 +1102,7 @@ function renderTelemetryPanel(gpList = [], participants = { drivers: [], teams: 
   const entitiesPending = !telemetry.sessionKey || !telemetry.attemptedResolution;
   const entityPlaceholder = entitiesPending
     ? [{ value: "", label: "Selecciona GP y sesión" }]
-    : [{ value: "", label: "No hay entidades disponibles para esta combinación" }];
+    : [{ value: "", label: "No hay participantes disponibles para esa sesión" }];
 
   return `
     <div class="card engineer-card telemetry-controls-card">
@@ -1098,7 +1160,10 @@ async function ensureTelemetrySelection() {
   }
 
   const sessionsForGp = engineerCache.sessionsByGp.get(String(telemetry.gp)) || [];
-  const allowedSessions = sessionsForGp.filter(item => TELEMETRY_SESSION_TYPES.some(type => type.key === item.typeKey));
+  const allowedSessions = sessionsForGp.filter(item =>
+    item.session_key
+    && TELEMETRY_SESSION_TYPES.some(type => type.key === item.typeKey)
+  );
   if (!allowedSessions.length) {
     telemetry.status = "empty";
     telemetry.sessionType = "";
@@ -1126,9 +1191,7 @@ async function ensureTelemetrySelection() {
     telemetry.a = "";
     telemetry.b = "";
     telemetry.status = "empty";
-    telemetry.userMessage = telemetry.type === "driver"
-      ? "No hay pilotos con datos válidos para este GP y sesión."
-      : "No hay equipos con datos válidos para este GP y sesión.";
+    telemetry.userMessage = "No hay participantes disponibles para esa sesión.";
     return { gpList, participants };
   }
 
@@ -1163,7 +1226,9 @@ async function loadTelemetryData() {
     if (!telemetry.a || !telemetry.b || !telemetry.sessionKey) {
       telemetry.status = "empty";
       telemetry.technicalData = null;
-      telemetry.userMessage = "Selecciona GP, sesión y entidades válidas para comparar.";
+      telemetry.userMessage = telemetry.type === "driver"
+        ? "Selecciona dos pilotos válidos."
+        : "Selecciona dos equipos válidos.";
       renderEngineerScreen(gpList, participants);
       return;
     }
@@ -1190,7 +1255,7 @@ async function loadTelemetryData() {
     if (!hasData) {
       telemetry.status = "empty";
       telemetry.technicalData = null;
-      telemetry.userMessage = "No hay suficientes datos para esta sesión.";
+      telemetry.userMessage = "No hay datos de comparación para esa combinación.";
       renderEngineerScreen(gpList, participants);
       return;
     }
