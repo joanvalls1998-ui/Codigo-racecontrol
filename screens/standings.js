@@ -269,6 +269,9 @@ async function showStandings(force = false) {
           <button class="toggle-btn ${state.standingsScope === "top10" ? "active" : ""}" data-standings-scope="top10" onclick="setStandingsScope('top10')" aria-pressed="${state.standingsScope === "top10"}">Top 10</button>
           <button class="toggle-btn ${state.standingsScope === "all" ? "active" : ""}" data-standings-scope="all" onclick="setStandingsScope('all')" aria-pressed="${state.standingsScope === "all"}">Todos</button>
         </div>
+        <div class="control-status-line">
+          Vista activa: <strong>${state.standingsViewType === "teams" ? "Equipos" : "Pilotos"}</strong> · Alcance: <strong>${state.standingsScope === "all" ? "Todos" : "Top 10"}</strong>.
+        </div>
       </div>
       <div id="standingsContent"></div>
     `;

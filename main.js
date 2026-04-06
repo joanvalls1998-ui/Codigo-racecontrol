@@ -3446,9 +3446,13 @@ async function showHome() {
 
   const featuredNews = favoriteNewsItems[0] || null;
   const featuredMention = featuredNews ? findDriverMentionInText(`${featuredNews.title} ${featuredNews.source || ""}`) : null;
+  const compactHomeEnabled = Boolean(getSettings().homeCompactMode);
+  const compactHeadline = featuredNews
+    ? `${featuredNews.title}${featuredNews.source ? ` · ${featuredNews.source}` : ""}`
+    : "Sin titular destacado en caché para el favorito.";
 
   contentEl().innerHTML = `
-    <div class="card highlight-card app-home-favorite home-main-card ${expert ? "home-dashboard-expert" : ""}">
+    <div class="card highlight-card app-home-favorite home-main-card ${expert ? "home-dashboard-expert" : ""} ${compactHomeEnabled ? "compact-home" : ""}">
       <div class="card-head">
         <div class="card-head-left"><div class="card-title">Home</div></div>
         <div class="card-head-actions"><button class="icon-btn" onclick="openFavoriteSelectorModal('showHome')">Cambiar</button></div>
@@ -3485,28 +3489,46 @@ async function showHome() {
         <button class="btn" onclick="showPredict()">Abrir Predict</button>
         <button class="icon-btn" onclick="showFavorito()">Ver favorito</button>
       </div>
+
+      ${compactHomeEnabled ? `<div class="home-compact-pill">Inicio compacto activo · foco en lo esencial</div>` : ""}
     </div>
 
-    <div class="card app-panel-card home-single-news">
-      <div class="card-head">
-        <div class="card-head-left"><div class="card-title">${expert ? "Módulo secundario" : "Noticia principal"}</div></div>
-        <div class="card-head-actions"><a href="#" class="home-news-cta" onclick="showNews(); return false;">Noticias</a></div>
-      </div>
-      ${featuredNews
-        ? `
-          <div class="news-item home-headline-item">
-            ${featuredMention ? renderDriverAvatar(featuredMention.name, featuredMention.image, "row-avatar home-news-avatar") : ""}
-            <div>
-              <a class="news-link" href="${featuredNews.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(featuredNews.title)}</a>
-              <div class="news-source">${escapeHtml(featuredNews.source || "Noticias")}${formatNewsDate(featuredNews.pubDate) ? ` · ${formatNewsDate(featuredNews.pubDate)}` : ""}</div>
-            </div>
+    ${compactHomeEnabled
+      ? `
+        <div class="card app-panel-card">
+          <div class="card-title">Lectura rápida</div>
+          <div class="info-line" style="margin-top:8px;">${escapeHtml(operation.detail)}</div>
+          <div class="info-line">${escapeHtml(compactHeadline)}</div>
+          <div class="app-two-actions" style="margin-top:10px;">
+            <button class="icon-btn" onclick="showNews()">Noticias</button>
+            <button class="icon-btn" onclick="showCalendar()">Calendario</button>
           </div>
-        `
-        : `<div class="empty-line">Aún no hay titular principal en caché para el favorito.</div>`
-      }
-    </div>
+          ${expert ? "" : `<div class="app-two-actions" style="margin-top:8px;"><button class="toggle-btn ${state.weekendModeEnabled ? "active" : ""}" onclick="toggleWeekendModeEnabled('home')" aria-pressed="${state.weekendModeEnabled}">${state.weekendModeEnabled ? "ON · Modo GP visible" : "OFF · Modo GP oculto"}</button></div>`}
+        </div>
+      `
+      : `
+        <div class="card app-panel-card home-single-news">
+          <div class="card-head">
+            <div class="card-head-left"><div class="card-title">${expert ? "Módulo secundario" : "Noticia principal"}</div></div>
+            <div class="card-head-actions"><a href="#" class="home-news-cta" onclick="showNews(); return false;">Noticias</a></div>
+          </div>
+          ${featuredNews
+            ? `
+              <div class="news-item home-headline-item">
+                ${featuredMention ? renderDriverAvatar(featuredMention.name, featuredMention.image, "row-avatar home-news-avatar") : ""}
+                <div>
+                  <a class="news-link" href="${featuredNews.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(featuredNews.title)}</a>
+                  <div class="news-source">${escapeHtml(featuredNews.source || "Noticias")}${formatNewsDate(featuredNews.pubDate) ? ` · ${formatNewsDate(featuredNews.pubDate)}` : ""}</div>
+                </div>
+              </div>
+            `
+            : `<div class="empty-line">Aún no hay titular principal en caché para el favorito.</div>`
+          }
+        </div>
+      `
+    }
 
-    <div class="card app-mini-card">
+    <div class="card app-mini-card ${compactHomeEnabled ? "home-expert-tight" : ""}">
       <div class="card-title">Contexto de fin de semana</div>
       <div class="news-meta-row">
         <span class="tag ${getWeekendPhaseTagClass(context?.phase || "pre_weekend")}">${escapeHtml(context?.phaseLabel || "Previa")}</span>
@@ -3517,7 +3539,7 @@ async function showHome() {
       ${previousGp && !expert ? `<div class="info-line">${escapeHtml(`Último GP: ${previousGp.title} · ${formatCalendarDateRange(previousGp.start, previousGp.end)}`)}</div>` : ""}
     </div>
 
-    ${expert ? "" : renderHomeWeekendModeBlock(context)}
+    ${expert || compactHomeEnabled ? "" : renderHomeWeekendModeBlock(context)}
 
     ${calendarError ? `<div class="empty-line">No se pudo actualizar calendario: ${escapeHtml(calendarError.message || "error")}</div>` : ""}
   `;
@@ -4145,10 +4167,12 @@ function showMore() {
         <button class="chip ${!isExpert ? "active" : ""}" onclick="setExperienceMode('casual')" aria-pressed="${!isExpert}">Casual</button>
         <button class="chip ${isExpert ? "active" : ""}" onclick="setExperienceMode('expert')" aria-pressed="${isExpert}">Experto</button>
       </div>
+      <div class="control-status-line">Modo activo: <strong>${isExpert ? "Experto" : "Casual"}</strong>.</div>
       <div class="app-two-actions" style="margin-top:8px;">
-        <button class="toggle-btn ${settings.homeCompactMode ? "active" : ""}" onclick="togglePremiumSetting('homeCompactMode')" aria-pressed="${settings.homeCompactMode}">${settings.homeCompactMode ? "ON" : "OFF"} · Inicio compacto</button>
-        <button class="toggle-btn ${settings.autoSelectNextRace ? "active" : ""}" onclick="togglePremiumSetting('autoSelectNextRace')" aria-pressed="${settings.autoSelectNextRace}">${settings.autoSelectNextRace ? "ON" : "OFF"} · Auto GP</button>
+        <button class="toggle-btn ${settings.homeCompactMode ? "active" : ""}" onclick="togglePremiumSetting('homeCompactMode')" aria-pressed="${settings.homeCompactMode}">${settings.homeCompactMode ? "ON · Compacta Home" : "OFF · Home completa"}</button>
+        <button class="toggle-btn ${settings.autoSelectNextRace ? "active" : ""}" onclick="togglePremiumSetting('autoSelectNextRace')" aria-pressed="${settings.autoSelectNextRace}">${settings.autoSelectNextRace ? "ON · Auto GP" : "OFF · GP manual"}</button>
       </div>
+      <div class="control-status-line">Inicio compacto: <strong>${settings.homeCompactMode ? "Activado" : "Desactivado"}</strong> · Auto GP: <strong>${settings.autoSelectNextRace ? "Activado" : "Desactivado"}</strong>.</div>
     </div>
 
     <div class="card app-panel-card">
@@ -5012,12 +5036,15 @@ function togglePremiumSetting(key) {
     ...settings,
     [key]: !settings[key]
   });
-  const active = document.querySelector("#bottomNav a.active")?.id;
-  if (active === "nav-more") {
+  if (state.lastScreen === "settings") {
+    showSettingsPanel();
+    return;
+  }
+  if (state.lastScreen === "more") {
     showMore();
     return;
   }
-  showSettingsPanel();
+  refreshCurrentView();
 }
 
 function setExperienceMode(mode) {
