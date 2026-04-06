@@ -3450,6 +3450,30 @@ async function showHome() {
   const compactHeadline = featuredNews
     ? `${featuredNews.title}${featuredNews.source ? ` · ${featuredNews.source}` : ""}`
     : "Sin titular destacado en caché para el favorito.";
+  const fullHomeLead = lead
+    ? `${lead.label} · ${getSessionStatusLabel(lead.status)}${context?.nextSessionCountdown ? ` · ${context.nextSessionCountdown}` : ""}`
+    : "Sin sesión principal cargada.";
+  const fullHomeBlocks = compactHomeEnabled ? "" : `
+    <div class="home-stack ${expert ? "home-stack-expert" : ""}" style="margin-top:12px;">
+      <div class="card app-panel-card">
+        <div class="card-title">Panorama del GP</div>
+        <div class="info-line" style="margin-top:8px;">${escapeHtml(fullHomeLead)}</div>
+        <div class="info-line">${escapeHtml(operation.detail)}</div>
+        ${nextRace ? `<div class="info-line">${escapeHtml(`Próximo GP: ${nextRace.title} · ${formatCalendarDateRange(nextRace.start, nextRace.end)}`)}</div>` : ""}
+        ${previousGp ? `<div class="info-line">${escapeHtml(`Último GP: ${previousGp.title} · ${formatCalendarDateRange(previousGp.start, previousGp.end)}`)}</div>` : ""}
+      </div>
+      ${renderHomePhaseHero(context)}
+      ${renderHomeNowCard(context, favorite, { compact: false })}
+      ${renderHomeCompetitivePulse(favorite, raceName, predictData)}
+      ${renderHomePhaseSummaryCard(context)}
+      ${renderHomeHierarchy(context, favorite)}
+      ${expert ? renderHomeWhatToWatchCard(context) : ""}
+      ${renderHomeQuickLinks(context)}
+      ${getHomeSimpleNewsPreview()}
+      ${expert ? renderHomeTeamStatus(favorite) : ""}
+      ${expert ? renderContextGlossaryCard("home", context?.phase || "pre_weekend") : ""}
+    </div>
+  `;
 
   contentEl().innerHTML = `
     <div class="card highlight-card app-home-favorite home-main-card ${expert ? "home-dashboard-expert" : ""} ${compactHomeEnabled ? "compact-home" : ""}">
@@ -3540,6 +3564,7 @@ async function showHome() {
     </div>
 
     ${expert || compactHomeEnabled ? "" : renderHomeWeekendModeBlock(context)}
+    ${fullHomeBlocks}
 
     ${calendarError ? `<div class="empty-line">No se pudo actualizar calendario: ${escapeHtml(calendarError.message || "error")}</div>` : ""}
   `;
