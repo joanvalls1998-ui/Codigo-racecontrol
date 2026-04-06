@@ -18,7 +18,7 @@ const DEFAULT_UI_STATE = Object.freeze({
 });
 
 const DEFAULT_NEWS_FILTER_KEY = DEFAULT_UI_STATE.currentNewsFilterKey;
-const EXPERIENCE_MODES = Object.freeze(["casual", "expert", "engineer"]);
+const EXPERIENCE_MODES = Object.freeze(["casual", "expert"]);
 
 function createInitialRuntimeState() {
   return {
@@ -35,8 +35,7 @@ function createInitialRuntimeState() {
     lastScreen: DEFAULT_UI_STATE.lastScreen,
     weekendModeEnabled: DEFAULT_UI_STATE.weekendModeEnabled,
     weekendContext: null,
-    weekendNowIso: null,
-    lastNonEngineerMode: "casual"
+    weekendNowIso: null
   };
 }
 
@@ -134,8 +133,7 @@ function getScreenOpeners() {
     standings: () => showStandings(),
     raceMode: () => showRaceMode(),
     settings: () => showSettingsPanel(),
-    glossary: () => showGlossary(),
-    engineer: () => showEngineerHub()
+    glossary: () => showGlossary()
   };
 }
 
@@ -480,12 +478,8 @@ function applyExperienceTheme() {
   const root = document.body;
   if (!root) return;
 
-  root.classList.remove("experience-casual", "experience-expert", "experience-engineer");
+  root.classList.remove("experience-casual", "experience-expert");
   const mode = getExperienceMode();
-  if (mode === "engineer") {
-    root.classList.add("experience-engineer");
-    return;
-  }
   root.classList.add(mode === "expert" ? "experience-expert" : "experience-casual");
 }
 
@@ -3406,10 +3400,6 @@ function renderHomeWeekendModeControl() {
 /* ===== HOME ===== */
 
 async function showHome() {
-  if (getExperienceMode() === "engineer" && typeof showEngineerHub === "function") {
-    return showEngineerHub();
-  }
-
   setActiveNav("nav-home");
   rememberScreen("home");
   updateSubtitle();
@@ -3531,7 +3521,6 @@ async function showHome() {
       <div class="home-mode-switch" style="margin-top:10px;">
         <button class="chip ${getExperienceMode() === "casual" ? "active" : ""}" onclick="setExperienceMode('casual')" aria-pressed="${getExperienceMode() === "casual"}">Casual</button>
         <button class="chip ${getExperienceMode() === "expert" ? "active" : ""}" onclick="setExperienceMode('expert')" aria-pressed="${getExperienceMode() === "expert"}">Experto</button>
-        <button class="chip ${getExperienceMode() === "engineer" ? "active" : ""}" onclick="setExperienceMode('engineer')" aria-pressed="${getExperienceMode() === "engineer"}">Ingeniero</button>
       </div>
 
       ${compactHomeEnabled ? `<div class="home-compact-pill">Inicio compacto activo · foco en lo esencial</div>` : ""}
@@ -4211,9 +4200,8 @@ function showMore() {
       <div class="app-two-actions" style="margin-top:10px;">
         <button class="chip ${getExperienceMode() === "casual" ? "active" : ""}" onclick="setExperienceMode('casual')" aria-pressed="${getExperienceMode() === "casual"}">Casual</button>
         <button class="chip ${getExperienceMode() === "expert" ? "active" : ""}" onclick="setExperienceMode('expert')" aria-pressed="${getExperienceMode() === "expert"}">Experto</button>
-        <button class="chip ${getExperienceMode() === "engineer" ? "active" : ""}" onclick="setExperienceMode('engineer')" aria-pressed="${getExperienceMode() === "engineer"}">Ingeniero</button>
       </div>
-      <div class="control-status-line">Modo activo: <strong>${getExperienceMode() === "engineer" ? "Ingeniero" : (isExpert ? "Experto" : "Casual")}</strong>.</div>
+      <div class="control-status-line">Modo activo: <strong>${isExpert ? "Experto" : "Casual"}</strong>.</div>
       <div class="app-two-actions" style="margin-top:8px;">
         <button class="toggle-btn ${settings.homeCompactMode ? "active" : ""}" onclick="togglePremiumSetting('homeCompactMode')" aria-pressed="${settings.homeCompactMode}">${settings.homeCompactMode ? "ON · Compacta Home" : "OFF · Home completa"}</button>
         <button class="toggle-btn ${settings.autoSelectNextRace ? "active" : ""}" onclick="togglePremiumSetting('autoSelectNextRace')" aria-pressed="${settings.autoSelectNextRace}">${settings.autoSelectNextRace ? "ON · Auto GP" : "OFF · GP manual"}</button>
@@ -5025,9 +5013,6 @@ function isExpertMode() {
   return getExperienceMode() === "expert";
 }
 
-function isEngineerMode() {
-  return getExperienceMode() === "engineer";
-}
 
 function isCasualMode() {
   return getExperienceMode() === "casual";
@@ -5111,15 +5096,7 @@ function togglePremiumSetting(key) {
 function setExperienceMode(mode) {
   const nextMode = EXPERIENCE_MODES.includes(mode) ? mode : "casual";
   const settings = getSettings();
-  const currentMode = getExperienceMode();
-  if (settings.experienceMode === nextMode) {
-    if (nextMode === "engineer" && typeof showEngineerHub === "function") showEngineerHub();
-    return;
-  }
-
-  if (currentMode !== "engineer") {
-    state.lastNonEngineerMode = currentMode;
-  }
+  if (settings.experienceMode === nextMode) return;
 
   saveSettings({
     ...settings,
@@ -5127,12 +5104,6 @@ function setExperienceMode(mode) {
   });
 
   applyExperienceTheme();
-
-  if (nextMode === "engineer" && typeof showEngineerHub === "function") {
-    showEngineerHub();
-    return;
-  }
-
   refreshCurrentView();
 }
 
@@ -5147,11 +5118,6 @@ function toggleWeekendModeEnabled(returnView = "showSettingsPanel") {
 
 function refreshCurrentView() {
   applyExperienceTheme();
-
-  if (isEngineerMode() && typeof showEngineerHub === "function") {
-    showEngineerHub();
-    return;
-  }
 
   const active = document.querySelector("#bottomNav a.active")?.id;
 
