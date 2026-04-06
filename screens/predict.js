@@ -516,7 +516,8 @@ const engineerState = {
     b: "",
     lastLoadedKey: "",
     initialized: false,
-    technicalData: null
+    technicalData: null,
+    attemptedResolution: false
   }
 };
 
@@ -581,6 +582,9 @@ async function fetchOpenF1(endpoint, params = {}) {
 
 function telemetryFriendlyErrorMessage(error) {
   const message = String(error?.message || "");
+  if (message.includes("ENETUNREACH") || message.includes("Failed to fetch")) {
+    return "No se pudo conectar con OpenF1 ahora mismo. Reintenta en unos segundos.";
+  }
   if (message.includes("(429)")) return "No se pudieron cargar datos técnicos ahora mismo. Intenta otra sesión en unos segundos.";
   if (message.includes("(5")) return "El servicio técnico no está disponible temporalmente. Intenta de nuevo más tarde.";
   return "No se pudieron cargar datos técnicos. Intenta otra sesión.";
@@ -592,7 +596,7 @@ async function loadTelemetrySessionCatalog() {
 
   engineerCache.gpCatalogPromise = (async () => {
   const currentYear = new Date().getUTCFullYear();
-  const years = [currentYear - 2, currentYear - 1, currentYear];
+  const years = [currentYear - 3, currentYear - 2, currentYear - 1, currentYear];
   const allSessions = [];
 
   for (const year of years) {
@@ -600,9 +604,13 @@ async function loadTelemetrySessionCatalog() {
       allSessions.push(...engineerCache.sessionsByYear.get(year));
       continue;
     }
-    const sessions = await fetchOpenF1("sessions", { year });
-    engineerCache.sessionsByYear.set(year, Array.isArray(sessions) ? sessions : []);
-    allSessions.push(...(Array.isArray(sessions) ? sessions : []));
+    try {
+      const sessions = await fetchOpenF1("sessions", { year });
+      engineerCache.sessionsByYear.set(year, Array.isArray(sessions) ? sessions : []);
+      allSessions.push(...(Array.isArray(sessions) ? sessions : []));
+    } catch (_error) {
+      engineerCache.sessionsByYear.set(year, []);
+    }
   }
 
   const normalized = allSessions
@@ -682,7 +690,12 @@ async function loadTelemetryParticipants(sessionKey) {
     return engineerCache.participantsBySession.get(sessionKey);
   }
 
-  const drivers = await fetchOpenF1("drivers", { session_key: sessionKey });
+  let drivers = [];
+  try {
+    drivers = await fetchOpenF1("drivers", { session_key: sessionKey });
+  } catch (_error) {
+    drivers = [];
+  }
   const normalizedDrivers = (Array.isArray(drivers) ? drivers : [])
     .map(driver => ({
       id: String(driver.driver_number),
@@ -692,6 +705,23 @@ async function loadTelemetryParticipants(sessionKey) {
     }))
     .filter(driver => driver.id && driver.name)
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  if (!normalizedDrivers.length) {
+    const fallbackRows = await fetchOpenF1("laps", { session_key: sessionKey });
+    const byDriver = new Map();
+    (Array.isArray(fallbackRows) ? fallbackRows : []).forEach(row => {
+      const id = String(row.driver_number || "");
+      const name = String(row.driver_name || "").trim();
+      if (!id || !name || byDriver.has(id)) return;
+      byDriver.set(id, {
+        id,
+        name,
+        team: row.team_name || "Equipo",
+        headshot: ""
+      });
+    });
+    normalizedDrivers.push(...[...byDriver.values()].sort((a, b) => a.name.localeCompare(b.name)));
+  }
 
   const teams = [...new Set(normalizedDrivers.map(driver => driver.team))]
     .filter(Boolean)
@@ -864,6 +894,8 @@ function telemetryDelta(aValue, bValue) {
 }
 
 function renderTelemetryMetricTile(label, aValue, bValue, formatter) {
+  if (!Number.isFinite(aValue) && !Number.isFinite(bValue)) return "";
+  const delta = telemetryDelta(aValue, bValue);
   return `
     <div class="meta-tile telemetry-metric-tile">
       <div class="meta-kicker">${escapeHtml(label)}</div>
@@ -871,7 +903,7 @@ function renderTelemetryMetricTile(label, aValue, bValue, formatter) {
         <div><strong>A</strong> ${escapeHtml(formatter(aValue))}</div>
         <div><strong>B</strong> ${escapeHtml(formatter(bValue))}</div>
       </div>
-      <div class="meta-caption">Δ ${escapeHtml(formatTelemetryDelta(telemetryDelta(aValue, bValue)))}</div>
+      <div class="meta-caption">${Number.isFinite(delta) ? `Δ ${escapeHtml(formatTelemetryDelta(delta))}` : "Delta no disponible para esta combinación."}</div>
     </div>
   `;
 }
@@ -881,23 +913,31 @@ function renderTelemetryDashboard(technicalData) {
   const aMetrics = comparison.a?.metrics || {};
   const bMetrics = comparison.b?.metrics || {};
 
+  const summaryTiles = [
+    renderTelemetryMetricTile("Vuelta referencia", aMetrics.referenceLap, bMetrics.referenceLap, formatTelemetryTime),
+    renderTelemetryMetricTile("Ritmo medio", aMetrics.averagePace, bMetrics.averagePace, formatTelemetryTime),
+    renderTelemetryMetricTile("Velocidad punta", aMetrics.topSpeed, bMetrics.topSpeed, formatTelemetrySpeed),
+    renderTelemetryMetricTile("Speed trap", aMetrics.speedTrap, bMetrics.speedTrap, formatTelemetrySpeed)
+  ].filter(Boolean);
+
+  const sectorTiles = [
+    renderTelemetryMetricTile("Sector 1", aMetrics.sector1, bMetrics.sector1, formatTelemetryTime),
+    renderTelemetryMetricTile("Sector 2", aMetrics.sector2, bMetrics.sector2, formatTelemetryTime),
+    renderTelemetryMetricTile("Sector 3", aMetrics.sector3, bMetrics.sector3, formatTelemetryTime)
+  ].filter(Boolean);
+
   return `
     <div class="card engineer-card telemetry-dashboard-card">
       <div class="card-title">1 · Resumen técnico</div>
       <div class="telemetry-summary-grid" style="margin-top:10px;">
-        ${renderTelemetryMetricTile("Vuelta referencia", aMetrics.referenceLap, bMetrics.referenceLap, formatTelemetryTime)}
-        ${renderTelemetryMetricTile("Ritmo medio", aMetrics.averagePace, bMetrics.averagePace, formatTelemetryTime)}
-        ${renderTelemetryMetricTile("Velocidad punta", aMetrics.topSpeed, bMetrics.topSpeed, formatTelemetrySpeed)}
-        ${renderTelemetryMetricTile("Speed trap", aMetrics.speedTrap, bMetrics.speedTrap, formatTelemetrySpeed)}
+        ${summaryTiles.length ? summaryTiles.join("") : `<div class="empty-line">No hay métricas de resumen disponibles para esta combinación.</div>`}
       </div>
     </div>
 
     <div class="card engineer-card telemetry-dashboard-card">
       <div class="card-title">2 · Sectores</div>
       <div class="telemetry-summary-grid" style="margin-top:10px;">
-        ${renderTelemetryMetricTile("Sector 1", aMetrics.sector1, bMetrics.sector1, formatTelemetryTime)}
-        ${renderTelemetryMetricTile("Sector 2", aMetrics.sector2, bMetrics.sector2, formatTelemetryTime)}
-        ${renderTelemetryMetricTile("Sector 3", aMetrics.sector3, bMetrics.sector3, formatTelemetryTime)}
+        ${sectorTiles.length ? sectorTiles.join("") : `<div class="empty-line">No hay sectores disponibles para esta combinación.</div>`}
       </div>
     </div>
 
@@ -991,6 +1031,16 @@ function renderTelemetryPanel(gpList = [], participants = { drivers: [], teams: 
   const bOptionsSource = aOptionsSource.filter(name => name !== telemetry.a);
   const aOptions = aOptionsSource.map(item => ({ value: item, label: item }));
   const bOptions = bOptionsSource.map(item => ({ value: item, label: item }));
+  const gpPlaceholder = telemetry.status === "loading" && !gpOptions.length
+    ? [{ value: "", label: "Cargando GP históricos…" }]
+    : [{ value: "", label: "No hay GP históricos disponibles ahora." }];
+  const sessionPlaceholder = !telemetry.gp
+    ? [{ value: "", label: "Selecciona GP primero" }]
+    : [{ value: "", label: "No hay sesiones válidas para este GP" }];
+  const entitiesPending = !telemetry.sessionKey || !telemetry.attemptedResolution;
+  const entityPlaceholder = entitiesPending
+    ? [{ value: "", label: "Selecciona GP y sesión" }]
+    : [{ value: "", label: "No hay entidades disponibles para esta combinación" }];
 
   return `
     <div class="card engineer-card telemetry-controls-card">
@@ -1000,13 +1050,13 @@ function renderTelemetryPanel(gpList = [], participants = { drivers: [], teams: 
         <label class="telemetry-control-item">
           <span>GP</span>
           <select class="select-input" onchange="setEngineerTelemetryGp(this.value)">
-            ${renderTelemetrySelector(gpOptions, telemetry.gp)}
+            ${renderTelemetrySelector(gpOptions.length ? gpOptions : gpPlaceholder, telemetry.gp)}
           </select>
         </label>
         <label class="telemetry-control-item">
           <span>Sesión</span>
           <select class="select-input" onchange="setEngineerTelemetrySessionType(this.value)">
-            ${renderTelemetrySelector(sessionOptions.length ? sessionOptions : [{ value: "", label: "Sin sesiones válidas" }], telemetry.sessionType)}
+            ${renderTelemetrySelector(sessionOptions.length ? sessionOptions : sessionPlaceholder, telemetry.sessionType)}
           </select>
         </label>
         <label class="telemetry-control-item">
@@ -1018,13 +1068,13 @@ function renderTelemetryPanel(gpList = [], participants = { drivers: [], teams: 
         <label class="telemetry-control-item">
           <span>A</span>
           <select class="select-input" onchange="setEngineerTelemetryA(this.value)">
-            ${renderTelemetrySelector(aOptions.length ? aOptions : [{ value: "", label: "Sin opciones disponibles" }], telemetry.a)}
+            ${renderTelemetrySelector(aOptions.length ? aOptions : entityPlaceholder, telemetry.a)}
           </select>
         </label>
         <label class="telemetry-control-item">
           <span>B</span>
           <select class="select-input" onchange="setEngineerTelemetryB(this.value)">
-            ${renderTelemetrySelector(bOptions.length ? bOptions : [{ value: "", label: "Sin opciones disponibles" }], telemetry.b)}
+            ${renderTelemetrySelector(bOptions.length ? bOptions : entityPlaceholder, telemetry.b)}
           </select>
         </label>
       </div>
@@ -1035,6 +1085,7 @@ function renderTelemetryPanel(gpList = [], participants = { drivers: [], teams: 
 
 async function ensureTelemetrySelection() {
   const telemetry = engineerState.telemetry;
+  telemetry.attemptedResolution = false;
   const gpList = await loadTelemetrySessionCatalog();
   if (!gpList.length) {
     telemetry.status = "empty";
@@ -1066,9 +1117,20 @@ async function ensureTelemetrySelection() {
   telemetry.sessionKey = selectedSession.session_key;
 
   const participants = await loadTelemetryParticipants(telemetry.sessionKey);
+  telemetry.attemptedResolution = true;
   const options = telemetry.type === "driver"
     ? participants.drivers.map(item => item.name)
     : participants.teams;
+
+  if (!options.length) {
+    telemetry.a = "";
+    telemetry.b = "";
+    telemetry.status = "empty";
+    telemetry.userMessage = telemetry.type === "driver"
+      ? "No hay pilotos con datos válidos para este GP y sesión."
+      : "No hay equipos con datos válidos para este GP y sesión.";
+    return { gpList, participants };
+  }
 
   if (!options.includes(telemetry.a)) telemetry.a = options[0] || "";
   const bOptions = options.filter(name => name !== telemetry.a);
