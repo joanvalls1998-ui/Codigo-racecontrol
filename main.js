@@ -3343,6 +3343,35 @@ function renderHomeFavoriteIdentity(favorite) {
   `;
 }
 
+function getDriverByName(name) {
+  const wanted = normalizeText(name);
+  if (!wanted) return null;
+  const drivers = Array.isArray(state.standingsCache?.drivers) ? state.standingsCache.drivers : [];
+  return drivers.find(driver => normalizeText(driver.name) === wanted) || null;
+}
+
+function getDriverImageByName(name, fallback = "") {
+  const driver = getDriverByName(name);
+  return driver?.image || fallback || "";
+}
+
+function findDriverMentionInText(text) {
+  const normalized = normalizeText(text);
+  if (!normalized) return null;
+  const drivers = Array.isArray(state.standingsCache?.drivers) ? state.standingsCache.drivers : [];
+  return drivers.find(driver => {
+    const fullName = normalizeText(driver.name);
+    const surname = fullName.split(" ").slice(-1)[0];
+    return (fullName && normalized.includes(fullName)) || (surname && surname.length > 3 && normalized.includes(surname));
+  }) || null;
+}
+
+function renderDriverAvatar(name, image = "", className = "row-avatar") {
+  const fallback = getDefaultFavorite().image;
+  const safeImage = image || getDriverImageByName(name, fallback) || fallback;
+  return `<img class="${escapeHtml(className)}" src="${escapeHtml(safeImage)}" alt="${escapeHtml(name || "Piloto")}" onerror="this.onerror=null; this.src='${escapeHtml(fallback)}';">`;
+}
+
 function renderHomeWeekendModeBlock(context) {
   if (state.weekendModeEnabled) {
     return renderWeekendModeHub(context, { compact: true, source: "home" });
@@ -3410,12 +3439,16 @@ async function showHome() {
     : [];
 
   const favoriteAvatar = renderHomeFavoriteIdentity(favorite);
+  const expert = isExpertMode();
   const nextSessionLine = lead
     ? `${lead.label}${context?.nextSessionCountdown ? ` · ${context.nextSessionCountdown}` : ""}`
     : "Sin sesión próxima cargada";
 
+  const featuredNews = favoriteNewsItems[0] || null;
+  const featuredMention = featuredNews ? findDriverMentionInText(`${featuredNews.title} ${featuredNews.source || ""}`) : null;
+
   contentEl().innerHTML = `
-    <div class="card highlight-card app-home-favorite home-main-card">
+    <div class="card highlight-card app-home-favorite home-main-card ${expert ? "home-dashboard-expert" : ""}">
       <div class="card-head">
         <div class="card-head-left"><div class="card-title">Home</div></div>
         <div class="card-head-actions"><button class="icon-btn" onclick="openFavoriteSelectorModal('showHome')">Cambiar</button></div>
@@ -3449,27 +3482,27 @@ async function showHome() {
       </div>
 
       <div class="app-two-actions" style="margin-top:12px;">
-        <button class="btn" onclick="showSessions()">Ir a sesiones</button>
-        <button class="icon-btn" onclick="showPredict()">Abrir Predict</button>
+        <button class="btn" onclick="showPredict()">Abrir Predict</button>
+        <button class="icon-btn" onclick="showFavorito()">Ver favorito</button>
       </div>
     </div>
 
-    <div class="card app-panel-card">
+    <div class="card app-panel-card home-single-news">
       <div class="card-head">
-        <div class="card-head-left"><div class="card-title">Portada</div></div>
+        <div class="card-head-left"><div class="card-title">${expert ? "Módulo secundario" : "Noticia principal"}</div></div>
         <div class="card-head-actions"><a href="#" class="home-news-cta" onclick="showNews(); return false;">Noticias</a></div>
       </div>
-      ${favoriteNewsItems.length
-        ? `<div class="home-headline-list">${favoriteNewsItems.map((item, idx) => `
-            <div class="news-item home-headline-item">
-              <span class="home-headline-index">${idx + 1}</span>
-              <div>
-                <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
-                <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
-              </div>
+      ${featuredNews
+        ? `
+          <div class="news-item home-headline-item">
+            ${featuredMention ? renderDriverAvatar(featuredMention.name, featuredMention.image, "row-avatar home-news-avatar") : ""}
+            <div>
+              <a class="news-link" href="${featuredNews.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(featuredNews.title)}</a>
+              <div class="news-source">${escapeHtml(featuredNews.source || "Noticias")}${formatNewsDate(featuredNews.pubDate) ? ` · ${formatNewsDate(featuredNews.pubDate)}` : ""}</div>
             </div>
-          `).join("")}</div>`
-        : `<div class="empty-line">Aún no hay titulares en caché para el favorito.</div>`
+          </div>
+        `
+        : `<div class="empty-line">Aún no hay titular principal en caché para el favorito.</div>`
       }
     </div>
 
@@ -3481,10 +3514,10 @@ async function showHome() {
         <span class="tag technical">${escapeHtml(formatLabel)}</span>
       </div>
       <div class="info-line" style="margin-top:8px;">${escapeHtml(operation.detail)}</div>
-      ${previousGp ? `<div class="info-line">${escapeHtml(`Último GP: ${previousGp.title} · ${formatCalendarDateRange(previousGp.start, previousGp.end)}`)}</div>` : ""}
+      ${previousGp && !expert ? `<div class="info-line">${escapeHtml(`Último GP: ${previousGp.title} · ${formatCalendarDateRange(previousGp.start, previousGp.end)}`)}</div>` : ""}
     </div>
 
-    ${renderHomeWeekendModeBlock(context)}
+    ${expert ? "" : renderHomeWeekendModeBlock(context)}
 
     ${calendarError ? `<div class="empty-line">No se pudo actualizar calendario: ${escapeHtml(calendarError.message || "error")}</div>` : ""}
   `;
@@ -4690,10 +4723,12 @@ function getFavoriteDirectRivals(favorite, standingsData, predictData) {
   return [teammate, ahead, behind]
     .filter(Boolean)
     .map(driver => ({
+      type: "driver",
       title: driver.name,
       sub: driver.team,
       meta: `P${driver.pos} · ${driver.points} pts`,
-      colorClass: driver.colorClass || getTeamColorClass(driver.team)
+      colorClass: driver.colorClass || getTeamColorClass(driver.team),
+      image: driver.image || getDriverImageByName(driver.name)
     }));
 }
 

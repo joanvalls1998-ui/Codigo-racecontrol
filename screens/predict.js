@@ -425,26 +425,26 @@ function showPredict() {
   const activePredictData = !needFreshPredict ? state.lastPredictData : null;
   const expert = isExpertMode();
 
-  contentEl().innerHTML = `
+  contentEl().innerHTML = expert ? `
     ${renderPredictHeroV2({ predict: renderPredictContent(), favorite, raceName: selectedRace, expert, activePredictData })}
     ${renderPredictPrimaryFocusCard(favorite, selectedRace, activePredictData)}
 
     <div class="card app-panel-card">
       <div class="card-head">
-        <div class="card-head-left"><div class="card-title">Bloque operativo</div></div>
+        <div class="card-head-left"><div class="card-title">Capa 2 · ejecución</div></div>
         <div class="card-head-actions"><button class="icon-btn" onclick="sharePrediction()">Compartir</button></div>
       </div>
-      <div id="predictKeyFactors" style="margin-top:10px;">${renderPredictWeekendKeyCard(favorite, selectedRace, activePredictData, false)}</div>
-      <div id="predictQualyRace" style="margin-top:10px;">${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, expert)}</div>
+      <div id="predictKeyFactors" style="margin-top:10px;">${renderPredictWeekendKeyCard(favorite, selectedRace, activePredictData, true)}</div>
+      <div id="predictQualyRace" style="margin-top:10px;">${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, true)}</div>
     </div>
 
     <div class="card app-panel-card">
       <details>
-        <summary style="cursor:pointer; font-weight:700;">Análisis ampliado</summary>
+        <summary style="cursor:pointer; font-weight:700;">Capa 3 · análisis ampliado</summary>
         <div id="predictSummaryCards" style="margin-top:12px;">${activePredictData ? renderPredictSummaryCards(activePredictData) : renderPredictPreviewCards(favorite, selectedRace)}</div>
         <div id="predictScenarioCards" style="margin-top:12px;">${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}</div>
         <div id="predictStrategyDetail" style="margin-top:10px;">${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}</div>
-        ${expert ? `<div id="predictGridRead" style="margin-top:10px;">${renderPredictGridRead(favorite, selectedRace, activePredictData)}</div>` : `<div id="predictGridRead" style="display:none;"></div>`}
+        <div id="predictGridRead" style="margin-top:10px;">${renderPredictGridRead(favorite, selectedRace, activePredictData)}</div>
       </details>
     </div>
 
@@ -452,6 +452,33 @@ function showPredict() {
       <details>
         <summary style="cursor:pointer; font-weight:700;">Historial técnico</summary>
         <div style="margin-top:12px;">
+          <pre id="predictOutput" class="ai-output predict-v2-raw-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción…"}</pre>
+          <div id="predictionHistoryBox" style="margin-top:10px;">${renderPredictionHistory()}</div>
+        </div>
+      </details>
+    </div>
+  ` : `
+    ${renderPredictHeroV2({ predict: renderPredictContent(), favorite, raceName: selectedRace, expert, activePredictData })}
+    ${renderPredictPrimaryFocusCard(favorite, selectedRace, activePredictData)}
+    <div class="card app-panel-card">
+      <div class="card-head">
+        <div class="card-head-left"><div class="card-title">Bloque principal</div></div>
+        <div class="card-head-actions"><button class="icon-btn" onclick="sharePrediction()">Más info</button></div>
+      </div>
+      <div id="predictKeyFactors" style="margin-top:10px;">${renderPredictWeekendKeyCard(favorite, selectedRace, activePredictData, false)}</div>
+      <div id="predictQualyRace" style="display:none;"></div>
+      <div id="predictSummaryCards" style="display:none;"></div>
+      <div id="predictScenarioCards" style="display:none;"></div>
+      <div id="predictStrategyDetail" style="display:none;"></div>
+      <div id="predictGridRead" style="display:none;"></div>
+    </div>
+    <div class="card app-panel-card">
+      <details>
+        <summary style="cursor:pointer; font-weight:700;">Ver análisis completo</summary>
+        <div style="margin-top:12px;">
+          ${renderPredictExecutionSplitCard(favorite, selectedRace, activePredictData, false)}
+          <div style="margin-top:10px;">${renderPredictScenarioCards(favorite, selectedRace, activePredictData)}</div>
+          <div style="margin-top:10px;">${renderPredictStrategyDetail(favorite, selectedRace, activePredictData)}</div>
           <pre id="predictOutput" class="ai-output predict-v2-raw-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción…"}</pre>
           <div id="predictionHistoryBox" style="margin-top:10px;">${renderPredictionHistory()}</div>
         </div>

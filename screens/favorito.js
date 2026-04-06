@@ -84,13 +84,17 @@ function rc10GetFavoriteSnapshot(favorite, raceName, predictData, context) {
 
 function renderFavoritoHeroContextCard(favorite, raceName, predictData, context) {
   const { objective, signal, headerSub } = rc10GetFavoriteSnapshot(favorite, raceName, predictData, context);
+  const favoriteAvatar = favorite.type === "driver" ? renderDriverAvatar(favorite.name, favorite.image, "row-avatar favorite-focus-avatar") : "";
 
   return `
     <div class="card highlight-card favorito-v2-hero">
       <div class="mini-pill">FAVORITO V2.5</div>
       <div class="card-head" style="margin-bottom:6px;">
         <div class="card-head-left">
-          <div class="card-title">${escapeHtml(favorite.name)}</div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            ${favoriteAvatar}
+            <div class="card-title">${escapeHtml(favorite.name)}</div>
+          </div>
           <div class="card-sub">${escapeHtml(headerSub)} · ${escapeHtml(raceName)}</div>
         </div>
         <div class="trend-pill ${signal.className}">${escapeHtml(signal.label)}</div>
@@ -302,6 +306,7 @@ function renderFavoritoDirectRivalsCard(favorite, predictData, expert) {
       ${rivals.length ? rivals.map((rival, idx) => `
         <div class="standing-row">
           <div class="row-left">
+            ${rival.type === "driver" ? renderDriverAvatar(rival.title, rival.image, "row-avatar") : ""}
             <div class="row-stripe ${escapeHtml(rival.colorClass)}"></div>
             <div class="row-info">
               <div class="row-name">${escapeHtml(rival.title)}</div>
@@ -358,6 +363,9 @@ function renderFavoritoChampionshipCard(favorite, raceName, predictData, expert)
   const rivalName = snapshot.championship.type === "driver"
     ? snapshot.championship.directRival?.name
     : snapshot.championship.directRival?.team;
+  const leaderName = snapshot.championship.type === "driver"
+    ? snapshot.championship.leader?.name
+    : snapshot.championship.leader?.team;
 
   return `
     <div class="card">
@@ -371,12 +379,18 @@ function renderFavoritoChampionshipCard(favorite, raceName, predictData, expert)
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Rival directo</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(rivalName || "—")}</div>
+          <div class="meta-value" style="font-size:18px; display:flex; gap:8px; align-items:center;">
+            ${snapshot.championship.type === "driver" && rivalName ? renderDriverAvatar(rivalName, snapshot.championship.directRival?.image, "row-avatar tiny-avatar") : ""}
+            <span>${escapeHtml(rivalName || "—")}</span>
+          </div>
           <div class="meta-caption">${escapeHtml(snapshot.championship.rivalGap != null ? `${snapshot.championship.rivalGap} pts de diferencia` : "Sin brecha definida")}</div>
         </div>
         <div class="meta-tile">
           <div class="meta-kicker">Líder del mundial</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(snapshot.championship.type === "driver" ? (snapshot.championship.leader?.name || "—") : (snapshot.championship.leader?.team || "—"))}</div>
+          <div class="meta-value" style="font-size:18px; display:flex; gap:8px; align-items:center;">
+            ${snapshot.championship.type === "driver" && leaderName ? renderDriverAvatar(leaderName, snapshot.championship.leader?.image, "row-avatar tiny-avatar") : ""}
+            <span>${escapeHtml(leaderName || "—")}</span>
+          </div>
           <div class="meta-caption">${escapeHtml(`${snapshot.championship.leaderGap} pts de brecha`)}</div>
         </div>
       </div>
@@ -401,7 +415,9 @@ function showFavorito() {
 
   contentEl().innerHTML = `
     ${renderFavoritoHeroContextCard(favorite, raceName, predictData, context)}
-    ${renderFavoriteQuickSelectorCard({ title: "Cambiar favorito", subtitle: "", returnView: "showFavorito", compact: true })}
+    <div class="card app-panel-card favorito-compact-switch">
+      ${renderFavoriteQuickSelectorCard({ title: "Cambiar favorito", subtitle: "", returnView: "showFavorito", compact: true })}
+    </div>
     <div class="card app-panel-card">
       <div class="card-title">Estado competitivo</div>
       ${renderFavoritoTechnicalCard(favorite, teamData, accent, raceName, context, predictData, expert)}

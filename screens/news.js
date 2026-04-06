@@ -562,10 +562,12 @@ function renderFeaturedNews(item, filter, phase = getNewsWeekendPhase()) {
   const impactText = truncateSecondaryCopy(getNewsImpactText(item, filter, phase), 115);
   const signals = getNewsEditorialSignals(item, filter, phase);
   const impactTier = getNewsImpactTier(item, filter, phase);
+  const featuredDriver = findDriverMentionInText(`${item?.title || ""} ${item?.source || ""}`);
 
   return `
     <div class="news-hero news-hero-v2">
       <div class="mini-pill">PORTADA</div>
+      ${featuredDriver ? `<div class="news-driver-highlight">${renderDriverAvatar(featuredDriver.name, featuredDriver.image, "row-avatar home-news-avatar")}<span>${escapeHtml(featuredDriver.name)}</span></div>` : ""}
       <div class="news-hero-title">${escapeHtml(item.title)}</div>
       <div class="news-hero-sub">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
       <div class="news-meta-row">
@@ -592,6 +594,7 @@ function renderNewsListItem(item, filter, phase = getNewsWeekendPhase()) {
   const impactText = truncateSecondaryCopy(getNewsImpactText(item, filter, phase), isExpertMode() ? 132 : 88);
   const signals = getNewsEditorialSignals(item, filter, phase);
   const impactTier = getNewsImpactTier(item, filter, phase);
+  const mentionedDriver = findDriverMentionInText(`${item?.title || ""} ${item?.source || ""}`);
 
   return `
     <div class="news-item news-item-v2 ${isExpertMode() ? "expert" : "casual"}">
@@ -600,7 +603,10 @@ function renderNewsListItem(item, filter, phase = getNewsWeekendPhase()) {
         <span class="tag ${importanceClass}">${escapeHtml(importance)}</span>
         ${isExpertMode() ? `<span class="tag ${impactTier.className}">${escapeHtml(impactTier.label)}</span>` : ""}
       </div>
-      <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
+      <div class="news-item-mainline">
+        ${mentionedDriver ? renderDriverAvatar(mentionedDriver.name, mentionedDriver.image, "row-avatar tiny-avatar") : ""}
+        <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
+      </div>
       <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
       <div class="info-line" style="margin-top:8px;">${escapeHtml(impactText)}</div>
       ${isExpertMode() && signals.length
@@ -658,9 +664,10 @@ async function showNews() {
   try {
     const data = await fetchNewsDataForFavorite(filter.favoritePayload, false);
     const sorted = sortNewsItems(Array.isArray(data?.items) ? data.items : [], filter, phase);
-    const sortedItems = applyNewsSecondaryFilter(sorted, filter, phase).slice(0, 8);
+    const sortedItems = applyNewsSecondaryFilter(sorted, filter, phase).slice(0, 9);
     const featured = sortedItems[0] || null;
-    const rest = sortedItems.slice(1);
+    const quick = sortedItems.slice(1, 3);
+    const rest = sortedItems.slice(3);
 
     contentEl().innerHTML = `
       <div class="card news-header-v2 app-panel-card">
@@ -677,11 +684,17 @@ async function showNews() {
         ${featured ? renderFeaturedNews(featured, filter, phase) : `<div class="empty-line">No hay noticia destacada ahora mismo.</div>`}
       </div>
 
+      <div class="card app-panel-card">
+        <div class="card-title">Titulares rápidos</div>
+        ${quick.length ? quick.map(item => renderNewsListItem(item, filter, phase)).join("") : `<div class="empty-line">Sin titulares rápidos ahora mismo.</div>`}
+      </div>
+
       <div class="card news-list-v2 app-panel-card">
         ${rest.length ? rest.map(item => renderNewsListItem(item, filter, phase)).join("") : `<div class="empty-line">No hay más titulares relevantes ahora mismo.</div>`}
       </div>
 
-      ${isExpertMode() ? `<div class="card news-keys-v2 app-panel-card">${renderNewsKeyLines(sortedItems, filter, phase)}</div>` : ""}
+      ${isExpertMode() ? `<div class="card news-keys-v2 app-panel-card"><div class="card-title">Claves del día</div>${renderNewsKeyLines(sortedItems, filter, phase)}</div>` : ""}
+      ${isExpertMode() ? `<div class="card app-panel-card"><div class="card-title">Impacto real y paddock</div><div class="info-line">${escapeHtml(featured ? getNewsImpactText(featured, filter, phase) : "Sin portada destacada para estimar impacto.")}</div></div>` : ""}
       ${isExpertMode() ? renderFavoritePersonalPulseCard({ favorite, raceName, predictData, context: state.weekendContext, title: "Impacto en tu favorito", expert: true }) : ""}
     `;
   } catch (error) {
