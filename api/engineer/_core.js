@@ -72,6 +72,11 @@ function parseMaybeNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function clamp(value, min, max) {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, value));
+}
+
 function average(values = []) {
   const valid = values.filter(Number.isFinite);
   if (!valid.length) return null;
@@ -159,9 +164,9 @@ async function getMeetings(year = DEFAULT_YEAR) {
   const cached = getCached(cache.meetings, key, TTL.meetings);
   if (cached) return cached;
 
-  const rows = await fetchOpenF1("meetings", { year });
+  const rows = await fetchOpenF1("meetings", { year }).catch(() => []);
   const meetings = rows
-    .filter(row => Number(row.year) === year)
+    .filter(row => getYearFromRow(row) === year)
     .map(row => ({
       meeting_key: String(row.meeting_key || "").trim(),
       gp_label: gpLabelFromMeeting(row),
@@ -181,7 +186,7 @@ async function getSessions(meetingKey, year = DEFAULT_YEAR) {
   const cached = getCached(cache.sessionsByMeeting, key, TTL.sessions);
   if (cached) return cached;
 
-  const rows = await fetchOpenF1("sessions", { meeting_key: meetingKey });
+  const rows = await fetchOpenF1("sessions", { meeting_key: meetingKey }).catch(() => []);
   const sessions = rows
     .map(row => {
       const type_key = normalizeSessionType(row.session_name);
@@ -209,7 +214,7 @@ function mapDriverRow(row = {}) {
       || row.driver_name
       || row.broadcast_name
       || row.name_acronym
-      || ""
+      || (id ? `Driver #${id}` : "")
   ).trim();
   const team = String(row.team_name || row.team || row.team_id || "").trim();
   return {
@@ -218,6 +223,18 @@ function mapDriverRow(row = {}) {
     team,
     headshot: String(row.headshot_url || "").trim()
   };
+}
+
+function buildLineFromSamples(rows = [], valueReader, points = 24) {
+  const values = rows.map(valueReader).filter(Number.isFinite);
+  if (!values.length) return [];
+  const bucketSize = Math.max(1, Math.floor(values.length / points));
+  const series = [];
+  for (let i = 0; i < values.length; i += bucketSize) {
+    const chunk = values.slice(i, i + bucketSize);
+    series.push(average(chunk));
+  }
+  return series.slice(0, points).map(v => Number.isFinite(v) ? Number(v.toFixed(2)) : null);
 }
 
 async function getEntities(sessionKey) {
@@ -266,11 +283,12 @@ async function getEntities(sessionKey) {
 }
 
 async function getDriverMetricsOpenF1(sessionKey, driverNumber) {
-  const [lapsRows, carDataRows, stintsRows, positionRows] = await Promise.all([
+  const [lapsRows, carDataRows, stintsRows, positionRows, resultRows] = await Promise.all([
     fetchOpenF1("laps", { session_key: sessionKey, driver_number: driverNumber }).catch(() => []),
     fetchOpenF1("car_data", { session_key: sessionKey, driver_number: driverNumber }).catch(() => []),
     fetchOpenF1("stints", { session_key: sessionKey, driver_number: driverNumber }).catch(() => []),
-    fetchOpenF1("position", { session_key: sessionKey, driver_number: driverNumber }).catch(() => [])
+    fetchOpenF1("position", { session_key: sessionKey, driver_number: driverNumber }).catch(() => []),
+    fetchOpenF1("session_result", { session_key: sessionKey, driver_number: driverNumber }).catch(() => [])
   ]);
 
   const laps = lapsRows
@@ -285,8 +303,28 @@ async function getDriverMetricsOpenF1(sessionKey, driverNumber) {
     .filter(item => Number.isFinite(item.lap_duration));
 
   const lapDurations = laps.map(item => item.lap_duration).filter(Number.isFinite);
-  const topSpeed = Math.max(...carDataRows.map(row => parseMaybeNumber(row.speed)).filter(Number.isFinite), Number.NEGATIVE_INFINITY);
-  const speedTrap = Math.max(...laps.map(lap => lap.st_speed).filter(Number.isFinite), Number.NEGATIVE_INFINITY);
+  const topSpeedCandidates = [
+    ...carDataRows.map(row => parseMaybeNumber(row.speed)),
+    ...resultRows.map(row => parseMaybeNumber(row.top_speed))
+  ].filter(Number.isFinite);
+  const topSpeed = topSpeedCandidates.length ? Math.max(...topSpeedCandidates) : Number.NEGATIVE_INFINITY;
+  const speedTrapCandidates = [
+    ...laps.map(lap => lap.st_speed),
+    ...resultRows.map(row => parseMaybeNumber(row.speed_trap))
+  ].filter(Number.isFinite);
+  const speedTrap = speedTrapCandidates.length ? Math.max(...speedTrapCandidates) : Number.NEGATIVE_INFINITY;
+  const speedProfile = buildLineFromSamples(carDataRows, row => parseMaybeNumber(row.speed), 28);
+  const throttleProfile = buildLineFromSamples(carDataRows, row => parseMaybeNumber(row.throttle), 28);
+  const brakeProfile = buildLineFromSamples(carDataRows, row => parseMaybeNumber(row.brake), 28);
+  const completenessRaw = [
+    lapDurations.length ? 1 : 0,
+    Number.isFinite(topSpeed) ? 1 : 0,
+    Number.isFinite(speedTrap) ? 1 : 0,
+    Number.isFinite(average(laps.map(item => item.sector1))) ? 1 : 0,
+    Number.isFinite(average(laps.map(item => item.sector2))) ? 1 : 0,
+    Number.isFinite(average(laps.map(item => item.sector3))) ? 1 : 0,
+    speedProfile.length ? 1 : 0
+  ].reduce((sum, item) => sum + item, 0);
 
   return {
     engine: "openf1",
@@ -301,6 +339,11 @@ async function getDriverMetricsOpenF1(sessionKey, driverNumber) {
     sector2: average(laps.map(item => item.sector2)),
     sector3: average(laps.map(item => item.sector3)),
     degradation: simpleDegradation(laps),
+    speedProfile,
+    throttleProfile,
+    brakeProfile,
+    telemetrySamples: carDataRows.length,
+    completeness: clamp((completenessRaw / 7) * 100, 0, 100),
     stints: stintsRows
       .map(row => ({
         number: parseMaybeNumber(row.stint_number),
@@ -328,7 +371,20 @@ except Exception:
     print(json.dumps({"ok": False, "reason": "FASTF1_UNAVAILABLE"}))
     sys.exit(0)
 
-print(json.dumps({"ok": False, "reason": "FASTF1_NOT_CONFIGURED"}))
+try:
+    fastf1.Cache.enable_cache("/tmp/fastf1")
+    year = 2026
+    name = "${meetingLabel}".strip()
+    session_type = "${sessionType}".strip().upper()
+    mapped = {"FP1":"FP1","FP2":"FP2","FP3":"FP3","QUALY":"Q","RACE":"R"}.get(session_type, "R")
+    if not name:
+        print(json.dumps({"ok": False, "reason": "FASTF1_NO_MEETING"}))
+        sys.exit(0)
+    session = fastf1.get_session(year, name, mapped)
+    session.load(laps=True, telemetry=False, weather=False, messages=False)
+    print(json.dumps({"ok": True, "reason": "FASTF1_ACTIVE", "source": "fastf1"}))
+except Exception as exc:
+    print(json.dumps({"ok": False, "reason": "FASTF1_LOAD_FAIL", "detail": str(exc)[:120]}))
 `;
 
   const result = await new Promise(resolve => {
@@ -345,7 +401,7 @@ print(json.dumps({"ok": False, "reason": "FASTF1_NOT_CONFIGURED"}))
     setTimeout(() => {
       proc.kill("SIGKILL");
       resolve({ ok: false, reason: "FASTF1_TIMEOUT" });
-    }, 3000);
+    }, 5000);
   });
 
   return setCached(cache.fastf1, key, result);
@@ -357,6 +413,15 @@ function mergeTeamMetrics(metrics = []) {
   const ref = valid.map(item => item.referenceLap).filter(Number.isFinite);
   const speed = valid.map(item => item.topSpeed).filter(Number.isFinite);
   const trap = valid.map(item => item.speedTrap).filter(Number.isFinite);
+
+  const mergeLine = key => {
+    const lines = valid.map(item => item[key]).filter(arr => Array.isArray(arr) && arr.length);
+    if (!lines.length) return [];
+    const points = Math.max(...lines.map(arr => arr.length));
+    return Array.from({ length: points }, (_, index) =>
+      average(lines.map(arr => arr[index]).filter(Number.isFinite))
+    ).map(v => Number.isFinite(v) ? Number(v.toFixed(2)) : null);
+  };
 
   return {
     engine: valid.find(item => item.engine)?.engine || "openf1",
@@ -371,7 +436,32 @@ function mergeTeamMetrics(metrics = []) {
     sector2: average(valid.map(item => item.sector2)),
     sector3: average(valid.map(item => item.sector3)),
     degradation: average(valid.map(item => item.degradation)),
+    speedProfile: mergeLine("speedProfile"),
+    throttleProfile: mergeLine("throttleProfile"),
+    brakeProfile: mergeLine("brakeProfile"),
+    telemetrySamples: valid.reduce((sum, item) => sum + Number(item.telemetrySamples || 0), 0),
+    completeness: average(valid.map(item => item.completeness)),
     stints: valid.flatMap(item => item.stints || []).slice(0, 12)
+  };
+}
+
+function buildGraphBlock(a, b) {
+  const maxPoints = Math.max(a.speedProfile?.length || 0, b.speedProfile?.length || 0, 0);
+  const points = Array.from({ length: maxPoints }, (_, idx) => ({
+    x: idx + 1,
+    a: Number.isFinite(a.speedProfile?.[idx]) ? a.speedProfile[idx] : null,
+    b: Number.isFinite(b.speedProfile?.[idx]) ? b.speedProfile[idx] : null,
+    delta: getDelta(a.speedProfile?.[idx], b.speedProfile?.[idx]),
+    throttleA: Number.isFinite(a.throttleProfile?.[idx]) ? a.throttleProfile[idx] : null,
+    throttleB: Number.isFinite(b.throttleProfile?.[idx]) ? b.throttleProfile[idx] : null,
+    brakeA: Number.isFinite(a.brakeProfile?.[idx]) ? a.brakeProfile[idx] : null,
+    brakeB: Number.isFinite(b.brakeProfile?.[idx]) ? b.brakeProfile[idx] : null
+  }));
+
+  return {
+    mode: "distance-normalized",
+    points,
+    valid: points.some(row => Number.isFinite(row.a) || Number.isFinite(row.b))
   };
 }
 
@@ -499,19 +589,20 @@ async function buildComparison({ meetingKey, sessionKey, type, a, b, year = DEFA
   const meetings = await getMeetings(year);
   const meeting = meetings.find(item => String(item.meeting_key) === String(meetingKey));
   const sessions = await getSessions(meetingKey, year);
-  const selectedSession = sessions.find(item => String(item.session_key) === String(sessionKey));
+  const selectedSession = sessions.find(item => String(item.session_key) === String(sessionKey)) || sessions[sessions.length - 1] || null;
+  const safeSessionKey = selectedSession?.session_key || sessionKey;
 
-  const base = await buildBaseComparison({ sessionKey, type, a, b });
+  const base = await buildBaseComparison({ sessionKey: safeSessionKey, type, a, b });
   if (!base.a?.metrics?.lapCount && !base.b?.metrics?.lapCount) {
     const error = new Error("No hay datos de comparación para esta combinación");
     error.code = "NO_COMPARISON";
     throw error;
   }
 
-  const context = await loadSessionContext(sessionKey);
+  const context = await loadSessionContext(safeSessionKey);
   const fastf1Probe = await tryFastF1Comparison({
     meetingLabel: meeting?.gp_label || "",
-    sessionType: selectedSession?.type_key || "",
+      sessionType: selectedSession?.type_key || "",
     type,
     a,
     b
@@ -540,7 +631,7 @@ async function buildComparison({ meetingKey, sessionKey, type, a, b, year = DEFA
     year,
     season_focus: DEFAULT_YEAR,
     meeting_key: String(meetingKey),
-    session_key: String(sessionKey),
+    session_key: String(safeSessionKey),
     type,
     labels: {
       gp: meeting?.gp_label || "2026",
@@ -558,6 +649,7 @@ async function buildComparison({ meetingKey, sessionKey, type, a, b, year = DEFA
       summary: buildSummaryBlock(base.a.metrics, base.b.metrics),
       sectors: buildSectorsBlock(base.a.metrics, base.b.metrics),
       stints: buildStintsBlock(base.a.metrics, base.b.metrics),
+      graph: buildGraphBlock(base.a.metrics, base.b.metrics),
       comparison: {
         a: base.a,
         b: base.b,
@@ -583,11 +675,12 @@ async function resolveTelemetryContext({ year = DEFAULT_YEAR, meetingKey = "", s
   let selectedSession = sessions.find(item => item.type_key === sessionType) || sessions[sessions.length - 1] || null;
   let entities = selectedSession ? await getEntities(selectedSession.session_key) : { drivers: [], teams: [] };
 
-  if (selectedSession && (!entities.drivers.length || !entities.teams.length)) {
+  const hasEnoughEntities = (entityRows, compareType) => compareType === "team" ? entityRows.teams.length >= 2 : entityRows.drivers.length >= 2;
+  if (selectedSession && !hasEnoughEntities(entities, type)) {
     const fallback = [...sessions].reverse();
     for (const probe of fallback) {
       const probeEntities = await getEntities(probe.session_key);
-      if (probeEntities.drivers.length >= 2) {
+      if (hasEnoughEntities(probeEntities, type)) {
         selectedSession = probe;
         entities = probeEntities;
         break;
