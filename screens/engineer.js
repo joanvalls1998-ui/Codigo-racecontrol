@@ -638,7 +638,7 @@ function renderEngineerHub() {
       ? `<div class="engineer-error">${escapeHtml(engineer.error)}</div>`
       : engineer.status === "empty"
         ? `<div class="engineer-empty-state">${escapeHtml(engineer.statusMessage || "Sin datos para la selección actual.")}</div>`
-        : `<div class="engineer-status">Datos reales OpenF1 cargados · endpoints: ${ENGINEER_DATASETS.join(", ")}</div>`;
+        : "";
 
   contentEl().innerHTML = `
     <section class="engineer-shell">
@@ -646,24 +646,32 @@ function renderEngineerHub() {
         <div class="engineer-header-bar">
           <button class="engineer-back" onclick="exitEngineerMode()" aria-label="Salir del modo Ingeniero">
             <span aria-hidden="true">←</span>
-            <span>Salir</span>
           </button>
           <div class="engineer-header-title-wrap">
-            <p class="engineer-header-kicker">RaceControl</p>
-            <h1 class="engineer-header-title">Modo Ingeniero</h1>
+            <p class="engineer-header-kicker">Panel técnico</p>
+            <h1 class="engineer-header-title">Ingeniero</h1>
+          </div>
+          <div class="engineer-selection-summary">
+            <span>${escapeHtml(engineer.gpA || "Sin GP")}</span>
+            <span>${escapeHtml((ENGINEER_SESSIONS.find(item => item.key === engineer.sessionA)?.label) || "Sin sesión")}</span>
           </div>
         </div>
-        <div class="engineer-controls">
-          ${renderEngineerSelect("GP A", engineer.gpA, raceOptions, "setEngineerGpA")}
-          ${renderEngineerSelect("Sesión A", engineer.sessionA, sessionOptions, "setEngineerSessionA")}
-          ${renderEngineerSelect("Modo", engineer.compareMode, comparisonModeOptions, "setEngineerCompareMode")}
+
+        <div class="engineer-controls engineer-controls-primary">
+          ${renderEngineerSelect("GP", engineer.gpA, raceOptions, "setEngineerGpA")}
+          ${renderEngineerSelect("Sesión", engineer.sessionA, sessionOptions, "setEngineerSessionA")}
+          ${renderEngineerSelect("Comparación", engineer.compareMode, comparisonModeOptions, "setEngineerCompareMode")}
           ${renderEngineerSelect("Tipo", engineer.compareType, comparisonTypeOptions, "setEngineerCompareType")}
-          ${engineer.compareMode === "between_gp"
-            ? `${renderEngineerSelect("GP B", engineer.gpB, raceOptions, "setEngineerGpB")}${renderEngineerSelect("Sesión B", engineer.sessionB, sessionOptions, "setEngineerSessionB")}`
-            : ""
-          }
-          ${renderEngineerSelect("A", engineer.entityA, sourceOptions.map(item => ({ value: item, label: item })), "setEngineerEntityA", { compact: true })}
-          ${renderEngineerSelect("B", engineer.entityB, sourceOptions.map(item => ({ value: item, label: item })), "setEngineerEntityB", { compact: true })}
+        </div>
+
+        ${engineer.compareMode === "between_gp"
+          ? `<div class="engineer-controls engineer-controls-secondary">${renderEngineerSelect("GP comparación", engineer.gpB, raceOptions, "setEngineerGpB")}${renderEngineerSelect("Sesión comparación", engineer.sessionB, sessionOptions, "setEngineerSessionB")}</div>`
+          : ""
+        }
+
+        <div class="engineer-controls engineer-controls-entities">
+          ${renderEngineerSelect("Selector A", engineer.entityA, sourceOptions.map(item => ({ value: item, label: item })), "setEngineerEntityA", { compact: true })}
+          ${renderEngineerSelect("Selector B", engineer.entityB, sourceOptions.map(item => ({ value: item, label: item })), "setEngineerEntityB", { compact: true })}
         </div>
       </header>
 
