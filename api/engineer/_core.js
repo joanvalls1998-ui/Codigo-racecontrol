@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+
 const OPENF1_BASE_URL = "https://api.openf1.org/v1";
 const DEFAULT_YEAR = 2026;
 const SUPPORTED_SESSION_TYPES = ["fp1", "fp2", "fp3", "qualy", "race"];
@@ -7,16 +9,9 @@ const TTL = Object.freeze({
   sessions: 1000 * 60 * 20,
   entities: 1000 * 60 * 15,
   compare: 1000 * 60 * 8,
-  context: 1000 * 60 * 10
+  context: 1000 * 60 * 10,
+  fastf1: 1000 * 60 * 30
 });
-
-const cache = {
-  meetings: new Map(),
-  sessionsByMeeting: new Map(),
-  entitiesBySession: new Map(),
-  compare: new Map(),
-  context: new Map()
-};
 
 const SESSION_TYPES = Object.freeze([
   { key: "fp1", label: "FP1", aliases: ["Practice 1", "Free Practice 1"] },
@@ -26,15 +21,24 @@ const SESSION_TYPES = Object.freeze([
   { key: "race", label: "Carrera", aliases: ["Race", "Grand Prix", "Sprint"] }
 ]);
 
+const cache = {
+  meetings: new Map(),
+  sessionsByMeeting: new Map(),
+  entitiesBySession: new Map(),
+  compare: new Map(),
+  context: new Map(),
+  fastf1: new Map()
+};
+
 function setCached(map, key, value) {
-  map.set(key, { value, ts: Date.now() });
+  map.set(key, { ts: Date.now(), value });
   return value;
 }
 
-function getCached(map, key, ttlMs) {
+function getCached(map, key, ttl) {
   const entry = map.get(key);
   if (!entry) return null;
-  if (Date.now() - entry.ts > ttlMs) {
+  if (Date.now() - entry.ts > ttl) {
     map.delete(key);
     return null;
   }
@@ -49,7 +53,7 @@ async function fetchOpenF1(endpoint, params = {}) {
   });
 
   const response = await fetch(`${OPENF1_BASE_URL}/${endpoint}?${query.toString()}`, {
-    headers: { "User-Agent": "RaceControlEngineer/3.0" },
+    headers: { "User-Agent": "RaceControlEngineer/4.0" },
     cache: "no-store"
   });
 
@@ -71,68 +75,133 @@ function parseMaybeNumber(value) {
 function average(values = []) {
   const valid = values.filter(Number.isFinite);
   if (!valid.length) return null;
-  return valid.reduce((acc, n) => acc + n, 0) / valid.length;
+  return valid.reduce((acc, item) => acc + item, 0) / valid.length;
 }
 
 function median(values = []) {
   const valid = values.filter(Number.isFinite).sort((a, b) => a - b);
   if (!valid.length) return null;
-  const middle = Math.floor(valid.length / 2);
-  if (valid.length % 2) return valid[middle];
-  return (valid[middle - 1] + valid[middle]) / 2;
+  const mid = Math.floor(valid.length / 2);
+  return valid.length % 2 ? valid[mid] : (valid[mid] + valid[mid - 1]) / 2;
 }
-
-function cleanLabel(value = "") {
-  const text = String(value || "").replace(/\s+/g, " ").trim();
-  if (!text) return "";
-  return text
-    .replace(/^FORMULA\s*1\b[^A-Z0-9]*?/i, "")
-    .replace(/^FIA\s*FORMULA\s*ONE\b[^A-Z0-9]*?/i, "")
-    .replace(/\b(ROLEX|QATAR AIRWAYS|AWS|ARAMCO|MSC CRUISES|HEINEKEN)\b/gi, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-}
-
 
 function normalizeKey(value = "") {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function normalizeSessionType(name = "") {
-  const normalized = String(name || "").toLowerCase().trim();
-  const exact = SESSION_TYPES.find(type => type.aliases.some(alias => alias.toLowerCase() === normalized));
-  if (exact) return exact.key;
-  if (normalized.includes("practice 1")) return "fp1";
-  if (normalized.includes("practice 2")) return "fp2";
-  if (normalized.includes("practice 3")) return "fp3";
-  if (normalized.includes("qual")) return "qualy";
-  if (normalized.includes("race") || normalized.includes("grand prix") || normalized.includes("sprint")) return "race";
-  return "";
+function cleanLabel(value = "") {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .replace(/^FORMULA\s*1\b[^A-Z0-9]*?/i, "")
+    .replace(/^FIA\s*FORMULA\s*ONE\b[^A-Z0-9]*?/i, "")
+    .replace(/\b(ROLEX|QATAR AIRWAYS|AWS|ARAMCO|MSC CRUISES|HEINEKEN|LENOVO)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function sessionTypeLabel(typeKey = "") {
   return SESSION_TYPES.find(item => item.key === typeKey)?.label || typeKey;
 }
 
+function normalizeSessionType(name = "") {
+  const lower = String(name || "").toLowerCase().trim();
+  const exact = SESSION_TYPES.find(item => item.aliases.some(alias => alias.toLowerCase() === lower));
+  if (exact) return exact.key;
+  if (lower.includes("practice 1")) return "fp1";
+  if (lower.includes("practice 2")) return "fp2";
+  if (lower.includes("practice 3")) return "fp3";
+  if (lower.includes("qual")) return "qualy";
+  if (lower.includes("race") || lower.includes("grand prix") || lower.includes("sprint")) return "race";
+  return "";
+}
+
 function getYearFromRow(row = {}) {
   if (Number.isFinite(Number(row.year))) return Number(row.year);
-  const dateLike = row.date_start || row.date || row.session_start || "";
-  const parsed = dateLike ? new Date(dateLike).getUTCFullYear() : NaN;
+  const dateLike = row.date_start || row.date || row.session_start || row.session_start_date || "";
+  if (!dateLike) return null;
+  const parsed = new Date(dateLike).getUTCFullYear();
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 function gpLabelFromMeeting(meeting = {}) {
-  const year = Number(meeting.year) || DEFAULT_YEAR;
-  const base = [
-    cleanLabel(meeting.country_name),
-    cleanLabel(meeting.meeting_name),
-    cleanLabel(meeting.location),
-    cleanLabel(meeting.circuit_short_name)
-  ].find(Boolean) || "Gran Premio";
-  return /\b\d{4}\b/.test(base) ? base : `${base} ${year}`;
+  const candidates = [meeting.country_name, meeting.location, meeting.meeting_name, meeting.circuit_short_name]
+    .map(cleanLabel)
+    .filter(Boolean);
+  const base = candidates[0] || "Grand Prix";
+  return base.includes("2026") ? base : `${base} 2026`;
 }
 
-function normalizeDriver(row = {}) {
+function pickWinner(lowerIsBetter, a, b) {
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return "none";
+  if (a === b) return "tie";
+  if (lowerIsBetter) return a < b ? "a" : "b";
+  return a > b ? "a" : "b";
+}
+
+function getDelta(a, b) {
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return a - b;
+}
+
+function simpleDegradation(laps = []) {
+  const clean = laps
+    .filter(item => Number.isFinite(item.lap_duration) && Number.isFinite(item.lap_number))
+    .sort((a, b) => a.lap_number - b.lap_number);
+  if (clean.length < 6) return null;
+  const first = average(clean.slice(0, 3).map(item => item.lap_duration));
+  const last = average(clean.slice(-3).map(item => item.lap_duration));
+  if (!Number.isFinite(first) || !Number.isFinite(last)) return null;
+  return last - first;
+}
+
+async function getMeetings(year = DEFAULT_YEAR) {
+  const key = `meetings:${year}`;
+  const cached = getCached(cache.meetings, key, TTL.meetings);
+  if (cached) return cached;
+
+  const rows = await fetchOpenF1("meetings", { year });
+  const meetings = rows
+    .filter(row => Number(row.year) === year)
+    .map(row => ({
+      meeting_key: String(row.meeting_key || "").trim(),
+      gp_label: gpLabelFromMeeting(row),
+      meeting_name: cleanLabel(row.meeting_name || ""),
+      country_name: cleanLabel(row.country_name || ""),
+      location: cleanLabel(row.location || ""),
+      year
+    }))
+    .filter(item => item.meeting_key)
+    .sort((a, b) => a.gp_label.localeCompare(b.gp_label));
+
+  return setCached(cache.meetings, key, meetings);
+}
+
+async function getSessions(meetingKey, year = DEFAULT_YEAR) {
+  const key = `sessions:${year}:${meetingKey}`;
+  const cached = getCached(cache.sessionsByMeeting, key, TTL.sessions);
+  if (cached) return cached;
+
+  const rows = await fetchOpenF1("sessions", { meeting_key: meetingKey });
+  const sessions = rows
+    .map(row => {
+      const type_key = normalizeSessionType(row.session_name);
+      return {
+        session_key: String(row.session_key || ""),
+        meeting_key: String(row.meeting_key || ""),
+        session_name: String(row.session_name || "").trim(),
+        type_key,
+        type_label: sessionTypeLabel(type_key),
+        date_start: row.date_start || row.date || "",
+        year: getYearFromRow(row)
+      };
+    })
+    .filter(row => row.session_key && row.meeting_key === String(meetingKey) && row.year === year && SUPPORTED_SESSION_TYPES.includes(row.type_key))
+    .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime());
+
+  return setCached(cache.sessionsByMeeting, key, sessions);
+}
+
+function mapDriverRow(row = {}) {
   const id = String(row.driver_number || row.racing_number || row.number || "").trim();
   const name = String(
     row.full_name
@@ -142,8 +211,7 @@ function normalizeDriver(row = {}) {
       || row.name_acronym
       || ""
   ).trim();
-  const team = String(row.team_name || row.team || "").trim();
-
+  const team = String(row.team_name || row.team || row.team_id || "").trim();
   return {
     id,
     name,
@@ -152,113 +220,52 @@ function normalizeDriver(row = {}) {
   };
 }
 
-function simpleDegradation(laps = []) {
-  const valid = laps
-    .filter(lap => Number.isFinite(Number(lap.lap_duration)))
-    .sort((a, b) => Number(a.lap_number) - Number(b.lap_number));
-  if (valid.length < 4) return null;
-  const first = average(valid.slice(0, 3).map(lap => Number(lap.lap_duration)));
-  const last = average(valid.slice(-3).map(lap => Number(lap.lap_duration)));
-  if (!Number.isFinite(first) || !Number.isFinite(last)) return null;
-  return last - first;
-}
-
-function countMentions(rows = [], pattern = "") {
-  const re = new RegExp(pattern, "i");
-  return rows.filter(row => re.test(String(row.message || row.category || row.flag || ""))).length;
-}
-
-async function getMeetings(year = DEFAULT_YEAR) {
-  const cacheKey = `year:${year}`;
-  const cached = getCached(cache.meetings, cacheKey, TTL.meetings);
-  if (cached) return cached;
-
-  const rows = await fetchOpenF1("meetings", { year });
-  const meetings = rows
-    .filter(row => Number(row.year) === Number(year))
-    .map(row => ({
-      meeting_key: String(row.meeting_key),
-      year: Number(row.year),
-      gp_label: gpLabelFromMeeting(row),
-      country_name: row.country_name || "",
-      meeting_name: row.meeting_name || "",
-      location: row.location || "",
-      circuit_short_name: row.circuit_short_name || ""
-    }))
-    .filter(row => row.meeting_key)
-    .sort((a, b) => String(a.gp_label).localeCompare(String(b.gp_label)));
-
-  return setCached(cache.meetings, cacheKey, meetings);
-}
-
-async function getSessions(meetingKey, year = DEFAULT_YEAR) {
-  const cacheKey = `${meetingKey}:${year}`;
-  const cached = getCached(cache.sessionsByMeeting, cacheKey, TTL.sessions);
-  if (cached) return cached;
-
-  const rows = await fetchOpenF1("sessions", { meeting_key: meetingKey });
-  const sessions = rows
-    .filter(row => getYearFromRow(row) === Number(year))
-    .map(row => {
-      const type_key = normalizeSessionType(row.session_name);
-      return {
-        session_key: String(row.session_key),
-        meeting_key: String(row.meeting_key),
-        session_name: row.session_name || "",
-        type_key,
-        type_label: sessionTypeLabel(type_key),
-        date_start: row.date_start || row.date || ""
-      };
-    })
-    .filter(row => row.session_key && SUPPORTED_SESSION_TYPES.includes(row.type_key))
-    .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime());
-
-  return setCached(cache.sessionsByMeeting, cacheKey, sessions);
-}
-
 async function getEntities(sessionKey) {
-  const cached = getCached(cache.entitiesBySession, String(sessionKey), TTL.entities);
+  const cacheKey = `entities:${sessionKey}`;
+  const cached = getCached(cache.entitiesBySession, cacheKey, TTL.entities);
   if (cached) return cached;
 
-  const byDriverId = new Map();
-  const collect = (rows = []) => {
+  const [driversRows, lapsRows, resultRows, positionRows] = await Promise.all([
+    fetchOpenF1("drivers", { session_key: sessionKey }).catch(() => []),
+    fetchOpenF1("laps", { session_key: sessionKey }).catch(() => []),
+    fetchOpenF1("session_result", { session_key: sessionKey }).catch(() => []),
+    fetchOpenF1("position", { session_key: sessionKey }).catch(() => [])
+  ]);
+
+  const byDriver = new Map();
+  [driversRows, lapsRows, resultRows, positionRows].forEach(rows => {
     rows.forEach(row => {
-      const driver = normalizeDriver(row);
-      if (!driver.id || !driver.name || byDriverId.has(driver.id)) return;
-      byDriverId.set(driver.id, driver);
+      const driver = mapDriverRow(row);
+      if (!driver.id || !driver.name) return;
+      const current = byDriver.get(driver.id) || { id: driver.id, name: driver.name, team: "", headshot: "" };
+      current.team = current.team || driver.team;
+      current.headshot = current.headshot || driver.headshot;
+      current.name = current.name || driver.name;
+      byDriver.set(driver.id, current);
     });
-  };
+  });
 
-  collect(await fetchOpenF1("drivers", { session_key: sessionKey }).catch(() => []));
-  if (!byDriverId.size) collect(await fetchOpenF1("laps", { session_key: sessionKey }).catch(() => []));
-  if (!byDriverId.size) collect(await fetchOpenF1("position", { session_key: sessionKey }).catch(() => []));
-
-  const drivers = [...byDriverId.values()]
-    .map(driver => ({
-      ...driver,
-      team: driver.team || "Equipo",
-      entity_id: `driver:${driver.id}`
-    }))
+  const drivers = [...byDriver.values()]
+    .map(driver => ({ ...driver, team: driver.team || "Equipo", entity_id: `driver:${driver.id}` }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const teamsMap = new Map();
   drivers.forEach(driver => {
-    const name = String(driver.team || "").trim();
-    if (!name) return;
-    const key = normalizeKey(name);
-    const current = teamsMap.get(key) || { id: `team:${key}`, name, drivers: [], color: "", key };
+    const key = normalizeKey(driver.team);
+    if (!key) return;
+    const current = teamsMap.get(key) || { entity_id: `team:${key}`, name: driver.team, drivers: [] };
     current.drivers.push(driver.name);
     teamsMap.set(key, current);
   });
 
   const teams = [...teamsMap.values()]
-    .map(team => ({ ...team, entity_id: team.id, drivers: team.drivers.sort((a, b) => a.localeCompare(b)) }))
+    .map(team => ({ ...team, drivers: team.drivers.sort((a, b) => a.localeCompare(b)) }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  return setCached(cache.entitiesBySession, String(sessionKey), { drivers, teams });
+  return setCached(cache.entitiesBySession, cacheKey, { drivers, teams });
 }
 
-async function getDriverMetrics(sessionKey, driverNumber) {
+async function getDriverMetricsOpenF1(sessionKey, driverNumber) {
   const [lapsRows, carDataRows, stintsRows, positionRows] = await Promise.all([
     fetchOpenF1("laps", { session_key: sessionKey, driver_number: driverNumber }).catch(() => []),
     fetchOpenF1("car_data", { session_key: sessionKey, driver_number: driverNumber }).catch(() => []),
@@ -266,174 +273,202 @@ async function getDriverMetrics(sessionKey, driverNumber) {
     fetchOpenF1("position", { session_key: sessionKey, driver_number: driverNumber }).catch(() => [])
   ]);
 
-  const cleanLaps = lapsRows
-    .map(lap => ({
-      lap_number: parseMaybeNumber(lap.lap_number),
-      lap_duration: parseMaybeNumber(lap.lap_duration),
-      sector1: parseMaybeNumber(lap.duration_sector_1),
-      sector2: parseMaybeNumber(lap.duration_sector_2),
-      sector3: parseMaybeNumber(lap.duration_sector_3),
-      st_speed: parseMaybeNumber(lap.st_speed)
+  const laps = lapsRows
+    .map(row => ({
+      lap_number: parseMaybeNumber(row.lap_number),
+      lap_duration: parseMaybeNumber(row.lap_duration),
+      sector1: parseMaybeNumber(row.duration_sector_1),
+      sector2: parseMaybeNumber(row.duration_sector_2),
+      sector3: parseMaybeNumber(row.duration_sector_3),
+      st_speed: parseMaybeNumber(row.st_speed)
     }))
-    .filter(lap => Number.isFinite(lap.lap_duration));
+    .filter(item => Number.isFinite(item.lap_duration));
 
-  const lapDurations = cleanLaps.map(lap => lap.lap_duration).filter(Number.isFinite);
-  const bestLap = lapDurations.length ? Math.min(...lapDurations) : null;
-  const avgPace = average(lapDurations);
-
-  const topSpeed = (() => {
-    const speeds = carDataRows.map(row => parseMaybeNumber(row.speed)).filter(Number.isFinite);
-    return speeds.length ? Math.max(...speeds) : null;
-  })();
-
-  const speedTrap = (() => {
-    const speeds = cleanLaps.map(lap => lap.st_speed).filter(Number.isFinite);
-    return speeds.length ? Math.max(...speeds) : null;
-  })();
-
-  const positionSample = positionRows
-    .map(item => parseMaybeNumber(item.position))
-    .filter(Number.isFinite);
-
-  const stintRows = stintsRows
-    .map(stint => ({
-      number: parseMaybeNumber(stint.stint_number),
-      compound: String(stint.compound || "N/D"),
-      lap_start: parseMaybeNumber(stint.lap_start),
-      lap_end: parseMaybeNumber(stint.lap_end),
-      tyre_age_start: parseMaybeNumber(stint.tyre_age_at_start)
-    }))
-    .filter(stint => Number.isFinite(stint.number));
+  const lapDurations = laps.map(item => item.lap_duration).filter(Number.isFinite);
+  const topSpeed = Math.max(...carDataRows.map(row => parseMaybeNumber(row.speed)).filter(Number.isFinite), Number.NEGATIVE_INFINITY);
+  const speedTrap = Math.max(...laps.map(lap => lap.st_speed).filter(Number.isFinite), Number.NEGATIVE_INFINITY);
 
   return {
-    lapCount: cleanLaps.length,
-    referenceLap: bestLap,
-    averagePace: avgPace,
+    engine: "openf1",
+    lapCount: laps.length,
+    referenceLap: lapDurations.length ? Math.min(...lapDurations) : null,
+    averagePace: average(lapDurations),
     medianPace: median(lapDurations),
-    topSpeed,
-    speedTrap,
-    avgPosition: average(positionSample),
-    sector1: average(cleanLaps.map(lap => lap.sector1)),
-    sector2: average(cleanLaps.map(lap => lap.sector2)),
-    sector3: average(cleanLaps.map(lap => lap.sector3)),
-    degradation: simpleDegradation(cleanLaps),
-    stints: stintRows.map(stint => ({
-      number: stint.number,
-      compound: stint.compound,
-      laps: Number.isFinite(stint.lap_start) && Number.isFinite(stint.lap_end) ? stint.lap_end - stint.lap_start + 1 : null,
-      tyreAgeStart: stint.tyre_age_start,
-      lapStart: stint.lap_start,
-      lapEnd: stint.lap_end
-    }))
+    topSpeed: Number.isFinite(topSpeed) ? topSpeed : null,
+    speedTrap: Number.isFinite(speedTrap) ? speedTrap : null,
+    avgPosition: average(positionRows.map(item => parseMaybeNumber(item.position))),
+    sector1: average(laps.map(item => item.sector1)),
+    sector2: average(laps.map(item => item.sector2)),
+    sector3: average(laps.map(item => item.sector3)),
+    degradation: simpleDegradation(laps),
+    stints: stintsRows
+      .map(row => ({
+        number: parseMaybeNumber(row.stint_number),
+        compound: String(row.compound || "N/D"),
+        lapStart: parseMaybeNumber(row.lap_start),
+        lapEnd: parseMaybeNumber(row.lap_end)
+      }))
+      .filter(item => Number.isFinite(item.number))
+      .map(item => ({ ...item, laps: Number.isFinite(item.lapStart) && Number.isFinite(item.lapEnd) ? item.lapEnd - item.lapStart + 1 : null }))
   };
 }
 
-function aggregateTeamMetrics(metricsList = []) {
-  const valid = metricsList.filter(Boolean);
-  if (!valid.length) return null;
+async function tryFastF1Comparison({ meetingLabel, sessionType, type, a, b }) {
+  const key = `${meetingLabel}:${sessionType}:${type}:${a}:${b}`;
+  const cached = getCached(cache.fastf1, key, TTL.fastf1);
+  if (cached) return cached;
 
-  const referenceCandidates = valid.map(item => item.referenceLap).filter(Number.isFinite);
-  const topCandidates = valid.map(item => item.topSpeed).filter(Number.isFinite);
-  const trapCandidates = valid.map(item => item.speedTrap).filter(Number.isFinite);
+  const code = `
+import json
+import sys
+
+try:
+    import fastf1
+except Exception:
+    print(json.dumps({"ok": False, "reason": "FASTF1_UNAVAILABLE"}))
+    sys.exit(0)
+
+print(json.dumps({"ok": False, "reason": "FASTF1_NOT_CONFIGURED"}))
+`;
+
+  const result = await new Promise(resolve => {
+    const proc = spawn("python3", ["-c", code], { stdio: ["ignore", "pipe", "pipe"] });
+    let out = "";
+    proc.stdout.on("data", chunk => { out += String(chunk); });
+    proc.on("close", () => {
+      try {
+        resolve(JSON.parse(out.trim() || "{}"));
+      } catch {
+        resolve({ ok: false, reason: "FASTF1_PARSE_ERROR" });
+      }
+    });
+    setTimeout(() => {
+      proc.kill("SIGKILL");
+      resolve({ ok: false, reason: "FASTF1_TIMEOUT" });
+    }, 3000);
+  });
+
+  return setCached(cache.fastf1, key, result);
+}
+
+function mergeTeamMetrics(metrics = []) {
+  const valid = metrics.filter(Boolean);
+  if (!valid.length) return null;
+  const ref = valid.map(item => item.referenceLap).filter(Number.isFinite);
+  const speed = valid.map(item => item.topSpeed).filter(Number.isFinite);
+  const trap = valid.map(item => item.speedTrap).filter(Number.isFinite);
 
   return {
-    lapCount: valid.reduce((acc, item) => acc + Number(item.lapCount || 0), 0),
-    referenceLap: referenceCandidates.length ? Math.min(...referenceCandidates) : null,
+    engine: valid.find(item => item.engine)?.engine || "openf1",
+    lapCount: valid.reduce((sum, item) => sum + Number(item.lapCount || 0), 0),
+    referenceLap: ref.length ? Math.min(...ref) : null,
     averagePace: average(valid.map(item => item.averagePace)),
     medianPace: average(valid.map(item => item.medianPace)),
-    topSpeed: topCandidates.length ? Math.max(...topCandidates) : null,
-    speedTrap: trapCandidates.length ? Math.max(...trapCandidates) : null,
+    topSpeed: speed.length ? Math.max(...speed) : null,
+    speedTrap: trap.length ? Math.max(...trap) : null,
     avgPosition: average(valid.map(item => item.avgPosition)),
     sector1: average(valid.map(item => item.sector1)),
     sector2: average(valid.map(item => item.sector2)),
     sector3: average(valid.map(item => item.sector3)),
     degradation: average(valid.map(item => item.degradation)),
-    stints: valid.flatMap(item => item.stints || []).slice(0, 10)
+    stints: valid.flatMap(item => item.stints || []).slice(0, 12)
   };
 }
 
-function summarizeContext(payload = {}) {
-  const weather = payload.weather || [];
-  const raceControl = payload.race_control || [];
+function buildSummaryBlock(a, b) {
+  const refDelta = getDelta(a.referenceLap, b.referenceLap);
   return {
-    avgTrackTemp: average(weather.map(item => parseMaybeNumber(item.track_temperature))),
-    avgAirTemp: average(weather.map(item => parseMaybeNumber(item.air_temperature))),
-    avgHumidity: average(weather.map(item => parseMaybeNumber(item.humidity))),
-    raceControlMessages: raceControl.length,
-    safetyCarFlags: countMentions(raceControl, "safety car|virtual safety car"),
-    yellowFlags: countMentions(raceControl, "yellow"),
-    pitStops: (payload.pit || []).length,
-    overtakes: (payload.overtakes || []).length,
-    teamRadios: (payload.team_radio || []).length
+    referenceLap: { a: a.referenceLap, b: b.referenceLap, delta: refDelta, winner: pickWinner(true, a.referenceLap, b.referenceLap) },
+    averagePace: { a: a.averagePace, b: b.averagePace, delta: getDelta(a.averagePace, b.averagePace), winner: pickWinner(true, a.averagePace, b.averagePace) },
+    topSpeed: { a: a.topSpeed, b: b.topSpeed, delta: getDelta(a.topSpeed, b.topSpeed), winner: pickWinner(false, a.topSpeed, b.topSpeed) },
+    speedTrap: { a: a.speedTrap, b: b.speedTrap, delta: getDelta(a.speedTrap, b.speedTrap), winner: pickWinner(false, a.speedTrap, b.speedTrap) },
+    leadMetric: {
+      label: "Delta vuelta referencia",
+      value: refDelta,
+      advantage: Number.isFinite(refDelta) ? (refDelta < 0 ? "a" : refDelta > 0 ? "b" : "tie") : "none"
+    }
   };
 }
 
-async function loadContext(sessionKey, meetingKey, year = DEFAULT_YEAR) {
-  const [weather, race_control, pit, overtakes, team_radio, session_result, starting_grid] = await Promise.all([
+function buildSectorsBlock(a, b) {
+  const sector = (av, bv) => ({ a: av, b: bv, delta: getDelta(av, bv), winner: pickWinner(true, av, bv) });
+  return {
+    sector1: sector(a.sector1, b.sector1),
+    sector2: sector(a.sector2, b.sector2),
+    sector3: sector(a.sector3, b.sector3)
+  };
+}
+
+function buildStintsBlock(a, b) {
+  return {
+    degradation: { a: a.degradation, b: b.degradation, delta: getDelta(a.degradation, b.degradation), winner: pickWinner(true, a.degradation, b.degradation) },
+    averagePace: { a: a.averagePace, b: b.averagePace, delta: getDelta(a.averagePace, b.averagePace), winner: pickWinner(true, a.averagePace, b.averagePace) },
+    consistency: { a: a.medianPace, b: b.medianPace, delta: getDelta(a.medianPace, b.medianPace), winner: pickWinner(true, a.medianPace, b.medianPace) },
+    stintsA: a.stints || [],
+    stintsB: b.stints || []
+  };
+}
+
+async function loadSessionContext(sessionKey) {
+  const [weather, raceControl, pit, overtakes, teamRadio] = await Promise.all([
     fetchOpenF1("weather", { session_key: sessionKey }).catch(() => []),
     fetchOpenF1("race_control", { session_key: sessionKey }).catch(() => []),
     fetchOpenF1("pit", { session_key: sessionKey }).catch(() => []),
     fetchOpenF1("overtakes", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("team_radio", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("session_result", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("starting_grid", { session_key: sessionKey }).catch(() => []),
-    fetchOpenF1("championship_drivers", { meeting_key: meetingKey, year }).catch(() => []),
-    fetchOpenF1("championship_teams", { meeting_key: meetingKey, year }).catch(() => [])
+    fetchOpenF1("team_radio", { session_key: sessionKey }).catch(() => [])
   ]);
 
-  const payload = { weather, race_control, pit, overtakes, team_radio, session_result, starting_grid };
-  return { ...payload, summary: summarizeContext(payload) };
+  return {
+    avgTrackTemp: average(weather.map(item => parseMaybeNumber(item.track_temperature))),
+    avgAirTemp: average(weather.map(item => parseMaybeNumber(item.air_temperature))),
+    weatherState: weather[weather.length - 1]?.rainfall ? "Lluvia" : "Seco",
+    raceControlMessages: raceControl.length,
+    pitStops: pit.length,
+    overtakes: overtakes.length,
+    teamRadios: teamRadio.length
+  };
 }
 
-function pickWinner(lowerIsBetter, aValue, bValue) {
-  if (!Number.isFinite(aValue) || !Number.isFinite(bValue)) return "none";
-  if (aValue === bValue) return "tie";
-  if (lowerIsBetter) return aValue < bValue ? "a" : "b";
-  return aValue > bValue ? "a" : "b";
-}
-
-
-function resolveDriverEntity(drivers = [], value = "") {
+function resolveDriverEntity(drivers, value) {
   const raw = String(value || "").trim();
   if (!raw) return null;
-  const byId = drivers.find(driver => String(driver.entity_id || `driver:${driver.id}`) === raw || String(driver.id) === raw.replace(/^driver:/, ""));
-  if (byId) return byId;
-  const normalized = normalizeKey(raw);
-  return drivers.find(driver => normalizeKey(driver.name) === normalized) || null;
+  return drivers.find(item => item.entity_id === raw || item.id === raw.replace(/^driver:/, "") || normalizeKey(item.name) === normalizeKey(raw)) || null;
 }
 
-function resolveTeamEntities(drivers = [], teams = [], value = "") {
+function resolveTeamEntity(teams, value) {
   const raw = String(value || "").trim();
-  if (!raw) return { team: null, drivers: [] };
-  const normalized = normalizeKey(raw.replace(/^team:/, ""));
-  const team = teams.find(item => normalizeKey(item.name) === normalized || String(item.entity_id || item.id) === raw) || null;
-  const teamName = team?.name || raw.replace(/^team:/, "");
-  const linkedDrivers = drivers.filter(driver => normalizeKey(driver.team) === normalizeKey(teamName));
-  return { team: team || (teamName ? { name: teamName, entity_id: `team:${normalizeKey(teamName)}` } : null), drivers: linkedDrivers };
+  if (!raw) return null;
+  return teams.find(item => item.entity_id === raw || normalizeKey(item.name) === normalizeKey(raw.replace(/^team:/, ""))) || null;
 }
 
 async function buildBaseComparison({ sessionKey, type, a, b }) {
   const entities = await getEntities(sessionKey);
 
   if (type === "team") {
-    const aResolved = resolveTeamEntities(entities.drivers, entities.teams, a);
-    const bResolved = resolveTeamEntities(entities.drivers, entities.teams, b);
-    const aDrivers = aResolved.drivers;
-    const bDrivers = bResolved.drivers;
-    if (!aDrivers.length || !bDrivers.length) {
+    const teamA = resolveTeamEntity(entities.teams, a);
+    const teamB = resolveTeamEntity(entities.teams, b);
+    if (!teamA || !teamB) {
+      const error = new Error("No hay equipos válidos para esta sesión");
+      error.code = "NO_PARTICIPANTS";
+      throw error;
+    }
+
+    const driversA = entities.drivers.filter(driver => normalizeKey(driver.team) === normalizeKey(teamA.name));
+    const driversB = entities.drivers.filter(driver => normalizeKey(driver.team) === normalizeKey(teamB.name));
+    if (!driversA.length || !driversB.length) {
       const error = new Error("No hay datos de comparación para esta combinación");
       error.code = "NO_COMPARISON";
       throw error;
     }
 
-    const [aMetricsList, bMetricsList] = await Promise.all([
-      Promise.all(aDrivers.map(driver => getDriverMetrics(sessionKey, driver.id))),
-      Promise.all(bDrivers.map(driver => getDriverMetrics(sessionKey, driver.id)))
+    const [metricsA, metricsB] = await Promise.all([
+      Promise.all(driversA.map(driver => getDriverMetricsOpenF1(sessionKey, driver.id))),
+      Promise.all(driversB.map(driver => getDriverMetricsOpenF1(sessionKey, driver.id)))
     ]);
 
     return {
-      a: { label: aResolved.team?.name || a, team: aResolved.team?.name || a, image: "", drivers: aDrivers.map(item => item.name), metrics: aggregateTeamMetrics(aMetricsList) },
-      b: { label: bResolved.team?.name || b, team: bResolved.team?.name || b, image: "", drivers: bDrivers.map(item => item.name), metrics: aggregateTeamMetrics(bMetricsList) }
+      a: { label: teamA.name, team: teamA.name, image: "", drivers: driversA.map(item => item.name), metrics: mergeTeamMetrics(metricsA) },
+      b: { label: teamB.name, team: teamB.name, image: "", drivers: driversB.map(item => item.name), metrics: mergeTeamMetrics(metricsB) }
     };
   }
 
@@ -446,8 +481,8 @@ async function buildBaseComparison({ sessionKey, type, a, b }) {
   }
 
   const [metricsA, metricsB] = await Promise.all([
-    getDriverMetrics(sessionKey, driverA.id),
-    getDriverMetrics(sessionKey, driverB.id)
+    getDriverMetricsOpenF1(sessionKey, driverA.id),
+    getDriverMetricsOpenF1(sessionKey, driverB.id)
   ]);
 
   return {
@@ -456,100 +491,45 @@ async function buildBaseComparison({ sessionKey, type, a, b }) {
   };
 }
 
-function buildSummaryBlock(baseComparison = {}) {
-  const a = baseComparison.a?.metrics || {};
-  const b = baseComparison.b?.metrics || {};
-  const deltaReference = Number.isFinite(a.referenceLap) && Number.isFinite(b.referenceLap) ? a.referenceLap - b.referenceLap : null;
-  const deltaPace = Number.isFinite(a.averagePace) && Number.isFinite(b.averagePace) ? a.averagePace - b.averagePace : null;
-
-  return {
-    referenceLap: { a: a.referenceLap ?? null, b: b.referenceLap ?? null, winner: pickWinner(true, a.referenceLap, b.referenceLap), delta: deltaReference },
-    averagePace: { a: a.averagePace ?? null, b: b.averagePace ?? null, winner: pickWinner(true, a.averagePace, b.averagePace), delta: deltaPace },
-    topSpeed: { a: a.topSpeed ?? null, b: b.topSpeed ?? null, winner: pickWinner(false, a.topSpeed, b.topSpeed) },
-    speedTrap: { a: a.speedTrap ?? null, b: b.speedTrap ?? null, winner: pickWinner(false, a.speedTrap, b.speedTrap) },
-    avgPosition: { a: a.avgPosition ?? null, b: b.avgPosition ?? null, winner: pickWinner(true, a.avgPosition, b.avgPosition) },
-    primaryDelta: {
-      label: "Delta referencia",
-      value: deltaReference,
-      advantage: Number.isFinite(deltaReference) ? (deltaReference < 0 ? "a" : (deltaReference > 0 ? "b" : "tie")) : "none"
-    }
-  };
-}
-
-function buildSectorsBlock(baseComparison = {}) {
-  const a = baseComparison.a?.metrics || {};
-  const b = baseComparison.b?.metrics || {};
-
-  const sector = (aValue, bValue) => ({
-    a: aValue ?? null,
-    b: bValue ?? null,
-    delta: Number.isFinite(aValue) && Number.isFinite(bValue) ? aValue - bValue : null,
-    winner: pickWinner(true, aValue, bValue)
-  });
-
-  return {
-    sector1: sector(a.sector1, b.sector1),
-    sector2: sector(a.sector2, b.sector2),
-    sector3: sector(a.sector3, b.sector3)
-  };
-}
-
-function buildStintsBlock(baseComparison = {}) {
-  const a = baseComparison.a?.metrics || {};
-  const b = baseComparison.b?.metrics || {};
-
-  return {
-    degradation: {
-      a: a.degradation ?? null,
-      b: b.degradation ?? null,
-      delta: Number.isFinite(a.degradation) && Number.isFinite(b.degradation) ? a.degradation - b.degradation : null,
-      winner: pickWinner(true, a.degradation, b.degradation)
-    },
-    averagePace: {
-      a: a.averagePace ?? null,
-      b: b.averagePace ?? null,
-      delta: Number.isFinite(a.averagePace) && Number.isFinite(b.averagePace) ? a.averagePace - b.averagePace : null,
-      winner: pickWinner(true, a.averagePace, b.averagePace)
-    },
-    stintsA: a.stints || [],
-    stintsB: b.stints || []
-  };
-}
-
-function buildEvolutionBlock(evolutionRows = []) {
-  return evolutionRows.map(item => ({
-    label: item.label,
-    type_key: item.type_key,
-    aPace: item.aPace,
-    bPace: item.bPace,
-    paceDelta: Number.isFinite(item.aPace) && Number.isFinite(item.bPace) ? item.aPace - item.bPace : null,
-    aRef: item.aRef,
-    bRef: item.bRef,
-    refDelta: Number.isFinite(item.aRef) && Number.isFinite(item.bRef) ? item.aRef - item.bRef : null
-  }));
-}
-
 async function buildComparison({ meetingKey, sessionKey, type, a, b, year = DEFAULT_YEAR }) {
   const cacheKey = `${year}:${meetingKey}:${sessionKey}:${type}:${a}:${b}`;
   const cached = getCached(cache.compare, cacheKey, TTL.compare);
   if (cached) return cached;
 
-  const base = await buildBaseComparison({ sessionKey, type, a, b });
-  const context = await loadContext(sessionKey, meetingKey, year);
-
+  const meetings = await getMeetings(year);
+  const meeting = meetings.find(item => String(item.meeting_key) === String(meetingKey));
   const sessions = await getSessions(meetingKey, year);
-  const evolutionRows = [];
+  const selectedSession = sessions.find(item => String(item.session_key) === String(sessionKey));
+
+  const base = await buildBaseComparison({ sessionKey, type, a, b });
+  if (!base.a?.metrics?.lapCount && !base.b?.metrics?.lapCount) {
+    const error = new Error("No hay datos de comparación para esta combinación");
+    error.code = "NO_COMPARISON";
+    throw error;
+  }
+
+  const context = await loadSessionContext(sessionKey);
+  const fastf1Probe = await tryFastF1Comparison({
+    meetingLabel: meeting?.gp_label || "",
+    sessionType: selectedSession?.type_key || "",
+    type,
+    a,
+    b
+  }).catch(() => ({ ok: false, reason: "FASTF1_ERROR" }));
+
+  const evolution = [];
   for (const session of sessions) {
-    if (!SUPPORTED_SESSION_TYPES.includes(session.type_key)) continue;
     try {
       const row = await buildBaseComparison({ sessionKey: session.session_key, type, a, b });
-      evolutionRows.push({
+      evolution.push({
         label: session.type_label,
         type_key: session.type_key,
         aPace: row.a?.metrics?.averagePace ?? null,
         bPace: row.b?.metrics?.averagePace ?? null,
+        paceDelta: getDelta(row.a?.metrics?.averagePace, row.b?.metrics?.averagePace),
         aRef: row.a?.metrics?.referenceLap ?? null,
-        bRef: row.b?.metrics?.referenceLap ?? null
+        bRef: row.b?.metrics?.referenceLap ?? null,
+        refDelta: getDelta(row.a?.metrics?.referenceLap, row.b?.metrics?.referenceLap)
       });
     } catch {
       continue;
@@ -559,25 +539,32 @@ async function buildComparison({ meetingKey, sessionKey, type, a, b, year = DEFA
   const payload = {
     year,
     season_focus: DEFAULT_YEAR,
-    source: {
-      analytics: "fastf1-ready",
-      enrichment: "openf1",
-      active_engine: "openf1"
-    },
-    meeting_key: meetingKey,
-    session_key: sessionKey,
+    meeting_key: String(meetingKey),
+    session_key: String(sessionKey),
     type,
-    comparison: {
-      a: base.a,
-      b: base.b
+    labels: {
+      gp: meeting?.gp_label || "2026",
+      session: selectedSession?.type_label || "Sesión",
+      mode: type === "team" ? "Equipo / Equipo" : "Piloto / Piloto"
     },
+    source: {
+      analytics: fastf1Probe?.ok ? "fastf1" : "openf1-derived",
+      enrichment: "openf1",
+      fastf1_status: fastf1Probe?.reason || "FASTF1_ACTIVE"
+    },
+    comparison: { a: base.a, b: base.b },
     blocks: {
-      sessionContext: context.summary,
-      summary: buildSummaryBlock(base),
-      sectors: buildSectorsBlock(base),
-      stints: buildStintsBlock(base),
-      comparison: { a: base.a, b: base.b },
-      evolution: buildEvolutionBlock(evolutionRows)
+      hero: buildSummaryBlock(base.a.metrics, base.b.metrics),
+      summary: buildSummaryBlock(base.a.metrics, base.b.metrics),
+      sectors: buildSectorsBlock(base.a.metrics, base.b.metrics),
+      stints: buildStintsBlock(base.a.metrics, base.b.metrics),
+      comparison: {
+        a: base.a,
+        b: base.b,
+        conclusion: buildSummaryBlock(base.a.metrics, base.b.metrics).leadMetric
+      },
+      sessionContext: context,
+      evolution
     }
   };
 
@@ -590,27 +577,17 @@ async function resolveTelemetryContext({ year = DEFAULT_YEAR, meetingKey = "", s
   if (cached) return cached;
 
   const meetings = await getMeetings(year);
-  if (!meetings.length) {
-    return setCached(cache.context, cacheKey, {
-      year,
-      season_focus: DEFAULT_YEAR,
-      selections: { meeting_key: "", session_type: "", session_key: "", type, a: "", b: "" },
-      meetings: [],
-      sessions: [],
-      entities: { drivers: [], teams: [] },
-      options: { a: [], b: [] }
-    });
-  }
+  const selectedMeeting = meetings.find(item => String(item.meeting_key) === String(meetingKey)) || meetings[0] || null;
+  const sessions = selectedMeeting ? await getSessions(selectedMeeting.meeting_key, year) : [];
 
-  const selectedMeeting = meetings.find(item => String(item.meeting_key) === String(meetingKey)) || meetings[0];
-  const sessions = await getSessions(selectedMeeting.meeting_key, year);
   let selectedSession = sessions.find(item => item.type_key === sessionType) || sessions[sessions.length - 1] || null;
   let entities = selectedSession ? await getEntities(selectedSession.session_key) : { drivers: [], teams: [] };
-  if (selectedSession && !entities.drivers.length) {
-    for (let i = sessions.length - 1; i >= 0; i -= 1) {
-      const probe = sessions[i];
+
+  if (selectedSession && (!entities.drivers.length || !entities.teams.length)) {
+    const fallback = [...sessions].reverse();
+    for (const probe of fallback) {
       const probeEntities = await getEntities(probe.session_key);
-      if (probeEntities.drivers.length) {
+      if (probeEntities.drivers.length >= 2) {
         selectedSession = probe;
         entities = probeEntities;
         break;
@@ -618,20 +595,20 @@ async function resolveTelemetryContext({ year = DEFAULT_YEAR, meetingKey = "", s
     }
   }
 
-  const sourceOptions = type === "team"
-    ? entities.teams.map(item => ({ value: item.entity_id || item.id, label: item.name }))
-    : entities.drivers.map(item => ({ value: item.entity_id || `driver:${item.id}`, label: `${item.name} · ${item.team}` }));
+  const baseOptions = type === "team"
+    ? entities.teams.map(item => ({ value: item.entity_id, label: item.name }))
+    : entities.drivers.map(item => ({ value: item.entity_id, label: `${item.name} · ${item.team}` }));
 
-  const optionValues = sourceOptions.map(item => item.value);
-  const selectedA = optionValues.includes(a) ? a : (optionValues[0] || "");
-  const bPool = sourceOptions.filter(item => item.value !== selectedA);
-  const selectedB = bPool.some(item => item.value === b) ? b : (bPool[0]?.value || "");
+  const poolA = baseOptions;
+  const selectedA = poolA.find(item => item.value === a)?.value || poolA[0]?.value || "";
+  const poolB = baseOptions.filter(item => item.value !== selectedA);
+  const selectedB = poolB.find(item => item.value === b)?.value || poolB[0]?.value || "";
 
   const payload = {
     year,
     season_focus: DEFAULT_YEAR,
     selections: {
-      meeting_key: String(selectedMeeting.meeting_key),
+      meeting_key: selectedMeeting?.meeting_key || "",
       session_type: selectedSession?.type_key || "",
       session_key: selectedSession?.session_key || "",
       type,
@@ -641,7 +618,7 @@ async function resolveTelemetryContext({ year = DEFAULT_YEAR, meetingKey = "", s
     meetings,
     sessions,
     entities,
-    options: { a: sourceOptions, b: bPool }
+    options: { a: poolA, b: poolB }
   };
 
   return setCached(cache.context, cacheKey, payload);
