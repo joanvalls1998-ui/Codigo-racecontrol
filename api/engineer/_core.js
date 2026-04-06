@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 
 const OPENF1_BASE_URL = "https://api.openf1.org/v1";
+const RACEOPTIDATA_BASE_URL = "https://api.raceoptidata.com";
 const DEFAULT_YEAR = 2026;
 const SUPPORTED_SESSION_TYPES = ["fp1", "fp2", "fp3", "qualy", "race", "sprint_qualy", "sprint_race"];
 
@@ -10,7 +11,8 @@ const TTL = Object.freeze({
   drivers: 1000 * 60 * 15,
   context: 1000 * 60 * 8,
   telemetry: 1000 * 60 * 6,
-  fastf1: 1000 * 60 * 20
+  fastf1: 1000 * 60 * 20,
+  raceoptidata: 1000 * 60 * 30
 });
 
 const SESSION_TYPES = Object.freeze([
@@ -29,9 +31,11 @@ const cache = {
   driversBySession: new Map(),
   context: new Map(),
   telemetry: new Map(),
-  fastf1: new Map()
+  fastf1: new Map(),
+  raceoptidata: new Map()
 };
 const sourceHealth = {
+  raceoptidata: { ok: true, last_error: null, last_success_ts: null },
   openf1: { ok: true, last_error: null, last_success_ts: null },
   fastf1: { ok: true, last_error: null, last_success_ts: null },
   openf1_aggregate: { ok: true, last_error: null, last_success_ts: null }
@@ -135,9 +139,80 @@ async function fetchOpenF1WithRetry(endpoint, params = {}, options = {}) {
   throw lastError || new Error(`OpenF1 ${endpoint} failed`);
 }
 
+function getRaceOptiApiKey() {
+  return String(process.env.RACEOPTIDATA_API_KEY || "").trim();
+}
+
+async function fetchRaceOpti(pathname, query = {}) {
+  const apiKey = getRaceOptiApiKey();
+  if (!apiKey) {
+    const error = new Error("RACEOPTIDATA_KEY_MISSING");
+    error.code = "RACEOPTIDATA_KEY_MISSING";
+    throw error;
+  }
+  const url = new URL(`${RACEOPTIDATA_BASE_URL}${pathname}`);
+  Object.entries(query || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    url.searchParams.set(key, String(value));
+  });
+  let response;
+  try {
+    response = await fetch(url.toString(), {
+      headers: {
+        "User-Agent": "RaceControlEngineer/7.0",
+        "x-api-key": apiKey,
+        accept: "application/json"
+      },
+      cache: "no-store"
+    });
+  } catch (error) {
+    sourceHealth.raceoptidata = {
+      ok: false,
+      last_success_ts: sourceHealth.raceoptidata.last_success_ts,
+      last_error: { path: pathname, reason: String(error?.message || "RACEOPTIDATA_FETCH_FAILED"), ts: Date.now() }
+    };
+    throw error;
+  }
+  if (!response.ok) {
+    sourceHealth.raceoptidata = {
+      ok: false,
+      last_success_ts: sourceHealth.raceoptidata.last_success_ts,
+      last_error: { path: pathname, reason: `HTTP_${response.status}`, ts: Date.now() }
+    };
+    const error = new Error(`RaceOptiData ${pathname} (${response.status})`);
+    error.status = response.status;
+    throw error;
+  }
+  const payload = await response.json();
+  sourceHealth.raceoptidata = { ok: true, last_success_ts: Date.now(), last_error: null };
+  return payload;
+}
+
 function parseMaybeNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+function parseRaceOptiDurationToSeconds(value) {
+  if (Number.isFinite(value)) return Number(value);
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return null;
+  const normalized = raw.replace(/,/g, ".").replace(/\s+/g, "");
+  const minuteMatch = normalized.match(/(?:(\d+)h)?(?:(\d+)mn)?(\d+(?:\.\d+)?)s/);
+  if (minuteMatch) {
+    const hours = Number(minuteMatch[1] || 0);
+    const minutes = Number(minuteMatch[2] || 0);
+    const seconds = Number(minuteMatch[3] || 0);
+    if ([hours, minutes, seconds].every(Number.isFinite)) return hours * 3600 + minutes * 60 + seconds;
+  }
+  if (normalized.includes(":")) {
+    const [left, right] = normalized.split(":");
+    const minutes = Number(left);
+    const seconds = Number(right);
+    if (Number.isFinite(minutes) && Number.isFinite(seconds)) return minutes * 60 + seconds;
+  }
+  const plain = Number(normalized.replace(/[^\d.]/g, ""));
+  return Number.isFinite(plain) ? plain : null;
 }
 
 function average(values = []) {
@@ -197,6 +272,13 @@ function mapSessionType(name = "") {
 
 function sessionLabel(type) {
   return SESSION_TYPES.find(item => item.key === type)?.label || type;
+}
+
+function toRaceOptiSessionCode(typeKey = "") {
+  if (typeKey === "race") return "R";
+  if (typeKey === "sprint_race") return "S";
+  if (typeKey === "qualy") return "Q";
+  return "";
 }
 
 function gpLabelFromMeeting(meeting = {}) {
@@ -284,19 +366,65 @@ function toAvailability(value) {
   return Number.isFinite(value) ? "available" : "unavailable";
 }
 
+async function getRaceOptiCalendar(year = DEFAULT_YEAR) {
+  const key = `raceoptidata:calendar:${year}`;
+  const cached = getCached(cache.raceoptidata, key, TTL.raceoptidata);
+  if (cached) return cached;
+  const payload = await fetchRaceOpti(`/season/calendar/${year}`).catch(() => null);
+  const rows = Array.isArray(payload?.calendar) ? payload.calendar : [];
+  return setCached(cache.raceoptidata, key, rows.map(item => ({
+    round: parseMaybeNumber(item.round),
+    date: item.date || "",
+    name: cleanLabel(item.name || ""),
+    location: cleanLabel(item.location || "")
+  })).filter(item => Number.isFinite(item.round)));
+}
+
+async function getRaceOptiDriversBySeason(year = DEFAULT_YEAR) {
+  const key = `raceoptidata:drivers:${year}`;
+  const cached = getCached(cache.raceoptidata, key, TTL.raceoptidata);
+  if (cached) return cached;
+  const payload = await fetchRaceOpti(`/drivers/list/${year}`).catch(() => null);
+  const rows = Array.isArray(payload?.driversList) ? payload.driversList : [];
+  return setCached(cache.raceoptidata, key, rows.map(item => ({
+    driverRef: String(item.driverRef || "").trim().toLowerCase(),
+    number: String(item.number || "").trim(),
+    fullName: cleanLabel(item.fullName || ""),
+    team: cleanLabel(item.team || "")
+  })).filter(item => item.number || item.driverRef));
+}
+
+async function getRaceOptiDriverCodeByNumber(driverNumber) {
+  const key = "raceoptidata:drivers-referential";
+  const cached = getCached(cache.raceoptidata, key, TTL.raceoptidata);
+  let rows = cached;
+  if (!rows) {
+    const payload = await fetchRaceOpti("/basicdata/driversReferential", { page: 1, pageSize: 1200 }).catch(() => null);
+    rows = Array.isArray(payload?.drivers) ? payload.drivers : [];
+    setCached(cache.raceoptidata, key, rows);
+  }
+  const match = rows.find(item => String(item.number || "").trim() === String(driverNumber || "").trim());
+  return String(match?.fastF1Code || match?.code || "").trim().toUpperCase();
+}
+
 async function getMeetings(year = DEFAULT_YEAR) {
   const key = `meetings:${year}`;
   const cached = getCached(cache.meetings, key, TTL.meetings);
   if (cached) return cached;
 
-  const meetings = await fetchOpenF1WithRetry("meetings", { year }).catch(() => {
+  const [raceOptiCalendar, openf1Meetings] = await Promise.all([
+    getRaceOptiCalendar(year).catch(() => []),
+    fetchOpenF1WithRetry("meetings", { year }).catch(() => [])
+  ]);
+  const meetings = openf1Meetings.length ? openf1Meetings : [];
+  if (!meetings.length && !raceOptiCalendar.length) {
     const stale = getStaleCached(cache.meetings, key);
     if (stale?.length) {
       telemetryLog("warn", "meetings.using_stale_cache", { year, count: stale.length });
       return stale;
     }
     return [];
-  });
+  }
   const rows = meetings
     .filter(item => getYearFromRow(item) === year)
     .map(item => ({
@@ -318,7 +446,7 @@ async function getMeetings(year = DEFAULT_YEAR) {
     countryUsage.set(countryKey, (countryUsage.get(countryKey) || 0) + 1);
   });
 
-  const payload = rows
+  const payloadBase = rows
     .map(item => {
       const countryKey = normalizeKey(item.country_name);
       const countryCount = countryUsage.get(countryKey) || 0;
@@ -336,6 +464,23 @@ async function getMeetings(year = DEFAULT_YEAR) {
       if (aTs !== bTs) return aTs - bTs;
       return a.gp_label.localeCompare(b.gp_label);
     });
+
+  const payload = raceOptiCalendar.length
+    ? payloadBase.map((item, idx) => {
+      const byRound = raceOptiCalendar.find(cal => String(cal.round) === String(idx + 1));
+      const cal = byRound || raceOptiCalendar[idx] || null;
+      if (!cal) return { ...item, round: idx + 1 };
+      const cleanName = cleanLabel(cal.location || cal.name || item.location || item.meeting_name);
+      return {
+        ...item,
+        round: cal.round || idx + 1,
+        date_start: cal.date || item.date_start,
+        location: cleanName || item.location,
+        meeting_name: cleanLabel(cal.name || item.meeting_name),
+        gp_label: gpLabelFromMeeting({ ...item, location: cleanName || item.location, country_name: cleanName || item.country_name })
+      };
+    }).sort((a, b) => (a.round || 99) - (b.round || 99))
+    : payloadBase;
 
   return setCached(cache.meetings, key, payload);
 }
@@ -373,12 +518,13 @@ async function getSessions(meetingKey, year = DEFAULT_YEAR) {
   return setCached(cache.sessionsByMeeting, key, payload);
 }
 
-async function getDrivers(sessionKey) {
-  const key = `drivers:${sessionKey}`;
+async function getDrivers(sessionKey, year = DEFAULT_YEAR) {
+  const key = `drivers:${year}:${sessionKey}`;
   const cached = getCached(cache.driversBySession, key, TTL.drivers);
   if (cached) return cached;
 
-  const [driversRows, lapsRows, resultRows, positionRows, stintsRows, carDataRows] = await Promise.all([
+  const [seasonDrivers, driversRows, lapsRows, resultRows, positionRows, stintsRows, carDataRows] = await Promise.all([
+    getRaceOptiDriversBySeason(year).catch(() => []),
     fetchOpenF1WithRetry("drivers", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
     fetchOpenF1WithRetry("laps", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
     fetchOpenF1WithRetry("session_result", { session_key: sessionKey }, { retries: 1 }).catch(() => []),
@@ -388,11 +534,21 @@ async function getDrivers(sessionKey) {
   ]);
 
   const byDriver = new Map();
+  seasonDrivers.forEach(driver => {
+    if (!driver.number) return;
+    byDriver.set(driver.number, {
+      id: driver.number,
+      name: driver.fullName || `Piloto ${driver.number}`,
+      team: driver.team || "",
+      headshot: "",
+      source: "raceoptidata"
+    });
+  });
   [driversRows, lapsRows, resultRows, positionRows, stintsRows, carDataRows].forEach(rows => {
     rows.forEach(row => {
       const driver = mapDriverRow(row);
       if (!driver.id || !driver.name) return;
-      const current = byDriver.get(driver.id) || { id: driver.id, name: driver.name, team: "", headshot: "" };
+      const current = byDriver.get(driver.id) || { id: driver.id, name: driver.name, team: "", headshot: "", source: "openf1" };
       current.name = pickBetterDriverName(current.name, driver.name);
       current.team = current.team || driver.team;
       current.headshot = current.headshot || driver.headshot;
@@ -402,7 +558,7 @@ async function getDrivers(sessionKey) {
 
   const drivers = [...byDriver.values()]
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map(item => ({ id: item.id, name: item.name, team: item.team || "", headshot: item.headshot }));
+    .map(item => ({ id: item.id, name: item.name, team: item.team || "", headshot: item.headshot, source: item.source || "openf1" }));
 
   return setCached(cache.driversBySession, key, drivers);
 }
@@ -458,6 +614,83 @@ async function loadSessionContext(sessionKey) {
     overtakes: overtakes.length,
     teamRadios: teamRadio.length
   };
+}
+
+async function getDriverMetricsRaceOpti({ year = DEFAULT_YEAR, round, sessionType, driverCode }) {
+  const sessionCode = toRaceOptiSessionCode(sessionType);
+  if (!Number.isFinite(Number(round)) || !driverCode || !sessionCode) {
+    return {
+      source: "raceoptidata",
+      traces: { speed: [], throttle: [], brake: [], gear: [], rpm: [] },
+      stints: [],
+      evolution: []
+    };
+  }
+  const key = `raceoptidata:telemetry:${year}:${round}:${sessionCode}:${driverCode}`;
+  const cached = getCached(cache.raceoptidata, key, TTL.telemetry);
+  if (cached) return cached;
+
+  const raceStatsPath = `/racestats/${year}/${round}/${sessionCode}/${driverCode}`;
+  const qualifierPath = `/qualifstats/report/${year}/${round}/${driverCode}`;
+  const [raceStats, tyreStrategy, bestLap] = await Promise.all([
+    (sessionCode === "Q" ? fetchRaceOpti(qualifierPath) : fetchRaceOpti(raceStatsPath)).catch(() => null),
+    (sessionCode === "R" || sessionCode === "S")
+      ? fetchRaceOpti(`/racestats/tyre-strategy/${year}/${round}/${driverCode}`, { session: sessionCode }).catch(() => null)
+      : Promise.resolve(null),
+    fetchRaceOpti(`/bestlap/${year}/${round}`, { session: sessionCode }).catch(() => null)
+  ]);
+
+  const stintDetails = Array.isArray(tyreStrategy?.stintDetails) ? tyreStrategy.stintDetails : (Array.isArray(raceStats?.stints) ? raceStats.stints : []);
+  const stints = stintDetails.map((item, idx) => ({
+    number: parseMaybeNumber(item.stintNumber) ?? idx + 1,
+    compound: String(item.compound || "N/D"),
+    lapStart: parseMaybeNumber(item.startLap),
+    lapEnd: parseMaybeNumber(item.endLap),
+    laps: parseMaybeNumber(item.totalStintLaps)
+  }));
+  const referenceLap = parseRaceOptiDurationToSeconds(
+    raceStats?.bestLapTime
+      || raceStats?.bestLap?.lapTime
+      || bestLap?.bestLap?.lapTime
+      || bestLap?.lapTime
+  );
+  const averagePace = parseRaceOptiDurationToSeconds(raceStats?.averageLapTime);
+  const topSpeed = parseMaybeNumber(raceStats?.topSpeed ?? raceStats?.speedMax ?? bestLap?.topSpeed);
+
+  const payload = {
+    source: "raceoptidata",
+    lapCount: parseMaybeNumber(raceStats?.totalLaps),
+    referenceLap,
+    averagePace,
+    topSpeed,
+    speedTrap: parseMaybeNumber(bestLap?.speedTrap ?? raceStats?.speedTrap),
+    sectors: {
+      sector1: parseRaceOptiDurationToSeconds(bestLap?.bestLap?.sector1 ?? bestLap?.sector1),
+      sector2: parseRaceOptiDurationToSeconds(bestLap?.bestLap?.sector2 ?? bestLap?.sector2),
+      sector3: parseRaceOptiDurationToSeconds(bestLap?.bestLap?.sector3 ?? bestLap?.sector3)
+    },
+    positionAverage: null,
+    degradation: null,
+    stints,
+    evolution: [],
+    traces: { speed: [], throttle: [], brake: [], gear: [], rpm: [] },
+    completeness: { speed: false, throttle: false, brake: false, gear: false, rpm: false },
+    diagnostics: {
+      counts: { raceStats: raceStats ? 1 : 0, tyreStrategy: tyreStrategy ? 1 : 0, bestLap: bestLap ? 1 : 0 },
+      blocks: {
+        laps: Number.isFinite(parseMaybeNumber(raceStats?.totalLaps)),
+        telemetry_trace: false,
+        sectors: Object.values({
+          s1: parseRaceOptiDurationToSeconds(bestLap?.bestLap?.sector1 ?? bestLap?.sector1),
+          s2: parseRaceOptiDurationToSeconds(bestLap?.bestLap?.sector2 ?? bestLap?.sector2),
+          s3: parseRaceOptiDurationToSeconds(bestLap?.bestLap?.sector3 ?? bestLap?.sector3)
+        }).some(Number.isFinite),
+        stints: stints.length > 0,
+        position: false
+      }
+    }
+  };
+  return setCached(cache.raceoptidata, key, payload);
 }
 
 async function getDriverMetricsOpenF1(sessionKey, driverNumber) {
@@ -772,31 +1005,31 @@ except Exception as exc:
   return setCached(cache.fastf1, key, result);
 }
 
-function mergeTelemetry(openf1, fastf1) {
-  const openf1HasCore = Number.isFinite(openf1?.referenceLap)
-    || Number.isFinite(openf1?.averagePace)
-    || Number.isFinite(openf1?.topSpeed)
-    || Number.isFinite(openf1?.speedTrap)
-    || Object.values(openf1?.traces || {}).some(trace => Array.isArray(trace) && trace.length > 0)
-    || (Array.isArray(openf1?.stints) && openf1.stints.length > 0);
+function mergeTelemetry(baseTelemetry, fastf1) {
+  const baseHasCore = Number.isFinite(baseTelemetry?.referenceLap)
+    || Number.isFinite(baseTelemetry?.averagePace)
+    || Number.isFinite(baseTelemetry?.topSpeed)
+    || Number.isFinite(baseTelemetry?.speedTrap)
+    || Object.values(baseTelemetry?.traces || {}).some(trace => Array.isArray(trace) && trace.length > 0)
+    || (Array.isArray(baseTelemetry?.stints) && baseTelemetry.stints.length > 0);
 
-  if (!fastf1?.ok) return { ...openf1, primarySource: "openf1", sources: ["openf1"] };
+  if (!fastf1?.ok) return { ...baseTelemetry, primarySource: baseTelemetry?.source || "raceoptidata", sources: [baseTelemetry?.source || "raceoptidata"] };
 
   const merged = {
-    ...openf1,
-    source: openf1HasCore ? openf1.source : "fastf1",
-    primarySource: openf1HasCore ? "openf1" : "fastf1",
-    sources: ["openf1", "fastf1"],
-    referenceLap: Number.isFinite(openf1.referenceLap) ? openf1.referenceLap : fastf1.referenceLap,
-    averagePace: Number.isFinite(openf1.averagePace) ? openf1.averagePace : fastf1.averagePace,
-    topSpeed: Number.isFinite(openf1.topSpeed) ? openf1.topSpeed : fastf1.topSpeed,
-    speedTrap: Number.isFinite(openf1.speedTrap) ? openf1.speedTrap : fastf1.speedTrap,
+    ...baseTelemetry,
+    source: baseHasCore ? baseTelemetry.source : "fastf1",
+    primarySource: baseHasCore ? (baseTelemetry.source || "raceoptidata") : "fastf1",
+    sources: [baseTelemetry.source || "raceoptidata", "fastf1"],
+    referenceLap: Number.isFinite(baseTelemetry.referenceLap) ? baseTelemetry.referenceLap : fastf1.referenceLap,
+    averagePace: Number.isFinite(baseTelemetry.averagePace) ? baseTelemetry.averagePace : fastf1.averagePace,
+    topSpeed: Number.isFinite(baseTelemetry.topSpeed) ? baseTelemetry.topSpeed : fastf1.topSpeed,
+    speedTrap: Number.isFinite(baseTelemetry.speedTrap) ? baseTelemetry.speedTrap : fastf1.speedTrap,
     traces: {
-      speed: openf1.traces.speed?.length ? openf1.traces.speed : buildLineFromSamples(fastf1.traces?.speed || [], item => parseMaybeNumber(item), 36),
-      throttle: openf1.traces.throttle?.length ? openf1.traces.throttle : buildLineFromSamples(fastf1.traces?.throttle || [], item => parseMaybeNumber(item), 36),
-      brake: openf1.traces.brake?.length ? openf1.traces.brake : buildLineFromSamples(fastf1.traces?.brake || [], item => parseMaybeNumber(item), 36),
-      gear: openf1.traces.gear?.length ? openf1.traces.gear : buildLineFromSamples(fastf1.traces?.gear || [], item => parseMaybeNumber(item), 36),
-      rpm: openf1.traces.rpm?.length ? openf1.traces.rpm : buildLineFromSamples(fastf1.traces?.rpm || [], item => parseMaybeNumber(item), 36)
+      speed: baseTelemetry.traces.speed?.length ? baseTelemetry.traces.speed : buildLineFromSamples(fastf1.traces?.speed || [], item => parseMaybeNumber(item), 36),
+      throttle: baseTelemetry.traces.throttle?.length ? baseTelemetry.traces.throttle : buildLineFromSamples(fastf1.traces?.throttle || [], item => parseMaybeNumber(item), 36),
+      brake: baseTelemetry.traces.brake?.length ? baseTelemetry.traces.brake : buildLineFromSamples(fastf1.traces?.brake || [], item => parseMaybeNumber(item), 36),
+      gear: baseTelemetry.traces.gear?.length ? baseTelemetry.traces.gear : buildLineFromSamples(fastf1.traces?.gear || [], item => parseMaybeNumber(item), 36),
+      rpm: baseTelemetry.traces.rpm?.length ? baseTelemetry.traces.rpm : buildLineFromSamples(fastf1.traces?.rpm || [], item => parseMaybeNumber(item), 36)
     }
   };
 
@@ -869,7 +1102,7 @@ async function resolveTelemetryContext({ year = DEFAULT_YEAR, meetingKey = "", s
   const selectedMeeting = meetings.find(item => item.meeting_key === String(meetingKey)) || meetings[0] || null;
   const sessions = selectedMeeting ? await getSessions(selectedMeeting.meeting_key, year) : [];
   const selectedSession = sessions.find(item => item.type_key === sessionType) || sessions[0] || null;
-  const drivers = selectedSession ? await getDrivers(selectedSession.session_key) : [];
+  const drivers = selectedSession ? await getDrivers(selectedSession.session_key, year) : [];
   const selectedDriver = drivers.find(item => item.id === String(driver)) || drivers[0] || null;
 
   return setCached(cache.context, cacheKey, {
@@ -918,7 +1151,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     throw error;
   }
 
-  const drivers = await getDrivers(session.session_key);
+  const drivers = await getDrivers(session.session_key, year);
   const driver = drivers.find(item => item.id === String(driverNumber));
   if (!driver) {
     telemetryLog("warn", "telemetry.driver_not_found", { year, meeting_key: meetingKey, session_key: session.session_key, driver_number: driverNumber });
@@ -926,6 +1159,19 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     error.code = "DRIVER_NOT_FOUND";
     throw error;
   }
+
+  const driverCode = await getRaceOptiDriverCodeByNumber(driver.id).catch(() => "");
+  const raceOpti = await getDriverMetricsRaceOpti({
+    year,
+    round: parseMaybeNumber(meeting.round),
+    sessionType: session.type_key,
+    driverCode
+  }).catch(() => ({
+    source: "raceoptidata",
+    traces: { speed: [], throttle: [], brake: [], gear: [], rpm: [] },
+    stints: [],
+    evolution: []
+  }));
 
   const openf1 = await getDriverMetricsOpenF1(session.session_key, driver.id).catch(error => {
     telemetryLog("warn", "telemetry.provider_failed", {
@@ -962,7 +1208,8 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     sessionType: session.type_key,
     driverNumber: driver.id
   }).catch(() => ({ ok: false, reason: "FASTF1_ERROR" }));
-  const openf1Base = mergeTelemetryBlock(openf1, aggregate || {});
+  const raceOptiBase = mergeTelemetryBlock(raceOpti, openf1);
+  const openf1Base = mergeTelemetryBlock(raceOptiBase, aggregate || {});
   const merged = mergeTelemetry(openf1Base, fastf1);
   const weather = await loadSessionContext(session.session_key);
   const sessionEvolution = await buildSessionEvolutionSummary({
@@ -978,14 +1225,16 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     session_key: session.session_key,
     session_type: session.type_key,
     driver_number: driver.id,
+    raceoptidata_counts: raceOpti?.diagnostics?.counts || {},
+    raceoptidata_blocks: raceOpti?.diagnostics?.blocks || {},
     openf1_counts: openf1?.diagnostics?.counts || {},
     openf1_blocks: openf1?.diagnostics?.blocks || {},
     fastf1_ok: !!fastf1?.ok,
     fastf1_reason: fastf1?.reason || "FASTF1_ACTIVE",
     aggregate_counts: aggregate?.diagnostics?.counts || {},
     aggregate_blocks: aggregate?.diagnostics?.blocks || {},
-    merged_primary: merged.primarySource || "openf1",
-    merged_sources: merged.sources || ["openf1", "openf1_aggregate"]
+    merged_primary: merged.primarySource || "raceoptidata",
+    merged_sources: merged.sources || ["raceoptidata", "openf1", "openf1_aggregate"]
   });
 
   if (!hasAnyTelemetryData(merged)) {
@@ -1017,11 +1266,12 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     },
     driver,
     source: {
-      primary: merged.primarySource || "openf1",
+      primary: merged.primarySource || "raceoptidata",
       enrichment: fastf1?.ok ? "fastf1" : "none",
       fastf1_status: fastf1?.reason || "FASTF1_ACTIVE",
-      active_sources: [...new Set([...(merged.sources || []), "openf1_aggregate"])].filter(Boolean),
+      active_sources: [...new Set(["raceoptidata", ...(merged.sources || []), "openf1_aggregate"])].filter(Boolean),
       fallback_chain: [
+        { provider: "raceoptidata", ok: hasAnyTelemetryData(raceOpti), reason: hasAnyTelemetryData(raceOpti) ? "OK" : "RACEOPTIDATA_PARTIAL_OR_EMPTY" },
         { provider: "openf1", ok: hasAnyTelemetryData(openf1), reason: hasAnyTelemetryData(openf1) ? "OK" : "OPENF1_PARTIAL_OR_EMPTY" },
         { provider: "openf1_aggregate", ok: hasAnyTelemetryData(aggregate || {}), reason: hasAnyTelemetryData(aggregate || {}) ? "OK" : "OPENF1_AGGREGATE_EMPTY" },
         { provider: "fastf1", ok: !!fastf1?.ok, reason: fastf1?.reason || "FASTF1_ACTIVE" }
@@ -1097,6 +1347,7 @@ async function buildTelemetryDebugReport({ year = DEFAULT_YEAR, gp = "", session
   const refreshHealth = report => {
     report.sources.health = {
       openf1: sourceHealth.openf1,
+      raceoptidata: sourceHealth.raceoptidata,
       openf1_aggregate: sourceHealth.openf1_aggregate,
       fastf1: sourceHealth.fastf1
     };
@@ -1110,12 +1361,14 @@ async function buildTelemetryDebugReport({ year = DEFAULT_YEAR, gp = "", session
       driver: null
     },
     sources: {
-      consulted: ["openf1", "openf1_aggregate", "fastf1"],
+      consulted: ["raceoptidata", "openf1", "openf1_aggregate", "fastf1"],
       health: {
+        raceoptidata: sourceHealth.raceoptidata,
         openf1: sourceHealth.openf1,
         openf1_aggregate: sourceHealth.openf1_aggregate,
         fastf1: sourceHealth.fastf1
       },
+      raceoptidata: { ok: false, counts: {}, blocks: {} },
       openf1: { ok: false, counts: {}, blocks: {} },
       openf1_aggregate: { ok: false, counts: {}, blocks: {} },
       fastf1: { ok: false, reason: "NOT_RUN" },
@@ -1162,7 +1415,7 @@ async function buildTelemetryDebugReport({ year = DEFAULT_YEAR, gp = "", session
     report.resolved.session = selectedSession;
     report.chain.session = { ok: true, reason: "OK" };
 
-    const drivers = await getDrivers(selectedSession.session_key);
+    const drivers = await getDrivers(selectedSession.session_key, year);
     const selectedDriver = resolveDriverSelection(drivers, driver);
     if (!selectedDriver) {
       refreshHealth(report);
@@ -1173,6 +1426,18 @@ async function buildTelemetryDebugReport({ year = DEFAULT_YEAR, gp = "", session
     report.resolved.driver = selectedDriver;
     report.chain.driver_mapping = { ok: true, reason: "OK" };
 
+    const driverCode = await getRaceOptiDriverCodeByNumber(selectedDriver.id).catch(() => "");
+    const raceoptidata = await getDriverMetricsRaceOpti({
+      year,
+      round: parseMaybeNumber(meeting.round),
+      sessionType: selectedSession.type_key,
+      driverCode
+    }).catch(() => null);
+    report.sources.raceoptidata = {
+      ok: hasAnyTelemetryData(raceoptidata || {}),
+      counts: raceoptidata?.diagnostics?.counts || {},
+      blocks: raceoptidata?.diagnostics?.blocks || {}
+    };
     const openf1 = await getDriverMetricsOpenF1(selectedSession.session_key, selectedDriver.id);
     const aggregate = await getDriverMetricsOpenF1Aggregate(selectedSession.session_key, selectedDriver.id).catch(() => null);
     report.sources.openf1 = {
@@ -1204,7 +1469,7 @@ async function buildTelemetryDebugReport({ year = DEFAULT_YEAR, gp = "", session
       reason: (Number.isFinite(weather.avgTrackTemp) || Number.isFinite(weather.avgAirTemp) || Number.isFinite(weather.raceControlMessages)) ? "OK" : "OPENF1_NO_WEATHER_CONTEXT"
     };
 
-    const merged = mergeTelemetry(mergeTelemetryBlock(openf1, aggregate || {}), fastf1);
+    const merged = mergeTelemetry(mergeTelemetryBlock(mergeTelemetryBlock(raceoptidata || {}, openf1), aggregate || {}), fastf1);
     report.sources.merged = {
       ok: hasAnyTelemetryData(merged),
       primary: merged.primarySource || "openf1",
@@ -1240,6 +1505,114 @@ async function buildTelemetryDebugReport({ year = DEFAULT_YEAR, gp = "", session
   }
 }
 
+async function buildRaceOptiCoverageReport({ year = DEFAULT_YEAR } = {}) {
+  const envKey = getRaceOptiApiKey();
+  const runtime = process.env.VERCEL ? "vercel/server" : "local/server";
+  const supportedByRaceOpti = new Set(["race", "sprint_race", "qualy"]);
+  const sessionTypes = ["race", "sprint_race", "qualy", "fp1", "fp2", "fp3", "sprint_qualy"];
+  const report = {
+    env_present: Boolean(envKey),
+    runtime,
+    year,
+    raceoptidata_health: {
+      calendar: false,
+      drivers: false,
+      drivers_referential: false
+    },
+    tested_gp: [],
+    tested_sessions: [],
+    tested_drivers: [],
+    raceoptidata_success_count: 0,
+    raceoptidata_fail_count: 0,
+    blocks_covered: {
+      gp_calendar: "raceoptidata",
+      pilots: "raceoptidata+openf1",
+      reference: "raceoptidata",
+      ritmo_medio: "raceoptidata",
+      sectores: "raceoptidata",
+      speed_metrics: "raceoptidata",
+      stint: "raceoptidata",
+      degradacion: "fallback_openf1",
+      trazas: "fallback_openf1_fastf1",
+      contexto_sesion: "fallback_openf1"
+    },
+    fallback_needed: {
+      openf1: ["fp1", "fp2", "fp3", "sprint_qualy", "degradacion", "trazas", "contexto_sesion"],
+      fastf1: ["trazas (si openf1 no entrega bloque)"]
+    },
+    unsupported_sessions: ["fp1", "fp2", "fp3", "sprint_qualy"],
+    notes: []
+  };
+
+  if (!envKey) {
+    report.notes.push("RACEOPTIDATA_API_KEY no está disponible en este runtime.");
+    return report;
+  }
+
+  const [calendar, seasonDrivers, referential] = await Promise.all([
+    fetchRaceOpti(`/season/calendar/${year}`).catch(() => null),
+    fetchRaceOpti(`/drivers/list/${year}`).catch(() => null),
+    fetchRaceOpti("/basicdata/driversReferential", { page: 1, pageSize: 1200 }).catch(() => null)
+  ]);
+  report.raceoptidata_health.calendar = Array.isArray(calendar?.calendar) && calendar.calendar.length > 0;
+  report.raceoptidata_health.drivers = Array.isArray(seasonDrivers?.driversList) && seasonDrivers.driversList.length > 0;
+  report.raceoptidata_health.drivers_referential = Array.isArray(referential?.drivers) && referential.drivers.length > 0;
+
+  const meetings = (await getMeetings(year)).slice(0, 6);
+  for (const meeting of meetings) {
+    const sessions = await getSessions(meeting.meeting_key, year);
+    const driverPool = sessions.length ? await getDrivers(sessions[0].session_key, year) : [];
+    const driverNumber = driverPool[0]?.id || "";
+    const driverCode = driverNumber ? await getRaceOptiDriverCodeByNumber(driverNumber).catch(() => "") : "";
+    if (driverNumber) report.tested_drivers.push({ meeting_key: meeting.meeting_key, driver_number: driverNumber, driver_code: driverCode || "N/A" });
+    report.tested_gp.push({
+      meeting_key: meeting.meeting_key,
+      gp_label: meeting.gp_label,
+      round: meeting.round ?? null,
+      sessions_available: sessions.map(item => item.type_key)
+    });
+
+    for (const sessionType of sessionTypes) {
+      const sessionExists = sessions.some(item => item.type_key === sessionType);
+      const row = {
+        meeting_key: meeting.meeting_key,
+        gp_label: meeting.gp_label,
+        session_type: sessionType,
+        session_exists: sessionExists,
+        raceoptidata_direct: supportedByRaceOpti.has(sessionType),
+        raceoptidata_ok: false,
+        fallback: supportedByRaceOpti.has(sessionType) ? [] : ["openf1", "fastf1"]
+      };
+      if (sessionExists && supportedByRaceOpti.has(sessionType) && Number.isFinite(Number(meeting.round)) && driverCode) {
+        const sessionCode = toRaceOptiSessionCode(sessionType);
+        const checks = await Promise.all([
+          fetchRaceOpti(`/bestlap/${year}/${meeting.round}`, { session: sessionCode }).catch(() => null),
+          sessionType === "qualy"
+            ? fetchRaceOpti(`/qualifstats/report/${year}/${meeting.round}/${driverCode}`).catch(() => null)
+            : fetchRaceOpti(`/racestats/${year}/${meeting.round}/${sessionCode}/${driverCode}`).catch(() => null),
+          sessionType === "qualy"
+            ? Promise.resolve({ skip: true })
+            : fetchRaceOpti(`/racestats/tyre-strategy/${year}/${meeting.round}/${driverCode}`, { session: sessionCode }).catch(() => null)
+        ]);
+        const okCount = checks.filter(Boolean).length;
+        row.raceoptidata_ok = okCount >= 2;
+        if (row.raceoptidata_ok) report.raceoptidata_success_count += 1;
+        else {
+          row.fallback = ["openf1", "fastf1"];
+          report.raceoptidata_fail_count += 1;
+        }
+      } else if (sessionExists && supportedByRaceOpti.has(sessionType)) {
+        report.raceoptidata_fail_count += 1;
+        row.fallback = ["openf1", "fastf1"];
+      }
+      report.tested_sessions.push(row);
+    }
+  }
+
+  report.tested_drivers = report.tested_drivers.slice(0, 12);
+  return report;
+}
+
 function apiError(res, status, message, code = "ENGINEER_ERROR") {
   return res.status(status).json({ error: { code, message } });
 }
@@ -1266,6 +1639,7 @@ export {
   apiError,
   buildComparison,
   buildTelemetryDebugReport,
+  buildRaceOptiCoverageReport,
   buildDriverTelemetry,
   getDrivers,
   getEntities,
