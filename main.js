@@ -176,7 +176,7 @@ function renderWeekendModeHub(context, { compact = false, source = "home" } = {}
           ${isCasualMode() ? `<div class="card-sub">${escapeHtml(raceName)} · ${escapeHtml(phase)} · ${escapeHtml(nextSession)}${escapeHtml(countdown)}</div>` : ""}
         </div>
         <div class="card-head-actions">
-          <button class="icon-btn" onclick="toggleWeekendModeEnabled('${source}')">Ocultar</button>
+          <button class="toggle-btn active" onclick="toggleWeekendModeEnabled('${source}')" aria-pressed="true">ON · Ocultar</button>
         </div>
       </div>
       <div class="weekend-mode-actions">
@@ -388,7 +388,7 @@ function renderFavoriteQuickSelectorCard({
         ${chips.map(item => {
           const value = encodeQuickFavoriteValue(item);
           const active = value === currentKey;
-          return `<button class="chip ${active ? "active" : ""}" onclick="switchQuickFavorite('${escapeHtml(value)}', '${returnView}')">${escapeHtml(item.name.split(" ").slice(-1)[0] || item.name)}</button>`;
+          return `<button class="chip ${active ? "active" : ""}" onclick="switchQuickFavorite('${escapeHtml(value)}', '${returnView}')" aria-pressed="${active}">${escapeHtml(item.name.split(" ").slice(-1)[0] || item.name)}</button>`;
         }).join("")}
       </div>
       <div class="action-row" style="margin-top:10px;">
@@ -4142,12 +4142,12 @@ function showMore() {
     <div class="card app-panel-card">
       <div class="card-title">Modo de uso</div>
       <div class="app-two-actions" style="margin-top:10px;">
-        <button class="chip ${!isExpert ? "active" : ""}" onclick="setExperienceMode('casual')">Casual</button>
-        <button class="chip ${isExpert ? "active" : ""}" onclick="setExperienceMode('expert')">Experto</button>
+        <button class="chip ${!isExpert ? "active" : ""}" onclick="setExperienceMode('casual')" aria-pressed="${!isExpert}">Casual</button>
+        <button class="chip ${isExpert ? "active" : ""}" onclick="setExperienceMode('expert')" aria-pressed="${isExpert}">Experto</button>
       </div>
       <div class="app-two-actions" style="margin-top:8px;">
-        <button class="toggle-btn ${settings.homeCompactMode ? "active" : ""}" onclick="togglePremiumSetting('homeCompactMode')">Inicio compacto</button>
-        <button class="toggle-btn ${settings.autoSelectNextRace ? "active" : ""}" onclick="togglePremiumSetting('autoSelectNextRace')">Auto GP</button>
+        <button class="toggle-btn ${settings.homeCompactMode ? "active" : ""}" onclick="togglePremiumSetting('homeCompactMode')" aria-pressed="${settings.homeCompactMode}">${settings.homeCompactMode ? "ON" : "OFF"} · Inicio compacto</button>
+        <button class="toggle-btn ${settings.autoSelectNextRace ? "active" : ""}" onclick="togglePremiumSetting('autoSelectNextRace')" aria-pressed="${settings.autoSelectNextRace}">${settings.autoSelectNextRace ? "ON" : "OFF"} · Auto GP</button>
       </div>
     </div>
 
@@ -5077,6 +5077,7 @@ function clearSelectedRaceSetting() {
 function setStandingsView(type) {
   state.standingsViewType = type === "teams" ? "teams" : "drivers";
   saveUiState();
+  syncStandingsToggleControls();
 
   if (typeof renderStandingsSummaryBlock === "function") {
     renderStandingsSummaryBlock();
@@ -5089,9 +5090,27 @@ function setStandingsView(type) {
 function setStandingsScope(scope) {
   state.standingsScope = scope === "all" ? "all" : "top10";
   saveUiState();
+  syncStandingsToggleControls();
 
   if (state.standingsViewType === "teams") showTeamsStandings();
   else showDriversStandings();
+}
+
+function syncStandingsToggleControls() {
+  const controls = document.getElementById("standingsControls");
+  if (!controls) return;
+
+  controls.querySelectorAll("[data-standings-view]").forEach(button => {
+    const isActive = button.getAttribute("data-standings-view") === state.standingsViewType;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+
+  controls.querySelectorAll("[data-standings-scope]").forEach(button => {
+    const isActive = button.getAttribute("data-standings-scope") === state.standingsScope;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
 }
 
 function switchNewsFilter(key) {

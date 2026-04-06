@@ -263,17 +263,20 @@ async function showStandings(force = false) {
           <div class="card-head-left"><div class="card-title">Clasificación</div></div>
           <div class="card-head-actions"><button class="icon-btn" onclick="refreshStandings()">Refrescar</button></div>
         </div>
-        <div class="standings-toggle">
-          <button class="toggle-btn ${state.standingsViewType === "drivers" ? "active" : ""}" onclick="setStandingsView('drivers')">Pilotos</button>
-          <button class="toggle-btn ${state.standingsViewType === "teams" ? "active" : ""}" onclick="setStandingsView('teams')">Equipos</button>
-          <button class="toggle-btn ${state.standingsScope === "top10" ? "active" : ""}" onclick="setStandingsScope('top10')">Top 10</button>
-          <button class="toggle-btn ${state.standingsScope === "all" ? "active" : ""}" onclick="setStandingsScope('all')">Todos</button>
+        <div id="standingsControls" class="standings-toggle">
+          <button class="toggle-btn ${state.standingsViewType === "drivers" ? "active" : ""}" data-standings-view="drivers" onclick="setStandingsView('drivers')" aria-pressed="${state.standingsViewType === "drivers"}">Pilotos</button>
+          <button class="toggle-btn ${state.standingsViewType === "teams" ? "active" : ""}" data-standings-view="teams" onclick="setStandingsView('teams')" aria-pressed="${state.standingsViewType === "teams"}">Equipos</button>
+          <button class="toggle-btn ${state.standingsScope === "top10" ? "active" : ""}" data-standings-scope="top10" onclick="setStandingsScope('top10')" aria-pressed="${state.standingsScope === "top10"}">Top 10</button>
+          <button class="toggle-btn ${state.standingsScope === "all" ? "active" : ""}" data-standings-scope="all" onclick="setStandingsScope('all')" aria-pressed="${state.standingsScope === "all"}">Todos</button>
         </div>
       </div>
       <div id="standingsContent"></div>
     `;
 
     renderStandingsSummaryBlock();
+    if (typeof syncStandingsToggleControls === "function") {
+      syncStandingsToggleControls();
+    }
     if (state.standingsViewType === "teams") showTeamsStandings();
     else showDriversStandings();
   } catch (error) {

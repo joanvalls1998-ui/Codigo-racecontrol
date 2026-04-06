@@ -10,8 +10,8 @@ function renderExperienceModeLine(settings) {
         </div>
       </div>
       <div class="filters-row" style="margin-top:0;">
-        <button class="chip ${mode === "casual" ? "active" : ""}" onclick="setExperienceMode('casual')">Casual</button>
-        <button class="chip ${mode === "expert" ? "active" : ""}" onclick="setExperienceMode('expert')">Experto</button>
+        <button class="chip ${mode === "casual" ? "active" : ""}" onclick="setExperienceMode('casual')" aria-pressed="${mode === "casual"}">Casual</button>
+        <button class="chip ${mode === "expert" ? "active" : ""}" onclick="setExperienceMode('expert')" aria-pressed="${mode === "expert"}">Experto</button>
       </div>
     </div>
   `;
@@ -74,7 +74,7 @@ function renderSettingsSecondaryPreferencesBlock(state) {
           <div class="settings-line-title">Modo explicativo</div>
           
         </div>
-        <button class="icon-btn" onclick="togglePremiumSetting('weekendExplainerMode')">${settings.weekendExplainerMode ? "Activado" : "Desactivado"}</button>
+        <button class="toggle-btn ${settings.weekendExplainerMode ? "active" : ""}" onclick="togglePremiumSetting('weekendExplainerMode')" aria-pressed="${settings.weekendExplainerMode}">${settings.weekendExplainerMode ? "ON · Activado" : "OFF · Desactivado"}</button>
       </div>
 
       <div class="settings-line">
@@ -82,7 +82,7 @@ function renderSettingsSecondaryPreferencesBlock(state) {
           <div class="settings-line-title">Modo fin de semana</div>
           
         </div>
-        <button class="icon-btn" onclick="toggleWeekendModeEnabled('showSettingsPanel')">${state.weekendModeEnabled ? "Visible" : "Oculto"}</button>
+        <button class="toggle-btn ${state.weekendModeEnabled ? "active" : ""}" onclick="toggleWeekendModeEnabled('showSettingsPanel')" aria-pressed="${state.weekendModeEnabled}">${state.weekendModeEnabled ? "ON · Visible" : "OFF · Oculto"}</button>
       </div>
     </div>
   `;

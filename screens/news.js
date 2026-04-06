@@ -451,7 +451,7 @@ function renderNewsFilters() {
   return `
     <div class="news-filters-v2 filters-row">
       ${filters.map(filter => `
-        <button class="chip ${state.currentNewsFilterKey === filter.key ? "active" : ""}" onclick="switchNewsFilter('${filter.key}')">
+        <button class="chip ${state.currentNewsFilterKey === filter.key ? "active" : ""}" onclick="switchNewsFilter('${filter.key}')" aria-pressed="${state.currentNewsFilterKey === filter.key}">
           ${escapeHtml(filter.label)}
           ${state.currentNewsFilterKey === filter.key ? `<span class="news-filter-dot"></span>` : ""}
         </button>
@@ -517,7 +517,7 @@ function renderNewsSecondaryFilters() {
   return `
     <div class="news-filters-v2 filters-row">
       ${chips.map(chip => `
-        <button class="chip ${active === chip.key ? "active" : ""}" onclick="setNewsSecondaryFilter('${chip.key}')">
+        <button class="chip ${active === chip.key ? "active" : ""}" onclick="setNewsSecondaryFilter('${chip.key}')" aria-pressed="${active === chip.key}">
           ${escapeHtml(chip.label)}
         </button>
       `).join("")}
