@@ -643,7 +643,16 @@ function renderEngineerHub() {
   contentEl().innerHTML = `
     <section class="engineer-shell">
       <header class="engineer-header">
-        <button class="engineer-back" onclick="exitEngineerMode()" aria-label="Volver">←</button>
+        <div class="engineer-header-bar">
+          <button class="engineer-back" onclick="exitEngineerMode()" aria-label="Salir del modo Ingeniero">
+            <span aria-hidden="true">←</span>
+            <span>Salir</span>
+          </button>
+          <div class="engineer-header-title-wrap">
+            <p class="engineer-header-kicker">RaceControl</p>
+            <h1 class="engineer-header-title">Modo Ingeniero</h1>
+          </div>
+        </div>
         <div class="engineer-controls">
           ${renderEngineerSelect("GP A", engineer.gpA, raceOptions, "setEngineerGpA")}
           ${renderEngineerSelect("Sesión A", engineer.sessionA, sessionOptions, "setEngineerSessionA")}
