@@ -528,7 +528,8 @@ const engineerCache = {
   telemetryCore: new Map(),
   meetings: new Map(),
   sessions: new Map(),
-  drivers: new Map()
+  drivers: new Map(),
+  telemetryMeetingResolution: new Map()
 };
 
 let telemetryRequestId = 0;
@@ -556,6 +557,8 @@ const SESSION_PRIORITY_ORDER = Object.freeze([
   "fp2",
   "fp1"
 ]);
+const TELEMETRY_PRIMARY_SESSION_TYPES = Object.freeze(["race", "qualy", "sprint_race", "sprint_qualy"]);
+const TELEMETRY_MEETING_RESOLUTION_TTL_MS = 1000 * 60 * 4;
 
 function nowMs() {
   if (typeof performance !== "undefined" && typeof performance.now === "function") return performance.now();
@@ -745,14 +748,100 @@ function sortSessionsByPriority(sessions = []) {
   });
 }
 
-function resolveLatestMeeting(meetings = []) {
-  if (!Array.isArray(meetings) || !meetings.length) return null;
+function sortMeetingsByRecency(meetings = []) {
   return [...meetings].sort((a, b) => {
     const roundA = Number.isFinite(a?.round) ? a.round : Number.isFinite(a?.round_from_jolpica) ? a.round_from_jolpica : -1;
     const roundB = Number.isFinite(b?.round) ? b.round : Number.isFinite(b?.round_from_jolpica) ? b.round_from_jolpica : -1;
     if (roundA !== roundB) return roundB - roundA;
     return normalizeDateMs(b?.date_start || b?.calendar_date) - normalizeDateMs(a?.date_start || a?.calendar_date);
-  })[0] || null;
+  });
+}
+
+function resolveLatestMeeting(meetings = []) {
+  if (!Array.isArray(meetings) || !meetings.length) return null;
+  return sortMeetingsByRecency(meetings)[0] || null;
+}
+
+function sortSessionsByRecency(sessions = []) {
+  return [...sessions].sort((a, b) => {
+    const byDate = normalizeDateMs(b?.date_start) - normalizeDateMs(a?.date_start);
+    if (byDate !== 0) return byDate;
+    const aPriority = SESSION_PRIORITY_ORDER.indexOf(a?.type_key);
+    const bPriority = SESSION_PRIORITY_ORDER.indexOf(b?.type_key);
+    const aRank = aPriority >= 0 ? aPriority : Number.MAX_SAFE_INTEGER;
+    const bRank = bPriority >= 0 ? bPriority : Number.MAX_SAFE_INTEGER;
+    return aRank - bRank;
+  });
+}
+
+function isSessionTypePrimary(typeKey = "") {
+  return TELEMETRY_PRIMARY_SESSION_TYPES.includes(String(typeKey || ""));
+}
+
+async function resolveMostRecentTelemetryMeeting(meetings = []) {
+  if (!Array.isArray(meetings) || !meetings.length) return null;
+  const cacheKey = `${TELEMETRY_SEASON_YEAR}`;
+  const cached = cacheGet(engineerCache.telemetryMeetingResolution, cacheKey);
+  if (cached?.meetingKey) {
+    const cachedMeeting = meetings.find(item => String(item?.meeting_key) === String(cached.meetingKey));
+    if (cachedMeeting) {
+      return {
+        meeting: cachedMeeting,
+        sessions: cached.sessions || [],
+        defaultSession: cached.sessions?.find(item => String(item.session_key) === String(cached.defaultSessionKey)) || null,
+        fromCache: true
+      };
+    }
+  }
+
+  const orderedMeetings = sortMeetingsByRecency(meetings);
+  for (const meeting of orderedMeetings) {
+    if (!meeting?.meeting_key) continue;
+    const sessionsRaw = await loadSessionsCached(meeting.meeting_key).catch(() => []);
+    const sessionsOrdered = sortSessionsByRecency(sessionsRaw || []);
+    if (!sessionsOrdered.length) continue;
+
+    const candidates = [
+      ...sessionsOrdered.filter(item => isSessionTypePrimary(item?.type_key)),
+      ...sessionsOrdered.filter(item => !isSessionTypePrimary(item?.type_key))
+    ];
+
+    const usefulSessions = [];
+    for (const session of candidates) {
+      if (!session?.session_key) continue;
+      const drivers = await loadDriversCached(session.session_key).catch(() => []);
+      if (!Array.isArray(drivers) || !drivers.length) continue;
+      const favoriteDriver = resolveFavoriteDriverForSession(drivers) || drivers[0];
+      if (!favoriteDriver?.id) continue;
+      const payload = await warmSessionCorePayload({
+        meetingKey: meeting.meeting_key,
+        sessionKey: session.session_key,
+        driverNumber: favoriteDriver.id
+      }).catch(() => null);
+      if (!hasTelemetryPayloadData(payload)) continue;
+      usefulSessions.push({
+        session_key: String(session.session_key),
+        type_key: session.type_key || "",
+        type_label: session.type_label || "",
+        date_start: session.date_start || "",
+        driver: String(favoriteDriver.id)
+      });
+    }
+
+    if (!usefulSessions.length) continue;
+    const orderedUseful = sortSessionsByRecency(usefulSessions);
+    const defaultSession = orderedUseful[0] || null;
+    cacheSet(engineerCache.telemetryMeetingResolution, cacheKey, {
+      meetingKey: String(meeting.meeting_key),
+      defaultSessionKey: defaultSession?.session_key || "",
+      sessions: orderedUseful,
+      resolvedAt: Date.now()
+    }, TELEMETRY_MEETING_RESOLUTION_TTL_MS);
+
+    return { meeting, sessions: orderedUseful, defaultSession, fromCache: false };
+  }
+
+  return null;
 }
 
 function resolveFavoriteDriverForSession(drivers = []) {
@@ -871,14 +960,15 @@ function startEngineerTelemetryWarmup() {
     warmup.startedAt = Date.now();
     try {
       const meetings = await loadMeetingsCached();
-      const latestMeeting = resolveLatestMeeting(meetings);
+      const resolvedMeeting = await resolveMostRecentTelemetryMeeting(meetings);
+      const latestMeeting = resolvedMeeting?.meeting || resolveLatestMeeting(meetings);
       if (!latestMeeting?.meeting_key) throw new Error("WARMUP_MEETING_NOT_FOUND");
 
       const sessionsRaw = await loadSessionsCached(latestMeeting.meeting_key);
       const sessions = sortSessionsByPriority(sessionsRaw);
       if (!sessions.length) throw new Error("WARMUP_SESSIONS_NOT_FOUND");
 
-      const defaultSession = sessions[0];
+      const defaultSession = sessions.find(item => String(item?.session_key) === String(resolvedMeeting?.defaultSession?.session_key)) || sessions[0];
       const defaultDrivers = await loadDriversCached(defaultSession.session_key);
       const favoriteDriver = resolveFavoriteDriverForSession(defaultDrivers);
       if (!favoriteDriver?.id) throw new Error("WARMUP_DRIVER_NOT_FOUND");
@@ -891,7 +981,7 @@ function startEngineerTelemetryWarmup() {
         defaultSessionType: defaultSession.type_key || "",
         driver: String(favoriteDriver.id),
         driverName: favoriteDriver.name || "",
-        sessions: sessions.map(item => ({ sessionKey: item.session_key, type: item.type_key, label: item.type_label }))
+        sessions: (resolvedMeeting?.sessions || sessions).map(item => ({ sessionKey: item.session_key, type: item.type_key, label: item.type_label }))
       };
       telemetryPreloadLog("combination_ready", warmup.combination);
 
@@ -961,11 +1051,16 @@ async function loadTelemetryContext() {
   const t = engineerState.telemetry;
   try {
     const meetings = await loadMeetingsCached();
-    const selectedMeeting = resolvePreferredMeeting(meetings, t.gp);
+    const resolvedMeeting = await resolveMostRecentTelemetryMeeting(meetings);
+    const autoMeeting = resolvedMeeting?.meeting || null;
+    const selectedMeeting = t.gp ? resolvePreferredMeeting(meetings, t.gp) : autoMeeting;
     if (!selectedMeeting?.meeting_key) throw new Error("NO_MEETINGS");
     const sessionsRaw = await loadSessionsCached(selectedMeeting.meeting_key);
     const sessions = sortSessionsByPriority(sessionsRaw);
-    const selectedSession = resolvePreferredSession(sessions, t);
+    const resolvedDefaultSessionKey = (!t.sessionType && !t.sessionKey && String(selectedMeeting?.meeting_key) === String(autoMeeting?.meeting_key))
+      ? String(resolvedMeeting?.defaultSession?.session_key || "")
+      : "";
+    const selectedSession = sessions.find(item => String(item?.session_key) === resolvedDefaultSessionKey) || resolvePreferredSession(sessions, t);
     const drivers = selectedSession?.session_key ? await loadDriversCached(selectedSession.session_key) : [];
     const selectedDriver = resolvePreferredDriver(drivers, t);
     const payload = {
