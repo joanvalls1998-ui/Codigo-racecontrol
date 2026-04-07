@@ -1052,6 +1052,12 @@ function renderTelemetryDashboard(payload) {
       averagePaceValue: isTelemetryMetricReady(item.averagePace, "pace") ? item.averagePace : null
     }))
     .filter(item => Number.isFinite(item.referenceLapValue) || Number.isFinite(item.averagePaceValue));
+  const evolutionWithPace = evolutionValid.filter(item => Number.isFinite(item.averagePaceValue));
+  const hasUsefulEvolution = evolutionWithPace.length >= 2;
+  const hasWeatherTemps = Number.isFinite(weather.avgTrackTemp) || Number.isFinite(weather.avgAirTemp);
+  const hasWeatherState = Boolean(String(weather.weatherState || "").trim()) && String(weather.weatherState || "").trim().toUpperCase() !== "N/D";
+  const showSessionContextBlock = hasWeatherTemps || hasWeatherState;
+  const showTracesBlock = Boolean(lapResolution) || payload.__partial;
   const evolutionRows = evolutionValid.length
     ? evolutionValid.map((item, idx) => {
       const pace = item.averagePaceValue;
@@ -1072,7 +1078,7 @@ function renderTelemetryDashboard(payload) {
         </div>
       `;
     }).join("")
-    : `<div class="empty-line">${payload.__partial ? "Evolución cargando…" : "Sin evolución inter-sesión para este piloto."}</div>`;
+    : `<div class="empty-line">${payload.__partial ? "Evolución cargando…" : "Sin evolución inter-sesión útil para este piloto."}</div>`;
   const heroLoading = Boolean(payload.__partial);
 
   return `
@@ -1125,6 +1131,7 @@ function renderTelemetryDashboard(payload) {
 
     ${stintBlock}
 
+    ${showTracesBlock ? `
     <section class="card engineer-card telemetry-traces-block">
       <div class="telemetry-line-head"><strong>${escapeHtml(tracesTitle)}</strong><span>Inspección sincronizada</span></div>
       ${lapResolution
@@ -1145,18 +1152,23 @@ function renderTelemetryDashboard(payload) {
           ${renderTelemetryTraceInspector(tracesPayload)}
         `}
     </section>
+    ` : ""}
 
+    ${showSessionContextBlock ? `
     <section class="card engineer-card telemetry-session-bar">
       <div><span>TRACK / AIR</span><strong>${escapeHtml(formatTelemetryTemp(weather.avgTrackTemp))} / ${escapeHtml(formatTelemetryTemp(weather.avgAirTemp))}</strong></div>
-      <div><span>WEATHER</span><strong>${escapeHtml(weather.weatherState || "N/D")}</strong></div>
+      <div><span>WEATHER</span><strong>${escapeHtml(hasWeatherState ? weather.weatherState : "—")}</strong></div>
     </section>
+    ` : ""}
 
+    ${hasUsefulEvolution ? `
     <section class="card engineer-card telemetry-evolution-timeline">
       <div class="telemetry-line-head"><strong>Evolución sesiones</strong><span>Ref + Ritmo</span></div>
       <div class="telemetry-timeline-strip">
         ${evolutionRows}
       </div>
     </section>
+    ` : ""}
   `;
 }
 
