@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Team hero placeholder">
+  <rect width="1600" height="900" fill="#111827"/>
+  <rect x="0" y="0" width="480" height="900" fill="#1f2937"/>
+  <rect x="520" y="140" width="980" height="620" rx="40" fill="#0f172a" stroke="#334155" stroke-width="4"/>
+  <text x="120" y="790" fill="#cbd5e1" font-size="44" font-family="Inter, system-ui, sans-serif" letter-spacing="2">TEAM HERO PLACEHOLDER</text>
+</svg>
