@@ -653,6 +653,50 @@ function renderTraceBand(label, values, variant = "", rangeStartPct = 0, rangeEn
   `;
 }
 
+function pickTelemetryOverviewTrace(traces = {}) {
+  const candidates = [traces.speed, traces.throttle, traces.brake, traces.rpm, traces.gear];
+  for (const series of candidates) {
+    const clean = normalizeTrace(series || []);
+    if (clean.length >= 12) return clean;
+  }
+  return [];
+}
+
+function renderTelemetryRangeScrubber(traces = {}, rangeStartPct = 0, rangeEndPct = 100, cursorPct = 0) {
+  const sampled = sampleTrace(pickTelemetryOverviewTrace(traces), 220);
+  const min = sampled.length ? Math.min(...sampled) : 0;
+  const max = sampled.length ? Math.max(...sampled) : 1;
+  const span = Math.max(1, max - min);
+  const points = sampled.map((item, idx) => {
+    const x = (idx / Math.max(1, sampled.length - 1)) * 100;
+    const y = 100 - (((item - min) / span) * 100);
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(" ");
+  const start = Math.max(0, Math.min(99, rangeStartPct));
+  const end = Math.max(start + 1, Math.min(100, rangeEndPct));
+  const width = Math.max(1, end - start);
+  const cursor = Math.max(start, Math.min(end, cursorPct));
+  return `
+    <div class="telemetry-range-scrubber" onpointerdown="handleTelemetryScrubberPointerDown(event)">
+      <div class="telemetry-range-scrubber-top">
+        <span>Timeline de vuelta</span>
+        <strong>${Math.round(start)}-${Math.round(end)}%</strong>
+      </div>
+      <div class="telemetry-range-scrubber-map">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <polyline points="${points}" class="telemetry-range-overview-line"></polyline>
+          <rect x="${start.toFixed(2)}" y="0" width="${width.toFixed(2)}" height="100" class="telemetry-range-overview-window"></rect>
+          <line x1="${cursor.toFixed(2)}" y1="0" x2="${cursor.toFixed(2)}" y2="100" class="telemetry-range-overview-cursor"></line>
+        </svg>
+        <button class="telemetry-range-window-hit" style="left:${start.toFixed(2)}%; width:${width.toFixed(2)}%;" data-drag="window" aria-label="Mover tramo"></button>
+        <button class="telemetry-range-handle start" style="left:${start.toFixed(2)}%;" data-drag="start" aria-label="Mover inicio tramo"></button>
+        <button class="telemetry-range-handle end" style="left:${end.toFixed(2)}%;" data-drag="end" aria-label="Mover fin tramo"></button>
+        <button class="telemetry-range-cursor-knob" style="left:${cursor.toFixed(2)}%;" data-drag="cursor" aria-label="Mover inspección"></button>
+      </div>
+    </div>
+  `;
+}
+
 function hasRobustData(values = [], min = 8) {
   return (Array.isArray(values) ? values : []).filter(Number.isFinite).length >= min;
 }
@@ -798,11 +842,7 @@ function renderTelemetryWorkspace(payload) {
             <div><span>% vuelta</span><strong>${escapeHtml(formatTraceValue("pct", lapPct))}</strong></div>
             <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Reset tramo</button>
           </div>
-          <div class="telemetry-range-controls">
-            <label><span>Inicio tramo</span><input type="range" min="0" max="99" value="${Math.round(rangeStartPct)}" oninput="setEngineerTelemetryRangeStart(this.value)" /></label>
-            <label><span>Fin tramo</span><input type="range" min="1" max="100" value="${Math.round(rangeEndPct)}" oninput="setEngineerTelemetryRangeEnd(this.value)" /></label>
-            <label><span>Inspección</span><input type="range" min="${Math.round(rangeStartPct)}" max="${Math.round(rangeEndPct)}" value="${Math.round(cursorPct)}" oninput="setEngineerTelemetryCursor(this.value)" /></label>
-          </div>
+          ${renderTelemetryRangeScrubber(traces, rangeStartPct, rangeEndPct, cursorPct)}
           <div class="telemetry-work-traces">
             ${renderTraceBand("Speed", traces.speed || [], "speed", rangeStartPct, rangeEndPct, "speed", cursorPct)}
             ${renderTraceBand("Throttle", traces.throttle || [], "throttle", rangeStartPct, rangeEndPct, "pct", cursorPct)}
@@ -1007,6 +1047,88 @@ function resetEngineerTelemetryRange() {
   renderEngineerScreen();
 }
 
+const telemetryRangeDrag = {
+  active: false,
+  mode: "",
+  pointerId: null,
+  rect: null,
+  anchorPct: 0,
+  startPct: 0,
+  endPct: 100,
+  cursorPct: 0
+};
+
+function telemetryPctFromPointer(clientX) {
+  const rect = telemetryRangeDrag.rect;
+  if (!rect || !Number.isFinite(rect.width) || rect.width <= 0) return 0;
+  const raw = ((clientX - rect.left) / rect.width) * 100;
+  return Math.max(0, Math.min(100, raw));
+}
+
+function applyTelemetryDrag(pct) {
+  const t = engineerState.telemetry;
+  const current = Math.max(0, Math.min(100, pct));
+  if (telemetryRangeDrag.mode === "start") {
+    t.rangeStartPct = Math.min(current, t.rangeEndPct - 1);
+    t.cursorPct = Math.max(t.rangeStartPct, Math.min(t.cursorPct, t.rangeEndPct));
+  } else if (telemetryRangeDrag.mode === "end") {
+    t.rangeEndPct = Math.max(current, t.rangeStartPct + 1);
+    t.cursorPct = Math.max(t.rangeStartPct, Math.min(t.cursorPct, t.rangeEndPct));
+  } else if (telemetryRangeDrag.mode === "cursor") {
+    t.cursorPct = Math.max(t.rangeStartPct, Math.min(t.rangeEndPct, current));
+  } else if (telemetryRangeDrag.mode === "window") {
+    const width = Math.max(1, telemetryRangeDrag.endPct - telemetryRangeDrag.startPct);
+    const delta = current - telemetryRangeDrag.anchorPct;
+    const nextStart = Math.max(0, Math.min(100 - width, telemetryRangeDrag.startPct + delta));
+    const nextEnd = nextStart + width;
+    const cursorDelta = t.cursorPct - telemetryRangeDrag.startPct;
+    t.rangeStartPct = nextStart;
+    t.rangeEndPct = nextEnd;
+    t.cursorPct = Math.max(nextStart, Math.min(nextEnd, nextStart + cursorDelta));
+  }
+  renderEngineerScreen();
+}
+
+function handleTelemetryScrubberPointerMove(event) {
+  if (!telemetryRangeDrag.active || event.pointerId !== telemetryRangeDrag.pointerId) return;
+  applyTelemetryDrag(telemetryPctFromPointer(event.clientX));
+}
+
+function handleTelemetryScrubberPointerUp(event) {
+  if (!telemetryRangeDrag.active || event.pointerId !== telemetryRangeDrag.pointerId) return;
+  telemetryRangeDrag.active = false;
+  telemetryRangeDrag.mode = "";
+  telemetryRangeDrag.pointerId = null;
+  telemetryRangeDrag.rect = null;
+  document.removeEventListener("pointermove", handleTelemetryScrubberPointerMove);
+  document.removeEventListener("pointerup", handleTelemetryScrubberPointerUp);
+  document.removeEventListener("pointercancel", handleTelemetryScrubberPointerUp);
+}
+
+function handleTelemetryScrubberPointerDown(event) {
+  const map = event.currentTarget?.querySelector(".telemetry-range-scrubber-map");
+  if (!map) return;
+  const targetMode = event.target?.dataset?.drag || "";
+  telemetryRangeDrag.active = true;
+  telemetryRangeDrag.mode = targetMode || "cursor";
+  telemetryRangeDrag.pointerId = event.pointerId;
+  telemetryRangeDrag.rect = map.getBoundingClientRect();
+  telemetryRangeDrag.anchorPct = telemetryPctFromPointer(event.clientX);
+  telemetryRangeDrag.startPct = engineerState.telemetry.rangeStartPct;
+  telemetryRangeDrag.endPct = engineerState.telemetry.rangeEndPct;
+  telemetryRangeDrag.cursorPct = engineerState.telemetry.cursorPct;
+  if (!targetMode) {
+    const pct = telemetryRangeDrag.anchorPct;
+    engineerState.telemetry.cursorPct = Math.max(engineerState.telemetry.rangeStartPct, Math.min(engineerState.telemetry.rangeEndPct, pct));
+    renderEngineerScreen();
+  } else {
+    applyTelemetryDrag(telemetryRangeDrag.anchorPct);
+  }
+  document.addEventListener("pointermove", handleTelemetryScrubberPointerMove);
+  document.addEventListener("pointerup", handleTelemetryScrubberPointerUp);
+  document.addEventListener("pointercancel", handleTelemetryScrubberPointerUp);
+}
+
 function renderEngineerScreen() {
   const selectedRace = getSelectedRace();
   const favorite = getFavorite();
@@ -1066,6 +1188,7 @@ window.setEngineerTelemetryRangeStart = setEngineerTelemetryRangeStart;
 window.setEngineerTelemetryRangeEnd = setEngineerTelemetryRangeEnd;
 window.setEngineerTelemetryCursor = setEngineerTelemetryCursor;
 window.resetEngineerTelemetryRange = resetEngineerTelemetryRange;
+window.handleTelemetryScrubberPointerDown = handleTelemetryScrubberPointerDown;
 
 
 function persistEngineerSubmode(mode) {
