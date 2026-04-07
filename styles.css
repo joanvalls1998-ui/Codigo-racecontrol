@@ -3891,6 +3891,76 @@ nav > *,
 .telemetry-wave.kind-percent polyline { stroke: #7cffae; }
 .telemetry-wave.kind-brake polyline { stroke: #ff774f; }
 
+.telemetry-trace-inspector {
+  border: 1px solid rgba(130, 146, 175, 0.28);
+  background: #05070c;
+  padding: 8px;
+  touch-action: none;
+}
+
+.telemetry-trace-plot svg {
+  width: 100%;
+  height: 190px;
+  display: block;
+}
+
+.trace-grid-h {
+  stroke: rgba(137, 152, 176, 0.2);
+  stroke-width: 0.5;
+}
+
+.trace-line {
+  fill: none;
+  stroke-width: 1.6;
+}
+
+.trace-line-speed { stroke: #8effe3; }
+.trace-line-throttle { stroke: #7cffae; }
+.trace-line-brake { stroke: #ff774f; }
+
+.trace-cursor {
+  stroke: rgba(235, 241, 255, 0.82);
+  stroke-width: 0.7;
+  stroke-dasharray: 2 2;
+}
+
+.telemetry-trace-axis {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #8a96ae;
+}
+
+.telemetry-trace-tooltip {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.telemetry-trace-tooltip > div {
+  border: 1px solid rgba(124, 139, 165, 0.24);
+  background: rgba(8, 10, 16, 0.95);
+  padding: 7px 8px;
+}
+
+.telemetry-trace-tooltip span {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #8a96ae;
+  letter-spacing: 0.08em;
+}
+
+.telemetry-trace-tooltip strong {
+  display: block;
+  margin-top: 3px;
+  color: #edf3ff;
+  font-size: 13px;
+}
+
 .telemetry-session-bar {
   margin-top: 10px;
   display: grid;
@@ -3942,7 +4012,8 @@ nav > *,
   .telemetry-f1-hero-grid,
   .telemetry-stint-kpis,
   .telemetry-secondary-signals,
-  .telemetry-session-bar {
+  .telemetry-session-bar,
+  .telemetry-trace-tooltip {
     grid-template-columns: 1fr;
   }
 }
