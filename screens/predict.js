@@ -510,6 +510,11 @@ const engineerState = {
     rangeStartPct: 0,
     rangeEndPct: 100,
     cursorPct: 0,
+    preferredDriver: "",
+    accordionState: {
+      secondaryCharts: false,
+      secondarySignals: false
+    },
     context: null,
     payload: null
   }
@@ -519,6 +524,7 @@ const engineerCache = { context: new Map() };
 let telemetryRequestId = 0;
 const TELEMETRY_CACHE_TTL_MS = 1000 * 60 * 8;
 const TELEMETRY_LAP_MODES = Object.freeze(["reference", "latest", "manual"]);
+const TELEMETRY_UI_STORAGE_KEY = "racecontrolEngineerTelemetryUi";
 
 function cacheGet(map, key) {
   const entry = map.get(key);
@@ -537,7 +543,74 @@ function cacheSet(map, key, value, ttlMs = TELEMETRY_CACHE_TTL_MS) {
 
 function telemetryContextKey() {
   const t = engineerState.telemetry;
-  return `${TELEMETRY_SEASON_YEAR}:${t.gp || "auto"}:${t.sessionType || "auto"}:${t.driver || "auto"}`;
+  return `${TELEMETRY_SEASON_YEAR}:${t.gp || "auto"}:${t.sessionType || "auto"}:${t.preferredDriver || t.driver || "auto"}`;
+}
+
+function readTelemetryUiState() {
+  const raw = storageReadJson(TELEMETRY_UI_STORAGE_KEY, null);
+  const accordion = raw?.accordionState && typeof raw.accordionState === "object" ? raw.accordionState : {};
+  return {
+    gp: String(raw?.gp || ""),
+    sessionType: String(raw?.sessionType || ""),
+    preferredDriver: String(raw?.preferredDriver || ""),
+    accordionState: {
+      secondaryCharts: accordion.secondaryCharts === true,
+      secondarySignals: accordion.secondarySignals === true
+    }
+  };
+}
+
+function persistTelemetryUiState() {
+  const t = engineerState.telemetry;
+  storageWriteJson(TELEMETRY_UI_STORAGE_KEY, {
+    gp: t.gp || "",
+    sessionType: t.sessionType || "",
+    preferredDriver: t.preferredDriver || "",
+    accordionState: {
+      secondaryCharts: t.accordionState.secondaryCharts === true,
+      secondarySignals: t.accordionState.secondarySignals === true
+    }
+  });
+}
+
+function applyStoredTelemetryUiState() {
+  const saved = readTelemetryUiState();
+  engineerState.telemetry.gp = saved.gp;
+  engineerState.telemetry.sessionType = saved.sessionType;
+  engineerState.telemetry.preferredDriver = saved.preferredDriver;
+  engineerState.telemetry.accordionState = saved.accordionState;
+}
+
+function getFavoriteTelemetryDriverIds(context = null) {
+  const favorite = getFavorite();
+  if (!context || favorite?.type !== "driver") return [];
+  const drivers = Array.isArray(context.drivers) ? context.drivers : [];
+  const byName = normalizeText(favorite.name);
+  const byNumber = String(favorite.number || "").trim();
+  const matched = drivers.find(item => normalizeText(item?.name) === byName)
+    || (byNumber ? drivers.find(item => String(item?.id || "").trim() === byNumber || String(item?.number || "").trim() === byNumber || String(item?.code || "").trim() === byNumber) : null);
+  if (!matched) return [];
+  return [String(matched.id || "").trim(), String(matched.code || "").trim(), String(matched.number || "").trim()].filter(Boolean);
+}
+
+function resolveTelemetryDriverSelection(context, priorDriver = "", preferredDriver = "") {
+  const drivers = Array.isArray(context?.drivers) ? context.drivers : [];
+  const byId = value => drivers.find(item => {
+    const candidate = String(value || "").trim();
+    if (!candidate) return false;
+    return String(item?.id || "").trim() === candidate || String(item?.code || "").trim() === candidate || String(item?.number || "").trim() === candidate;
+  }) || null;
+  const favoriteMatch = getFavoriteTelemetryDriverIds(context).map(byId).find(Boolean) || null;
+  if (favoriteMatch) return String(favoriteMatch.id || "");
+  const explicitMatch = byId(preferredDriver || priorDriver);
+  if (explicitMatch) return String(explicitMatch.id || "");
+  return String(context?.selections?.driver || drivers[0]?.id || "");
+}
+
+function resolveTelemetrySessionSelection(context, priorSessionType = "") {
+  const sessions = Array.isArray(context?.sessions) ? context.sessions : [];
+  const matched = sessions.find(item => String(item?.type_key || "") === String(priorSessionType || ""));
+  return String((matched || context?.selections || {}).session_type || sessions[0]?.type_key || "");
 }
 
 function formatTelemetrySeconds(value) {
@@ -734,7 +807,7 @@ async function loadTelemetryContext() {
     year: TELEMETRY_SEASON_YEAR,
     meeting_key: t.gp,
     session_type: t.sessionType,
-    driver: t.driver
+    driver: t.preferredDriver || t.driver
   });
   return cacheSet(engineerCache.context, key, payload);
 }
@@ -818,6 +891,22 @@ function renderTelemetryWorkspace(payload) {
   }
   const sessionLaps = laps.length;
 
+  const weatherLabel = Number.isFinite(weather.airTemp) ? `${weather.airTemp.toFixed(1)}°C aire` : "Aire n/d";
+  const weatherExtended = [
+    Number.isFinite(weather.trackTemp) ? `${weather.trackTemp.toFixed(1)}°C pista` : "",
+    Number.isFinite(weather.humidity) ? `${Math.round(weather.humidity)}% H` : "",
+    Number.isFinite(weather.windSpeed) ? `${weather.windSpeed.toFixed(1)} m/s viento` : ""
+  ].filter(Boolean).join(" · ");
+  const secondarySignalTiles = [];
+  if (hasGap) secondarySignalTiles.push(`<div><span>Driver ahead</span><strong>${escapeHtml(payload.context.driverAhead)}</strong><em>${escapeHtml(formatTraceValue("meters", valueAtCursor(gapAhead, cursorPct)))}</em></div>`);
+  if (hasWeather) secondarySignalTiles.push(`<div><span>Weather ampliado</span><strong>${escapeHtml(weatherLabel)}</strong><em>${escapeHtml(weatherExtended)}</em></div>`);
+  if (hasGForces) secondarySignalTiles.push(`<div><span>G-forces</span><strong>${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceX || [], cursorPct)))} / ${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceY || [], cursorPct)))}</strong><em>${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceZ || [], cursorPct)))}</em></div>`);
+  const secondaryTraceRows = [
+    hasRobustData(traces.speed || []) ? renderTraceBand("Speed", traces.speed || [], "speed", rangeStartPct, rangeEndPct, "speed", cursorPct) : "",
+    hasRobustData(traces.gear || []) ? renderTraceBand("Gear", traces.gear || [], "gear", rangeStartPct, rangeEndPct, "gear", cursorPct) : "",
+    hasRobustData(traces.drs || []) ? renderTraceBand("DRS", traces.drs || [], "drs", rangeStartPct, rangeEndPct, "drs", cursorPct) : ""
+  ].filter(Boolean).join("");
+
   return `
     <section class="card engineer-card telemetry-workspace">
       <div class="telemetry-work-topbar">
@@ -843,20 +932,32 @@ function renderTelemetryWorkspace(payload) {
             <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Reset tramo</button>
           </div>
           ${renderTelemetryRangeScrubber(traces, rangeStartPct, rangeEndPct, cursorPct)}
-          <div class="telemetry-work-traces">
-            ${renderTraceBand("Speed", traces.speed || [], "speed", rangeStartPct, rangeEndPct, "speed", cursorPct)}
+          ${hasTrackMap ? `<div class="telemetry-track-focus">
+            <div class="telemetry-track-focus-head">
+              <span>Track view · vuelta activa</span>
+              <strong>${escapeHtml(rangeLabel)}</strong>
+            </div>
+            <div class="telemetry-track-map telemetry-track-map--focus">
+              <svg viewBox="0 0 100 100">${mapSegments}${mapCursor}</svg>
+            </div>
+          </div>` : ""}
+          <div class="telemetry-work-traces telemetry-work-traces--primary">
             ${renderTraceBand("Throttle", traces.throttle || [], "throttle", rangeStartPct, rangeEndPct, "pct", cursorPct)}
             ${renderTraceBand("Brake", traces.brake || [], "brake", rangeStartPct, rangeEndPct, "pct", cursorPct)}
-            ${hasRobustData(traces.gear || []) ? renderTraceBand("Gear", traces.gear || [], "gear", rangeStartPct, rangeEndPct, "gear", cursorPct) : ""}
             ${hasRobustData(traces.rpm || []) ? renderTraceBand("RPM", traces.rpm || [], "rpm", rangeStartPct, rangeEndPct, "rpm", cursorPct) : ""}
-            ${hasRobustData(traces.drs || []) ? renderTraceBand("DRS", traces.drs || [], "drs", rangeStartPct, rangeEndPct, "drs", cursorPct) : ""}
           </div>
-          ${(hasGap || hasWeather || hasGForces || hasTrackMap) ? `<div class="telemetry-tech-strip">
-            ${hasGap ? `<div><span>Driver ahead</span><strong>${escapeHtml(payload.context.driverAhead)}</strong><em>${escapeHtml(formatTraceValue("meters", valueAtCursor(gapAhead, cursorPct)))}</em></div>` : ""}
-            ${hasWeather ? `<div><span>Weather</span><strong>${escapeHtml(Number.isFinite(weather.airTemp) ? `${weather.airTemp.toFixed(1)}°C aire` : "Aire n/d")}</strong><em>${escapeHtml(Number.isFinite(weather.trackTemp) ? `${weather.trackTemp.toFixed(1)}°C pista` : "")} ${escapeHtml(Number.isFinite(weather.humidity) ? `· ${Math.round(weather.humidity)}% H` : "")}</em></div>` : ""}
-            ${hasGForces ? `<div><span>G-forces</span><strong>${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceX || [], cursorPct)))} / ${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceY || [], cursorPct)))}</strong><em>${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceZ || [], cursorPct)))}</em></div>` : ""}
-            ${hasTrackMap ? `<div class="telemetry-track-map"><span>Track map activo</span><svg viewBox="0 0 100 100">${mapSegments}${mapCursor}</svg></div>` : ""}
-          </div>` : ""}
+          ${secondaryTraceRows ? renderTelemetryAccordion({
+            key: "secondaryCharts",
+            title: "Gráficas secundarias",
+            subtitle: "Speed · Gear · DRS",
+            body: `<div class="telemetry-work-traces">${secondaryTraceRows}</div>`
+          }) : ""}
+          ${secondarySignalTiles.length ? renderTelemetryAccordion({
+            key: "secondarySignals",
+            title: "Señales secundarias",
+            subtitle: "Gap · G-forces · Weather ampliado",
+            body: `<div class="telemetry-tech-strip">${secondarySignalTiles.join("")}</div>`
+          }) : ""}
         </article>
 
         <aside class="telemetry-work-side">
@@ -917,14 +1018,18 @@ async function loadTelemetryData() {
   renderEngineerScreen();
 
   try {
+    const priorSessionType = telemetry.sessionType;
+    const priorDriver = telemetry.driver;
     const context = await loadTelemetryContext();
     if (requestId !== telemetryRequestId) return;
 
     telemetry.context = context;
-    telemetry.gp = context.selections?.meeting_key || "";
-    telemetry.sessionType = context.selections?.session_type || "";
-    telemetry.sessionKey = context.selections?.session_key || "";
-    telemetry.driver = context.selections?.driver || "";
+    telemetry.gp = context.selections?.meeting_key || telemetry.gp || "";
+    telemetry.sessionType = resolveTelemetrySessionSelection(context, priorSessionType);
+    telemetry.sessionKey = (context.sessions || []).find(item => item.type_key === telemetry.sessionType)?.session_key || context.selections?.session_key || "";
+    telemetry.driver = resolveTelemetryDriverSelection(context, priorDriver, telemetry.preferredDriver);
+    telemetry.preferredDriver = telemetry.driver || telemetry.preferredDriver;
+    persistTelemetryUiState();
 
     if (!telemetry.sessionKey || !telemetry.driver) {
       telemetry.status = "error";
@@ -984,9 +1089,8 @@ function resetTelemetrySelection() {
 function setEngineerTelemetryGp(value) {
   engineerState.telemetry.gp = value || "";
   engineerState.telemetry.context = null;
-  engineerState.telemetry.sessionType = "";
   engineerState.telemetry.sessionKey = "";
-  engineerState.telemetry.driver = "";
+  persistTelemetryUiState();
   resetTelemetrySelection();
   loadTelemetryData();
 }
@@ -995,16 +1099,41 @@ function setEngineerTelemetrySessionType(value) {
   engineerState.telemetry.sessionType = value || "";
   engineerState.telemetry.context = null;
   engineerState.telemetry.sessionKey = "";
-  engineerState.telemetry.driver = "";
+  persistTelemetryUiState();
   resetTelemetrySelection();
   loadTelemetryData();
 }
 
 function setEngineerTelemetryDriver(value) {
   engineerState.telemetry.driver = value || "";
+  engineerState.telemetry.preferredDriver = engineerState.telemetry.driver || "";
   engineerState.telemetry.sessionKey = "";
+  persistTelemetryUiState();
   resetTelemetrySelection();
   loadTelemetryData();
+}
+
+function toggleTelemetryAccordion(key) {
+  if (!key || !engineerState.telemetry.accordionState || !(key in engineerState.telemetry.accordionState)) return;
+  engineerState.telemetry.accordionState[key] = !engineerState.telemetry.accordionState[key];
+  persistTelemetryUiState();
+  renderEngineerScreen();
+}
+
+function renderTelemetryAccordion({ key, title, subtitle = "", body = "" }) {
+  const isOpen = engineerState.telemetry.accordionState?.[key] === true;
+  return `
+    <section class="telemetry-accordion ${isOpen ? "open" : ""}">
+      <button class="telemetry-accordion-toggle" onclick="toggleTelemetryAccordion('${escapeHtml(key)}')" aria-expanded="${isOpen ? "true" : "false"}">
+        <div>
+          <strong>${escapeHtml(title)}</strong>
+          ${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ""}
+        </div>
+        <em>${isOpen ? "Ocultar" : "Mostrar"}</em>
+      </button>
+      ${isOpen ? `<div class="telemetry-accordion-body">${body}</div>` : ""}
+    </section>
+  `;
 }
 
 function setEngineerTelemetryLapMode(mode) {
@@ -1189,9 +1318,12 @@ window.setEngineerTelemetryRangeEnd = setEngineerTelemetryRangeEnd;
 window.setEngineerTelemetryCursor = setEngineerTelemetryCursor;
 window.resetEngineerTelemetryRange = resetEngineerTelemetryRange;
 window.handleTelemetryScrubberPointerDown = handleTelemetryScrubberPointerDown;
+window.toggleTelemetryAccordion = toggleTelemetryAccordion;
 
 
 function persistEngineerSubmode(mode) {
   state.engineerSubmode = mode === "telemetry" ? "telemetry" : "prediction";
   saveUiState();
 }
+
+applyStoredTelemetryUiState();
