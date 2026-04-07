@@ -3872,6 +3872,108 @@ nav > *,
   font-size: 13px;
 }
 
+.telemetry-stint-summary-grid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 6px;
+}
+
+.telemetry-stint-summary-card {
+  border: 1px solid rgba(124, 139, 165, 0.24);
+  background: rgba(8, 10, 16, 0.95);
+  padding: 8px 9px;
+}
+
+.telemetry-stint-summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.telemetry-stint-summary-head strong {
+  color: #edf3ff;
+}
+
+.telemetry-stint-summary-head span,
+.telemetry-stint-summary-metrics span,
+.telemetry-stint-compare-tag span,
+.telemetry-stint-compare-extra span,
+.telemetry-stint-compare-trend span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8a96ae;
+}
+
+.telemetry-stint-summary-metrics {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.telemetry-stint-summary-metrics strong {
+  display: block;
+  margin-top: 3px;
+  color: #edf3ff;
+  font-size: 12px;
+}
+
+.telemetry-stint-compare-chart {
+  margin-top: 8px;
+  display: grid;
+  gap: 7px;
+}
+
+.telemetry-stint-compare-row {
+  border: 1px solid rgba(124, 139, 165, 0.24);
+  background: rgba(8, 10, 16, 0.95);
+  padding: 7px 9px;
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) 88px;
+  gap: 8px;
+  align-items: center;
+}
+
+.telemetry-stint-compare-tag strong {
+  color: #eaf2ff;
+  display: block;
+  font-size: 12px;
+}
+
+.telemetry-stint-compare-lane {
+  display: grid;
+  gap: 5px;
+}
+
+.telemetry-stint-compare-bar {
+  height: 6px;
+  background: linear-gradient(90deg, #6fffc6, #63dbff);
+}
+
+.telemetry-stint-compare-trend {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.telemetry-stint-compare-trend.down span:last-child { color: #ff8e71; }
+.telemetry-stint-compare-trend.up span:last-child { color: #7affba; }
+.telemetry-stint-compare-trend.stable span:last-child { color: #d6e0f5; }
+
+.telemetry-stint-compare-extra {
+  text-align: right;
+}
+
+.telemetry-stint-compare-extra strong {
+  display: block;
+  margin-top: 3px;
+  color: #edf3ff;
+  font-size: 12px;
+}
+
 .telemetry-wave {
   border-radius: 0;
   border: 1px solid rgba(130, 146, 175, 0.25);
@@ -4086,5 +4188,13 @@ nav > *,
   }
   .telemetry-lap-mode label {
     max-width: none;
+  }
+  .telemetry-stint-summary-grid,
+  .telemetry-stint-summary-metrics,
+  .telemetry-stint-compare-row {
+    grid-template-columns: 1fr;
+  }
+  .telemetry-stint-compare-extra {
+    text-align: left;
   }
 }
