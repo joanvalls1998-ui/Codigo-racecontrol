@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { getSnapshotIndex, summarizeMeetingReadiness } from "./_snapshots.js";
 
 const OPENF1_BASE_URL = "https://api.openf1.org/v1";
 const RACEOPTIDATA_BASE_URL = "https://api.raceoptidata.com";
@@ -785,6 +786,7 @@ async function getSessions(meetingKey, year = DEFAULT_YEAR) {
         type_key,
         type_label: sessionLabel(type_key),
         date_start: row.date_start || row.date || "",
+        date_end: row.date_end || row.session_end_date || "",
         year: getYearFromRow(row)
       };
     })
@@ -1648,11 +1650,18 @@ async function resolveTelemetryContext({ year = DEFAULT_YEAR, meetingKey = "", s
   if (cached) return cached;
 
   const meetings = await getMeetings(year);
-  const selectedMeeting = meetings.find(item => item.meeting_key === String(meetingKey)) || meetings[0] || null;
+  const snapshotIndex = await getSnapshotIndex().catch(() => null);
+  const latestUsefulMeetingKey = String(snapshotIndex?.latest_useful?.meeting_key || "");
+  const selectedMeeting = meetings.find(item => item.meeting_key === String(meetingKey))
+    || meetings.find(item => item.meeting_key === latestUsefulMeetingKey)
+    || meetings[0]
+    || null;
   const sessions = selectedMeeting ? await getSessions(selectedMeeting.meeting_key, year) : [];
   const selectedSession = sessions.find(item => item.type_key === sessionType) || sessions[0] || null;
   const drivers = selectedSession ? await getDrivers(selectedSession.session_key, year) : [];
   const selectedDriver = drivers.find(item => item.id === String(driver)) || drivers[0] || null;
+
+  const snapshotState = snapshotIndex ? summarizeMeetingReadiness(snapshotIndex, meetings) : { latest_useful: null, readiness: [] };
 
   return setCached(cache.context, cacheKey, {
     year,
@@ -1665,7 +1674,8 @@ async function resolveTelemetryContext({ year = DEFAULT_YEAR, meetingKey = "", s
     },
     meetings,
     sessions,
-    drivers
+    drivers,
+    snapshot_state: snapshotState
   });
 }
 
