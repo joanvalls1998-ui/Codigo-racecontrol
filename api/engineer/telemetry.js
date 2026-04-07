@@ -33,6 +33,9 @@ export default async function handler(req, res) {
     if (error?.code === "NO_TELEMETRY") {
       return apiError(res, 404, "No hay telemetría histórica disponible para este piloto en esta sesión.", "NO_TELEMETRY");
     }
+    if (error?.code === "MANUAL_LAP_UNAVAILABLE") {
+      return apiError(res, 404, "La vuelta manual seleccionada no tiene trazas útiles.", "MANUAL_LAP_UNAVAILABLE");
+    }
     return apiError(res, 502, "No se pudo construir la telemetría del piloto", "TELEMETRY_UNAVAILABLE");
   }
 }
