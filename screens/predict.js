@@ -1325,6 +1325,112 @@ function renderTelemetryTraceInspector(payload = {}) {
   `;
 }
 
+function buildTelemetryUsefulStints(stintBasic, lapCatalog) {
+  const catalog = Array.isArray(lapCatalog) ? lapCatalog : [];
+  const MIN_VALID_LAPS = 4;
+  const MIN_COMPLETE_RATIO = 0.7;
+  return (Array.isArray(stintBasic) ? stintBasic : [])
+    .map((stint, idx) => {
+      const lapStart = Number.isFinite(stint?.lapStart) ? stint.lapStart : null;
+      const lapEnd = Number.isFinite(stint?.lapEnd) ? stint.lapEnd : null;
+      const expectedLaps = Number.isFinite(lapStart) && Number.isFinite(lapEnd) && lapEnd >= lapStart
+        ? (lapEnd - lapStart + 1)
+        : null;
+      const lapsInRange = Number.isFinite(lapStart) && Number.isFinite(lapEnd)
+        ? catalog.filter(lap => Number.isFinite(lap?.lapNumber) && lap.lapNumber >= lapStart && lap.lapNumber <= lapEnd)
+        : [];
+      const validLaps = lapsInRange
+        .filter(lap => Number.isFinite(lap?.lapTime) && lap?.hasUsefulTiming !== false)
+        .map(lap => lap.lapTime);
+      const completionRatio = Number.isFinite(expectedLaps) && expectedLaps > 0
+        ? (validLaps.length / expectedLaps)
+        : 0;
+      const startPace = validLaps.length >= 2 ? average(validLaps.slice(0, 2)) : (validLaps[0] ?? null);
+      const latestPace = validLaps.length >= 2 ? average(validLaps.slice(-2)) : (validLaps[validLaps.length - 1] ?? null);
+      const averagePace = validLaps.length ? average(validLaps) : null;
+      const bestPace = validLaps.length ? Math.min(...validLaps) : null;
+      const worstPace = validLaps.length ? Math.max(...validLaps) : null;
+      const degradation = Number.isFinite(startPace) && Number.isFinite(latestPace) ? latestPace - startPace : null;
+      const consistency = Number.isFinite(bestPace) && Number.isFinite(worstPace) ? worstPace - bestPace : null;
+      const isUseful = validLaps.length >= MIN_VALID_LAPS
+        && completionRatio >= MIN_COMPLETE_RATIO
+        && Number.isFinite(startPace)
+        && Number.isFinite(latestPace)
+        && Number.isFinite(degradation);
+      return {
+        key: `${stint?.number || idx + 1}-${idx}`,
+        number: Number.isFinite(stint?.number) ? stint.number : idx + 1,
+        compound: stint?.compound || "N/D",
+        laps: validLaps.length,
+        averagePace,
+        startPace,
+        latestPace,
+        degradation,
+        consistency,
+        isUseful
+      };
+    })
+    .filter(stint => stint.isUseful);
+}
+
+function renderTelemetryStintComparativeBlock(usefulStints) {
+  if (!Array.isArray(usefulStints) || usefulStints.length < 2) return "";
+  const fastestAvg = Math.min(...usefulStints.map(stint => stint.averagePace).filter(Number.isFinite));
+  const maxDeg = Math.max(...usefulStints.map(stint => Math.abs(stint.degradation)).filter(Number.isFinite), 0.001);
+  const summaryCards = usefulStints.map(stint => `
+    <article class="telemetry-stint-summary-card">
+      <div class="telemetry-stint-summary-head">
+        <strong>S${stint.number}</strong>
+        <span>${escapeHtml(stint.compound)} · ${stint.laps} laps</span>
+      </div>
+      <div class="telemetry-stint-summary-metrics">
+        <div><span>Avg</span><strong>${escapeHtml(formatTelemetrySeconds(stint.averagePace))}</strong></div>
+        <div><span>Deg</span><strong>${escapeHtml(formatTelemetryDelta(stint.degradation))}</strong></div>
+      </div>
+    </article>
+  `).join("");
+  const bars = usefulStints.map(stint => {
+    const relative = Number.isFinite(stint.averagePace) && Number.isFinite(fastestAvg)
+      ? Math.max(0, Math.min(1, (stint.averagePace - fastestAvg) / 1.8))
+      : 0.5;
+    const width = 30 + (relative * 70);
+    const slope = Number.isFinite(stint.degradation)
+      ? Math.max(-1, Math.min(1, stint.degradation / maxDeg))
+      : 0;
+    return `
+      <div class="telemetry-stint-compare-row">
+        <div class="telemetry-stint-compare-tag">
+          <strong>S${stint.number}</strong>
+          <span>${escapeHtml(stint.compound)}</span>
+        </div>
+        <div class="telemetry-stint-compare-lane">
+          <div class="telemetry-stint-compare-bar" style="width:${width.toFixed(1)}%"></div>
+          <div class="telemetry-stint-compare-trend ${slope > 0.2 ? "down" : slope < -0.2 ? "up" : "stable"}">
+            <span>Start ${escapeHtml(formatTelemetrySeconds(stint.startPace))}</span>
+            <span>End ${escapeHtml(formatTelemetrySeconds(stint.latestPace))}</span>
+          </div>
+        </div>
+        <div class="telemetry-stint-compare-extra">
+          <span>Cons ${escapeHtml(formatTelemetryDelta(stint.consistency))}</span>
+          <strong>${escapeHtml(formatTelemetryDelta(stint.degradation))}</strong>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <section class="card engineer-card telemetry-stint-block">
+      <div class="telemetry-line-head"><strong>Stint Comparison</strong><span>${usefulStints.length} stints útiles</span></div>
+      <div class="telemetry-stint-summary-grid">
+        ${summaryCards}
+      </div>
+      <div class="telemetry-stint-compare-chart">
+        ${bars}
+      </div>
+    </section>
+  `;
+}
+
 function renderTelemetryDashboard(payload) {
   const summary = payload.summary || {};
   const weather = payload.weather || {};
@@ -1346,8 +1452,8 @@ function renderTelemetryDashboard(payload) {
   const stintEvolution = payload.stints?.evolution || [];
   const currentStint = stintBasic[stintBasic.length - 1] || null;
   const stintLine = stintEvolution.map(item => Number.isFinite(item.averagePace) ? item.averagePace : null).filter(Number.isFinite);
-  const stintStart = stintLine.length ? stintLine[0] : null;
-  const stintLatest = stintLine.length ? stintLine[stintLine.length - 1] : null;
+  const usefulStints = buildTelemetryUsefulStints(stintBasic, payload.stints?.catalog || []);
+  const stintBlock = renderTelemetryStintComparativeBlock(usefulStints);
   const sectorValues = [summary.sector1, summary.sector2, summary.sector3].filter(Number.isFinite);
   const sectorBaseline = sectorValues.length ? Math.min(...sectorValues) : null;
 
@@ -1443,15 +1549,7 @@ function renderTelemetryDashboard(payload) {
       </div>
     </section>
 
-    <section class="card engineer-card telemetry-stint-block">
-      <div class="telemetry-line-head"><strong>Stint</strong><span>${escapeHtml(currentStint?.compound || "N/D")} · ${Number.isFinite(currentStint?.laps) ? `${currentStint.laps} laps` : "N/D"}</span></div>
-      ${renderTelemetryTrace("Stint pace trend", stintLine, "pace")}
-      <div class="telemetry-stint-kpis">
-        <div><span>Start</span><strong>${escapeHtml(formatTelemetrySeconds(stintStart))}</strong></div>
-        <div><span>Latest</span><strong>${escapeHtml(formatTelemetrySeconds(stintLatest))}</strong></div>
-        <div><span>Deg</span><strong>${escapeHtml(formatTelemetryDelta(summary.degradation))}</strong></div>
-      </div>
-    </section>
+    ${stintBlock}
 
     <section class="card engineer-card telemetry-traces-block">
       <div class="telemetry-line-head"><strong>${escapeHtml(tracesTitle)}</strong><span>Inspección sincronizada</span></div>
