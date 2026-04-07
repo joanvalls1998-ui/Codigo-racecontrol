@@ -581,30 +581,118 @@ function applyStoredTelemetryUiState() {
   engineerState.telemetry.accordionState = saved.accordionState;
 }
 
-function getFavoriteTelemetryDriverIds(context = null) {
-  const favorite = getFavorite();
-  if (!context || favorite?.type !== "driver") return [];
-  const drivers = Array.isArray(context.drivers) ? context.drivers : [];
-  const byName = normalizeText(favorite.name);
-  const byNumber = String(favorite.number || "").trim();
-  const matched = drivers.find(item => normalizeText(item?.name) === byName)
-    || (byNumber ? drivers.find(item => String(item?.id || "").trim() === byNumber || String(item?.number || "").trim() === byNumber || String(item?.code || "").trim() === byNumber) : null);
-  if (!matched) return [];
-  return [String(matched.id || "").trim(), String(matched.code || "").trim(), String(matched.number || "").trim()].filter(Boolean);
+function logFavoriteResolution(event, details = {}) {
+  try {
+    console.info(JSON.stringify({ scope: "engineer.telemetry.favorite", event, ...details }));
+  } catch {
+    // ignore logging errors
+  }
+}
+
+function normalizeDriverText(value = "") {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function driverNameTokens(name = "") {
+  const clean = normalizeDriverText(name);
+  if (!clean) return [];
+  const parts = clean.split(" ").filter(Boolean);
+  const last = parts[parts.length - 1] || "";
+  return Array.from(new Set([clean, last].filter(Boolean)));
 }
 
 function resolveTelemetryDriverSelection(context, priorDriver = "", preferredDriver = "") {
   const drivers = Array.isArray(context?.drivers) ? context.drivers : [];
+  const favorite = getFavorite();
   const byId = value => drivers.find(item => {
     const candidate = String(value || "").trim();
     if (!candidate) return false;
     return String(item?.id || "").trim() === candidate || String(item?.code || "").trim() === candidate || String(item?.number || "").trim() === candidate;
   }) || null;
-  const favoriteMatch = getFavoriteTelemetryDriverIds(context).map(byId).find(Boolean) || null;
-  if (favoriteMatch) return String(favoriteMatch.id || "");
   const explicitMatch = byId(preferredDriver || priorDriver);
-  if (explicitMatch) return String(explicitMatch.id || "");
-  return String(context?.selections?.driver || drivers[0]?.id || "");
+  if (explicitMatch) {
+    logFavoriteResolution("final_driver_selected", { mode: "explicit", driver_id: String(explicitMatch.id || "") });
+    return {
+      driverId: String(explicitMatch.id || ""),
+      usedFallback: false
+    };
+  }
+
+  logFavoriteResolution("favorite_raw_value", { favorite_raw_value: favorite || null });
+  logFavoriteResolution("favorite_resolution_started", { drivers_available: drivers.length });
+  if (favorite?.type === "driver") {
+    const primaryCandidates = [
+      favorite.id,
+      favorite.driverId,
+      favorite.driver_id,
+      favorite.number
+    ].map(value => String(value || "").trim()).filter(Boolean);
+    const exactMatch = primaryCandidates.map(byId).find(Boolean) || null;
+    if (exactMatch) {
+      const driverId = String(exactMatch.id || "");
+      logFavoriteResolution("favorite_resolution_match_exact", { driver_id: driverId, candidates: primaryCandidates });
+      logFavoriteResolution("final_driver_selected", { mode: "favorite_exact", driver_id: driverId });
+      return { driverId, usedFallback: false };
+    }
+
+    const codeCandidates = [
+      favorite.code,
+      favorite.driverCode,
+      favorite.driver_code,
+      favorite.abbr
+    ].map(value => String(value || "").trim().toUpperCase()).filter(Boolean);
+    const byCode = code => drivers.find(item => String(item?.code || "").trim().toUpperCase() === code) || null;
+    const codeMatch = codeCandidates.map(byCode).find(Boolean) || null;
+    if (codeMatch) {
+      const driverId = String(codeMatch.id || "");
+      logFavoriteResolution("favorite_resolution_match_code", { driver_id: driverId, candidates: codeCandidates });
+      logFavoriteResolution("final_driver_selected", { mode: "favorite_code", driver_id: driverId });
+      return { driverId, usedFallback: false };
+    }
+
+    const normalizedFavoriteName = normalizeDriverText(favorite.name);
+    const nameMatch = normalizedFavoriteName
+      ? drivers.find(item => normalizeDriverText(item?.name) === normalizedFavoriteName) || null
+      : null;
+    if (nameMatch) {
+      const driverId = String(nameMatch.id || "");
+      logFavoriteResolution("favorite_resolution_match_name", { driver_id: driverId, by: "full_name", favorite_name: favorite.name || "" });
+      logFavoriteResolution("final_driver_selected", { mode: "favorite_name", driver_id: driverId });
+      return { driverId, usedFallback: false };
+    }
+
+    const aliasTokens = Array.from(new Set(driverNameTokens(favorite.name)));
+    const aliasMatch = aliasTokens.length
+      ? drivers.find(item => {
+        const tokens = driverNameTokens(item?.name);
+        return aliasTokens.some(token => tokens.includes(token));
+      }) || null
+      : null;
+    if (aliasMatch) {
+      const driverId = String(aliasMatch.id || "");
+      logFavoriteResolution("favorite_resolution_match_name", { driver_id: driverId, by: "alias", alias_tokens: aliasTokens });
+      logFavoriteResolution("final_driver_selected", { mode: "favorite_alias", driver_id: driverId });
+      return { driverId, usedFallback: false };
+    }
+  }
+
+  const fallbackDriver = byId(context?.selections?.driver) || drivers[0] || null;
+  const fallbackId = String(fallbackDriver?.id || "");
+  logFavoriteResolution("favorite_resolution_failed", { reason: "favorite_not_mapped_to_context_driver", drivers_available: drivers.length });
+  if (fallbackId) {
+    logFavoriteResolution("favorite_fallback_used", { fallback_driver_id: fallbackId });
+    logFavoriteResolution("final_driver_selected", { mode: "fallback", driver_id: fallbackId });
+  }
+  return {
+    driverId: fallbackId,
+    usedFallback: Boolean(fallbackId)
+  };
 }
 
 function resolveTelemetrySessionSelection(context, priorSessionType = "") {
@@ -1027,7 +1115,8 @@ async function loadTelemetryData() {
     telemetry.gp = context.selections?.meeting_key || telemetry.gp || "";
     telemetry.sessionType = resolveTelemetrySessionSelection(context, priorSessionType);
     telemetry.sessionKey = (context.sessions || []).find(item => item.type_key === telemetry.sessionType)?.session_key || context.selections?.session_key || "";
-    telemetry.driver = resolveTelemetryDriverSelection(context, priorDriver, telemetry.preferredDriver);
+    const resolvedDriver = resolveTelemetryDriverSelection(context, priorDriver, telemetry.preferredDriver);
+    telemetry.driver = resolvedDriver.driverId;
     telemetry.preferredDriver = telemetry.driver || telemetry.preferredDriver;
     persistTelemetryUiState();
 
@@ -1039,17 +1128,37 @@ async function loadTelemetryData() {
       return;
     }
 
-    const payload = await fetchEngineerApi("telemetry", {
-      year: TELEMETRY_SEASON_YEAR,
-      meeting_key: telemetry.gp,
-      session_key: telemetry.sessionKey,
-      driver_number: telemetry.driver,
-      lap_mode: telemetry.lapMode,
-      manual_lap: telemetry.manualLap
-    });
-    if (requestId !== telemetryRequestId) return;
+    const driverCandidates = Array.from(new Set([
+      telemetry.driver,
+      context?.selections?.driver,
+      ...(context?.drivers || []).map(item => String(item?.id || "")).filter(Boolean)
+    ].filter(Boolean)));
 
-    if (!hasTelemetryPayloadData(payload)) {
+    let loadedPayload = null;
+    let loadedDriver = "";
+    let lastError = null;
+    for (const candidate of driverCandidates) {
+      try {
+        const payload = await fetchEngineerApi("telemetry", {
+          year: TELEMETRY_SEASON_YEAR,
+          meeting_key: telemetry.gp,
+          session_key: telemetry.sessionKey,
+          driver_number: candidate,
+          lap_mode: telemetry.lapMode,
+          manual_lap: telemetry.manualLap
+        });
+        if (!hasTelemetryPayloadData(payload)) continue;
+        loadedPayload = payload;
+        loadedDriver = String(candidate);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (requestId !== telemetryRequestId) return;
+    if (!loadedPayload) {
+      if (lastError) throw lastError;
       telemetry.status = "error";
       telemetry.userMessage = "La sesión no trae trazas útiles para este piloto.";
       telemetry.payload = null;
@@ -1057,7 +1166,15 @@ async function loadTelemetryData() {
       return;
     }
 
-    telemetry.payload = payload;
+    if (loadedDriver && loadedDriver !== telemetry.driver) {
+      telemetry.driver = loadedDriver;
+      telemetry.preferredDriver = loadedDriver;
+      persistTelemetryUiState();
+      logFavoriteResolution("favorite_fallback_used", { fallback_driver_id: loadedDriver, reason: "selected_driver_without_telemetry" });
+      logFavoriteResolution("final_driver_selected", { mode: "telemetry_payload_fallback", driver_id: loadedDriver });
+    }
+
+    telemetry.payload = loadedPayload;
     telemetry.status = "ready";
     renderEngineerScreen();
   } catch (error) {
