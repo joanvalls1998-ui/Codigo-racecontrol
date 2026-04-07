@@ -508,7 +508,10 @@ const engineerState = {
     lapMode: "reference",
     manualLap: "",
     context: null,
-    payload: null
+    payload: null,
+    viewportStart: 0,
+    viewportEnd: 1,
+    cursor: 0
   }
 };
 
@@ -556,31 +559,48 @@ function renderTelemetrySelector(options, current) {
   return options.map(option => `<option value="${escapeHtml(option.value)}" ${String(option.value) === String(current) ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("");
 }
 
-function buildSpark(values = [], className = "") {
-  const clean = (Array.isArray(values) ? values : []).filter(Number.isFinite);
-  if (!clean.length) return '<div class="empty-line">Sin traza útil.</div>';
-  const min = Math.min(...clean);
-  const max = Math.max(...clean);
+function clampTelemetryUnit(value) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function telemetryRange(length = 0) {
+  const t = engineerState.telemetry;
+  const start = clampTelemetryUnit(t.viewportStart);
+  const end = Math.max(start + 0.04, clampTelemetryUnit(t.viewportEnd));
+  const startIndex = Math.min(Math.max(0, Math.floor(start * Math.max(0, length - 1))), Math.max(0, length - 1));
+  const endIndex = Math.min(Math.max(startIndex + 1, Math.ceil(end * Math.max(0, length - 1))), Math.max(1, length - 1));
+  return { start, end, startIndex, endIndex };
+}
+
+function buildTelemetryLine(values = [], startIndex = 0, endIndex = 1, options = {}) {
+  const clean = (Array.isArray(values) ? values : []).map(item => Number(item)).filter(Number.isFinite);
+  const from = Math.max(0, Math.min(startIndex, clean.length - 1));
+  const to = Math.max(from + 1, Math.min(endIndex, clean.length - 1));
+  const slice = clean.slice(from, to + 1);
+  if (!slice.length) return { points: "", min: 0, max: 1, current: null };
+  const min = Number.isFinite(options.min) ? options.min : Math.min(...slice);
+  const max = Number.isFinite(options.max) ? options.max : Math.max(...slice);
   const span = Math.max(1, max - min);
-  const sampled = clean.length > 250 ? clean.filter((_, idx) => idx % Math.ceil(clean.length / 250) === 0) : clean;
+  const step = Math.max(1, Math.ceil(slice.length / 400));
+  const sampled = slice.filter((_, idx) => idx % step === 0 || idx === slice.length - 1);
   const points = sampled.map((item, idx) => {
     const x = (idx / Math.max(1, sampled.length - 1)) * 100;
     const y = 100 - (((item - min) / span) * 100);
     return `${x.toFixed(2)},${y.toFixed(2)}`;
-  });
-  return `<svg class="${className}" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="${points.join(" ")}"></polyline></svg>`;
+  }).join(" ");
+  const cursorIndex = Math.min(slice.length - 1, Math.max(0, Math.round(clampTelemetryUnit(engineerState.telemetry.cursor) * (slice.length - 1))));
+  const current = slice[cursorIndex];
+  return { points, min, max, current };
 }
 
-function renderTraceBand(label, values, variant = "") {
-  const clean = (Array.isArray(values) ? values : []).filter(Number.isFinite);
-  const last = clean.length ? clean[clean.length - 1] : null;
-  const readout = label === "Speed" ? formatTelemetrySpeed(last) : Number.isFinite(last) ? `${Math.round(last)}%` : "—";
-  return `
-    <div class="telemetry-work-trace ${variant}">
-      <div class="telemetry-work-trace-head"><span>${escapeHtml(label)}</span><strong>${escapeHtml(readout)}</strong></div>
-      ${buildSpark(clean, "telemetry-work-spark")}
-    </div>
-  `;
+function formatTelemetryReadout(value, unit = "") {
+  if (!Number.isFinite(value)) return "—";
+  if (unit === "kmh") return formatTelemetrySpeed(value);
+  if (unit === "rpm") return `${Math.round(value).toLocaleString("es-ES")} rpm`;
+  if (unit === "gear") return `G${Math.round(value)}`;
+  if (unit === "drs") return value > 7 ? "DRS abierto" : "DRS cerrado";
+  return `${Math.round(value)}${unit}`;
 }
 
 function telemetryErrorMessage(error) {
@@ -641,13 +661,55 @@ function renderTelemetryWorkspace(payload) {
   const laps = Array.isArray(selector.laps) ? selector.laps.filter(item => Number.isFinite(item?.lapNumber) && item.hasTelemetry) : [];
   const selectedLap = laps.find(item => item.lapNumber === selector.selectedLapNumber) || null;
   const manualOptions = laps.map(item => ({ value: String(item.lapNumber), label: renderLapOption(item) }));
-
-  const sectors = [
-    { label: "S1", value: summary.sector1 },
-    { label: "S2", value: summary.sector2 },
-    { label: "S3", value: summary.sector3 }
-  ].filter(item => Number.isFinite(item.value));
-  const stintRows = (payload.stints || []).filter(item => item.lapCount >= 3);
+  const traces = payload.traces || {};
+  const pointCount = Math.min(
+    traces.speed?.length || 0,
+    traces.throttle?.length || 0,
+    traces.brake?.length || 0,
+    traces.distance?.length || Number.MAX_SAFE_INTEGER
+  );
+  const { start, end, startIndex, endIndex } = telemetryRange(pointCount || 1);
+  const traceRows = [
+    { key: "speed", label: "Speed", values: traces.speed || [], variant: "speed", min: 0, unit: "kmh" },
+    { key: "throttle", label: "Throttle", values: traces.throttle || [], variant: "throttle", min: 0, max: 100, unit: "%" },
+    { key: "brake", label: "Brake", values: traces.brake || [], variant: "brake", min: 0, max: 100, unit: "%" }
+  ];
+  const secondarySignals = [
+    { label: "RPM", value: buildTelemetryLine(traces.rpm || [], startIndex, endIndex).current, unit: "rpm" },
+    { label: "Gear", value: buildTelemetryLine(traces.gear || [], startIndex, endIndex).current, unit: "gear" },
+    { label: "DRS", value: buildTelemetryLine(traces.drs || [], startIndex, endIndex).current, unit: "drs" }
+  ];
+  const cursorIndex = Math.min(endIndex, Math.max(startIndex, startIndex + Math.round(clampTelemetryUnit(engineerState.telemetry.cursor) * Math.max(1, endIndex - startIndex))));
+  const sectorNames = ["S1", "S2", "S3"];
+  const selectedSectors = [selectedLap?.sector1 ?? summary.sector1, selectedLap?.sector2 ?? summary.sector2, selectedLap?.sector3 ?? summary.sector3];
+  const sectorAverages = [1, 2, 3].map(index => {
+    const values = laps.map(item => Number(item[`sector${index}`])).filter(Number.isFinite);
+    return values.length ? values.reduce((acc, item) => acc + item, 0) / values.length : null;
+  });
+  const sectors = sectorNames.map((name, index) => {
+    const current = selectedSectors[index];
+    const avg = sectorAverages[index];
+    return { name, current, avg, delta: Number.isFinite(current) && Number.isFinite(avg) ? current - avg : null };
+  }).filter(item => Number.isFinite(item.current));
+  const stintRows = (payload.stints || []).filter(item => item.lapCount >= 2);
+  const activeStint = selectedLap && Number.isFinite(selectedLap.stint) ? stintRows.find(item => item.number === selectedLap.stint) : null;
+  const lapShare = pointCount > 0 ? (cursorIndex / Math.max(1, pointCount - 1)) * 100 : 0;
+  const trackSegments = 44;
+  const speedTrace = traces.speed || [];
+  const throttleTrace = traces.throttle || [];
+  const trackCells = Array.from({ length: trackSegments }).map((_, idx) => {
+    const a = Math.floor((idx / trackSegments) * Math.max(1, pointCount - 1));
+    const b = Math.floor(((idx + 1) / trackSegments) * Math.max(1, pointCount - 1));
+    const speeds = speedTrace.slice(a, Math.max(a + 1, b));
+    const throttles = throttleTrace.slice(a, Math.max(a + 1, b));
+    const avgSpeed = speeds.length ? speeds.reduce((acc, item) => acc + item, 0) / speeds.length : 0;
+    const avgThrottle = throttles.length ? throttles.reduce((acc, item) => acc + item, 0) / throttles.length : 0;
+    const normalized = Math.max(0, Math.min(1, avgSpeed / Math.max(220, summary.topSpeed || 220)));
+    const tint = 190 - (normalized * 90);
+    const light = 24 + (normalized * 38);
+    const active = lapShare >= (idx / trackSegments) * 100 && lapShare < ((idx + 1) / trackSegments) * 100;
+    return `<div class="telemetry-track-cell ${active ? "active" : ""}" style="background:hsl(${tint.toFixed(0)}deg, ${Math.max(46, avgThrottle * 0.45).toFixed(0)}%, ${light.toFixed(0)}%);"></div>`;
+  }).join("");
 
   return `
     <section class="card engineer-card telemetry-workspace">
@@ -658,38 +720,61 @@ function renderTelemetryWorkspace(payload) {
         </div>
         <div class="telemetry-work-source">TracingInsights/2026</div>
       </div>
-
-      <div class="telemetry-work-grid">
-        <article class="telemetry-work-main">
-          <div class="telemetry-kpi-row">
-            <div><span>Lap seleccionada</span><strong>${escapeHtml(formatTelemetrySeconds(summary.referenceLap))}</strong></div>
-            <div><span>Ritmo medio</span><strong>${escapeHtml(formatTelemetrySeconds(summary.averagePace))}</strong></div>
-            <div><span>Top speed</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))}</strong></div>
-            <div><span>Speed trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</strong></div>
-          </div>
-          <div class="telemetry-work-traces">
-            ${renderTraceBand("Speed", payload.traces?.speed || [], "speed")}
-            ${renderTraceBand("Throttle", payload.traces?.throttle || [], "throttle")}
-            ${renderTraceBand("Brake", payload.traces?.brake || [], "brake")}
-          </div>
-        </article>
-
-        <aside class="telemetry-work-side">
-          <div class="telemetry-lap-controls">
+      <div class="telemetry-analytical-layout">
+        <section class="telemetry-chart-zone">
+          <div class="telemetry-lap-controls telemetry-lap-controls--inline">
             <div class="telemetry-lap-modes">
               <button class="${engineerState.telemetry.lapMode === "reference" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('reference')">Referencia</button>
               <button class="${engineerState.telemetry.lapMode === "latest" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('latest')">Última</button>
               <button class="${engineerState.telemetry.lapMode === "manual" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('manual')">Manual</button>
             </div>
-            ${engineerState.telemetry.lapMode === "manual"
-      ? `<select class="select-input" onchange="setEngineerTelemetryManualLap(this.value)">${renderTelemetrySelector(manualOptions, engineerState.telemetry.manualLap || String(selector.selectedLapNumber || ""))}</select>`
-      : ""}
+            ${engineerState.telemetry.lapMode === "manual" ? `<select class="select-input" onchange="setEngineerTelemetryManualLap(this.value)">${renderTelemetrySelector(manualOptions, engineerState.telemetry.manualLap || String(selector.selectedLapNumber || ""))}</select>` : ""}
             ${selectedLap ? `<div class="telemetry-lap-active">L${selectedLap.lapNumber} · ${escapeHtml(formatTelemetrySeconds(selectedLap.lapTime))}</div>` : ""}
+            <button class="btn-secondary telemetry-reset-btn" onclick="resetEngineerTelemetryViewport()">Reset zoom</button>
           </div>
 
-          ${sectors.length ? `<div class="telemetry-sectors">${sectors.map(item => `<div><span>${item.label}</span><strong>${escapeHtml(formatTelemetrySeconds(item.value))}</strong></div>`).join("")}</div>` : ""}
+          <div class="telemetry-chart-stack">
+            ${traceRows.map(row => {
+    const line = buildTelemetryLine(row.values, startIndex, endIndex, { min: row.min, max: row.max });
+    return `<article class="telemetry-trace-panel ${row.variant}">
+                <header><span>${row.label}</span><strong>${escapeHtml(formatTelemetryReadout(line.current, row.unit))}</strong></header>
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="${line.points}"></polyline></svg>
+              </article>`;
+  }).join("")}
+          </div>
+          <div class="telemetry-brush">
+            <div class="telemetry-brush-head"><span>Rango visible</span><strong>${Math.round(start * 100)}% → ${Math.round(end * 100)}%</strong></div>
+            <input type="range" min="0" max="96" value="${Math.round(start * 100)}" oninput="setEngineerTelemetryViewportStart(this.value)">
+            <input type="range" min="4" max="100" value="${Math.round(end * 100)}" oninput="setEngineerTelemetryViewportEnd(this.value)">
+            <input type="range" min="0" max="100" value="${Math.round(engineerState.telemetry.cursor * 100)}" oninput="setEngineerTelemetryCursor(this.value)">
+          </div>
+        </section>
 
-          ${stintRows.length ? `<div class="telemetry-stint-mini">${stintRows.map(item => `<div><span>S${item.number} · ${escapeHtml(item.compound || "-")}</span><strong>${escapeHtml(formatTelemetrySeconds(item.avgLap))}</strong></div>`).join("")}</div>` : ""}
+        <aside class="telemetry-analysis-zone">
+          <article class="telemetry-track-panel">
+            <div class="telemetry-track-head"><span>Track map analítico</span><strong>Cursor ${Math.round(lapShare)}%</strong></div>
+            <div class="telemetry-track-ribbon">${trackCells}</div>
+            <div class="telemetry-track-legend"><span>Baja velocidad / lift</span><span>Alta velocidad / aceleración</span></div>
+          </article>
+
+          <article class="telemetry-sectors-compact">
+            <div class="telemetry-track-head"><span>Sectores</span><strong>Delta vs media</strong></div>
+            ${sectors.map(item => `<div class="telemetry-sector-line ${item.delta <= 0 ? "gain" : "loss"}"><span>${item.name}</span><strong>${escapeHtml(formatTelemetrySeconds(item.current))}</strong><em>${Number.isFinite(item.delta) ? `${item.delta <= 0 ? "-" : "+"}${Math.abs(item.delta).toFixed(3)}s` : "—"}</em></div>`).join("")}
+          </article>
+
+          <article class="telemetry-stint-compact">
+            <div class="telemetry-track-head"><span>Stints</span><strong>${activeStint ? `Stint activo S${activeStint.number}` : "Resumen"}</strong></div>
+            ${stintRows.map(item => `<div class="telemetry-stint-line ${activeStint?.number === item.number ? "active" : ""}"><span>S${item.number} · ${escapeHtml(item.compound || "-")} · L${item.lapStart}-${item.lapEnd}</span><strong>${escapeHtml(formatTelemetrySeconds(item.avgLap))}</strong></div>`).join("")}
+          </article>
+
+          <div class="telemetry-kpi-row telemetry-kpi-row--compact">
+            <div><span>Ritmo medio</span><strong>${escapeHtml(formatTelemetrySeconds(summary.averagePace))}</strong></div>
+            <div><span>Top speed</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))}</strong></div>
+            <div><span>Speed trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</strong></div>
+          </div>
+          <div class="telemetry-secondary-readout">
+            ${secondarySignals.map(signal => `<div><span>${signal.label}</span><strong>${escapeHtml(formatTelemetryReadout(signal.value, signal.unit))}</strong></div>`).join("")}
+          </div>
         </aside>
       </div>
     </section>
@@ -768,6 +853,9 @@ async function loadTelemetryData() {
     }
 
     telemetry.payload = payload;
+    telemetry.viewportStart = 0;
+    telemetry.viewportEnd = 1;
+    telemetry.cursor = 0;
     telemetry.status = "ready";
     renderEngineerScreen();
   } catch (error) {
@@ -832,6 +920,32 @@ function setEngineerTelemetryManualLap(value) {
   loadTelemetryData();
 }
 
+function resetEngineerTelemetryViewport() {
+  engineerState.telemetry.viewportStart = 0;
+  engineerState.telemetry.viewportEnd = 1;
+  engineerState.telemetry.cursor = 0;
+  renderEngineerScreen();
+}
+
+function setEngineerTelemetryViewportStart(value) {
+  const normalized = clampTelemetryUnit(Number(value) / 100);
+  engineerState.telemetry.viewportStart = normalized;
+  if (engineerState.telemetry.viewportEnd - normalized < 0.04) engineerState.telemetry.viewportEnd = Math.min(1, normalized + 0.04);
+  renderEngineerScreen();
+}
+
+function setEngineerTelemetryViewportEnd(value) {
+  const normalized = clampTelemetryUnit(Number(value) / 100);
+  engineerState.telemetry.viewportEnd = normalized;
+  if (normalized - engineerState.telemetry.viewportStart < 0.04) engineerState.telemetry.viewportStart = Math.max(0, normalized - 0.04);
+  renderEngineerScreen();
+}
+
+function setEngineerTelemetryCursor(value) {
+  engineerState.telemetry.cursor = clampTelemetryUnit(Number(value) / 100);
+  renderEngineerScreen();
+}
+
 function renderEngineerScreen() {
   const selectedRace = getSelectedRace();
   const favorite = getFavorite();
@@ -887,6 +1001,10 @@ window.setEngineerTelemetrySessionType = setEngineerTelemetrySessionType;
 window.setEngineerTelemetryDriver = setEngineerTelemetryDriver;
 window.setEngineerTelemetryLapMode = setEngineerTelemetryLapMode;
 window.setEngineerTelemetryManualLap = setEngineerTelemetryManualLap;
+window.setEngineerTelemetryViewportStart = setEngineerTelemetryViewportStart;
+window.setEngineerTelemetryViewportEnd = setEngineerTelemetryViewportEnd;
+window.setEngineerTelemetryCursor = setEngineerTelemetryCursor;
+window.resetEngineerTelemetryViewport = resetEngineerTelemetryViewport;
 
 
 function persistEngineerSubmode(mode) {

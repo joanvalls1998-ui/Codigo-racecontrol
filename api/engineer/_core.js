@@ -416,6 +416,9 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     lapTime: item.lapTime,
     compound: item.compound,
     stint: item.stint,
+    sector1: item.sector1,
+    sector2: item.sector2,
+    sector3: item.sector3,
     status: item.status,
     isBest: Number.isFinite(built.bestLapNumber) && item.lapNumber === built.bestLapNumber,
     hasTelemetry: validLaps.some(valid => valid.lapNumber === item.lapNumber)
