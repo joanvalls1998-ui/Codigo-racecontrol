@@ -426,7 +426,103 @@ function normalizeBooleanFlag(value) {
   return raw === "true" || raw === "1" || raw === "yes";
 }
 
+function normalizeBooleanFlagOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value > 0;
+  const raw = String(value).trim().toLowerCase();
+  if (!raw) return null;
+  if (["true", "1", "yes", "y"].includes(raw)) return true;
+  if (["false", "0", "no", "n"].includes(raw)) return false;
+  return null;
+}
+
+function getLapReferenceSelection(lapsRows = []) {
+  const candidates = lapsRows
+    .map(item => {
+      const lapNumber = parseMaybeNumber(item?.lap_number);
+      const lapTime = parseMaybeNumber(item?.lap_duration);
+      const sector1 = parseMaybeNumber(item?.duration_sector_1);
+      const sector2 = parseMaybeNumber(item?.duration_sector_2);
+      const sector3 = parseMaybeNumber(item?.duration_sector_3);
+      const sectorValues = [sector1, sector2, sector3];
+      const finiteSectors = sectorValues.filter(Number.isFinite);
+      const hasAnySector = finiteSectors.length > 0;
+      const hasFullSectors = finiteSectors.length === 3;
+      const hasBrokenSectorValue = finiteSectors.some(value => value <= 0);
+      const sectorsSum = hasFullSectors ? (sector1 + sector2 + sector3) : Number.NaN;
+      const sectorsCoherent = hasFullSectors
+        ? Number.isFinite(lapTime) && lapTime > 0 && Math.abs(sectorsSum - lapTime) <= 0.9
+        : !hasAnySector;
+
+      const isAccurate = normalizeBooleanFlagOrNull(item?.is_accurate)
+        ?? normalizeBooleanFlagOrNull(item?.lap_is_accurate)
+        ?? normalizeBooleanFlagOrNull(item?.accurate);
+      const isDeleted = normalizeBooleanFlag(item?.is_deleted)
+        || normalizeBooleanFlag(item?.deleted)
+        || normalizeBooleanFlag(item?.is_lap_deleted);
+      const invalidByFlags = (normalizeBooleanFlagOrNull(item?.is_valid) === false)
+        || (normalizeBooleanFlagOrNull(item?.is_valid_lap) === false)
+        || normalizeBooleanFlag(item?.is_invalid)
+        || normalizeBooleanFlag(item?.invalid);
+      const isPitIn = normalizeBooleanFlag(item?.is_pit_in_lap);
+      const isPitOut = normalizeBooleanFlag(item?.is_pit_out_lap);
+      const lapTimeValid = Number.isFinite(lapTime) && lapTime > 0;
+      const hasConsistentTiming = lapTimeValid && !hasBrokenSectorValue && sectorsCoherent;
+
+      return {
+        raw: item,
+        lapNumber,
+        lapTime,
+        isPitIn,
+        isPitOut,
+        isDeleted,
+        invalidByFlags,
+        isAccurate,
+        lapTimeValid,
+        hasConsistentTiming
+      };
+    })
+    .filter(item => Number.isFinite(item.lapNumber));
+
+  const afterBox = candidates.filter(item => !item.isPitIn && !item.isPitOut);
+  const afterDeleted = afterBox.filter(item => !item.isDeleted && !item.invalidByFlags);
+  const strictPool = afterDeleted.filter(item => item.hasConsistentTiming && (item.isAccurate !== false));
+  const fallbackPool = afterDeleted.filter(item => item.hasConsistentTiming);
+
+  const strictChosen = [...strictPool].sort((a, b) => a.lapTime - b.lapTime)[0] || null;
+  const fallbackChosen = [...fallbackPool].sort((a, b) => a.lapTime - b.lapTime)[0] || null;
+  const chosen = strictChosen || fallbackChosen || null;
+  const fallbackLevel = strictChosen ? 1 : (fallbackChosen ? 2 : 3);
+  const reasonIfNoReference = chosen
+    ? null
+    : afterBox.length === 0
+      ? "ALL_LAPS_FILTERED_BY_PIT_IN_OUT"
+      : afterDeleted.length === 0
+        ? "ALL_LAPS_FILTERED_BY_INVALID_OR_DELETED"
+        : fallbackPool.length === 0
+          ? "NO_LAP_WITH_CONSISTENT_TIMING"
+          : "REFERENCE_NOT_AVAILABLE";
+
+  return {
+    candidates,
+    chosen,
+    fallbackLevel,
+    reasonIfNoReference,
+    stats: {
+      total_laps_considered: candidates.length,
+      laps_after_box_filter: afterBox.length,
+      laps_after_deleted_filter: afterDeleted.length,
+      laps_after_accuracy_filter: strictPool.length,
+      chosen_reference_lap: chosen?.lapNumber ?? null,
+      fallback_level_used: fallbackLevel,
+      reason_if_no_reference: reasonIfNoReference
+    }
+  };
+}
+
 function buildOpenF1LapProfiles(lapsRows = [], carDataRows = []) {
+  const referenceSelection = getLapReferenceSelection(lapsRows);
   const sortedLaps = lapsRows
     .map(item => {
       const lapNumber = parseMaybeNumber(item.lap_number);
@@ -440,6 +536,9 @@ function buildOpenF1LapProfiles(lapsRows = [], carDataRows = []) {
         endMs,
         isPitIn: normalizeBooleanFlag(item.is_pit_in_lap),
         isPitOut: normalizeBooleanFlag(item.is_pit_out_lap),
+        isDeleted: normalizeBooleanFlag(item.is_deleted) || normalizeBooleanFlag(item.deleted) || normalizeBooleanFlag(item.is_lap_deleted),
+        isInvalid: normalizeBooleanFlag(item.is_invalid) || normalizeBooleanFlag(item.invalid),
+        isAccurate: normalizeBooleanFlagOrNull(item.is_accurate) ?? normalizeBooleanFlagOrNull(item.lap_is_accurate) ?? normalizeBooleanFlagOrNull(item.accurate),
         isValid: Number.isFinite(lapTime) && lapTime > 0
       };
     })
@@ -474,14 +573,14 @@ function buildOpenF1LapProfiles(lapsRows = [], carDataRows = []) {
       : [];
 
     const hasTelemetry = speed.length >= 6 && (throttle.length >= 6 || brake.length >= 6);
-    const hasUsefulTiming = lap.isValid && !lap.isPitIn && !lap.isPitOut;
-    const status = !hasTelemetry
-      ? "no_trace"
-      : lap.isPitIn || lap.isPitOut
-        ? "pit"
-        : lap.isValid
-          ? "valid"
-          : "invalid";
+    const matchingSelection = referenceSelection.candidates.find(item => item.lapNumber === lap.lapNumber) || null;
+    const hasUsefulTiming = !!matchingSelection?.hasConsistentTiming && !lap.isPitIn && !lap.isPitOut && !lap.isDeleted && !lap.isInvalid;
+    let status = "invalid";
+    if (!hasTelemetry) status = "no_trace";
+    else if (lap.isPitIn || lap.isPitOut) status = "pit";
+    else if (lap.isDeleted) status = "deleted";
+    else if (lap.isInvalid) status = "invalid";
+    else if (lap.isValid) status = "valid";
 
     lapTraces[String(lap.lapNumber)] = {
       speed,
@@ -500,16 +599,20 @@ function buildOpenF1LapProfiles(lapsRows = [], carDataRows = []) {
       isValid: lap.isValid,
       isPitIn: lap.isPitIn,
       isPitOut: lap.isPitOut,
+      isDeleted: lap.isDeleted,
+      isInvalid: lap.isInvalid,
+      isAccurate: lap.isAccurate,
       hasTelemetry,
       hasUsefulTiming,
       status
     };
   });
 
-  const reference = lapCatalog
-    .filter(item => item.hasTelemetry && item.hasUsefulTiming && Number.isFinite(item.lapTime))
-    .sort((a, b) => a.lapTime - b.lapTime)[0]
-    || null;
+  const reference = referenceSelection.chosen
+    ? lapCatalog.find(item => item.lapNumber === referenceSelection.chosen.lapNumber && item.hasTelemetry)
+      || lapCatalog.find(item => item.lapNumber === referenceSelection.chosen.lapNumber)
+      || null
+    : null;
   const latest = [...lapCatalog]
     .reverse()
     .find(item => item.hasTelemetry && item.hasUsefulTiming)
@@ -521,8 +624,11 @@ function buildOpenF1LapProfiles(lapsRows = [], carDataRows = []) {
     lapTraces,
     selection: {
       referenceLapNumber: reference?.lapNumber ?? null,
-      latestLapNumber: latest?.lapNumber ?? null
-    }
+      latestLapNumber: latest?.lapNumber ?? null,
+      fallbackLevel: referenceSelection.fallbackLevel,
+      reasonIfNoReference: referenceSelection.reasonIfNoReference
+    },
+    diagnostics: referenceSelection.stats
   };
 }
 
@@ -1011,6 +1117,7 @@ async function getDriverMetricsOpenF1(sessionKey, driverNumber, options = {}) {
   ]);
 
   const lapTimes = lapsRows.map(item => parseMaybeNumber(item.lap_duration)).filter(Number.isFinite);
+  const referenceSelection = getLapReferenceSelection(lapsRows);
   const sectors = {
     sector1: average(lapsRows.map(item => parseMaybeNumber(item.duration_sector_1))),
     sector2: average(lapsRows.map(item => parseMaybeNumber(item.duration_sector_2))),
@@ -1071,7 +1178,7 @@ async function getDriverMetricsOpenF1(sessionKey, driverNumber, options = {}) {
   return {
     source: "openf1",
     lapCount: lapTimes.length,
-    referenceLap: lapTimes.length ? Math.min(...lapTimes) : null,
+    referenceLap: Number.isFinite(referenceSelection?.chosen?.lapTime) ? referenceSelection.chosen.lapTime : null,
     averagePace: average(lapTimes),
     topSpeed: topSpeedCandidates.length ? Math.max(...topSpeedCandidates) : null,
     speedTrap: speedTrapCandidates.length ? Math.max(...speedTrapCandidates) : null,
@@ -1099,6 +1206,7 @@ async function getDriverMetricsOpenF1(sessionKey, driverNumber, options = {}) {
     lapCatalog: openF1LapProfiles.lapCatalog,
     lapTraces: openF1LapProfiles.lapTraces,
     lapSelection: openF1LapProfiles.selection,
+    referenceSelection: referenceSelection.stats,
     completeness: {
       speed: speedProfile.length > 0,
       throttle: throttleProfile.length > 0,
@@ -1120,7 +1228,8 @@ async function getDriverMetricsOpenF1(sessionKey, driverNumber, options = {}) {
         sectors: Object.values(sectors).some(Number.isFinite),
         stints: stintRows.length > 0,
         position: positionRows.some(item => Number.isFinite(parseMaybeNumber(item.position)))
-      }
+      },
+      reference_selection: referenceSelection.stats
     }
   };
 }
@@ -1134,6 +1243,7 @@ async function getDriverMetricsOpenF1Aggregate(sessionKey, driverNumber) {
   ]);
 
   const lapTimes = lapsRows.map(item => parseMaybeNumber(item.lap_duration)).filter(Number.isFinite);
+  const referenceSelection = getLapReferenceSelection(lapsRows);
   const sectors = {
     sector1: median(lapsRows.map(item => parseMaybeNumber(item.duration_sector_1))),
     sector2: median(lapsRows.map(item => parseMaybeNumber(item.duration_sector_2))),
@@ -1160,7 +1270,7 @@ async function getDriverMetricsOpenF1Aggregate(sessionKey, driverNumber) {
   return {
     source: "openf1_aggregate",
     lapCount: lapTimes.length,
-    referenceLap: lapTimes.length ? Math.min(...lapTimes) : null,
+    referenceLap: Number.isFinite(referenceSelection?.chosen?.lapTime) ? referenceSelection.chosen.lapTime : null,
     averagePace: lapTimes.length ? average(lapTimes) : null,
     topSpeed: Number.isFinite(topSpeed) && topSpeed > 0 ? topSpeed : null,
     speedTrap: Number.isFinite(speedTrap) && speedTrap > 0 ? speedTrap : null,
@@ -1192,7 +1302,8 @@ async function getDriverMetricsOpenF1Aggregate(sessionKey, driverNumber) {
         sectors: Object.values(sectors).some(Number.isFinite),
         stints: stintsRows.length > 0,
         position: positionRows.some(item => Number.isFinite(parseMaybeNumber(item.position)))
-      }
+      },
+      reference_selection: referenceSelection.stats
     }
   };
 }
@@ -1629,8 +1740,9 @@ async function buildSessionEvolutionSummary({ meetingKey, currentSessionKey, dri
     if (session.session_key === currentSessionKey) continue;
     const laps = await fetchOpenF1WithRetry("laps", { session_key: session.session_key, driver_number: driverNumber }, { retries: 1 }).catch(() => []);
     const lapTimes = laps.map(item => parseMaybeNumber(item.lap_duration)).filter(Number.isFinite);
-    if (!lapTimes.length) continue;
-    const refLap = Math.min(...lapTimes);
+    const referenceSelection = getLapReferenceSelection(laps);
+    const refLap = Number.isFinite(referenceSelection?.chosen?.lapTime) ? referenceSelection.chosen.lapTime : null;
+    if (!Number.isFinite(refLap) && !lapTimes.length) continue;
     const avg = average(lapTimes);
     evolution.push({
       session_key: session.session_key,
@@ -1839,6 +1951,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     fastf1_reason: fastf1?.reason || "FASTF1_ACTIVE",
     aggregate_counts: aggregate?.diagnostics?.counts || {},
     aggregate_blocks: aggregate?.diagnostics?.blocks || {},
+    reference_selection: merged?.referenceSelection || openf1?.referenceSelection || null,
     merged_primary: merged.primarySource || "fastf1",
     merged_sources: merged.sources || ["fastf1", "openf1", "openf1_aggregate"]
   });

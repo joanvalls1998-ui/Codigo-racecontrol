@@ -1016,6 +1016,15 @@ function renderTelemetryDashboard(payload) {
   const stintBasic = payload.stints?.basic || [];
   const stintEvolution = payload.stints?.evolution || [];
   const currentStint = stintBasic[stintBasic.length - 1] || null;
+  const referenceLapNumber = Number.isFinite(payload?.lap_context?.selection?.referenceLapNumber)
+    ? payload.lap_context.selection.referenceLapNumber
+    : null;
+  const referenceStint = Number.isFinite(referenceLapNumber)
+    ? stintBasic.find(item => Number.isFinite(item?.lapStart) && Number.isFinite(item?.lapEnd) && referenceLapNumber >= item.lapStart && referenceLapNumber <= item.lapEnd)
+    : null;
+  const referenceMeta = Number.isFinite(referenceLapNumber)
+    ? `Lap ${Math.round(referenceLapNumber)} · ${referenceStint?.compound || "N/D"}`
+    : `Compuesto · ${currentStint?.compound || "N/D"}`;
   const stintLine = stintEvolution.map(item => Number.isFinite(item.averagePace) ? item.averagePace : null).filter(Number.isFinite);
   const usefulStints = buildTelemetryUsefulStints(stintBasic, payload.stints?.catalog || []);
   const stintBlock = renderTelemetryStintComparativeBlock(usefulStints);
@@ -1088,7 +1097,7 @@ function renderTelemetryDashboard(payload) {
           <div class="telemetry-hero-core">
             <span>Vuelta referencia</span>
             <strong>${escapeHtml(isTelemetryMetricReady(summary.referenceLap, "lap") ? formatTelemetrySeconds(summary.referenceLap) : "N/D")}</strong>
-            <div class="telemetry-hero-meta">Compuesto · ${escapeHtml(currentStint?.compound || "N/D")}</div>
+            <div class="telemetry-hero-meta">${escapeHtml(referenceMeta)}</div>
           </div>
           <div class="telemetry-hero-core telemetry-hero-core--secondary">
             <span>Ritmo medio</span>
