@@ -384,37 +384,56 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     throw error;
   }
 
-  const targetByMode = () => {
+  const telemetryByLap = new Map();
+  const telemetryEligibleLaps = [];
+  for (const lap of validLaps) {
+    try {
+      const candidate = await loadLapTelemetry({
+        meetingKey,
+        sessionFolder: selectedSession.folder,
+        driverCode: selectedDriver.code,
+        lapNumber: lap.lapNumber
+      });
+      const trace = candidate?.tel;
+      if (trace && Array.isArray(trace.speed) && trace.speed.length) {
+        telemetryByLap.set(lap.lapNumber, trace);
+        telemetryEligibleLaps.push(lap.lapNumber);
+      }
+    } catch {
+      // ignore missing lap telemetry for selector eligibility
+    }
+  }
+
+  if (!telemetryEligibleLaps.length) {
+    const error = new Error("NO_TELEMETRY");
+    error.code = "NO_TELEMETRY";
+    throw error;
+  }
+
+  const preferredLapByMode = () => {
     if (lapMode === "manual") {
       const lap = Number(manualLap);
       if (Number.isFinite(lap)) return lap;
+      return null;
     }
     if (lapMode === "latest") return built.latestLapNumber;
     return built.bestLapNumber;
   };
 
-  const orderedCandidates = [
-    targetByMode(),
-    built.bestLapNumber,
-    built.latestLapNumber,
-    ...validLaps.map(item => item.lapNumber)
-  ].filter((value, idx, arr) => Number.isFinite(value) && arr.indexOf(value) === idx);
-
-  let selectedLapTelemetry = null;
-  let selectedLapNumber = null;
-  for (const lapNumber of orderedCandidates) {
-    try {
-      const candidate = await loadLapTelemetry({ meetingKey, sessionFolder: selectedSession.folder, driverCode: selectedDriver.code, lapNumber });
-      if (candidate?.tel && Array.isArray(candidate.tel.speed) && candidate.tel.speed.length) {
-        selectedLapTelemetry = candidate.tel;
-        selectedLapNumber = lapNumber;
-        break;
-      }
-    } catch {
-      // try next lap candidate
-    }
+  const preferredLap = preferredLapByMode();
+  if (lapMode === "manual" && Number.isFinite(preferredLap) && !telemetryByLap.has(preferredLap)) {
+    const error = new Error("MANUAL_LAP_UNAVAILABLE");
+    error.code = "MANUAL_LAP_UNAVAILABLE";
+    throw error;
   }
+  const fallbackByMode = lapMode === "latest"
+    ? telemetryEligibleLaps.slice().sort((a, b) => b - a)
+    : telemetryEligibleLaps.slice().sort((a, b) => a - b);
+  const orderedCandidates = [preferredLap, ...fallbackByMode]
+    .filter((value, idx, arr) => Number.isFinite(value) && arr.indexOf(value) === idx);
 
+  const selectedLapNumber = orderedCandidates.find(lapNumber => telemetryByLap.has(lapNumber)) ?? null;
+  const selectedLapTelemetry = Number.isFinite(selectedLapNumber) ? telemetryByLap.get(selectedLapNumber) : null;
   if (!selectedLapTelemetry || !Number.isFinite(selectedLapNumber)) {
     const error = new Error("NO_TELEMETRY");
     error.code = "NO_TELEMETRY";
@@ -436,7 +455,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     stint: item.stint,
     status: item.status,
     isBest: Number.isFinite(built.bestLapNumber) && item.lapNumber === built.bestLapNumber,
-    hasTelemetry: validLaps.some(valid => valid.lapNumber === item.lapNumber)
+    hasTelemetry: telemetryByLap.has(item.lapNumber)
   }));
 
   const averagePace = validLaps.length ? validLaps.reduce((acc, item) => acc + item.lapTime, 0) / validLaps.length : null;
