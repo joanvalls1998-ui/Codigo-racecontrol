@@ -508,7 +508,11 @@ const engineerState = {
     driver: "",
     context: null,
     payload: null,
-    perf: null
+    perf: null,
+    lapSelection: {
+      mode: "reference",
+      manualLap: ""
+    }
   },
   telemetryWarmup: {
     status: "idle",
@@ -534,6 +538,7 @@ const telemetryTraceInspector = {
   index: null,
   pointCount: 0
 };
+const TELEMETRY_LAP_MODES = Object.freeze(["reference", "latest", "manual"]);
 const SESSION_PRIORITY_ORDER = Object.freeze([
   "race",
   "qualy",
@@ -621,6 +626,49 @@ function formatTelemetryDelta(value, kind = "seconds") {
   const absolute = Math.abs(value);
   if (kind === "speed") return `${sign}${value.toFixed(1)} km/h`;
   return `${sign}${absolute.toFixed(3)}`;
+}
+
+function formatTelemetryLapLabel(lap = {}) {
+  const lapNumber = Number.isFinite(lap?.lapNumber) ? `Lap ${Math.round(lap.lapNumber)}` : "Lap N/D";
+  const lapTime = Number.isFinite(lap?.lapTime) ? formatTelemetrySeconds(lap.lapTime) : null;
+  const tags = [];
+  if (lap?.status === "pit") tags.push("PIT");
+  if (lap?.status === "invalid") tags.push("Invalid");
+  if (lap?.status === "no_trace") tags.push("Sin traza");
+  if (lap?.isBest) tags.push("PB");
+  const parts = [lapNumber];
+  if (lapTime) parts.push(lapTime);
+  if (tags.length) parts.push(tags.join(" · "));
+  return parts.join(" · ");
+}
+
+function resolveTelemetryActiveLap(payload = {}, selection = {}) {
+  const lapContext = payload?.lap_context || {};
+  const catalogRaw = Array.isArray(lapContext.catalog) ? lapContext.catalog : [];
+  const tracesByLap = lapContext.traces_by_lap || {};
+  if (!catalogRaw.length) return null;
+  const selectionConfig = lapContext.selection || {};
+  const bestLapNumber = Number.isFinite(selectionConfig.referenceLapNumber) ? selectionConfig.referenceLapNumber : null;
+  const latestLapNumber = Number.isFinite(selectionConfig.latestLapNumber) ? selectionConfig.latestLapNumber : null;
+  const withMeta = catalogRaw.map(item => ({ ...item, isBest: Number.isFinite(bestLapNumber) && item.lapNumber === bestLapNumber }));
+  const usable = withMeta.filter(item => item.hasTelemetry);
+  if (!usable.length) return null;
+  const getByNumber = value => usable.find(item => String(item.lapNumber) === String(value)) || null;
+  const mode = TELEMETRY_LAP_MODES.includes(selection?.mode) ? selection.mode : "reference";
+  let selectedLap = null;
+  if (mode === "manual") selectedLap = getByNumber(selection?.manualLap);
+  if (!selectedLap && mode === "latest") selectedLap = getByNumber(latestLapNumber);
+  if (!selectedLap) selectedLap = getByNumber(bestLapNumber);
+  if (!selectedLap) selectedLap = usable[usable.length - 1];
+  if (!selectedLap) return null;
+  return {
+    mode: mode === "manual" && selectedLap ? "manual" : (mode === "latest" ? "latest" : "reference"),
+    bestLapNumber,
+    latestLapNumber,
+    selectedLap,
+    availableLaps: usable,
+    traces: tracesByLap[String(selectedLap.lapNumber)] || null
+  };
 }
 
 async function fetchEngineerApi(endpoint, params = {}, options = {}) {
@@ -964,8 +1012,8 @@ function buildTracePoints(values = [], pointCount = 0, minValue = 0, maxValue = 
   return points.join(" ");
 }
 
-function buildTelemetryTraceInspection(payload = {}) {
-  const traces = payload?.traces || {};
+function buildTelemetryTraceInspection(payload = {}, activeTraces = null) {
+  const traces = activeTraces || payload?.traces || {};
   const speed = Array.isArray(traces.speed) ? traces.speed.filter(Number.isFinite) : [];
   const throttle = Array.isArray(traces.throttle) ? traces.throttle.filter(Number.isFinite).map(item => clampTelemetryPercent(item)).filter(Number.isFinite) : [];
   const brake = Array.isArray(traces.brake) ? traces.brake.filter(Number.isFinite).map(item => clampTelemetryPercent(item)).filter(Number.isFinite) : [];
@@ -1015,7 +1063,9 @@ function buildTelemetryTraceInspection(payload = {}) {
 }
 
 function renderTelemetryTraceInspector(payload = {}) {
-  const inspection = buildTelemetryTraceInspection(payload);
+  const telemetry = engineerState.telemetry;
+  const activeLap = resolveTelemetryActiveLap(payload, telemetry.lapSelection || {});
+  const inspection = buildTelemetryTraceInspection(payload, activeLap?.traces || null);
   if (!inspection) return `<div class="empty-line">Trazas no disponibles para inspección.</div>`;
   const x = (inspection.ratio * 100).toFixed(2);
   const selected = inspection.selectedValues;
@@ -1055,9 +1105,9 @@ function renderTelemetryTraceInspector(payload = {}) {
         <div><span>Speed</span><strong>${escapeHtml(formatTelemetrySpeed(selected.speed))}</strong></div>
         <div><span>Throttle</span><strong>${Number.isFinite(selected.throttle) ? `${Math.round(selected.throttle)}%` : "N/D"}</strong></div>
         <div><span>Brake</span><strong>${Number.isFinite(selected.brake) ? `${Math.round(selected.brake)}%` : "N/D"}</strong></div>
-        ${Number.isFinite(selected.gear) ? `<div><span>Gear</span><strong>${Math.round(selected.gear)}</strong></div>` : ""}
-        ${Number.isFinite(selected.rpm) ? `<div><span>RPM</span><strong>${Math.round(selected.rpm)}</strong></div>` : ""}
-        ${Number.isFinite(selected.drs) ? `<div><span>DRS</span><strong>${escapeHtml(drsLabel)}</strong></div>` : ""}
+        <div><span>Gear</span><strong>${Number.isFinite(selected.gear) ? `${Math.round(selected.gear)}` : "N/D"}</strong></div>
+        <div><span>RPM</span><strong>${Number.isFinite(selected.rpm) ? `${Math.round(selected.rpm)}` : "N/D"}</strong></div>
+        <div><span>DRS</span><strong>${Number.isFinite(selected.drs) ? escapeHtml(drsLabel) : "N/D"}</strong></div>
         <div><span>Distancia</span><strong>${escapeHtml(distanceLabel)}</strong></div>
         <div><span>Sector</span><strong>${escapeHtml(inspection.sector)}</strong></div>
       </div>
@@ -1070,6 +1120,19 @@ function renderTelemetryDashboard(payload) {
   const weather = payload.weather || {};
   const availability = payload.availability || {};
   const evolution = payload.session_evolution || [];
+  const lapResolution = resolveTelemetryActiveLap(payload, engineerState.telemetry.lapSelection || {});
+  const activeLap = lapResolution?.selectedLap || null;
+  const activeMode = lapResolution?.mode || "reference";
+  const tracesPayload = lapResolution?.traces ? { ...payload, traces: lapResolution.traces } : payload;
+  const tracesTitle = activeMode === "manual"
+    ? `Trazas · ${formatTelemetryLapLabel(activeLap)}`
+    : activeMode === "latest"
+      ? `Trazas · Latest Valid Lap${activeLap?.lapTime ? ` · ${formatTelemetrySeconds(activeLap.lapTime)}` : ""}`
+      : `Trazas · Best Lap${activeLap?.lapTime ? ` · ${formatTelemetrySeconds(activeLap.lapTime)}` : ""}`;
+  const manualOptions = (lapResolution?.availableLaps || []).map(item => ({
+    value: String(item.lapNumber),
+    label: formatTelemetryLapLabel(item)
+  }));
   const speedTrace = payload.traces?.speed || [];
   const throttleTrace = payload.traces?.throttle || [];
   const brakeTrace = payload.traces?.brake || [];
@@ -1190,11 +1253,23 @@ function renderTelemetryDashboard(payload) {
     </section>
 
     <section class="card engineer-card telemetry-traces-block">
-      <div class="telemetry-line-head"><strong>Trazas</strong><span>Inspección sincronizada</span></div>
+      <div class="telemetry-line-head"><strong>${escapeHtml(tracesTitle)}</strong><span>Inspección sincronizada</span></div>
+      ${lapResolution
+        ? `<div class="telemetry-lap-mode">
+            <div class="telemetry-lap-segments" role="tablist" aria-label="Selector de vuelta de trazas">
+              <button class="${activeMode === "reference" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('reference')">Referencia</button>
+              <button class="${activeMode === "latest" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('latest')">Última</button>
+              <button class="${activeMode === "manual" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('manual')">Manual</button>
+            </div>
+            ${activeMode === "manual"
+      ? `<label><span>Vuelta</span><select class="select-input" onchange="setEngineerTelemetryManualLap(this.value)">${renderTelemetrySelector(manualOptions, engineerState.telemetry.lapSelection.manualLap || String(activeLap?.lapNumber || ""))}</select></label>`
+      : ""}
+          </div>`
+        : `<div class="empty-line">No hay catálogo de vueltas con trazas.</div>`}
       ${payload.__partial
         ? `<div class="empty-line">Cargando trazas pesadas…</div>`
         : `
-          ${renderTelemetryTraceInspector(payload)}
+          ${renderTelemetryTraceInspector(tracesPayload)}
           <div class="telemetry-secondary-signals">
             <div><span>Speed trace</span><strong>${escapeHtml(availability.speedTrace === "available" ? "OK" : "N/D")}</strong></div>
             <div><span>Throttle trace</span><strong>${escapeHtml(availability.throttleTrace === "available" ? "OK" : "N/D")}</strong></div>
@@ -1386,6 +1461,7 @@ function setEngineerTelemetryGp(value) {
   engineerState.telemetry.sessionKey = "";
   engineerState.telemetry.driver = "";
   engineerState.telemetry.payload = null;
+  engineerState.telemetry.lapSelection = { mode: "reference", manualLap: "" };
   const nextGp = engineerState.telemetry.gp;
   if (nextGp) {
     loadSessionsCached(nextGp).catch(() => null);
@@ -1399,6 +1475,7 @@ function setEngineerTelemetrySessionType(value) {
   engineerState.telemetry.sessionKey = "";
   engineerState.telemetry.driver = "";
   engineerState.telemetry.payload = null;
+  engineerState.telemetry.lapSelection = { mode: "reference", manualLap: "" };
   loadTelemetryData();
 }
 
@@ -1406,7 +1483,23 @@ function setEngineerTelemetryDriver(value) {
   engineerState.telemetry.driver = value || "";
   engineerState.telemetry.sessionKey = "";
   engineerState.telemetry.payload = null;
+  engineerState.telemetry.lapSelection = { mode: "reference", manualLap: "" };
   loadTelemetryData();
+}
+
+function setEngineerTelemetryLapMode(mode) {
+  if (!TELEMETRY_LAP_MODES.includes(mode)) return;
+  engineerState.telemetry.lapSelection.mode = mode;
+  if (mode !== "manual") engineerState.telemetry.lapSelection.manualLap = "";
+  telemetryTraceInspector.index = null;
+  renderEngineerScreen();
+}
+
+function setEngineerTelemetryManualLap(value) {
+  engineerState.telemetry.lapSelection.mode = "manual";
+  engineerState.telemetry.lapSelection.manualLap = String(value || "");
+  telemetryTraceInspector.index = null;
+  renderEngineerScreen();
 }
 
 function telemetryTraceIndexFromEvent(event) {
@@ -1501,6 +1594,8 @@ window.setEngineerSubmode = setEngineerSubmode;
 window.setEngineerTelemetryGp = setEngineerTelemetryGp;
 window.setEngineerTelemetrySessionType = setEngineerTelemetrySessionType;
 window.setEngineerTelemetryDriver = setEngineerTelemetryDriver;
+window.setEngineerTelemetryLapMode = setEngineerTelemetryLapMode;
+window.setEngineerTelemetryManualLap = setEngineerTelemetryManualLap;
 window.startEngineerTelemetryWarmup = startEngineerTelemetryWarmup;
 window.engineerTelemetryTracePointerDown = engineerTelemetryTracePointerDown;
 window.engineerTelemetryTracePointerMove = engineerTelemetryTracePointerMove;

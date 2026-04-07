@@ -418,6 +418,113 @@ function buildLineFromSamples(rows = [], valueReader, points = 32) {
   return line.slice(0, points).map(item => Number(item.toFixed(2)));
 }
 
+function normalizeBooleanFlag(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value > 0;
+  const raw = String(value || "").trim().toLowerCase();
+  return raw === "true" || raw === "1" || raw === "yes";
+}
+
+function buildOpenF1LapProfiles(lapsRows = [], carDataRows = []) {
+  const sortedLaps = lapsRows
+    .map(item => {
+      const lapNumber = parseMaybeNumber(item.lap_number);
+      const lapTime = parseMaybeNumber(item.lap_duration);
+      const startMs = parseDateMs(item.date_start);
+      const endMs = Number.isFinite(startMs) && Number.isFinite(lapTime) ? startMs + (lapTime * 1000) : Number.NaN;
+      return {
+        lapNumber,
+        lapTime,
+        startMs,
+        endMs,
+        isPitIn: normalizeBooleanFlag(item.is_pit_in_lap),
+        isPitOut: normalizeBooleanFlag(item.is_pit_out_lap),
+        isValid: Number.isFinite(lapTime) && lapTime > 0
+      };
+    })
+    .filter(item => Number.isFinite(item.lapNumber))
+    .sort((a, b) => a.lapNumber - b.lapNumber);
+
+  const timedCarData = carDataRows
+    .map(item => ({ ...item, __ms: parseDateMs(item.date) }))
+    .filter(item => Number.isFinite(item.__ms))
+    .sort((a, b) => a.__ms - b.__ms);
+
+  const lapTraces = {};
+  const lapCatalog = sortedLaps.map((lap, idx) => {
+    const nextStartMs = Number.isFinite(sortedLaps[idx + 1]?.startMs) ? sortedLaps[idx + 1].startMs : Number.NaN;
+    const effectiveStart = Number.isFinite(lap.startMs) ? lap.startMs : Number.NaN;
+    const effectiveEnd = Number.isFinite(lap.endMs)
+      ? lap.endMs
+      : (Number.isFinite(nextStartMs) ? nextStartMs : Number.NaN);
+    const lapSamples = timedCarData.filter(sample => {
+      if (!Number.isFinite(effectiveStart) || !Number.isFinite(effectiveEnd)) return false;
+      return sample.__ms >= effectiveStart && sample.__ms <= effectiveEnd;
+    });
+
+    const speed = buildLineFromSamples(lapSamples, item => parseMaybeNumber(item.speed), 36);
+    const throttle = buildLineFromSamples(lapSamples, item => parseMaybeNumber(item.throttle), 36);
+    const brake = buildLineFromSamples(lapSamples, item => parseMaybeNumber(item.brake), 36);
+    const gear = buildLineFromSamples(lapSamples, item => parseMaybeNumber(item.n_gear), 36);
+    const rpm = buildLineFromSamples(lapSamples, item => parseMaybeNumber(item.rpm), 36);
+    const drs = buildLineFromSamples(lapSamples, item => parseMaybeNumber(item.drs), 36);
+    const relativeDistance = speed.length
+      ? speed.map((_, pos, arr) => Number((arr.length <= 1 ? 0 : (pos / (arr.length - 1))).toFixed(4)))
+      : [];
+
+    const hasTelemetry = speed.length >= 6 && (throttle.length >= 6 || brake.length >= 6);
+    const hasUsefulTiming = lap.isValid && !lap.isPitIn && !lap.isPitOut;
+    const status = !hasTelemetry
+      ? "no_trace"
+      : lap.isPitIn || lap.isPitOut
+        ? "pit"
+        : lap.isValid
+          ? "valid"
+          : "invalid";
+
+    lapTraces[String(lap.lapNumber)] = {
+      speed,
+      throttle,
+      brake,
+      gear,
+      rpm,
+      drs,
+      distance: [],
+      relativeDistance
+    };
+
+    return {
+      lapNumber: lap.lapNumber,
+      lapTime: lap.lapTime,
+      isValid: lap.isValid,
+      isPitIn: lap.isPitIn,
+      isPitOut: lap.isPitOut,
+      hasTelemetry,
+      hasUsefulTiming,
+      status
+    };
+  });
+
+  const reference = lapCatalog
+    .filter(item => item.hasTelemetry && item.hasUsefulTiming && Number.isFinite(item.lapTime))
+    .sort((a, b) => a.lapTime - b.lapTime)[0]
+    || null;
+  const latest = [...lapCatalog]
+    .reverse()
+    .find(item => item.hasTelemetry && item.hasUsefulTiming)
+    || [...lapCatalog].reverse().find(item => item.hasTelemetry)
+    || null;
+
+  return {
+    lapCatalog,
+    lapTraces,
+    selection: {
+      referenceLapNumber: reference?.lapNumber ?? null,
+      latestLapNumber: latest?.lapNumber ?? null
+    }
+  };
+}
+
 function simpleDegradation(laps = []) {
   const lapTimes = laps
     .map(item => ({ lap_number: parseMaybeNumber(item.lap_number), lap_duration: parseMaybeNumber(item.lap_duration) }))
@@ -922,6 +1029,10 @@ async function getDriverMetricsOpenF1(sessionKey, driverNumber, options = {}) {
   const brakeProfile = includeTraces ? buildLineFromSamples(carDataRows, item => parseMaybeNumber(item.brake), 36) : [];
   const gearProfile = includeTraces ? buildLineFromSamples(carDataRows, item => parseMaybeNumber(item.n_gear), 36) : [];
   const rpmProfile = includeTraces ? buildLineFromSamples(carDataRows, item => parseMaybeNumber(item.rpm), 36) : [];
+  const openF1LapProfiles = includeTraces ? buildOpenF1LapProfiles(lapsRows, carDataRows) : { lapCatalog: [], lapTraces: {}, selection: { referenceLapNumber: null, latestLapNumber: null } };
+  const selectedReferenceLap = Number.isFinite(openF1LapProfiles.selection?.referenceLapNumber)
+    ? openF1LapProfiles.lapTraces[String(openF1LapProfiles.selection.referenceLapNumber)]
+    : null;
 
   const stintRows = stintsRows
     .map(item => ({
@@ -974,12 +1085,18 @@ async function getDriverMetricsOpenF1(sessionKey, driverNumber, options = {}) {
     })),
     evolution,
     traces: {
-      speed: speedProfile,
-      throttle: throttleProfile,
-      brake: brakeProfile,
-      gear: gearProfile,
-      rpm: rpmProfile
+      speed: selectedReferenceLap?.speed?.length ? selectedReferenceLap.speed : speedProfile,
+      throttle: selectedReferenceLap?.throttle?.length ? selectedReferenceLap.throttle : throttleProfile,
+      brake: selectedReferenceLap?.brake?.length ? selectedReferenceLap.brake : brakeProfile,
+      gear: selectedReferenceLap?.gear?.length ? selectedReferenceLap.gear : gearProfile,
+      rpm: selectedReferenceLap?.rpm?.length ? selectedReferenceLap.rpm : rpmProfile,
+      drs: selectedReferenceLap?.drs || [],
+      distance: selectedReferenceLap?.distance || [],
+      relativeDistance: selectedReferenceLap?.relativeDistance || []
     },
+    lapCatalog: openF1LapProfiles.lapCatalog,
+    lapTraces: openF1LapProfiles.lapTraces,
+    lapSelection: openF1LapProfiles.selection,
     completeness: {
       speed: speedProfile.length > 0,
       throttle: throttleProfile.length > 0,
@@ -1448,6 +1565,9 @@ function mergeTelemetry(baseTelemetry, fastf1) {
       x: (fastf1.traces?.x || []).length ? buildLineFromSamples(fastf1.traces.x, item => parseMaybeNumber(item), 36) : [],
       y: (fastf1.traces?.y || []).length ? buildLineFromSamples(fastf1.traces.y, item => parseMaybeNumber(item), 36) : []
     },
+    lapCatalog: Array.isArray(baseTelemetry.lapCatalog) ? baseTelemetry.lapCatalog : [],
+    lapTraces: baseTelemetry.lapTraces || {},
+    lapSelection: baseTelemetry.lapSelection || { referenceLapNumber: null, latestLapNumber: null },
     fastf1Context: fastf1.context || {},
     fastf1Circuit: fastf1.circuit || {},
     fastf1Event: fastf1.event || {},
@@ -1487,8 +1607,16 @@ function mergeTelemetryBlock(base = {}, enrich = {}) {
       throttle: base?.traces?.throttle?.length ? base.traces.throttle : (enrich?.traces?.throttle || []),
       brake: base?.traces?.brake?.length ? base.traces.brake : (enrich?.traces?.brake || []),
       gear: base?.traces?.gear?.length ? base.traces.gear : (enrich?.traces?.gear || []),
-      rpm: base?.traces?.rpm?.length ? base.traces.rpm : (enrich?.traces?.rpm || [])
-    }
+      rpm: base?.traces?.rpm?.length ? base.traces.rpm : (enrich?.traces?.rpm || []),
+      drs: base?.traces?.drs?.length ? base.traces.drs : (enrich?.traces?.drs || []),
+      distance: base?.traces?.distance?.length ? base.traces.distance : (enrich?.traces?.distance || []),
+      relativeDistance: base?.traces?.relativeDistance?.length ? base.traces.relativeDistance : (enrich?.traces?.relativeDistance || [])
+    },
+    lapCatalog: Array.isArray(base?.lapCatalog) && base.lapCatalog.length ? base.lapCatalog : (enrich?.lapCatalog || []),
+    lapTraces: (base?.lapTraces && Object.keys(base.lapTraces).length) ? base.lapTraces : (enrich?.lapTraces || {}),
+    lapSelection: base?.lapSelection?.referenceLapNumber || base?.lapSelection?.latestLapNumber
+      ? base.lapSelection
+      : (enrich?.lapSelection || { referenceLapNumber: null, latestLapNumber: null })
   };
 }
 
@@ -1713,6 +1841,11 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     stints: {
       basic: merged.stints || [],
       evolution: merged.evolution || []
+    },
+    lap_context: {
+      selection: merged.lapSelection || { referenceLapNumber: null, latestLapNumber: null },
+      catalog: includeHeavy ? (merged.lapCatalog || []) : [],
+      traces_by_lap: includeHeavy ? (merged.lapTraces || {}) : {}
     },
     traces: includeHeavy
       ? {
