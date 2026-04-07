@@ -524,6 +524,21 @@ let telemetryRequestId = 0;
 const TELEMETRY_CACHE_TTL_MS = 1000 * 60 * 8;
 const TELEMETRY_LAP_MODES = Object.freeze(["reference", "latest", "manual"]);
 const TELEMETRY_UI_STORAGE_KEY = "racecontrolEngineerTelemetryUi";
+const LEGACY_TELEMETRY_FAVORITE_KEYS = Object.freeze([
+  "racecontrolEngineerTelemetryFavorite",
+  "racecontrolEngineerFavoriteTelemetryDriver",
+  "racecontrolTelemetryFavoriteDriver",
+  "racecontrolPredictTelemetryFavorite",
+  "racecontrolTelemetryFavoriteState"
+]);
+
+function logTelemetryDriverEvent(event, details = {}) {
+  console.log(JSON.stringify({
+    scope: "engineer.telemetry.driver_selection",
+    event,
+    ...details
+  }));
+}
 
 function cacheGet(map, key) {
   const entry = map.get(key);
@@ -573,6 +588,7 @@ function persistTelemetryUiState() {
 }
 
 function applyStoredTelemetryUiState() {
+  purgeLegacyTelemetryFavoriteState();
   const saved = readTelemetryUiState();
   engineerState.telemetry.gp = saved.gp;
   engineerState.telemetry.sessionType = saved.sessionType;
@@ -582,15 +598,60 @@ function applyStoredTelemetryUiState() {
 
 function resolveTelemetryDriverSelection(context, priorDriver = "") {
   const drivers = Array.isArray(context?.drivers) ? context.drivers : [];
+  const cleanPrior = String(priorDriver || "").trim();
   const byId = value => drivers.find(item => {
     const candidate = String(value || "").trim();
     if (!candidate) return false;
     return String(item?.id || "").trim() === candidate || String(item?.code || "").trim() === candidate || String(item?.number || "").trim() === candidate;
   }) || null;
-  const matchedDriver = byId(priorDriver) || byId(context?.selections?.driver) || drivers[0] || null;
+  const explicitDriver = byId(cleanPrior);
+  if (explicitDriver) {
+    logTelemetryDriverEvent("telemetry_driver_from_user_selection", {
+      requested: cleanPrior,
+      selected: String(explicitDriver?.id || ""),
+      gp: String(context?.selections?.meeting_key || ""),
+      session_type: String(context?.selections?.session_type || "")
+    });
+    return {
+      driverId: String(explicitDriver?.id || "")
+    };
+  }
+  if (cleanPrior) {
+    logTelemetryDriverEvent("telemetry_driver_persisted_value_invalidated", {
+      invalid_driver: cleanPrior,
+      gp: String(context?.selections?.meeting_key || ""),
+      session_type: String(context?.selections?.session_type || "")
+    });
+  }
+  const fallbackDriver = drivers[0] || null;
+  logTelemetryDriverEvent("telemetry_driver_from_session_fallback", {
+    selected: String(fallbackDriver?.id || ""),
+    gp: String(context?.selections?.meeting_key || ""),
+    session_type: String(context?.selections?.session_type || "")
+  });
   return {
-    driverId: String(matchedDriver?.id || "")
+    driverId: String(fallbackDriver?.id || "")
   };
+}
+
+function purgeLegacyTelemetryFavoriteState() {
+  let removed = 0;
+  LEGACY_TELEMETRY_FAVORITE_KEYS.forEach(key => {
+    if (localStorage.getItem(key) !== null) {
+      localStorage.removeItem(key);
+      removed += 1;
+    }
+    if (sessionStorage.getItem(key) !== null) {
+      sessionStorage.removeItem(key);
+      removed += 1;
+    }
+  });
+  if (removed > 0) {
+    logTelemetryDriverEvent("telemetry_driver_persisted_value_invalidated", {
+      reason: "legacy_favorite_keys_removed",
+      removed
+    });
+  }
 }
 
 function resolveTelemetrySessionSelection(context, priorSessionType = "") {
@@ -1019,6 +1080,11 @@ function renderTelemetryPanel() {
 async function loadTelemetryData() {
   const telemetry = engineerState.telemetry;
   const requestId = ++telemetryRequestId;
+  logTelemetryDriverEvent("telemetry_driver_init_started", {
+    gp: telemetry.gp || "",
+    session_type: telemetry.sessionType || "",
+    prior_driver: telemetry.driver || ""
+  });
   telemetry.status = "loading";
   telemetry.error = "";
   telemetry.userMessage = "";
@@ -1046,10 +1112,10 @@ async function loadTelemetryData() {
       return;
     }
 
+    const sessionDrivers = (context?.drivers || []).map(item => String(item?.id || "")).filter(Boolean);
     const driverCandidates = Array.from(new Set([
       telemetry.driver,
-      context?.selections?.driver,
-      ...(context?.drivers || []).map(item => String(item?.id || "")).filter(Boolean)
+      ...sessionDrivers
     ].filter(Boolean)));
 
     let loadedPayload = null;
@@ -1091,6 +1157,12 @@ async function loadTelemetryData() {
 
     telemetry.payload = loadedPayload;
     telemetry.status = "ready";
+    logTelemetryDriverEvent("telemetry_driver_final_selected", {
+      selected: telemetry.driver || "",
+      gp: telemetry.gp || "",
+      session_type: telemetry.sessionType || "",
+      session_key: telemetry.sessionKey || ""
+    });
     renderEngineerScreen();
   } catch (error) {
     if (requestId !== telemetryRequestId) return;
@@ -1294,8 +1366,9 @@ function handleTelemetryScrubberPointerDown(event) {
 
 function renderEngineerScreen() {
   const selectedRace = getSelectedRace();
-  const favorite = getFavorite();
-  const needFreshPredict = shouldAutoGeneratePredict(favorite, selectedRace);
+  const isPrediction = engineerState.submode === "prediction";
+  const favorite = isPrediction ? getFavorite() : null;
+  const needFreshPredict = isPrediction ? shouldAutoGeneratePredict(favorite, selectedRace) : false;
   const activePredictData = !needFreshPredict ? state.lastPredictData : null;
   const expert = isExpertMode();
 
