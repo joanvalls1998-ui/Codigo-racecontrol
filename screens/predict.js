@@ -574,6 +574,17 @@ function buildSpark(values = [], className = "") {
   return `<svg class="${className}" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="${points.join(" ")}"></polyline></svg>`;
 }
 
+function normalizeTrace(values = []) {
+  return (Array.isArray(values) ? values : []).filter(Number.isFinite);
+}
+
+function sampleTrace(values = [], maxPoints = 320) {
+  const clean = normalizeTrace(values);
+  if (clean.length <= maxPoints) return clean;
+  const stride = Math.ceil(clean.length / maxPoints);
+  return clean.filter((_, idx) => idx % stride === 0);
+}
+
 function telemetryRangeWindow(values = [], rangeStartPct = 0, rangeEndPct = 100) {
   const clean = (Array.isArray(values) ? values : []).filter(Number.isFinite);
   if (!clean.length) return { clean: [], startIndex: 0, endIndex: 0, segment: [] };
@@ -608,12 +619,36 @@ function formatTraceValue(kind, value) {
 }
 
 function renderTraceBand(label, values, variant = "", rangeStartPct = 0, rangeEndPct = 100, kind = "pct", cursorPct = 0) {
-  const { clean, segment } = telemetryRangeWindow(values, rangeStartPct, rangeEndPct);
+  const clean = normalizeTrace(values);
+  const sampled = sampleTrace(clean, 280);
+  if (!sampled.length) {
+    return `
+      <div class="telemetry-work-trace ${variant}">
+        <div class="telemetry-work-trace-head"><span>${escapeHtml(label)}</span><strong>—</strong></div>
+        <div class="empty-line">Sin traza útil.</div>
+      </div>
+    `;
+  }
   const readout = formatTraceValue(kind, valueAtCursor(clean, cursorPct));
+  const min = Math.min(...sampled);
+  const max = Math.max(...sampled);
+  const span = Math.max(1, max - min);
+  const points = sampled.map((item, idx) => {
+    const x = (idx / Math.max(1, sampled.length - 1)) * 100;
+    const y = 100 - (((item - min) / span) * 100);
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(" ");
+  const cursorX = Math.max(0, Math.min(100, cursorPct));
+  const rangeX = Math.max(0, Math.min(100, rangeStartPct));
+  const rangeW = Math.max(1, Math.min(100, rangeEndPct) - rangeX);
   return `
     <div class="telemetry-work-trace ${variant}">
-      <div class="telemetry-work-trace-head"><span>${escapeHtml(label)}</span><strong>${escapeHtml(readout)}</strong></div>
-      ${buildSpark(segment, "telemetry-work-spark")}
+      <div class="telemetry-work-trace-head"><span>${escapeHtml(label)}</span><strong>${escapeHtml(readout)}</strong></div>      
+      <svg class="telemetry-work-spark" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <rect x="${rangeX.toFixed(2)}" y="0" width="${rangeW.toFixed(2)}" height="100" class="telemetry-work-window"></rect>
+        <line x1="${cursorX.toFixed(2)}" y1="0" x2="${cursorX.toFixed(2)}" y2="100" class="telemetry-work-cursor"></line>
+        <polyline points="${points}" class="telemetry-work-line"></polyline>
+      </svg>
     </div>
   `;
 }
@@ -702,13 +737,42 @@ function renderTelemetryWorkspace(payload) {
   const hasWeather = ["airTemp", "trackTemp", "humidity", "pressure", "rainfall", "windSpeed"].some(key => Number.isFinite(weather[key]));
   const hasGForces = hasRobustData(traces.gForceX || []) || hasRobustData(traces.gForceY || []);
   const hasTrackMap = hasRobustData(traces.trackX || []) && hasRobustData(traces.trackY || []);
-  const mapWindow = hasTrackMap ? telemetryRangeWindow(traces.trackX || [], rangeStartPct, rangeEndPct) : { segment: [] };
-  const mapYWindow = hasTrackMap ? telemetryRangeWindow(traces.trackY || [], rangeStartPct, rangeEndPct) : { segment: [] };
-  const mapMinY = hasTrackMap && mapYWindow.segment.length ? Math.min(...mapYWindow.segment) : 0;
-  const mapSpanY = hasTrackMap && mapYWindow.segment.length ? Math.max(1, Math.max(...mapYWindow.segment) - mapMinY) : 1;
-  const mapPoints = hasTrackMap
-    ? mapWindow.segment.map((x, idx) => `${(idx / Math.max(1, mapWindow.segment.length - 1)) * 100},${100 - (((mapYWindow.segment[idx] - mapMinY) / mapSpanY) * 100)}`)
-    : [];
+  const xSeries = normalizeTrace(traces.trackX || []);
+  const ySeries = normalizeTrace(traces.trackY || []);
+  const speedSeries = normalizeTrace(traces.speed || []);
+  let mapSegments = "";
+  let mapCursor = "";
+  if (hasTrackMap) {
+    const length = Math.min(xSeries.length, ySeries.length);
+    const startIndex = Math.round((Math.max(0, Math.min(100, rangeStartPct)) / 100) * Math.max(0, length - 1));
+    const endIndex = Math.round((Math.max(0, Math.min(100, rangeEndPct)) / 100) * Math.max(0, length - 1));
+    const from = Math.max(0, Math.min(startIndex, endIndex));
+    const to = Math.max(from + 2, Math.min(length - 1, Math.max(startIndex, endIndex)));
+    const selectedX = xSeries.slice(from, to + 1);
+    const selectedY = ySeries.slice(from, to + 1);
+    const selectedSpeed = speedSeries.slice(from, to + 1);
+    const minX = Math.min(...selectedX);
+    const maxX = Math.max(...selectedX);
+    const minY = Math.min(...selectedY);
+    const maxY = Math.max(...selectedY);
+    const spanX = Math.max(1, maxX - minX);
+    const spanY = Math.max(1, maxY - minY);
+    const maxSpeed = selectedSpeed.length ? Math.max(...selectedSpeed, 1) : 1;
+    for (let idx = 0; idx < selectedX.length - 1; idx += 1) {
+      const x1 = ((selectedX[idx] - minX) / spanX) * 100;
+      const y1 = 100 - (((selectedY[idx] - minY) / spanY) * 100);
+      const x2 = ((selectedX[idx + 1] - minX) / spanX) * 100;
+      const y2 = 100 - (((selectedY[idx + 1] - minY) / spanY) * 100);
+      const speedRatio = Math.max(0, Math.min(1, (selectedSpeed[idx] || 0) / maxSpeed));
+      const hue = 18 + (speedRatio * 130);
+      mapSegments += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="hsl(${hue.toFixed(0)} 86% 62%)"></line>`;
+    }
+    const cursorIndex = Math.round((Math.max(from, Math.min(to, Math.round((Math.max(0, Math.min(100, cursorPct)) / 100) * Math.max(0, length - 1)))) - from));
+    const cursorXPos = ((selectedX[cursorIndex] - minX) / spanX) * 100;
+    const cursorYPos = 100 - (((selectedY[cursorIndex] - minY) / spanY) * 100);
+    mapCursor = `<circle cx="${cursorXPos.toFixed(2)}" cy="${cursorYPos.toFixed(2)}" r="2.5"></circle>`;
+  }
+  const sessionLaps = laps.length;
 
   return `
     <section class="card engineer-card telemetry-workspace">
@@ -722,17 +786,17 @@ function renderTelemetryWorkspace(payload) {
 
       <div class="telemetry-work-grid">
         <article class="telemetry-work-main">
-          <div class="telemetry-kpi-row">
-            <div><span>Lap seleccionada</span><strong>${escapeHtml(formatTelemetrySeconds(summary.referenceLap))}</strong></div>
-            <div><span>Ritmo medio</span><strong>${escapeHtml(formatTelemetrySeconds(summary.averagePace))}</strong></div>
-            <div><span>Top speed</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))}</strong></div>
-            <div><span>Speed trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</strong></div>            
+          <div class="telemetry-kpi-row telemetry-kpi-row--dense">
+            <div><span>Vuelta activa</span><strong>${selectedLap ? `L${selectedLap.lapNumber}` : "—"}</strong><em>${escapeHtml(formatTelemetrySeconds(selectedLap?.lapTime))}</em></div>
+            <div><span>Referencia</span><strong>${escapeHtml(formatTelemetrySeconds(summary.referenceLap))}</strong><em>${engineerState.telemetry.lapMode === "reference" ? "Modo referencia" : "Base de comparación"}</em></div>
+            <div><span>Ritmo sesión</span><strong>${escapeHtml(formatTelemetrySeconds(summary.averagePace))}</strong><em>${sessionLaps} vueltas con traza</em></div>
+            <div><span>Top / Trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))}</strong><em>${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</em></div>
           </div>
-          <div class="telemetry-lap-range">
+          <div class="telemetry-lap-range telemetry-lap-range--workspace">
             <div><span>Rango</span><strong>${escapeHtml(rangeLabel)}</strong></div>
             <div><span>Distancia</span><strong>${escapeHtml(formatTraceValue("meters", lapMeters))}</strong></div>
             <div><span>% vuelta</span><strong>${escapeHtml(formatTraceValue("pct", lapPct))}</strong></div>
-            <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Vuelta completa</button>
+            <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Reset tramo</button>
           </div>
           <div class="telemetry-range-controls">
             <label><span>Inicio tramo</span><input type="range" min="0" max="99" value="${Math.round(rangeStartPct)}" oninput="setEngineerTelemetryRangeStart(this.value)" /></label>
@@ -751,7 +815,7 @@ function renderTelemetryWorkspace(payload) {
             ${hasGap ? `<div><span>Driver ahead</span><strong>${escapeHtml(payload.context.driverAhead)}</strong><em>${escapeHtml(formatTraceValue("meters", valueAtCursor(gapAhead, cursorPct)))}</em></div>` : ""}
             ${hasWeather ? `<div><span>Weather</span><strong>${escapeHtml(Number.isFinite(weather.airTemp) ? `${weather.airTemp.toFixed(1)}°C aire` : "Aire n/d")}</strong><em>${escapeHtml(Number.isFinite(weather.trackTemp) ? `${weather.trackTemp.toFixed(1)}°C pista` : "")} ${escapeHtml(Number.isFinite(weather.humidity) ? `· ${Math.round(weather.humidity)}% H` : "")}</em></div>` : ""}
             ${hasGForces ? `<div><span>G-forces</span><strong>${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceX || [], cursorPct)))} / ${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceY || [], cursorPct)))}</strong><em>${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceZ || [], cursorPct)))}</em></div>` : ""}
-            ${hasTrackMap ? `<div class="telemetry-track-map"><span>Track map</span><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="${mapPoints.join(" ")}"></polyline></svg></div>` : ""}
+            ${hasTrackMap ? `<div class="telemetry-track-map"><span>Track map activo</span><svg viewBox="0 0 100 100">${mapSegments}${mapCursor}</svg></div>` : ""}
           </div>` : ""}
         </article>
 

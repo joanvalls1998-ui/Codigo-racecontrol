@@ -4273,6 +4273,18 @@ nav > *,
   color: #ebf8fd;
 }
 
+.telemetry-kpi-row em {
+  display: block;
+  margin-top: 3px;
+  color: #8ea4aa;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.telemetry-kpi-row--dense > div {
+  padding: 9px 10px;
+}
+
 .telemetry-work-traces {
   display: grid;
   gap: 8px;
@@ -4297,6 +4309,10 @@ nav > *,
   width: 100%;
   margin: 0;
   height: 100%;
+}
+
+.telemetry-lap-range--workspace button {
+  min-height: 48px;
 }
 
 .telemetry-lap-range span,
@@ -4349,14 +4365,24 @@ nav > *,
 
 .telemetry-track-map svg {
   width: 100%;
-  height: 64px;
+  height: 110px;
   margin-top: 6px;
+  background: radial-gradient(circle at 20% 10%, rgba(87, 245, 218, 0.08), rgba(14, 19, 23, 0.95));
+  border: 1px solid rgba(102, 248, 224, 0.26);
+  border-radius: 10px;
+  padding: 6px;
 }
 
-.telemetry-track-map polyline {
+.telemetry-track-map line {
   fill: none;
-  stroke: #66f8e0;
   stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.telemetry-track-map circle {
+  fill: #9afff1;
+  stroke: rgba(7, 16, 19, 0.9);
+  stroke-width: 0.8;
 }
 
 .telemetry-work-trace {
@@ -4388,8 +4414,23 @@ nav > *,
   stroke-width: 1.6;
 }
 
-.telemetry-work-trace.throttle .telemetry-work-spark polyline { stroke: #84ff79; }
-.telemetry-work-trace.brake .telemetry-work-spark polyline { stroke: #ff9b62; }
+.telemetry-work-window {
+  fill: rgba(102, 248, 224, 0.12);
+}
+
+.telemetry-work-cursor {
+  stroke: rgba(154, 255, 241, 0.88);
+  stroke-width: 0.7;
+}
+
+.telemetry-work-line {
+  fill: none;
+  stroke: #66f8e0;
+  stroke-width: 1.5;
+}
+
+.telemetry-work-trace.throttle .telemetry-work-line { stroke: #84ff79; }
+.telemetry-work-trace.brake .telemetry-work-line { stroke: #ff9b62; }
 
 .telemetry-lap-controls { display: grid; gap: 8px; }
 .telemetry-lap-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
