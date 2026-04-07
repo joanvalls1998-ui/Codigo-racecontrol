@@ -650,7 +650,7 @@ async function refreshCurrentNews() {
 }
 
 async function showNews() {
-  setActiveNav("nav-more");
+  setActiveNav("");
   rememberScreen("news");
   updateSubtitle();
 

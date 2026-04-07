@@ -513,7 +513,8 @@ const engineerState = {
     cursorPct: 0,
     accordionState: {
       secondaryCharts: false,
-      secondarySignals: false
+      secondarySignals: false,
+      secondaryMetrics: false
     },
     context: null,
     payload: null
@@ -570,7 +571,8 @@ function readTelemetryUiState() {
     driver: String(raw?.driver || ""),
     accordionState: {
       secondaryCharts: accordion.secondaryCharts === true,
-      secondarySignals: accordion.secondarySignals === true
+      secondarySignals: accordion.secondarySignals === true,
+      secondaryMetrics: accordion.secondaryMetrics === true
     }
   };
 }
@@ -583,7 +585,8 @@ function persistTelemetryUiState() {
     driver: t.driver || "",
     accordionState: {
       secondaryCharts: t.accordionState.secondaryCharts === true,
-      secondarySignals: t.accordionState.secondarySignals === true
+      secondarySignals: t.accordionState.secondarySignals === true,
+      secondaryMetrics: t.accordionState.secondaryMetrics === true
     }
   });
 }
@@ -946,9 +949,11 @@ function invalidateTelemetryPayload(reason = "unknown") {
   telemetry.status = "loading";
   telemetry.error = "";
   telemetry.userMessage = "";
-  telemetry.rangeStartPct = 0;
-  telemetry.rangeEndPct = 100;
-  telemetry.cursorPct = 0;
+  if (reason !== "submode_reentry") {
+    telemetry.rangeStartPct = 0;
+    telemetry.rangeEndPct = 100;
+    telemetry.cursorPct = 0;
+  }
   logTelemetryDriverEvent("telemetry_payload_invalidated", {
     reason,
     selection_key: telemetrySelectionKey()
@@ -1014,7 +1019,8 @@ function renderTelemetryWorkspace(payload) {
   const traces = payload.traces || {};
   const selector = payload.selector || payload.lap_selector || { laps: [] };
   const laps = Array.isArray(selector.laps) ? selector.laps : [];
-  const selectedLap = laps.find(item => item.lapNumber === selector.selectedLapNumber) || null;
+  const selectedLapNumber = Number(selector.selectedLapNumber);
+  const selectedLap = laps.find(item => Number(item?.lapNumber) === selectedLapNumber) || null;
   const rangeStartPct = engineerState.telemetry.rangeStartPct;
   const rangeEndPct = engineerState.telemetry.rangeEndPct;
   const cursorPct = engineerState.telemetry.cursorPct;
@@ -1377,10 +1383,16 @@ async function loadTelemetryData() {
 }
 
 function setEngineerSubmode(mode) {
+  const prevSubmode = engineerState.submode;
   engineerState.submode = mode === "telemetry" ? "telemetry" : "prediction";
   persistEngineerSubmode(engineerState.submode);
   renderEngineerScreen();
-  if (engineerState.submode === "telemetry") loadTelemetryData();
+  if (engineerState.submode === "telemetry") {
+    const telemetry = engineerState.telemetry;
+    const shouldReloadTelemetry = prevSubmode !== "telemetry"
+      && (!telemetry.payload || telemetry.status === "error" || telemetry.status === "idle");
+    if (shouldReloadTelemetry) loadTelemetryData();
+  }
 }
 
 function resetTelemetrySelection() {
