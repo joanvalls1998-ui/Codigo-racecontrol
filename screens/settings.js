@@ -218,7 +218,7 @@ function runSettingsMaintenanceAction(action) {
 function getLastScreenLabel() {
   const map = {
     home: "Inicio",
-    predict: "Predict",
+    predict: "Ingeniero",
     favorito: "Favorito",
     news: "Noticias",
     more: "Más",

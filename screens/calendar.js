@@ -59,7 +59,7 @@ function renderCalendarIntelligenceHero(nextRace, context) {
 
       <div class="quick-row" style="margin-top:14px;">
         <a href="#" class="btn-secondary" onclick="showSessions(); return false;">Sesiones</a>
-        <a href="#" class="btn-secondary" onclick="showPredict(); return false;">Predict</a>
+        <a href="#" class="btn-secondary" onclick="showPredict(); return false;">Ingeniero</a>
       </div>
     </div>
   `;

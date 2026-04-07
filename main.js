@@ -569,12 +569,14 @@ function getSelectedRace() {
   return state.detectedNextRaceName || CANONICAL_RACE_OPTIONS[0];
 }
 
-function saveSelectedRace(raceName) {
+function saveSelectedRace(raceName, options = {}) {
   if (!CANONICAL_RACE_OPTIONS.includes(raceName)) return;
   storageWrite(STORAGE_KEYS.selectedRace, raceName);
-  const settings = getSettings();
-  if (settings.autoSelectNextRace) {
-    saveSettings({ ...settings, autoSelectNextRace: false });
+  if (options?.disableAutoSelect === true) {
+    const settings = getSettings();
+    if (settings.autoSelectNextRace) {
+      saveSettings({ ...settings, autoSelectNextRace: false });
+    }
   }
 }
 
@@ -1873,7 +1875,7 @@ function renderSessionCard(session, favorite, context) {
 }
 
 async function showSessions() {
-  setActiveNav("nav-more");
+  setActiveNav("");
   rememberScreen("sessions");
   updateSubtitle();
 
@@ -3439,6 +3441,15 @@ async function showHome() {
   contentEl().innerHTML = renderLoadingCard("Inicio", "Preparando panel principal…", true);
 
   const favorite = getFavorite();
+  const standingsReady = Array.isArray(state.standingsCache?.drivers) || Array.isArray(state.standingsCache?.teams);
+  const syncedFavoritePosition = favorite.type === "driver"
+    ? state.standingsCache?.drivers?.find(item => item.name === favorite.name)?.pos
+    : state.standingsCache?.teams?.find(item => item.team === favorite.name)?.pos;
+  const favoritePositionText = Number.isFinite(Number(syncedFavoritePosition))
+    ? `P${syncedFavoritePosition}`
+    : standingsReady
+      ? "—"
+      : "Actualizando";
   let calendarError = null;
   let calendarData = null;
 
@@ -3525,7 +3536,7 @@ async function showHome() {
           <strong>${escapeHtml(favorite.name)}</strong>
           <div class="info-line" style="margin:0;">${escapeHtml(favorite.type === "driver" ? favorite.team : (favorite.drivers || "Equipo"))}</div>
         </div>
-        <span class="tag favorite" style="margin-left:auto;">P${escapeHtml(favorite.pos || "—")}</span>
+        <span class="tag favorite" style="margin-left:auto;">${escapeHtml(favoritePositionText)}</span>
       </div>
 
       <div class="home-main-kpis">
@@ -3547,7 +3558,7 @@ async function showHome() {
       </div>
 
       <div class="app-two-actions" style="margin-top:12px;">
-        <button class="btn" onclick="showPredict()">Abrir Predict</button>
+        <button class="btn" onclick="showPredict()">Abrir Ingeniero</button>
         <button class="icon-btn" onclick="showFavorito()">Ver favorito</button>
       </div>
 
@@ -4530,7 +4541,7 @@ function getTeamColorClass(team) {
 
 function resetFavoriteToDefault() {
   applyFavoriteAcrossApp(getDefaultFavorite());
-  showSettingsPanel();
+  refreshCurrentView();
 }
 
 
@@ -5182,8 +5193,7 @@ function clearSelectedRaceSetting() {
     ...settings,
     autoSelectNextRace: true
   });
-
-  showSettingsPanel();
+  refreshCurrentView();
 }
 
 function setStandingsView(type) {
@@ -5223,6 +5233,11 @@ function syncStandingsToggleControls() {
     button.classList.toggle("active", isActive);
     button.setAttribute("aria-pressed", String(isActive));
   });
+
+  const status = document.getElementById("standingsStatusLine");
+  if (status) {
+    status.innerHTML = `Vista activa: <strong>${state.standingsViewType === "teams" ? "Equipos" : "Pilotos"}</strong> · Alcance: <strong>${state.standingsScope === "all" ? "Todos" : "Top 10"}</strong>.`;
+  }
 }
 
 function switchNewsFilter(key) {
