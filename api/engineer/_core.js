@@ -110,6 +110,55 @@ function parseNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function logManualLapCatalog(event, details = {}) {
+  console.log(JSON.stringify({ scope: "engineer.telemetry.manual", event, ...details }));
+}
+
+function hasSamples(values = []) {
+  return Array.isArray(values) && values.some(value => Number.isFinite(parseNumber(value)));
+}
+
+function readFlagArray(source = {}, keys = []) {
+  for (const key of keys) {
+    if (!Array.isArray(source?.[key])) continue;
+    return source[key];
+  }
+  return [];
+}
+
+function parsePitFlag(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+  const clean = String(value).trim().toLowerCase();
+  return ["1", "true", "yes", "y", "pit", "in", "out"].includes(clean);
+}
+
+function assessTraceUsefulness(trace = null) {
+  if (!trace || typeof trace !== "object") {
+    return { hasTelemetry: false, points: 0, hasSpeed: false, hasDistance: false, hasTrack: false };
+  }
+  const speed = readTrace(trace, ["speed"]);
+  const throttle = readTrace(trace, ["throttle"]);
+  const brake = readTrace(trace, ["brake"]);
+  const distance = readTrace(trace, ["distance"]);
+  const relDistance = readTrace(trace, ["rel_distance", "relative_distance", "pct_distance"]);
+  const trackX = readTrace(trace, ["x", "pos_x"]);
+  const trackY = readTrace(trace, ["y", "pos_y"]);
+  const hasSpeed = hasSamples(speed);
+  const hasDistance = hasSamples(distance) || hasSamples(relDistance);
+  const hasTrack = hasSamples(trackX) && hasSamples(trackY);
+  const hasControl = hasSamples(throttle) || hasSamples(brake);
+  const points = [hasSpeed, hasDistance, hasTrack, hasControl].filter(Boolean).length;
+  return {
+    hasTelemetry: points > 0,
+    points,
+    hasSpeed,
+    hasDistance,
+    hasTrack
+  };
+}
+
 function formatDriverName(item = {}) {
   const fn = String(item.fn || "").trim();
   const ln = String(item.ln || "").trim();
@@ -126,6 +175,8 @@ function buildLapCatalog(laptimes = {}) {
   const s1 = Array.isArray(laptimes.s1) ? laptimes.s1 : [];
   const s2 = Array.isArray(laptimes.s2) ? laptimes.s2 : [];
   const s3 = Array.isArray(laptimes.s3) ? laptimes.s3 : [];
+  const pitIn = readFlagArray(laptimes, ["pit_in", "pitin", "is_pit_in", "pit"]);
+  const pitOut = readFlagArray(laptimes, ["pit_out", "pitout", "is_pit_out"]);
 
   const catalog = lapNumbers.map((rawLap, index) => {
     const lapNumber = parseNumber(rawLap);
@@ -133,7 +184,11 @@ function buildLapCatalog(laptimes = {}) {
     const sector1 = parseNumber(s1[index]);
     const sector2 = parseNumber(s2[index]);
     const sector3 = parseNumber(s3[index]);
-    const status = Number.isFinite(lapTime) ? "valid" : "invalid";
+    const isPitIn = parsePitFlag(pitIn[index]);
+    const isPitOut = parsePitFlag(pitOut[index]);
+    const hasTiming = Number.isFinite(lapTime);
+    const hasSectors = Number.isFinite(sector1) || Number.isFinite(sector2) || Number.isFinite(sector3);
+    const status = isPitIn || isPitOut ? "pit" : (hasTiming ? "valid" : "invalid");
     return {
       lapNumber,
       lapTime,
@@ -142,8 +197,11 @@ function buildLapCatalog(laptimes = {}) {
       sector1,
       sector2,
       sector3,
+      isPitIn,
+      isPitOut,
+      hasSectors,
       status,
-      hasTiming: Number.isFinite(lapTime)
+      hasTiming
     };
   }).filter(item => Number.isFinite(item.lapNumber));
 
@@ -377,16 +435,16 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
 
   const laptimes = await loadLaptimes({ meetingKey, sessionFolder: selectedSession.folder, driverCode: selectedDriver.code });
   const built = buildLapCatalog(laptimes);
-  const validLaps = built.catalog.filter(item => Number.isFinite(item.lapTime));
-  if (!validLaps.length) {
-    const error = new Error("NO_TELEMETRY");
-    error.code = "NO_TELEMETRY";
-    throw error;
-  }
-
   const telemetryByLap = new Map();
-  const telemetryEligibleLaps = [];
-  for (const lap of validLaps) {
+  const telemetryCoverageByLap = new Map();
+  logManualLapCatalog("telemetry_manual_lap_catalog_build_started", {
+    meeting_key: meetingKey,
+    session_key: sessionKey,
+    driver_number: String(driverNumber),
+    lap_mode: lapMode,
+    source_laps: built.catalog.length
+  });
+  for (const lap of built.catalog) {
     try {
       const candidate = await loadLapTelemetry({
         meetingKey,
@@ -395,20 +453,75 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
         lapNumber: lap.lapNumber
       });
       const trace = candidate?.tel;
-      if (trace && Array.isArray(trace.speed) && trace.speed.length) {
+      const coverage = assessTraceUsefulness(trace);
+      telemetryCoverageByLap.set(lap.lapNumber, coverage);
+      if (coverage.hasTelemetry) {
         telemetryByLap.set(lap.lapNumber, trace);
-        telemetryEligibleLaps.push(lap.lapNumber);
       }
     } catch {
-      // ignore missing lap telemetry for selector eligibility
+      telemetryCoverageByLap.set(lap.lapNumber, { hasTelemetry: false, points: 0, hasSpeed: false, hasDistance: false, hasTrack: false });
     }
   }
 
-  if (!telemetryEligibleLaps.length) {
+  const lapsForSelector = built.catalog.map(item => {
+    const coverage = telemetryCoverageByLap.get(item.lapNumber) || { hasTelemetry: false, points: 0, hasSpeed: false, hasDistance: false, hasTrack: false };
+    const hasUsefulTiming = item.hasTiming || item.hasSectors;
+    const hasUsefulTelemetry = coverage.hasTelemetry;
+    const hasManualEligibility = (hasUsefulTiming || hasUsefulTelemetry) && !(item.isPitIn || item.isPitOut ? (!hasUsefulTelemetry && !item.hasTiming) : false);
+    let manualExclusionReason = "";
+    if (!hasManualEligibility) {
+      if (item.isPitIn || item.isPitOut) manualExclusionReason = "pit_transition_without_data";
+      else if (!hasUsefulTiming && !hasUsefulTelemetry) manualExclusionReason = "empty_lap";
+      else manualExclusionReason = "insufficient_data";
+    }
+    return {
+      lapNumber: item.lapNumber,
+      lapTime: item.lapTime,
+      compound: item.compound,
+      stint: item.stint,
+      status: item.status,
+      isBest: Number.isFinite(built.bestLapNumber) && item.lapNumber === built.bestLapNumber,
+      hasTelemetry: coverage.hasTelemetry,
+      hasTiming: item.hasTiming,
+      hasSectors: item.hasSectors,
+      isPitIn: item.isPitIn,
+      isPitOut: item.isPitOut,
+      telemetryPoints: coverage.points,
+      hasManualEligibility,
+      manualExclusionReason
+    };
+  });
+  const manualEligibleLaps = lapsForSelector.filter(item => item.hasManualEligibility);
+  logManualLapCatalog("telemetry_manual_lap_catalog_source_count", {
+    meeting_key: meetingKey,
+    session_key: sessionKey,
+    driver_number: String(driverNumber),
+    total_laps: built.catalog.length,
+    laps_with_telemetry: lapsForSelector.filter(item => item.hasTelemetry).length
+  });
+  logManualLapCatalog("telemetry_manual_lap_catalog_after_filters", {
+    meeting_key: meetingKey,
+    session_key: sessionKey,
+    driver_number: String(driverNumber),
+    eligible_count: manualEligibleLaps.length,
+    discarded_count: lapsForSelector.length - manualEligibleLaps.length,
+    discarded_reasons: lapsForSelector
+      .filter(item => !item.hasManualEligibility && item.manualExclusionReason)
+      .reduce((acc, item) => ({ ...acc, [item.manualExclusionReason]: (acc[item.manualExclusionReason] || 0) + 1 }), {})
+  });
+
+  if (!manualEligibleLaps.length) {
+    logManualLapCatalog("telemetry_manual_lap_catalog_empty_reason", {
+      meeting_key: meetingKey,
+      session_key: sessionKey,
+      driver_number: String(driverNumber),
+      reason: "no_eligible_laps_for_manual_mode"
+    });
     const error = new Error("NO_TELEMETRY");
     error.code = "NO_TELEMETRY";
     throw error;
   }
+  const telemetryEligibleLaps = manualEligibleLaps.filter(item => item.hasTelemetry).map(item => item.lapNumber);
 
   const preferredLapByMode = () => {
     if (lapMode === "manual") {
@@ -421,24 +534,30 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
   };
 
   const preferredLap = preferredLapByMode();
-  if (lapMode === "manual" && Number.isFinite(preferredLap) && !telemetryByLap.has(preferredLap)) {
-    const error = new Error("MANUAL_LAP_UNAVAILABLE");
-    error.code = "MANUAL_LAP_UNAVAILABLE";
-    throw error;
-  }
+  const requestedManualLap = lapMode === "manual" ? preferredLap : null;
   const fallbackByMode = lapMode === "latest"
-    ? telemetryEligibleLaps.slice().sort((a, b) => b - a)
-    : telemetryEligibleLaps.slice().sort((a, b) => a - b);
+    ? manualEligibleLaps.map(item => item.lapNumber).slice().sort((a, b) => b - a)
+    : manualEligibleLaps.map(item => item.lapNumber).slice().sort((a, b) => a - b);
   const orderedCandidates = [preferredLap, ...fallbackByMode]
     .filter((value, idx, arr) => Number.isFinite(value) && arr.indexOf(value) === idx);
 
-  const selectedLapNumber = orderedCandidates.find(lapNumber => telemetryByLap.has(lapNumber)) ?? null;
+  const selectedLapNumber = orderedCandidates.find(lapNumber => telemetryByLap.has(lapNumber))
+    ?? telemetryEligibleLaps[0]
+    ?? null;
   const selectedLapTelemetry = Number.isFinite(selectedLapNumber) ? telemetryByLap.get(selectedLapNumber) : null;
   if (!selectedLapTelemetry || !Number.isFinite(selectedLapNumber)) {
     const error = new Error("NO_TELEMETRY");
     error.code = "NO_TELEMETRY";
     throw error;
   }
+  logManualLapCatalog("telemetry_manual_lap_selected", {
+    meeting_key: meetingKey,
+    session_key: sessionKey,
+    driver_number: String(driverNumber),
+    lap_mode: lapMode,
+    requested_manual_lap: Number.isFinite(requestedManualLap) ? requestedManualLap : null,
+    selected_lap: selectedLapNumber
+  });
 
   const selectedLapMeta = built.catalog.find(item => item.lapNumber === selectedLapNumber) || null;
   const speed = safeArray(selectedLapTelemetry.speed);
@@ -448,17 +567,15 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     ? { s1: selectedLapMeta.sector1, s2: selectedLapMeta.sector2, s3: selectedLapMeta.sector3 }
     : { s1: null, s2: null, s3: null };
 
-  const lapsForSelector = built.catalog.map(item => ({
-    lapNumber: item.lapNumber,
-    lapTime: item.lapTime,
-    compound: item.compound,
-    stint: item.stint,
-    status: item.status,
-    isBest: Number.isFinite(built.bestLapNumber) && item.lapNumber === built.bestLapNumber,
-    hasTelemetry: telemetryByLap.has(item.lapNumber)
-  }));
-
+  const validLaps = built.catalog.filter(item => Number.isFinite(item.lapTime));
   const averagePace = validLaps.length ? validLaps.reduce((acc, item) => acc + item.lapTime, 0) / validLaps.length : null;
+  logManualLapCatalog("telemetry_manual_lap_payload_built", {
+    meeting_key: meetingKey,
+    session_key: sessionKey,
+    driver_number: String(driverNumber),
+    selected_lap: selectedLapNumber,
+    selector_lap_count: lapsForSelector.length
+  });
 
   return {
     source: { primary: "tracinginsights/2026" },

@@ -1002,6 +1002,8 @@ function normalizeTelemetryPayload(payload) {
 function renderLapOption(item = {}) {
   const chunks = [`L${Math.round(item.lapNumber || 0)}`];
   if (Number.isFinite(item.lapTime)) chunks.push(formatTelemetrySeconds(item.lapTime));
+  else if (item.isPitIn || item.isPitOut || item.status === "pit") chunks.push("Pit");
+  else if (item.status === "invalid") chunks.push("invalid");
   if (item.isBest) chunks.push("PB");
   if (item.compound) chunks.push(item.compound);
   return chunks.join(" · ");
@@ -1209,7 +1211,7 @@ function renderTelemetryPanel() {
   const payload = telemetry.payload || {};
   const selector = payload.selector || payload.lap_selector || { laps: [] };
   const laps = Array.isArray(selector.laps) ? selector.laps : [];
-  const manualEligibleLaps = laps.filter(item => item?.hasTelemetry !== false);
+  const manualEligibleLaps = laps.filter(item => item?.hasManualEligibility !== false);
   const manualOptions = manualEligibleLaps.map(item => ({ value: String(item.lapNumber), label: renderLapOption(item) }));
 
   return `
