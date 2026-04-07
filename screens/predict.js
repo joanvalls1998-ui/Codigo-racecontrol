@@ -559,6 +559,7 @@ const SESSION_PRIORITY_ORDER = Object.freeze([
 ]);
 const TELEMETRY_PRIMARY_SESSION_TYPES = Object.freeze(["race", "qualy", "sprint_race", "sprint_qualy"]);
 const TELEMETRY_MEETING_RESOLUTION_TTL_MS = 1000 * 60 * 4;
+const TELEMETRY_STABILITY_HOTFIX_DISABLE_WARMUP = true;
 
 function nowMs() {
   if (typeof performance !== "undefined" && typeof performance.now === "function") return performance.now();
@@ -857,38 +858,23 @@ function resolveFavoriteDriverForSession(drivers = []) {
 
 function resolvePreferredMeeting(meetings = [], selectedMeetingKey = "") {
   if (!Array.isArray(meetings) || !meetings.length) return null;
-  const warmupMeeting = engineerState?.telemetryWarmup?.combination?.meetingKey;
   const explicit = meetings.find(item => String(item?.meeting_key) === String(selectedMeetingKey));
   if (explicit) return explicit;
-  const fromWarmup = meetings.find(item => String(item?.meeting_key) === String(warmupMeeting));
-  if (fromWarmup) return fromWarmup;
-  const latest = resolveLatestMeeting(meetings) || meetings[0] || null;
-  if (warmupMeeting && latest && String(latest?.meeting_key) !== String(warmupMeeting)) {
-    telemetryPreloadLog("discarded_preload", {
-      reason: "warmup_meeting_not_found",
-      warmupMeeting: String(warmupMeeting),
-      selectedMeeting: String(latest?.meeting_key || "")
-    });
-  }
-  return latest;
+  return resolveLatestMeeting(meetings) || meetings[0] || null;
 }
 
 function resolvePreferredSession(sessions = [], telemetry = engineerState.telemetry) {
   if (!Array.isArray(sessions) || !sessions.length) return null;
   const sortedSessions = sortSessionsByPriority(sessions);
-  const warmup = engineerState?.telemetryWarmup?.combination || null;
   const explicitByType = sortedSessions.find(item => String(item?.type_key) === String(telemetry?.sessionType));
   if (explicitByType) return explicitByType;
   const explicitByKey = sortedSessions.find(item => String(item?.session_key) === String(telemetry?.sessionKey));
   if (explicitByKey) return explicitByKey;
-  const warmupSession = sortedSessions.find(item => String(item?.session_key) === String(warmup?.defaultSessionKey));
-  if (warmupSession) return warmupSession;
   return sortedSessions[0] || null;
 }
 
 function resolvePreferredDriver(drivers = [], telemetry = engineerState.telemetry) {
   if (!Array.isArray(drivers) || !drivers.length) return null;
-  const warmup = engineerState?.telemetryWarmup?.combination || null;
   const explicit = drivers.find(item => String(item?.id) === String(telemetry?.driver));
   if (explicit) return explicit;
   const favorite = getFavorite();
@@ -897,8 +883,6 @@ function resolvePreferredDriver(drivers = [], telemetry = engineerState.telemetr
     const fromFavorite = drivers.find(item => normalizeText(item?.name || "") === normalizedFavorite);
     if (fromFavorite) return fromFavorite;
   }
-  const fromWarmup = drivers.find(item => String(item?.id) === String(warmup?.driver));
-  if (fromWarmup) return fromWarmup;
   return drivers[0] || null;
 }
 
@@ -949,6 +933,10 @@ async function warmSessionFullPayload({ meetingKey, sessionKey, driverNumber }) 
 }
 
 function startEngineerTelemetryWarmup() {
+  if (TELEMETRY_STABILITY_HOTFIX_DISABLE_WARMUP) {
+    telemetryPreloadLog("disabled_by_hotfix", { reason: "stability_bootstrap_first" });
+    return;
+  }
   const warmup = engineerState.telemetryWarmup;
   if (warmup.status === "running" || warmup.status === "ready") return;
   warmup.status = "queued";
@@ -1051,16 +1039,11 @@ async function loadTelemetryContext() {
   const t = engineerState.telemetry;
   try {
     const meetings = await loadMeetingsCached();
-    const resolvedMeeting = await resolveMostRecentTelemetryMeeting(meetings);
-    const autoMeeting = resolvedMeeting?.meeting || null;
-    const selectedMeeting = t.gp ? resolvePreferredMeeting(meetings, t.gp) : autoMeeting;
+    const selectedMeeting = resolvePreferredMeeting(meetings, t.gp);
     if (!selectedMeeting?.meeting_key) throw new Error("NO_MEETINGS");
     const sessionsRaw = await loadSessionsCached(selectedMeeting.meeting_key);
     const sessions = sortSessionsByPriority(sessionsRaw);
-    const resolvedDefaultSessionKey = (!t.sessionType && !t.sessionKey && String(selectedMeeting?.meeting_key) === String(autoMeeting?.meeting_key))
-      ? String(resolvedMeeting?.defaultSession?.session_key || "")
-      : "";
-    const selectedSession = sessions.find(item => String(item?.session_key) === resolvedDefaultSessionKey) || resolvePreferredSession(sessions, t);
+    const selectedSession = resolvePreferredSession(sessions, t);
     const drivers = selectedSession?.session_key ? await loadDriversCached(selectedSession.session_key) : [];
     const selectedDriver = resolvePreferredDriver(drivers, t);
     const payload = {
