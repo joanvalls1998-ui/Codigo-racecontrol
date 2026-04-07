@@ -5222,6 +5222,11 @@ function bootRaceControl() {
     fetchCalendarData().catch(() => {});
 
     openRememberedScreen();
+    setTimeout(() => {
+      if (typeof window.startEngineerTelemetryWarmup === "function") {
+        window.startEngineerTelemetryWarmup();
+      }
+    }, 180);
     window.__racecontrolBooted = true;
   } catch (error) {
     renderBootError(error && error.message ? error.message : String(error));
