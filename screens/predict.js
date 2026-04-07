@@ -557,7 +557,7 @@ function cacheSet(map, key, value, ttlMs = TELEMETRY_CACHE_TTL_MS) {
 
 function telemetryContextKey() {
   const t = engineerState.telemetry;
-  return `${TELEMETRY_SEASON_YEAR}:${t.gp || "auto"}:${t.sessionType || "auto"}:${t.driver || "auto"}`;
+  return `${TELEMETRY_SEASON_YEAR}:${t.gp || "auto"}:${t.sessionType || "auto"}`;
 }
 
 function readTelemetryUiState() {
@@ -596,17 +596,22 @@ function applyStoredTelemetryUiState() {
   engineerState.telemetry.accordionState = saved.accordionState;
 }
 
+function matchTelemetryDriver(drivers = [], value = "") {
+  const candidate = String(value || "").trim();
+  if (!candidate) return null;
+  return drivers.find(item => (
+    String(item?.id || "").trim() === candidate
+    || String(item?.code || "").trim() === candidate
+    || String(item?.number || "").trim() === candidate
+  )) || null;
+}
+
 function resolveTelemetryDriverSelection(context, priorDriver = "") {
   const drivers = Array.isArray(context?.drivers) ? context.drivers : [];
   const cleanPrior = String(priorDriver || "").trim();
-  const byId = value => drivers.find(item => {
-    const candidate = String(value || "").trim();
-    if (!candidate) return false;
-    return String(item?.id || "").trim() === candidate || String(item?.code || "").trim() === candidate || String(item?.number || "").trim() === candidate;
-  }) || null;
-  const explicitDriver = byId(cleanPrior);
+  const explicitDriver = matchTelemetryDriver(drivers, cleanPrior);
   if (explicitDriver) {
-    logTelemetryDriverEvent("telemetry_driver_from_user_selection", {
+    logTelemetryDriverEvent("telemetry_selected_driver_kept", {
       requested: cleanPrior,
       selected: String(explicitDriver?.id || ""),
       gp: String(context?.selections?.meeting_key || ""),
@@ -617,14 +622,14 @@ function resolveTelemetryDriverSelection(context, priorDriver = "") {
     };
   }
   if (cleanPrior) {
-    logTelemetryDriverEvent("telemetry_driver_persisted_value_invalidated", {
+    logTelemetryDriverEvent("telemetry_selected_driver_invalidated", {
       invalid_driver: cleanPrior,
       gp: String(context?.selections?.meeting_key || ""),
       session_type: String(context?.selections?.session_type || "")
     });
   }
   const fallbackDriver = drivers[0] || null;
-  logTelemetryDriverEvent("telemetry_driver_from_session_fallback", {
+  logTelemetryDriverEvent("telemetry_selected_driver_fallback_used", {
     selected: String(fallbackDriver?.id || ""),
     gp: String(context?.selections?.meeting_key || ""),
     session_type: String(context?.selections?.session_type || "")
@@ -853,8 +858,7 @@ async function loadTelemetryContext() {
   const payload = await fetchEngineerApi("context", {
     year: TELEMETRY_SEASON_YEAR,
     meeting_key: t.gp,
-    session_type: t.sessionType,
-    driver: t.driver
+    session_type: t.sessionType
   });
   return cacheSet(engineerCache.context, key, payload);
 }
@@ -1087,10 +1091,14 @@ function renderTelemetryPanel() {
 async function loadTelemetryData() {
   const telemetry = engineerState.telemetry;
   const requestId = ++telemetryRequestId;
-  logTelemetryDriverEvent("telemetry_driver_init_started", {
-    gp: telemetry.gp || "",
-    session_type: telemetry.sessionType || "",
-    prior_driver: telemetry.driver || ""
+  const requestedGp = telemetry.gp || "";
+  const requestedSessionType = telemetry.sessionType || "";
+  const requestedDriver = telemetry.driver || "";
+  logTelemetryDriverEvent("telemetry_context_change_started", {
+    request_id: requestId,
+    gp: requestedGp,
+    session_type: requestedSessionType,
+    prior_driver: requestedDriver
   });
   telemetry.status = "loading";
   telemetry.error = "";
@@ -1098,17 +1106,34 @@ async function loadTelemetryData() {
   renderEngineerScreen();
 
   try {
-    const priorSessionType = telemetry.sessionType;
-    const priorDriver = telemetry.driver;
+    logTelemetryDriverEvent("telemetry_driver_list_loading", {
+      request_id: requestId,
+      gp: requestedGp,
+      session_type: requestedSessionType
+    });
     const context = await loadTelemetryContext();
-    if (requestId !== telemetryRequestId) return;
+    if (requestId !== telemetryRequestId) {
+      logTelemetryDriverEvent("telemetry_selected_driver_ignored_stale_update", {
+        request_id: requestId,
+        active_request_id: telemetryRequestId,
+        stage: "context"
+      });
+      return;
+    }
 
     telemetry.context = context;
     telemetry.gp = context.selections?.meeting_key || telemetry.gp || "";
-    telemetry.sessionType = resolveTelemetrySessionSelection(context, priorSessionType);
+    telemetry.sessionType = resolveTelemetrySessionSelection(context, requestedSessionType);
     telemetry.sessionKey = (context.sessions || []).find(item => item.type_key === telemetry.sessionType)?.session_key || context.selections?.session_key || "";
-    const resolvedDriver = resolveTelemetryDriverSelection(context, priorDriver);
+    const resolvedDriver = resolveTelemetryDriverSelection(context, requestedDriver);
     telemetry.driver = resolvedDriver.driverId;
+    logTelemetryDriverEvent("telemetry_selected_driver_final", {
+      request_id: requestId,
+      selected: telemetry.driver || "",
+      gp: telemetry.gp || "",
+      session_type: telemetry.sessionType || "",
+      session_key: telemetry.sessionKey || ""
+    });
     persistTelemetryUiState();
 
     if (!telemetry.sessionKey || !telemetry.driver) {
@@ -1119,37 +1144,30 @@ async function loadTelemetryData() {
       return;
     }
 
-    const sessionDrivers = (context?.drivers || []).map(item => String(item?.id || "")).filter(Boolean);
-    const driverCandidates = Array.from(new Set([
-      telemetry.driver,
-      ...sessionDrivers
-    ].filter(Boolean)));
+    logTelemetryDriverEvent("telemetry_driver_list_loaded", {
+      request_id: requestId,
+      gp: telemetry.gp || "",
+      session_type: telemetry.sessionType || "",
+      drivers: Array.isArray(context?.drivers) ? context.drivers.length : 0
+    });
+    const loadedPayload = await fetchEngineerApi("telemetry", {
+      year: TELEMETRY_SEASON_YEAR,
+      meeting_key: telemetry.gp,
+      session_key: telemetry.sessionKey,
+      driver_number: telemetry.driver,
+      lap_mode: telemetry.lapMode,
+      manual_lap: telemetry.manualLap
+    });
 
-    let loadedPayload = null;
-    let loadedDriver = "";
-    let lastError = null;
-    for (const candidate of driverCandidates) {
-      try {
-        const payload = await fetchEngineerApi("telemetry", {
-          year: TELEMETRY_SEASON_YEAR,
-          meeting_key: telemetry.gp,
-          session_key: telemetry.sessionKey,
-          driver_number: candidate,
-          lap_mode: telemetry.lapMode,
-          manual_lap: telemetry.manualLap
-        });
-        if (!hasTelemetryPayloadData(payload)) continue;
-        loadedPayload = payload;
-        loadedDriver = String(candidate);
-        break;
-      } catch (error) {
-        lastError = error;
-      }
+    if (requestId !== telemetryRequestId) {
+      logTelemetryDriverEvent("telemetry_selected_driver_ignored_stale_update", {
+        request_id: requestId,
+        active_request_id: telemetryRequestId,
+        stage: "payload"
+      });
+      return;
     }
-
-    if (requestId !== telemetryRequestId) return;
-    if (!loadedPayload) {
-      if (lastError) throw lastError;
+    if (!hasTelemetryPayloadData(loadedPayload)) {
       telemetry.status = "error";
       telemetry.userMessage = "La sesión no trae trazas útiles para este piloto.";
       telemetry.payload = null;
@@ -1157,14 +1175,10 @@ async function loadTelemetryData() {
       return;
     }
 
-    if (loadedDriver && loadedDriver !== telemetry.driver) {
-      telemetry.driver = loadedDriver;
-      persistTelemetryUiState();
-    }
-
     telemetry.payload = loadedPayload;
     telemetry.status = "ready";
-    logTelemetryDriverEvent("telemetry_driver_final_selected", {
+    logTelemetryDriverEvent("telemetry_selected_driver_final", {
+      request_id: requestId,
       selected: telemetry.driver || "",
       gp: telemetry.gp || "",
       session_type: telemetry.sessionType || "",
@@ -1172,7 +1186,14 @@ async function loadTelemetryData() {
     });
     renderEngineerScreen();
   } catch (error) {
-    if (requestId !== telemetryRequestId) return;
+    if (requestId !== telemetryRequestId) {
+      logTelemetryDriverEvent("telemetry_selected_driver_ignored_stale_update", {
+        request_id: requestId,
+        active_request_id: telemetryRequestId,
+        stage: "error"
+      });
+      return;
+    }
     telemetry.status = "error";
     telemetry.error = String(error?.message || "");
     telemetry.userMessage = telemetryErrorMessage(error);
@@ -1218,6 +1239,11 @@ function setEngineerTelemetrySessionType(value) {
 function setEngineerTelemetryDriver(value) {
   engineerState.telemetry.driver = value || "";
   engineerState.telemetry.sessionKey = "";
+  logTelemetryDriverEvent("telemetry_selected_driver_user_choice", {
+    selected: engineerState.telemetry.driver || "",
+    gp: engineerState.telemetry.gp || "",
+    session_type: engineerState.telemetry.sessionType || ""
+  });
   persistTelemetryUiState();
   resetTelemetrySelection();
   loadTelemetryData();
