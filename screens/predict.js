@@ -507,6 +507,9 @@ const engineerState = {
     driver: "",
     lapMode: "reference",
     manualLap: "",
+    rangeStartPct: 0,
+    rangeEndPct: 100,
+    cursorPct: 0,
     context: null,
     payload: null
   }
@@ -571,16 +574,52 @@ function buildSpark(values = [], className = "") {
   return `<svg class="${className}" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="${points.join(" ")}"></polyline></svg>`;
 }
 
-function renderTraceBand(label, values, variant = "") {
+function telemetryRangeWindow(values = [], rangeStartPct = 0, rangeEndPct = 100) {
   const clean = (Array.isArray(values) ? values : []).filter(Number.isFinite);
-  const last = clean.length ? clean[clean.length - 1] : null;
-  const readout = label === "Speed" ? formatTelemetrySpeed(last) : Number.isFinite(last) ? `${Math.round(last)}%` : "—";
+  if (!clean.length) return { clean: [], startIndex: 0, endIndex: 0, segment: [] };
+  const maxIndex = clean.length - 1;
+  const startIndex = Math.max(0, Math.min(maxIndex, Math.round((Math.max(0, Math.min(100, rangeStartPct)) / 100) * maxIndex)));
+  const endIndex = Math.max(startIndex + 1, Math.min(maxIndex, Math.round((Math.max(0, Math.min(100, rangeEndPct)) / 100) * maxIndex)));
+  return {
+    clean,
+    startIndex,
+    endIndex,
+    segment: clean.slice(startIndex, endIndex + 1)
+  };
+}
+
+function valueAtCursor(values = [], cursorPct = 0) {
+  const clean = (Array.isArray(values) ? values : []).filter(Number.isFinite);
+  if (!clean.length) return null;
+  const index = Math.max(0, Math.min(clean.length - 1, Math.round((Math.max(0, Math.min(100, cursorPct)) / 100) * (clean.length - 1))));
+  return clean[index];
+}
+
+function formatTraceValue(kind, value) {
+  if (!Number.isFinite(value)) return "—";
+  if (kind === "speed") return formatTelemetrySpeed(value);
+  if (kind === "pct") return `${Math.round(value)}%`;
+  if (kind === "gear") return `G${Math.round(value)}`;
+  if (kind === "rpm") return `${Math.round(value)} rpm`;
+  if (kind === "drs") return value > 0 ? "Open" : "Off";
+  if (kind === "meters") return `${value.toFixed(1)} m`;
+  if (kind === "gforce") return `${value.toFixed(2)} g`;
+  return String(Math.round(value));
+}
+
+function renderTraceBand(label, values, variant = "", rangeStartPct = 0, rangeEndPct = 100, kind = "pct", cursorPct = 0) {
+  const { clean, segment } = telemetryRangeWindow(values, rangeStartPct, rangeEndPct);
+  const readout = formatTraceValue(kind, valueAtCursor(clean, cursorPct));
   return `
     <div class="telemetry-work-trace ${variant}">
       <div class="telemetry-work-trace-head"><span>${escapeHtml(label)}</span><strong>${escapeHtml(readout)}</strong></div>
-      ${buildSpark(clean, "telemetry-work-spark")}
+      ${buildSpark(segment, "telemetry-work-spark")}
     </div>
   `;
+}
+
+function hasRobustData(values = [], min = 8) {
+  return (Array.isArray(values) ? values : []).filter(Number.isFinite).length >= min;
 }
 
 function telemetryErrorMessage(error) {
@@ -638,9 +677,18 @@ function renderLapOption(item = {}) {
 function renderTelemetryWorkspace(payload) {
   const summary = payload.summary || {};
   const selector = payload.lap_selector || {};
+  const traces = payload.traces || {};
   const laps = Array.isArray(selector.laps) ? selector.laps.filter(item => Number.isFinite(item?.lapNumber) && item.hasTelemetry) : [];
   const selectedLap = laps.find(item => item.lapNumber === selector.selectedLapNumber) || null;
   const manualOptions = laps.map(item => ({ value: String(item.lapNumber), label: renderLapOption(item) }));
+  const rangeStartPct = engineerState.telemetry.rangeStartPct;
+  const rangeEndPct = engineerState.telemetry.rangeEndPct;
+  const cursorPct = engineerState.telemetry.cursorPct;
+  const relativeDistance = traces.relativeDistance || [];
+  const distance = traces.distance || [];
+  const lapPct = valueAtCursor(relativeDistance, cursorPct);
+  const lapMeters = valueAtCursor(distance, cursorPct);
+  const rangeLabel = `${Math.round(rangeStartPct)}-${Math.round(rangeEndPct)}%`;
 
   const sectors = [
     { label: "S1", value: summary.sector1 },
@@ -648,6 +696,19 @@ function renderTelemetryWorkspace(payload) {
     { label: "S3", value: summary.sector3 }
   ].filter(item => Number.isFinite(item.value));
   const stintRows = (payload.stints || []).filter(item => item.lapCount >= 3);
+  const weather = payload.context?.weather || {};
+  const gapAhead = traces.gapAhead || [];
+  const hasGap = hasRobustData(gapAhead) && payload.context?.driverAhead;
+  const hasWeather = ["airTemp", "trackTemp", "humidity", "pressure", "rainfall", "windSpeed"].some(key => Number.isFinite(weather[key]));
+  const hasGForces = hasRobustData(traces.gForceX || []) || hasRobustData(traces.gForceY || []);
+  const hasTrackMap = hasRobustData(traces.trackX || []) && hasRobustData(traces.trackY || []);
+  const mapWindow = hasTrackMap ? telemetryRangeWindow(traces.trackX || [], rangeStartPct, rangeEndPct) : { segment: [] };
+  const mapYWindow = hasTrackMap ? telemetryRangeWindow(traces.trackY || [], rangeStartPct, rangeEndPct) : { segment: [] };
+  const mapMinY = hasTrackMap && mapYWindow.segment.length ? Math.min(...mapYWindow.segment) : 0;
+  const mapSpanY = hasTrackMap && mapYWindow.segment.length ? Math.max(1, Math.max(...mapYWindow.segment) - mapMinY) : 1;
+  const mapPoints = hasTrackMap
+    ? mapWindow.segment.map((x, idx) => `${(idx / Math.max(1, mapWindow.segment.length - 1)) * 100},${100 - (((mapYWindow.segment[idx] - mapMinY) / mapSpanY) * 100)}`)
+    : [];
 
   return `
     <section class="card engineer-card telemetry-workspace">
@@ -665,13 +726,33 @@ function renderTelemetryWorkspace(payload) {
             <div><span>Lap seleccionada</span><strong>${escapeHtml(formatTelemetrySeconds(summary.referenceLap))}</strong></div>
             <div><span>Ritmo medio</span><strong>${escapeHtml(formatTelemetrySeconds(summary.averagePace))}</strong></div>
             <div><span>Top speed</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))}</strong></div>
-            <div><span>Speed trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</strong></div>
+            <div><span>Speed trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</strong></div>            
+          </div>
+          <div class="telemetry-lap-range">
+            <div><span>Rango</span><strong>${escapeHtml(rangeLabel)}</strong></div>
+            <div><span>Distancia</span><strong>${escapeHtml(formatTraceValue("meters", lapMeters))}</strong></div>
+            <div><span>% vuelta</span><strong>${escapeHtml(formatTraceValue("pct", lapPct))}</strong></div>
+            <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Vuelta completa</button>
+          </div>
+          <div class="telemetry-range-controls">
+            <label><span>Inicio tramo</span><input type="range" min="0" max="99" value="${Math.round(rangeStartPct)}" oninput="setEngineerTelemetryRangeStart(this.value)" /></label>
+            <label><span>Fin tramo</span><input type="range" min="1" max="100" value="${Math.round(rangeEndPct)}" oninput="setEngineerTelemetryRangeEnd(this.value)" /></label>
+            <label><span>Inspección</span><input type="range" min="${Math.round(rangeStartPct)}" max="${Math.round(rangeEndPct)}" value="${Math.round(cursorPct)}" oninput="setEngineerTelemetryCursor(this.value)" /></label>
           </div>
           <div class="telemetry-work-traces">
-            ${renderTraceBand("Speed", payload.traces?.speed || [], "speed")}
-            ${renderTraceBand("Throttle", payload.traces?.throttle || [], "throttle")}
-            ${renderTraceBand("Brake", payload.traces?.brake || [], "brake")}
+            ${renderTraceBand("Speed", traces.speed || [], "speed", rangeStartPct, rangeEndPct, "speed", cursorPct)}
+            ${renderTraceBand("Throttle", traces.throttle || [], "throttle", rangeStartPct, rangeEndPct, "pct", cursorPct)}
+            ${renderTraceBand("Brake", traces.brake || [], "brake", rangeStartPct, rangeEndPct, "pct", cursorPct)}
+            ${hasRobustData(traces.gear || []) ? renderTraceBand("Gear", traces.gear || [], "gear", rangeStartPct, rangeEndPct, "gear", cursorPct) : ""}
+            ${hasRobustData(traces.rpm || []) ? renderTraceBand("RPM", traces.rpm || [], "rpm", rangeStartPct, rangeEndPct, "rpm", cursorPct) : ""}
+            ${hasRobustData(traces.drs || []) ? renderTraceBand("DRS", traces.drs || [], "drs", rangeStartPct, rangeEndPct, "drs", cursorPct) : ""}
           </div>
+          ${(hasGap || hasWeather || hasGForces || hasTrackMap) ? `<div class="telemetry-tech-strip">
+            ${hasGap ? `<div><span>Driver ahead</span><strong>${escapeHtml(payload.context.driverAhead)}</strong><em>${escapeHtml(formatTraceValue("meters", valueAtCursor(gapAhead, cursorPct)))}</em></div>` : ""}
+            ${hasWeather ? `<div><span>Weather</span><strong>${escapeHtml(Number.isFinite(weather.airTemp) ? `${weather.airTemp.toFixed(1)}°C aire` : "Aire n/d")}</strong><em>${escapeHtml(Number.isFinite(weather.trackTemp) ? `${weather.trackTemp.toFixed(1)}°C pista` : "")} ${escapeHtml(Number.isFinite(weather.humidity) ? `· ${Math.round(weather.humidity)}% H` : "")}</em></div>` : ""}
+            ${hasGForces ? `<div><span>G-forces</span><strong>${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceX || [], cursorPct)))} / ${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceY || [], cursorPct)))}</strong><em>${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceZ || [], cursorPct)))}</em></div>` : ""}
+            ${hasTrackMap ? `<div class="telemetry-track-map"><span>Track map</span><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="${mapPoints.join(" ")}"></polyline></svg></div>` : ""}
+          </div>` : ""}
         </article>
 
         <aside class="telemetry-work-side">
@@ -791,6 +872,9 @@ function resetTelemetrySelection() {
   engineerState.telemetry.payload = null;
   engineerState.telemetry.manualLap = "";
   engineerState.telemetry.lapMode = "reference";
+  engineerState.telemetry.rangeStartPct = 0;
+  engineerState.telemetry.rangeEndPct = 100;
+  engineerState.telemetry.cursorPct = 0;
 }
 
 function setEngineerTelemetryGp(value) {
@@ -830,6 +914,33 @@ function setEngineerTelemetryManualLap(value) {
   engineerState.telemetry.lapMode = "manual";
   engineerState.telemetry.manualLap = String(value || "");
   loadTelemetryData();
+}
+
+function setEngineerTelemetryRangeStart(value) {
+  const start = Math.max(0, Math.min(99, Number(value) || 0));
+  engineerState.telemetry.rangeStartPct = Math.min(start, engineerState.telemetry.rangeEndPct - 1);
+  engineerState.telemetry.cursorPct = Math.max(engineerState.telemetry.rangeStartPct, Math.min(engineerState.telemetry.cursorPct, engineerState.telemetry.rangeEndPct));
+  renderEngineerScreen();
+}
+
+function setEngineerTelemetryRangeEnd(value) {
+  const end = Math.max(1, Math.min(100, Number(value) || 100));
+  engineerState.telemetry.rangeEndPct = Math.max(end, engineerState.telemetry.rangeStartPct + 1);
+  engineerState.telemetry.cursorPct = Math.min(engineerState.telemetry.rangeEndPct, Math.max(engineerState.telemetry.cursorPct, engineerState.telemetry.rangeStartPct));
+  renderEngineerScreen();
+}
+
+function setEngineerTelemetryCursor(value) {
+  const cursor = Number(value) || 0;
+  engineerState.telemetry.cursorPct = Math.max(engineerState.telemetry.rangeStartPct, Math.min(engineerState.telemetry.rangeEndPct, cursor));
+  renderEngineerScreen();
+}
+
+function resetEngineerTelemetryRange() {
+  engineerState.telemetry.rangeStartPct = 0;
+  engineerState.telemetry.rangeEndPct = 100;
+  engineerState.telemetry.cursorPct = 0;
+  renderEngineerScreen();
 }
 
 function renderEngineerScreen() {
@@ -887,6 +998,10 @@ window.setEngineerTelemetrySessionType = setEngineerTelemetrySessionType;
 window.setEngineerTelemetryDriver = setEngineerTelemetryDriver;
 window.setEngineerTelemetryLapMode = setEngineerTelemetryLapMode;
 window.setEngineerTelemetryManualLap = setEngineerTelemetryManualLap;
+window.setEngineerTelemetryRangeStart = setEngineerTelemetryRangeStart;
+window.setEngineerTelemetryRangeEnd = setEngineerTelemetryRangeEnd;
+window.setEngineerTelemetryCursor = setEngineerTelemetryCursor;
+window.resetEngineerTelemetryRange = resetEngineerTelemetryRange;
 
 
 function persistEngineerSubmode(mode) {
