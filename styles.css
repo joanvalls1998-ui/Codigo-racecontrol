@@ -3710,6 +3710,15 @@ nav > *,
   gap: 8px;
 }
 
+.telemetry-hero-skeleton {
+  grid-column: 1 / -1;
+  border: 1px solid rgba(130, 145, 170, 0.24);
+  background: rgba(8, 11, 18, 0.95);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
 .telemetry-hero-core {
   border: 1px solid rgba(130, 145, 170, 0.24);
   background: rgba(8, 11, 18, 0.95);
@@ -3937,11 +3946,23 @@ nav > *,
 .telemetry-trace-tooltip {
   margin-top: 8px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
-.telemetry-trace-tooltip > div {
+.telemetry-trace-tooltip-row {
+  display: grid;
+  gap: 6px;
+}
+
+.telemetry-trace-tooltip-row--main {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.telemetry-trace-tooltip-row--meta {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.telemetry-trace-tooltip-row > div {
   border: 1px solid rgba(124, 139, 165, 0.24);
   background: rgba(8, 10, 16, 0.95);
   padding: 7px 8px;
@@ -4003,7 +4024,7 @@ nav > *,
 .telemetry-session-bar {
   margin-top: 10px;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -4052,7 +4073,9 @@ nav > *,
   .telemetry-stint-kpis,
   .telemetry-secondary-signals,
   .telemetry-session-bar,
-  .telemetry-trace-tooltip {
+  .telemetry-trace-tooltip,
+  .telemetry-trace-tooltip-row--main,
+  .telemetry-trace-tooltip-row--meta {
     grid-template-columns: 1fr;
   }
   .telemetry-lap-segments {

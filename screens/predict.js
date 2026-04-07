@@ -1186,6 +1186,14 @@ function renderTelemetryTraceInspector(payload = {}) {
       ? `${Math.round(selected.relativeDistance * 100)}% vuelta`
       : `${Math.round(inspection.ratio * 100)}% vuelta`;
   const drsLabel = Number.isFinite(selected.drs) ? (selected.drs > 0 ? "ON" : "OFF") : "N/D";
+  const compactReadout = [
+    { label: "Speed", value: formatTelemetrySpeed(selected.speed) },
+    { label: "Throttle", value: Number.isFinite(selected.throttle) ? `${Math.round(selected.throttle)}%` : "N/D" },
+    { label: "Brake", value: Number.isFinite(selected.brake) ? `${Math.round(selected.brake)}%` : "N/D" },
+    { label: "Gear", value: Number.isFinite(selected.gear) ? `${Math.round(selected.gear)}` : "N/D" },
+    { label: "RPM", value: Number.isFinite(selected.rpm) ? `${Math.round(selected.rpm)}` : "N/D" },
+    { label: "DRS", value: Number.isFinite(selected.drs) ? drsLabel : "N/D" }
+  ];
 
   return `
     <div class="telemetry-trace-inspector"
@@ -1210,14 +1218,13 @@ function renderTelemetryTraceInspector(payload = {}) {
         </div>
       </div>
       <div class="telemetry-trace-tooltip">
-        <div><span>Speed</span><strong>${escapeHtml(formatTelemetrySpeed(selected.speed))}</strong></div>
-        <div><span>Throttle</span><strong>${Number.isFinite(selected.throttle) ? `${Math.round(selected.throttle)}%` : "N/D"}</strong></div>
-        <div><span>Brake</span><strong>${Number.isFinite(selected.brake) ? `${Math.round(selected.brake)}%` : "N/D"}</strong></div>
-        <div><span>Gear</span><strong>${Number.isFinite(selected.gear) ? `${Math.round(selected.gear)}` : "N/D"}</strong></div>
-        <div><span>RPM</span><strong>${Number.isFinite(selected.rpm) ? `${Math.round(selected.rpm)}` : "N/D"}</strong></div>
-        <div><span>DRS</span><strong>${Number.isFinite(selected.drs) ? escapeHtml(drsLabel) : "N/D"}</strong></div>
-        <div><span>Distancia</span><strong>${escapeHtml(distanceLabel)}</strong></div>
-        <div><span>Sector</span><strong>${escapeHtml(inspection.sector)}</strong></div>
+        <div class="telemetry-trace-tooltip-row telemetry-trace-tooltip-row--main">
+          ${compactReadout.map(item => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></div>`).join("")}
+        </div>
+        <div class="telemetry-trace-tooltip-row telemetry-trace-tooltip-row--meta">
+          <div><span>Distancia</span><strong>${escapeHtml(distanceLabel)}</strong></div>
+          <div><span>Sector</span><strong>${escapeHtml(inspection.sector)}</strong></div>
+        </div>
       </div>
     </div>
   `;
@@ -1226,7 +1233,6 @@ function renderTelemetryTraceInspector(payload = {}) {
 function renderTelemetryDashboard(payload) {
   const summary = payload.summary || {};
   const weather = payload.weather || {};
-  const availability = payload.availability || {};
   const evolution = payload.session_evolution || [];
   const lapResolution = resolveTelemetryActiveLap(payload, engineerState.telemetry.lapSelection || {});
   const activeLap = lapResolution?.selectedLap || null;
@@ -1241,13 +1247,6 @@ function renderTelemetryDashboard(payload) {
     value: String(item.lapNumber),
     label: formatTelemetryLapLabel(item)
   }));
-  const speedTrace = payload.traces?.speed || [];
-  const throttleTrace = payload.traces?.throttle || [];
-  const brakeTrace = payload.traces?.brake || [];
-  const speedValues = speedTrace.filter(Number.isFinite);
-  const speedLatest = speedValues.length ? speedValues[speedValues.length - 1] : null;
-  const speedAverage = speedValues.length ? (speedValues.reduce((acc, value) => acc + value, 0) / speedValues.length) : null;
-  const speedSessionBest = speedValues.length ? Math.max(...speedValues) : null;
   const stintBasic = payload.stints?.basic || [];
   const stintEvolution = payload.stints?.evolution || [];
   const currentStint = stintBasic[stintBasic.length - 1] || null;
@@ -1256,19 +1255,6 @@ function renderTelemetryDashboard(payload) {
   const stintLatest = stintLine.length ? stintLine[stintLine.length - 1] : null;
   const sectorValues = [summary.sector1, summary.sector2, summary.sector3].filter(Number.isFinite);
   const sectorBaseline = sectorValues.length ? Math.min(...sectorValues) : null;
-
-  const renderHeroTimeline = (values = [], kind = "pace") => {
-    if (!values.length) return `<div class="telemetry-inline-empty">N/D</div>`;
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const range = Math.max(max - min, 1);
-    const bars = values.slice(-18).map(item => {
-      const ratio = ((item - min) / range) * 100;
-      const height = kind === "pace" ? Math.max(10, 100 - ratio) : Math.max(10, ratio);
-      return `<span style="height:${height.toFixed(1)}%"></span>`;
-    }).join("");
-    return `<div class="telemetry-inline-bars">${bars}</div>`;
-  };
 
   const renderSectorBand = (label, value) => {
     let statusClass = "neutral";
@@ -1284,11 +1270,18 @@ function renderTelemetryDashboard(payload) {
     `;
   };
 
-  const evolutionRows = evolution.length
-    ? evolution.map((item, idx) => {
-      const pace = Number.isFinite(item.averagePace) ? item.averagePace : null;
-      const prev = idx > 0 && Number.isFinite(evolution[idx - 1]?.averagePace) ? evolution[idx - 1].averagePace : null;
-      const best = evolution.map(row => row.averagePace).filter(Number.isFinite).sort((a, b) => a - b)[0];
+  const evolutionValid = evolution
+    .map(item => ({
+      ...item,
+      referenceLapValue: isTelemetryMetricReady(item.referenceLap, "lap") ? item.referenceLap : null,
+      averagePaceValue: isTelemetryMetricReady(item.averagePace, "pace") ? item.averagePace : null
+    }))
+    .filter(item => Number.isFinite(item.referenceLapValue) || Number.isFinite(item.averagePaceValue));
+  const evolutionRows = evolutionValid.length
+    ? evolutionValid.map((item, idx) => {
+      const pace = item.averagePaceValue;
+      const prev = idx > 0 && Number.isFinite(evolutionValid[idx - 1]?.averagePaceValue) ? evolutionValid[idx - 1].averagePaceValue : null;
+      const best = evolutionValid.map(row => row.averagePaceValue).filter(Number.isFinite).sort((a, b) => a - b)[0];
       let status = "stable";
       if (Number.isFinite(pace) && Number.isFinite(prev)) {
         if (pace < prev - 0.06) status = "up";
@@ -1298,12 +1291,14 @@ function renderTelemetryDashboard(payload) {
       return `
         <div class="telemetry-timeline-node ${status}">
           <span>${escapeHtml(item.session_label || item.session_type || "SES")}</span>
-          <strong>${escapeHtml(formatTelemetrySeconds(item.referenceLap))}</strong>
-          <em>${escapeHtml(formatTelemetrySeconds(item.averagePace))}</em>
+          ${Number.isFinite(item.referenceLapValue) ? `<strong>${escapeHtml(formatTelemetrySeconds(item.referenceLapValue))}</strong>` : ""}
+          ${Number.isFinite(item.averagePaceValue) ? `<em>${escapeHtml(formatTelemetrySeconds(item.averagePaceValue))}</em>` : ""}
+          ${!Number.isFinite(item.referenceLapValue) && !Number.isFinite(item.averagePaceValue) ? "<em>N/D</em>" : ""}
         </div>
       `;
     }).join("")
     : `<div class="empty-line">${payload.__partial ? "Evolución cargando…" : "Sin evolución inter-sesión para este piloto."}</div>`;
+  const heroLoading = Boolean(payload.__partial);
 
   return `
     <section class="card engineer-card telemetry-f1-hero">
@@ -1315,33 +1310,36 @@ function renderTelemetryDashboard(payload) {
         <div class="telemetry-provider-tag">${escapeHtml(payload.source?.primary || "openf1")}</div>
       </div>
       <div class="telemetry-f1-hero-grid">
-        <div class="telemetry-hero-core">
-          <span>Vuelta referencia</span>
-          <strong>${escapeHtml(isTelemetryMetricReady(summary.referenceLap, "lap") ? formatTelemetrySeconds(summary.referenceLap) : "Cargando…")}</strong>
-          <div class="telemetry-hero-meta">Vuelta · ${escapeHtml(formatTelemetryDelta(summary.deltaToReference))} · ${escapeHtml(currentStint?.compound || "N/D")}</div>
-          ${renderHeroTimeline(stintLine, "pace")}
-        </div>
-        <div class="telemetry-hero-core telemetry-hero-core--secondary">
-          <span>Ritmo medio</span>
-          <strong>${escapeHtml(isTelemetryMetricReady(summary.averagePace, "pace") ? formatTelemetrySeconds(summary.averagePace) : "Cargando…")}</strong>
-          <div class="telemetry-hero-meta">Last ${stintLine.length || 0} valid laps</div>
-          ${renderHeroTimeline(stintLine, "pace")}
-        </div>
-        <div class="telemetry-speed-pack">
-          <div>
-            <span>Top speed</span>
-            <strong>${escapeHtml(isTelemetryMetricReady(summary.topSpeed, "speed") ? formatTelemetrySpeed(summary.topSpeed) : "Cargando…")}</strong>
+        ${heroLoading
+      ? `
+          <div class="telemetry-hero-skeleton" aria-label="Cargando hero de telemetría">
+            <div class="skeleton skeleton-line lg"></div>
+            <div class="skeleton skeleton-line md"></div>
+            <div class="skeleton skeleton-line sm"></div>
           </div>
-          <div>
-            <span>Speed trap</span>
-            <strong>${escapeHtml(isTelemetryMetricReady(summary.speedTrap, "speed") ? formatTelemetrySpeed(summary.speedTrap) : "Cargando…")}</strong>
+        `
+      : `
+          <div class="telemetry-hero-core">
+            <span>Vuelta referencia</span>
+            <strong>${escapeHtml(isTelemetryMetricReady(summary.referenceLap, "lap") ? formatTelemetrySeconds(summary.referenceLap) : "N/D")}</strong>
+            <div class="telemetry-hero-meta">Compuesto · ${escapeHtml(currentStint?.compound || "N/D")}</div>
           </div>
-          <div class="telemetry-speed-micro">
-            <div><span>Session best</span><strong>${escapeHtml(formatTelemetrySpeed(speedSessionBest))}</strong></div>
-            <div><span>Driver avg</span><strong>${escapeHtml(formatTelemetrySpeed(speedAverage))}</strong></div>
-            <div><span>Current</span><strong>${escapeHtml(formatTelemetrySpeed(speedLatest))}</strong></div>
+          <div class="telemetry-hero-core telemetry-hero-core--secondary">
+            <span>Ritmo medio</span>
+            <strong>${escapeHtml(isTelemetryMetricReady(summary.averagePace, "pace") ? formatTelemetrySeconds(summary.averagePace) : "N/D")}</strong>
+            <div class="telemetry-hero-meta">Last ${stintLine.length || 0} valid laps</div>
           </div>
-        </div>
+          <div class="telemetry-speed-pack">
+            <div>
+              <span>Top speed</span>
+              <strong>${escapeHtml(isTelemetryMetricReady(summary.topSpeed, "speed") ? formatTelemetrySpeed(summary.topSpeed) : "N/D")}</strong>
+            </div>
+            <div>
+              <span>Speed trap</span>
+              <strong>${escapeHtml(isTelemetryMetricReady(summary.speedTrap, "speed") ? formatTelemetrySpeed(summary.speedTrap) : "N/D")}</strong>
+            </div>
+          </div>
+        `}
       </div>
       <div class="telemetry-sector-band">
         ${renderSectorBand("S1", summary.sector1)}
@@ -1378,20 +1376,12 @@ function renderTelemetryDashboard(payload) {
         ? `<div class="empty-line">Cargando trazas pesadas…</div>`
         : `
           ${renderTelemetryTraceInspector(tracesPayload)}
-          <div class="telemetry-secondary-signals">
-            <div><span>Speed trace</span><strong>${escapeHtml(availability.speedTrace === "available" ? "OK" : "N/D")}</strong></div>
-            <div><span>Throttle trace</span><strong>${escapeHtml(availability.throttleTrace === "available" ? "OK" : "N/D")}</strong></div>
-            <div><span>Brake trace</span><strong>${escapeHtml(availability.brakeTrace === "available" ? "OK" : "N/D")}</strong></div>
-          </div>
         `}
     </section>
 
     <section class="card engineer-card telemetry-session-bar">
       <div><span>TRACK / AIR</span><strong>${escapeHtml(formatTelemetryTemp(weather.avgTrackTemp))} / ${escapeHtml(formatTelemetryTemp(weather.avgAirTemp))}</strong></div>
       <div><span>WEATHER</span><strong>${escapeHtml(weather.weatherState || "N/D")}</strong></div>
-      <div><span>RACE CONTROL</span><strong>${escapeHtml(formatTelemetryCount(weather.raceControlMessages))} msgs</strong></div>
-      <div><span>PIT</span><strong>${escapeHtml(formatTelemetryCount(weather.pitStops))} stops</strong></div>
-      <div><span>RADIO / OVT</span><strong>${escapeHtml(formatTelemetryCount(weather.teamRadios))} radio · ${escapeHtml(formatTelemetryCount(weather.overtakes))} ovt</strong></div>
     </section>
 
     <section class="card engineer-card telemetry-evolution-timeline">
