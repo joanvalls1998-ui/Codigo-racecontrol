@@ -299,6 +299,24 @@ function safeArray(values, parser = parseNumber) {
   return values.map(item => parser(item)).filter(Number.isFinite);
 }
 
+function firstDefined(obj = {}, keys = []) {
+  for (const key of keys) {
+    if (obj[key] !== undefined && obj[key] !== null) return obj[key];
+  }
+  return undefined;
+}
+
+function readTrace(obj = {}, keys = [], parser = parseNumber) {
+  const raw = firstDefined(obj, keys);
+  return safeArray(raw, parser);
+}
+
+function readScalar(obj = {}, keys = []) {
+  const raw = firstDefined(obj, keys);
+  const parsed = parseNumber(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function buildStints(catalog = []) {
   const byStint = new Map();
   catalog.forEach(lap => {
@@ -450,11 +468,34 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
       speed,
       throttle,
       brake,
-      gear: safeArray(selectedLapTelemetry.gear),
-      rpm: safeArray(selectedLapTelemetry.rpm),
-      drs: safeArray(selectedLapTelemetry.drs),
-      distance: safeArray(selectedLapTelemetry.distance),
-      relativeDistance: safeArray(selectedLapTelemetry.rel_distance)
+      gear: readTrace(selectedLapTelemetry, ["gear", "n_gear"]),
+      rpm: readTrace(selectedLapTelemetry, ["rpm", "engine_rpm"]),
+      drs: readTrace(selectedLapTelemetry, ["drs"]),
+      distance: readTrace(selectedLapTelemetry, ["distance"]),
+      relativeDistance: readTrace(selectedLapTelemetry, ["rel_distance", "relative_distance", "pct_distance"], value => {
+        const n = parseNumber(value);
+        if (!Number.isFinite(n)) return null;
+        return n <= 1 ? n * 100 : n;
+      }),
+      gapAhead: readTrace(selectedLapTelemetry, ["gap_ahead", "distance_ahead", "car_ahead_gap", "driver_ahead_gap"]),
+      gForceX: readTrace(selectedLapTelemetry, ["acc_x", "g_x"]),
+      gForceY: readTrace(selectedLapTelemetry, ["acc_y", "g_y"]),
+      gForceZ: readTrace(selectedLapTelemetry, ["acc_z", "g_z"]),
+      trackX: readTrace(selectedLapTelemetry, ["x", "pos_x"]),
+      trackY: readTrace(selectedLapTelemetry, ["y", "pos_y"]),
+      trackZ: readTrace(selectedLapTelemetry, ["z", "pos_z"])
+    },
+    context: {
+      driverAhead: String(firstDefined(selectedLapTelemetry, ["driver_ahead", "car_ahead", "ahead_driver", "ahead_car"]) || "").trim() || null,
+      weather: {
+        airTemp: readScalar(selectedLapTelemetry, ["air_temp", "air_temperature"]),
+        trackTemp: readScalar(selectedLapTelemetry, ["track_temp", "track_temperature"]),
+        humidity: readScalar(selectedLapTelemetry, ["humidity"]),
+        pressure: readScalar(selectedLapTelemetry, ["pressure"]),
+        rainfall: readScalar(selectedLapTelemetry, ["rainfall", "rain"]),
+        windSpeed: readScalar(selectedLapTelemetry, ["wind_speed", "wind"]),
+        windDirection: readScalar(selectedLapTelemetry, ["wind_direction"])
+      }
     },
     stints: buildStints(built.catalog)
   };
