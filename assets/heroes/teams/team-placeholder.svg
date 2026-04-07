@@ -1,6 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Team hero placeholder">
-  <rect width="1600" height="900" fill="#111827"/>
-  <rect x="0" y="0" width="480" height="900" fill="#1f2937"/>
-  <rect x="520" y="140" width="980" height="620" rx="40" fill="#0f172a" stroke="#334155" stroke-width="4"/>
-  <text x="120" y="790" fill="#cbd5e1" font-size="44" font-family="Inter, system-ui, sans-serif" letter-spacing="2">TEAM HERO PLACEHOLDER</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Team hero visual placeholder">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#110b18"/>
+      <stop offset="100%" stop-color="#191221"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#fb923c"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg2)"/>
+  <rect x="0" y="0" width="30" height="900" fill="#fb923c"/>
+  <g transform="translate(180 220)">
+    <rect x="140" y="240" width="980" height="160" rx="80" fill="url(#accent)"/>
+    <rect x="480" y="202" width="180" height="82" rx="30" fill="#1f2937"/>
+    <circle cx="265" cy="420" r="70" fill="#0b1120" stroke="#fdba74" stroke-width="10"/>
+    <circle cx="1000" cy="420" r="70" fill="#0b1120" stroke="#fdba74" stroke-width="10"/>
+  </g>
+  <g transform="translate(1240 260)">
+    <circle cx="0" cy="0" r="105" fill="#111827" stroke="#fb923c" stroke-width="8"/>
+    <path d="M-60 -4c20-46 98-58 136-14 12 14 18 30 18 45 0 27-17 52-50 76h-98c-19-19-28-39-28-61 0-15 6-30 22-46z" fill="#fdba74"/>
+    <rect x="-18" y="-10" width="72" height="32" rx="14" fill="#fff7ed"/>
+  </g>
+  <text x="118" y="792" fill="#ffedd5" font-size="42" font-family="Inter, system-ui, sans-serif" letter-spacing="3">TEAM HERO · CAR + IDENTITY</text>
 </svg>
