@@ -502,6 +502,7 @@ const engineerState = {
     error: "",
     userMessage: "",
     gp: "",
+    sessionIntent: "",
     sessionType: "",
     sessionKey: "",
     driver: "",
@@ -557,7 +558,7 @@ function cacheSet(map, key, value, ttlMs = TELEMETRY_CACHE_TTL_MS) {
 
 function telemetryContextKey() {
   const t = engineerState.telemetry;
-  return `${TELEMETRY_SEASON_YEAR}:${t.gp || "auto"}:${t.sessionType || "auto"}`;
+  return `${TELEMETRY_SEASON_YEAR}:${t.gp || "auto"}:${t.sessionIntent || t.sessionType || "auto"}`;
 }
 
 function readTelemetryUiState() {
@@ -591,6 +592,7 @@ function applyStoredTelemetryUiState() {
   purgeLegacyTelemetryFavoriteState();
   const saved = readTelemetryUiState();
   engineerState.telemetry.gp = saved.gp;
+  engineerState.telemetry.sessionIntent = saved.sessionType;
   engineerState.telemetry.sessionType = saved.sessionType;
   engineerState.telemetry.driver = saved.driver;
   engineerState.telemetry.accordionState = saved.accordionState;
@@ -661,8 +663,66 @@ function purgeLegacyTelemetryFavoriteState() {
 
 function resolveTelemetrySessionSelection(context, priorSessionType = "") {
   const sessions = Array.isArray(context?.sessions) ? context.sessions : [];
-  const matched = sessions.find(item => String(item?.type_key || "") === String(priorSessionType || ""));
-  return String((matched || context?.selections || {}).session_type || sessions[0]?.type_key || "");
+  const normalizeSessionToken = (value = "") => {
+    const clean = String(value || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+    if (!clean) return "";
+    if (["practice1", "fp1", "p1"].includes(clean)) return "fp1";
+    if (["practice2", "fp2", "p2"].includes(clean)) return "fp2";
+    if (["practice3", "fp3", "p3"].includes(clean)) return "fp3";
+    if (["qualifying", "qualy", "q"].includes(clean)) return "qualy";
+    if (["sprintqualifying", "sprintshootout", "sprintqualy", "sq"].includes(clean)) return "sprint_qualy";
+    if (["sprintrace", "sprint", "sr"].includes(clean)) return "sprint_race";
+    if (["race", "grandprix", "r"].includes(clean)) return "race";
+    return clean;
+  };
+  const findSession = (candidate = "") => {
+    const normalized = normalizeSessionToken(candidate);
+    if (!normalized) return null;
+    return sessions.find(item => {
+      const tokens = [
+        item?.type_key,
+        item?.type_label,
+        item?.folder,
+        item?.session_key
+      ];
+      return tokens.some(token => normalizeSessionToken(token) === normalized);
+    }) || null;
+  };
+
+  const requested = String(priorSessionType || "");
+  const requestedMatch = findSession(requested);
+  if (requestedMatch) {
+    logTelemetryDriverEvent("telemetry_session_kept", {
+      requested_session: requested,
+      selected_session: String(requestedMatch?.type_key || ""),
+      gp: String(context?.selections?.meeting_key || "")
+    });
+    return {
+      sessionType: String(requestedMatch?.type_key || ""),
+      sessionKey: String(requestedMatch?.session_key || ""),
+      fallbackUsed: false
+    };
+  }
+
+  if (requested.trim()) {
+    logTelemetryDriverEvent("telemetry_session_invalidated", {
+      invalid_session: requested,
+      gp: String(context?.selections?.meeting_key || "")
+    });
+  }
+
+  const serverChoice = findSession(context?.selections?.session_type) || findSession(context?.selections?.session_key);
+  const fallback = serverChoice || sessions[0] || null;
+  logTelemetryDriverEvent("telemetry_session_fallback_used", {
+    requested_session: requested,
+    selected_session: String(fallback?.type_key || ""),
+    gp: String(context?.selections?.meeting_key || "")
+  });
+  return {
+    sessionType: String(fallback?.type_key || ""),
+    sessionKey: String(fallback?.session_key || ""),
+    fallbackUsed: true
+  };
 }
 
 function formatTelemetrySeconds(value) {
@@ -858,7 +918,7 @@ async function loadTelemetryContext() {
   const payload = await fetchEngineerApi("context", {
     year: TELEMETRY_SEASON_YEAR,
     meeting_key: t.gp,
-    session_type: t.sessionType
+    session_type: t.sessionIntent || t.sessionType
   });
   return cacheSet(engineerCache.context, key, payload);
 }
@@ -1092,9 +1152,9 @@ async function loadTelemetryData() {
   const telemetry = engineerState.telemetry;
   const requestId = ++telemetryRequestId;
   const requestedGp = telemetry.gp || "";
-  const requestedSessionType = telemetry.sessionType || "";
+  const requestedSessionType = telemetry.sessionIntent || telemetry.sessionType || "";
   const requestedDriver = telemetry.driver || "";
-  logTelemetryDriverEvent("telemetry_context_change_started", {
+  logTelemetryDriverEvent("telemetry_session_change_started", {
     request_id: requestId,
     gp: requestedGp,
     session_type: requestedSessionType,
@@ -1106,14 +1166,14 @@ async function loadTelemetryData() {
   renderEngineerScreen();
 
   try {
-    logTelemetryDriverEvent("telemetry_driver_list_loading", {
+    logTelemetryDriverEvent("telemetry_session_list_loading", {
       request_id: requestId,
       gp: requestedGp,
       session_type: requestedSessionType
     });
     const context = await loadTelemetryContext();
     if (requestId !== telemetryRequestId) {
-      logTelemetryDriverEvent("telemetry_selected_driver_ignored_stale_update", {
+      logTelemetryDriverEvent("telemetry_session_ignored_stale_update", {
         request_id: requestId,
         active_request_id: telemetryRequestId,
         stage: "context"
@@ -1123,16 +1183,24 @@ async function loadTelemetryData() {
 
     telemetry.context = context;
     telemetry.gp = context.selections?.meeting_key || telemetry.gp || "";
-    telemetry.sessionType = resolveTelemetrySessionSelection(context, requestedSessionType);
-    telemetry.sessionKey = (context.sessions || []).find(item => item.type_key === telemetry.sessionType)?.session_key || context.selections?.session_key || "";
+    logTelemetryDriverEvent("telemetry_session_list_loaded", {
+      request_id: requestId,
+      gp: telemetry.gp || "",
+      requested_session: requestedSessionType,
+      available_sessions: (context.sessions || []).map(item => String(item?.type_key || "")).filter(Boolean)
+    });
+    const resolvedSession = resolveTelemetrySessionSelection(context, requestedSessionType);
+    telemetry.sessionType = resolvedSession.sessionType;
+    telemetry.sessionKey = resolvedSession.sessionKey;
+    telemetry.sessionIntent = telemetry.sessionType;
     const resolvedDriver = resolveTelemetryDriverSelection(context, requestedDriver);
     telemetry.driver = resolvedDriver.driverId;
-    logTelemetryDriverEvent("telemetry_selected_driver_final", {
+    logTelemetryDriverEvent("telemetry_session_final", {
       request_id: requestId,
-      selected: telemetry.driver || "",
       gp: telemetry.gp || "",
       session_type: telemetry.sessionType || "",
-      session_key: telemetry.sessionKey || ""
+      session_key: telemetry.sessionKey || "",
+      fallback_used: resolvedSession.fallbackUsed === true
     });
     persistTelemetryUiState();
 
@@ -1160,7 +1228,7 @@ async function loadTelemetryData() {
     });
 
     if (requestId !== telemetryRequestId) {
-      logTelemetryDriverEvent("telemetry_selected_driver_ignored_stale_update", {
+      logTelemetryDriverEvent("telemetry_session_ignored_stale_update", {
         request_id: requestId,
         active_request_id: telemetryRequestId,
         stage: "payload"
@@ -1187,7 +1255,7 @@ async function loadTelemetryData() {
     renderEngineerScreen();
   } catch (error) {
     if (requestId !== telemetryRequestId) {
-      logTelemetryDriverEvent("telemetry_selected_driver_ignored_stale_update", {
+      logTelemetryDriverEvent("telemetry_session_ignored_stale_update", {
         request_id: requestId,
         active_request_id: telemetryRequestId,
         stage: "error"
@@ -1228,9 +1296,15 @@ function setEngineerTelemetryGp(value) {
 }
 
 function setEngineerTelemetrySessionType(value) {
-  engineerState.telemetry.sessionType = value || "";
+  const selected = value || "";
+  engineerState.telemetry.sessionIntent = selected;
+  engineerState.telemetry.sessionType = selected;
   engineerState.telemetry.context = null;
   engineerState.telemetry.sessionKey = "";
+  logTelemetryDriverEvent("telemetry_session_user_choice", {
+    selected_session: selected,
+    gp: engineerState.telemetry.gp || ""
+  });
   persistTelemetryUiState();
   resetTelemetrySelection();
   loadTelemetryData();
