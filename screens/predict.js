@@ -509,6 +509,12 @@ const engineerState = {
     context: null,
     payload: null,
     perf: null
+  },
+  telemetryWarmup: {
+    status: "idle",
+    startedAt: 0,
+    finishedAt: 0,
+    combination: null
   }
 };
 
@@ -528,6 +534,15 @@ const telemetryTraceInspector = {
   index: null,
   pointCount: 0
 };
+const SESSION_PRIORITY_ORDER = Object.freeze([
+  "race",
+  "qualy",
+  "sprint_race",
+  "sprint_qualy",
+  "fp3",
+  "fp2",
+  "fp1"
+]);
 
 function nowMs() {
   if (typeof performance !== "undefined" && typeof performance.now === "function") return performance.now();
@@ -642,6 +657,155 @@ function telemetryErrorMessage(error) {
   if (message.includes("Sesión no disponible")) return "La sesión seleccionada no está disponible en este GP 2026.";
   if (message.includes("fetch")) return "No se pudo conectar con la capa de telemetría.";
   return "No fue posible construir la telemetría real del piloto con las fuentes actuales.";
+}
+
+function runWhenIdle(task, timeout = 1400) {
+  if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(() => task(), { timeout });
+    return;
+  }
+  setTimeout(task, 120);
+}
+
+function normalizeDateMs(value) {
+  if (!value) return 0;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function sortSessionsByPriority(sessions = []) {
+  return [...sessions].sort((a, b) => {
+    const aPriority = SESSION_PRIORITY_ORDER.indexOf(a?.type_key);
+    const bPriority = SESSION_PRIORITY_ORDER.indexOf(b?.type_key);
+    const aRank = aPriority >= 0 ? aPriority : Number.MAX_SAFE_INTEGER;
+    const bRank = bPriority >= 0 ? bPriority : Number.MAX_SAFE_INTEGER;
+    if (aRank !== bRank) return aRank - bRank;
+    return normalizeDateMs(a?.date_start) - normalizeDateMs(b?.date_start);
+  });
+}
+
+function resolveLatestMeeting(meetings = []) {
+  if (!Array.isArray(meetings) || !meetings.length) return null;
+  return [...meetings].sort((a, b) => {
+    const roundA = Number.isFinite(a?.round) ? a.round : Number.isFinite(a?.round_from_jolpica) ? a.round_from_jolpica : -1;
+    const roundB = Number.isFinite(b?.round) ? b.round : Number.isFinite(b?.round_from_jolpica) ? b.round_from_jolpica : -1;
+    if (roundA !== roundB) return roundB - roundA;
+    return normalizeDateMs(b?.date_start || b?.calendar_date) - normalizeDateMs(a?.date_start || a?.calendar_date);
+  })[0] || null;
+}
+
+function resolveFavoriteDriverForSession(drivers = []) {
+  if (!Array.isArray(drivers) || !drivers.length) return null;
+  const favorite = getFavorite();
+  if (favorite?.type === "driver") {
+    const normalizedFavorite = normalizeText(favorite.name || "");
+    const match = drivers.find(item => normalizeText(item?.name || "") === normalizedFavorite);
+    if (match) return match;
+  }
+  return drivers[0];
+}
+
+function telemetryPayloadKeyFor(meetingKey, sessionKey, driverNumber) {
+  return `${TELEMETRY_SEASON_YEAR}:${meetingKey}:${sessionKey}:${driverNumber}`;
+}
+
+async function fetchTelemetryByMode({ meetingKey, sessionKey, driverNumber, mode = "core" }) {
+  const payload = await fetchEngineerApi("telemetry", {
+    year: TELEMETRY_SEASON_YEAR,
+    meeting_key: meetingKey,
+    session_key: sessionKey,
+    driver_number: driverNumber,
+    ...(mode === "core" ? { mode: "core" } : {})
+  });
+  const key = telemetryPayloadKeyFor(meetingKey, sessionKey, driverNumber);
+  if (mode === "core") {
+    return cacheSet(engineerCache.telemetryCore, key, { ...payload, __partial: true });
+  }
+  return cacheSet(engineerCache.telemetry, key, payload);
+}
+
+async function warmSessionCorePayload({ meetingKey, sessionKey, driverNumber }) {
+  const payloadKey = telemetryPayloadKeyFor(meetingKey, sessionKey, driverNumber);
+  const cachedFull = cacheGet(engineerCache.telemetry, payloadKey);
+  if (cachedFull) return cachedFull;
+  const cachedCore = cacheGet(engineerCache.telemetryCore, payloadKey);
+  if (cachedCore) return cachedCore;
+  return fetchTelemetryByMode({ meetingKey, sessionKey, driverNumber, mode: "core" });
+}
+
+async function warmSessionFullPayload({ meetingKey, sessionKey, driverNumber }) {
+  const payloadKey = telemetryPayloadKeyFor(meetingKey, sessionKey, driverNumber);
+  const cachedFull = cacheGet(engineerCache.telemetry, payloadKey);
+  if (cachedFull) return cachedFull;
+  return fetchTelemetryByMode({ meetingKey, sessionKey, driverNumber, mode: "full" });
+}
+
+function startEngineerTelemetryWarmup() {
+  const warmup = engineerState.telemetryWarmup;
+  if (warmup.status === "running" || warmup.status === "ready") return;
+  warmup.status = "queued";
+
+  runWhenIdle(async () => {
+    if (warmup.status === "running" || warmup.status === "ready") return;
+    warmup.status = "running";
+    warmup.startedAt = Date.now();
+    try {
+      const meetings = await loadMeetingsCached();
+      const latestMeeting = resolveLatestMeeting(meetings);
+      if (!latestMeeting?.meeting_key) throw new Error("WARMUP_MEETING_NOT_FOUND");
+
+      const sessionsRaw = await loadSessionsCached(latestMeeting.meeting_key);
+      const sessions = sortSessionsByPriority(sessionsRaw);
+      if (!sessions.length) throw new Error("WARMUP_SESSIONS_NOT_FOUND");
+
+      const defaultSession = sessions[0];
+      const defaultDrivers = await loadDriversCached(defaultSession.session_key);
+      const favoriteDriver = resolveFavoriteDriverForSession(defaultDrivers);
+      if (!favoriteDriver?.id) throw new Error("WARMUP_DRIVER_NOT_FOUND");
+
+      warmup.combination = {
+        year: TELEMETRY_SEASON_YEAR,
+        meetingKey: String(latestMeeting.meeting_key),
+        gpLabel: latestMeeting.gp_label || latestMeeting.meeting_name || "",
+        driver: String(favoriteDriver.id),
+        driverName: favoriteDriver.name || "",
+        sessions: sessions.map(item => ({ sessionKey: item.session_key, type: item.type_key, label: item.type_label }))
+      };
+
+      await warmSessionCorePayload({
+        meetingKey: latestMeeting.meeting_key,
+        sessionKey: defaultSession.session_key,
+        driverNumber: favoriteDriver.id
+      });
+
+      runWhenIdle(async () => {
+        for (const session of sessions.slice(1)) {
+          try {
+            await warmSessionCorePayload({
+              meetingKey: latestMeeting.meeting_key,
+              sessionKey: session.session_key,
+              driverNumber: favoriteDriver.id
+            });
+          } catch (_error) {}
+        }
+      }, 1800);
+
+      runWhenIdle(async () => {
+        try {
+          await warmSessionFullPayload({
+            meetingKey: latestMeeting.meeting_key,
+            sessionKey: defaultSession.session_key,
+            driverNumber: favoriteDriver.id
+          });
+        } catch (_error) {}
+      }, 2600);
+
+      warmup.status = "ready";
+      warmup.finishedAt = Date.now();
+    } catch (_error) {
+      warmup.status = "idle";
+    }
+  }, 1200);
 }
 
 async function loadTelemetryContext() {
@@ -1337,6 +1501,7 @@ window.setEngineerSubmode = setEngineerSubmode;
 window.setEngineerTelemetryGp = setEngineerTelemetryGp;
 window.setEngineerTelemetrySessionType = setEngineerTelemetrySessionType;
 window.setEngineerTelemetryDriver = setEngineerTelemetryDriver;
+window.startEngineerTelemetryWarmup = startEngineerTelemetryWarmup;
 window.engineerTelemetryTracePointerDown = engineerTelemetryTracePointerDown;
 window.engineerTelemetryTracePointerMove = engineerTelemetryTracePointerMove;
 window.engineerTelemetryTracePointerEnd = engineerTelemetryTracePointerEnd;
