@@ -260,7 +260,10 @@ async function showStandings(force = false) {
       <div id="standingsSummaryContent"></div>
       <div class="card app-panel-card">
         <div class="card-head">
-          <div class="card-head-left"><div class="card-title">Clasificación</div></div>
+          <div class="card-head-left">
+            <div class="card-title">Clasificación</div>
+            ${state.standingsCache?.isStaticSnapshot ? `<div class="card-sub">Snapshot local · no live timing</div>` : ""}
+          </div>
           <div class="card-head-actions"><button class="icon-btn" onclick="refreshStandings()">Refrescar</button></div>
         </div>
         <div id="standingsControls" class="standings-toggle">

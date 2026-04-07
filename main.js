@@ -14,7 +14,8 @@ const DEFAULT_UI_STATE = Object.freeze({
   standingsScope: "top10",
   currentNewsFilterKey: "favorite",
   lastScreen: "home",
-  weekendModeEnabled: true
+  weekendModeEnabled: true,
+  engineerSubmode: "prediction"
 });
 
 const DEFAULT_NEWS_FILTER_KEY = DEFAULT_UI_STATE.currentNewsFilterKey;
@@ -34,6 +35,7 @@ function createInitialRuntimeState() {
     currentNewsFilterKey: DEFAULT_UI_STATE.currentNewsFilterKey,
     lastScreen: DEFAULT_UI_STATE.lastScreen,
     weekendModeEnabled: DEFAULT_UI_STATE.weekendModeEnabled,
+    engineerSubmode: DEFAULT_UI_STATE.engineerSubmode,
     weekendContext: null,
     weekendNowIso: null
   };
@@ -77,6 +79,60 @@ const CIRCUIT_ASSET_FILES = Object.freeze({
   "GP de Las Vegas": "vegas.png",
   "GP de Catar": "qatar.png",
   "GP de Abu Dabi": "abudhabi.png"
+});
+
+const CANONICAL_RACE_OPTIONS = Object.freeze([
+  "GP de Australia",
+  "GP de China",
+  "GP de Japón",
+  "GP de Baréin",
+  "GP de Arabia Saudí",
+  "GP Miami",
+  "GP de Canadá",
+  "GP de Mónaco",
+  "GP de España",
+  "GP de Austria",
+  "GP de Gran Bretaña",
+  "GP de Bélgica",
+  "GP de Hungría",
+  "GP de Países Bajos",
+  "GP de Italia",
+  "GP de España (Madrid)",
+  "GP de Azerbaiyán",
+  "GP de Singapur",
+  "GP de Estados Unidos",
+  "GP de México",
+  "GP de São Paulo",
+  "GP de Las Vegas",
+  "GP de Catar",
+  "GP de Abu Dabi"
+]);
+
+const EVENT_TITLE_TO_RACE = Object.freeze({
+  australian: "GP de Australia",
+  chinese: "GP de China",
+  japanese: "GP de Japón",
+  bahrain: "GP de Baréin",
+  saudi: "GP de Arabia Saudí",
+  miami: "GP Miami",
+  canadian: "GP de Canadá",
+  monaco: "GP de Mónaco",
+  spanish: "GP de España",
+  austrian: "GP de Austria",
+  british: "GP de Gran Bretaña",
+  belgian: "GP de Bélgica",
+  hungarian: "GP de Hungría",
+  dutch: "GP de Países Bajos",
+  italian: "GP de Italia",
+  azerbaijan: "GP de Azerbaiyán",
+  singapore: "GP de Singapur",
+  "united states": "GP de Estados Unidos",
+  mexico: "GP de México",
+  "são paulo": "GP de São Paulo",
+  "sao paulo": "GP de São Paulo",
+  "las vegas": "GP de Las Vegas",
+  qatar: "GP de Catar",
+  "abu dhabi": "GP de Abu Dabi"
 });
 
 function clearStorageKeys(keys) {
@@ -257,6 +313,16 @@ function escapeHtml(str) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function sanitizeExternalUrl(rawUrl) {
+  try {
+    const parsed = new URL(String(rawUrl || "").trim());
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+    return parsed.toString();
+  } catch {
+    return "";
+  }
 }
 
 function clamp(value, min, max) {
@@ -484,43 +550,27 @@ function applyExperienceTheme() {
 }
 
 function getPredictRaceOptions() {
-  return [
-    "GP de Australia",
-    "GP de China",
-    "GP de Japón",
-    "GP de Baréin",
-    "GP de Arabia Saudí",
-    "GP Miami",
-    "GP de Canadá",
-    "GP de Mónaco",
-    "GP de España",
-    "GP de Austria",
-    "GP de Gran Bretaña",
-    "GP de Bélgica",
-    "GP de Hungría",
-    "GP de Países Bajos",
-    "GP de Italia",
-    "GP de España (Madrid)",
-    "GP de Azerbaiyán",
-    "GP de Singapur",
-    "GP de Estados Unidos",
-    "GP de México",
-    "GP de São Paulo",
-    "GP de Las Vegas",
-    "GP de Catar",
-    "GP de Abu Dabi"
-  ];
+  const calendarRaces = Array.isArray(state.calendarCache?.events)
+    ? state.calendarCache.events
+      .filter(event => event?.type === "race" && event?.predictRace)
+      .sort((a, b) => (a.round || 999) - (b.round || 999))
+      .map(event => event.predictRace)
+    : [];
+  const uniqueCalendarRaces = [...new Set(calendarRaces)].filter(name => CANONICAL_RACE_OPTIONS.includes(name));
+  return uniqueCalendarRaces.length ? uniqueCalendarRaces : [...CANONICAL_RACE_OPTIONS];
 }
 
 function getSelectedRace() {
   const settings = getSettings();
   const stored = storageRead(STORAGE_KEYS.selectedRace);
+  const safeStored = CANONICAL_RACE_OPTIONS.includes(stored) ? stored : "";
   if (settings.autoSelectNextRace && state.detectedNextRaceName) return state.detectedNextRaceName;
-  if (stored) return stored;
-  return state.detectedNextRaceName || "GP Miami";
+  if (safeStored) return safeStored;
+  return state.detectedNextRaceName || CANONICAL_RACE_OPTIONS[0];
 }
 
 function saveSelectedRace(raceName) {
+  if (!CANONICAL_RACE_OPTIONS.includes(raceName)) return;
   storageWrite(STORAGE_KEYS.selectedRace, raceName);
   const settings = getSettings();
   if (settings.autoSelectNextRace) {
@@ -607,33 +657,15 @@ function getRaceHeuristics(raceName) {
 
 function mapCalendarEventToPredictRace(event) {
   if (!event) return null;
+  if (CANONICAL_RACE_OPTIONS.includes(event.predictRace)) return event.predictRace;
   const title = event.title || "";
   const venue = event.venue || "";
 
-  if (title.includes("Australian")) return "GP de Australia";
-  if (title.includes("Chinese")) return "GP de China";
-  if (title.includes("Japanese")) return "GP de Japón";
-  if (title.includes("Bahrain")) return "GP de Baréin";
-  if (title.includes("Saudi")) return "GP de Arabia Saudí";
-  if (title.includes("Miami")) return "GP Miami";
-  if (title.includes("Canadian")) return "GP de Canadá";
-  if (title.includes("Monaco")) return "GP de Mónaco";
+  const normalizedTitle = String(title).toLowerCase();
+  if (normalizedTitle.includes("spanish") && String(venue).toLowerCase().includes("madrid")) return "GP de España (Madrid)";
+  const matchKey = Object.keys(EVENT_TITLE_TO_RACE).find(key => normalizedTitle.includes(key));
+  if (matchKey) return EVENT_TITLE_TO_RACE[matchKey];
   if (title.includes("Spanish") && venue.includes("Madrid")) return "GP de España (Madrid)";
-  if (title.includes("Spanish")) return "GP de España";
-  if (title.includes("Austrian")) return "GP de Austria";
-  if (title.includes("British")) return "GP de Gran Bretaña";
-  if (title.includes("Belgian")) return "GP de Bélgica";
-  if (title.includes("Hungarian")) return "GP de Hungría";
-  if (title.includes("Dutch")) return "GP de Países Bajos";
-  if (title.includes("Italian")) return "GP de Italia";
-  if (title.includes("Azerbaijan")) return "GP de Azerbaiyán";
-  if (title.includes("Singapore")) return "GP de Singapur";
-  if (title.includes("United States")) return "GP de Estados Unidos";
-  if (title.includes("Mexico")) return "GP de México";
-  if (title.includes("São Paulo")) return "GP de São Paulo";
-  if (title.includes("Las Vegas")) return "GP de Las Vegas";
-  if (title.includes("Qatar")) return "GP de Catar";
-  if (title.includes("Abu Dhabi")) return "GP de Abu Dabi";
 
   return null;
 }
@@ -3449,6 +3481,7 @@ async function showHome() {
     : "Sin sesión próxima cargada";
 
   const featuredNews = favoriteNewsItems[0] || null;
+  const featuredNewsUrl = sanitizeExternalUrl(featuredNews?.link);
   const featuredMention = featuredNews ? findDriverMentionInText(`${featuredNews.title} ${featuredNews.source || ""}`) : null;
   const compactHomeEnabled = Boolean(getSettings().homeCompactMode);
   const compactHeadline = featuredNews
@@ -3549,7 +3582,9 @@ async function showHome() {
               <div class="news-item home-headline-item">
                 ${featuredMention ? renderDriverAvatar(featuredMention.name, featuredMention.image, "row-avatar home-news-avatar") : ""}
                 <div>
-                  <a class="news-link" href="${featuredNews.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(featuredNews.title)}</a>
+                  ${featuredNewsUrl
+      ? `<a class="news-link" href="${featuredNewsUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(featuredNews.title)}</a>`
+      : `<span class="news-link">${escapeHtml(featuredNews.title)}</span>`}
                   <div class="news-source">${escapeHtml(featuredNews.source || "Noticias")}${formatNewsDate(featuredNews.pubDate) ? ` · ${formatNewsDate(featuredNews.pubDate)}` : ""}</div>
                 </div>
               </div>
@@ -4961,7 +4996,8 @@ function sanitizeUiState(value) {
     standingsScope: uiState.standingsScope === "all" ? "all" : "top10",
     currentNewsFilterKey: uiState.currentNewsFilterKey || DEFAULT_NEWS_FILTER_KEY,
     lastScreen: isKnownScreen(uiState.lastScreen) ? uiState.lastScreen : DEFAULT_UI_STATE.lastScreen,
-    weekendModeEnabled: uiState.weekendModeEnabled !== false
+    weekendModeEnabled: uiState.weekendModeEnabled !== false,
+    engineerSubmode: uiState.engineerSubmode === "telemetry" ? "telemetry" : "prediction"
   };
 }
 
@@ -5037,7 +5073,8 @@ function saveUiState() {
     standingsScope: state.standingsScope,
     currentNewsFilterKey: state.currentNewsFilterKey,
     lastScreen: state.lastScreen,
-    weekendModeEnabled: state.weekendModeEnabled
+    weekendModeEnabled: state.weekendModeEnabled,
+    engineerSubmode: state.engineerSubmode
   }));
 }
 
@@ -5049,6 +5086,7 @@ function applyStoredUiState() {
   state.currentNewsFilterKey = saved.currentNewsFilterKey;
   state.lastScreen = saved.lastScreen;
   state.weekendModeEnabled = saved.weekendModeEnabled;
+  state.engineerSubmode = saved.engineerSubmode;
 }
 
 function getLocalDataSummary() {
@@ -5073,6 +5111,7 @@ function repairLocalStorageState() {
   state.currentNewsFilterKey = uiState.currentNewsFilterKey;
   state.lastScreen = uiState.lastScreen;
   state.weekendModeEnabled = uiState.weekendModeEnabled;
+  state.engineerSubmode = uiState.engineerSubmode;
   saveUiState();
 }
 

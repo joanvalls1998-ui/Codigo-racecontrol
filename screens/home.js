@@ -8,6 +8,7 @@ function getHomeSimpleNewsPreview() {
   const items = Array.isArray(cached?.items) ? cached.items : [];
   const phase = getNewsWeekendPhase();
   const top = sortNewsItems(items, filter, phase)[0] || null;
+  const safeUrl = sanitizeExternalUrl(top?.link);
 
   if (!top) {
     return `
@@ -30,7 +31,9 @@ function getHomeSimpleNewsPreview() {
         </div>
       </div>
       <div class="news-item" style="margin-top:10px;">
-        <a class="news-link" href="${top.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(top.title)}</a>
+        ${safeUrl
+      ? `<a class="news-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(top.title)}</a>`
+      : `<span class="news-link">${escapeHtml(top.title)}</span>`}
         <div class="news-source">${escapeHtml(top.source || "Noticias")}${formatNewsDate(top.pubDate) ? ` · ${formatNewsDate(top.pubDate)}` : ""}</div>
       </div>
     </div>

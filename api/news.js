@@ -18,10 +18,9 @@ export default async function handler(req, res) {
     const queries = buildQueries(favorite);
     const allItems = [];
 
-    for (const query of queries) {
-      try {
+    const responses = await Promise.allSettled(
+      queries.map(async query => {
         const rssUrl = buildGoogleNewsRssUrl(query);
-
         const response = await fetch(rssUrl, {
           method: "GET",
           headers: {
@@ -30,16 +29,16 @@ export default async function handler(req, res) {
           },
           cache: "no-store"
         });
-
-        if (!response.ok) continue;
-
+        if (!response.ok) return [];
         const xml = await response.text();
-        const items = parseRssItems(xml);
-        allItems.push(...items);
-      } catch (err) {
-        continue;
-      }
-    }
+        return parseRssItems(xml);
+      })
+    );
+
+    responses.forEach(entry => {
+      if (entry.status !== "fulfilled" || !Array.isArray(entry.value)) return;
+      allItems.push(...entry.value);
+    });
 
     const uniqueItems = dedupeNews(allItems).slice(0, 8);
 
@@ -101,14 +100,17 @@ function parseRssItems(xml) {
       const pubDate = cleanText(extractTag(block, "pubDate"));
       const source = extractSource(block) || getDomainFromUrl(link);
 
+      const safeLink = sanitizeExternalUrl(link);
+      if (!safeLink) return null;
+
       return {
         title,
-        link,
+        link: safeLink,
         pubDate,
         source
       };
     })
-    .filter(item => item.title && item.link);
+    .filter(item => item && item.title && item.link);
 }
 
 function extractTag(block, tag) {
@@ -150,6 +152,16 @@ function getDomainFromUrl(url) {
     return hostname;
   } catch {
     return "News";
+  }
+}
+
+function sanitizeExternalUrl(rawUrl) {
+  try {
+    const parsed = new URL(String(rawUrl || "").trim());
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+    return parsed.toString();
+  } catch {
+    return "";
   }
 }
 
