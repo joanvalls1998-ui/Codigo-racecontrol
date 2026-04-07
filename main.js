@@ -2891,9 +2891,12 @@ function getHomeWeekendContext() {
 }
 
 function renderHomePhaseHero(context) {
+  const hero = window.HERO_IMAGES?.resolveFavoriteHero(getFavorite()) || { src: "", source: "fallback" };
+  const heroCardStyle = hero.src ? ` style="--hero-image:url('${hero.src}');"` : "";
+
   if (!context) {
     return `
-      <div class="card highlight-card">
+      <div class="card highlight-card hero-media-ready"${heroCardStyle}>
         <div class="mini-pill">HOME INTELIGENTE</div>
         <div class="card-title">Centro del fin de semana</div>
         <div class="card-sub">No se ha podido cargar el contexto del GP ahora mismo.</div>
@@ -2903,7 +2906,7 @@ function renderHomePhaseHero(context) {
 
   if (context.scheduleUnavailable) {
     return `
-      <div class="card highlight-card">
+      <div class="card highlight-card hero-media-ready"${heroCardStyle}>
         <div class="mini-pill">HOME INTELIGENTE</div>
         <div class="card-title">${escapeHtml(context.raceName || "GP")}</div>
         <div class="card-sub">${escapeHtml(context.scheduleReason || "No hay horario oficial disponible ahora mismo.")}</div>
@@ -2923,7 +2926,7 @@ function renderHomePhaseHero(context) {
   const leadUserTime = leadSession?.start ? formatSessionDateTime(leadSession.start) : "Sin hora";
 
   return `
-    <div class="card highlight-card">
+    <div class="card highlight-card hero-media-ready"${heroCardStyle}>
       <div class="mini-pill">HOME INTELIGENTE</div>
       <div class="card-title">${escapeHtml(context.raceName)}</div>
       <div class="card-sub">${escapeHtml(context.focusDescription)}</div>

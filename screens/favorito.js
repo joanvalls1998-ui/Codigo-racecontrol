@@ -85,9 +85,11 @@ function rc10GetFavoriteSnapshot(favorite, raceName, predictData, context) {
 function renderFavoritoHeroContextCard(favorite, raceName, predictData, context) {
   const { objective, signal, headerSub } = rc10GetFavoriteSnapshot(favorite, raceName, predictData, context);
   const favoriteAvatar = favorite.type === "driver" ? renderDriverAvatar(favorite.name, favorite.image, "row-avatar favorite-focus-avatar") : "";
+  const hero = window.HERO_IMAGES?.resolveFavoriteHero(favorite) || { src: "", source: "fallback" };
+  const heroCardStyle = hero.src ? ` style="--hero-image:url('${hero.src}');"` : "";
 
   return `
-    <div class="card highlight-card favorito-v2-hero">
+    <div class="card highlight-card favorito-v2-hero hero-media-ready"${heroCardStyle}>
       <div class="mini-pill">FAVORITO V2.5</div>
       <div class="card-head" style="margin-bottom:6px;">
         <div class="card-head-left">

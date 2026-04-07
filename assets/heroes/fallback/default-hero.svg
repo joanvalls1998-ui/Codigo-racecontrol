@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Hero fallback placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#151923"/>
+      <stop offset="100%" stop-color="#0b0e14"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <g opacity="0.2" stroke="#94a3b8" stroke-width="2" fill="none">
+    <rect x="120" y="120" width="1360" height="660" rx="28"/>
+    <path d="M120 640 H1480"/>
+    <path d="M420 120 V780"/>
+    <path d="M980 120 V780"/>
+  </g>
+  <text x="120" y="790" fill="#cbd5e1" font-size="42" font-family="Inter, system-ui, sans-serif" letter-spacing="3">RACECONTROL HERO PLACEHOLDER</text>
+</svg>
