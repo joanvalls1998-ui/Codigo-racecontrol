@@ -523,6 +523,11 @@ const engineerCache = {
 
 let telemetryRequestId = 0;
 const TELEMETRY_CACHE_TTL_MS = 1000 * 60 * 10;
+const telemetryTraceInspector = {
+  active: false,
+  index: null,
+  pointCount: 0
+};
 
 function nowMs() {
   if (typeof performance !== "undefined" && typeof performance.now === "function") return performance.now();
@@ -572,7 +577,12 @@ function normalizeTelemetryDriverLabel(name = "") {
 
 function formatTelemetrySeconds(value) {
   if (!Number.isFinite(value)) return "N/D";
-  return `${value.toFixed(3)} s`;
+  if (value >= 60) {
+    const minutes = Math.floor(value / 60);
+    const seconds = value - (minutes * 60);
+    return `${minutes}:${seconds.toFixed(3).padStart(6, "0")}`;
+  }
+  return value.toFixed(3);
 }
 
 function formatTelemetrySpeed(value) {
@@ -592,9 +602,10 @@ function formatTelemetryCount(value) {
 
 function formatTelemetryDelta(value, kind = "seconds") {
   if (!Number.isFinite(value)) return "N/D";
-  const sign = value > 0 ? "+" : "";
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
+  const absolute = Math.abs(value);
   if (kind === "speed") return `${sign}${value.toFixed(1)} km/h`;
-  return `${sign}${value.toFixed(3)} s`;
+  return `${sign}${absolute.toFixed(3)}`;
 }
 
 async function fetchEngineerApi(endpoint, params = {}, options = {}) {
@@ -758,6 +769,138 @@ function renderTelemetryTrace(title, values = [], kind = "speed") {
   `;
 }
 
+function clampTelemetryPercent(value) {
+  if (!Number.isFinite(value)) return null;
+  return Math.max(0, Math.min(100, value));
+}
+
+function traceValueAt(values = [], index = 0, pointCount = 0) {
+  if (!Array.isArray(values) || !values.length || !Number.isFinite(index) || pointCount < 1) return null;
+  const clean = values.filter(Number.isFinite);
+  if (!clean.length) return null;
+  if (clean.length === 1 || pointCount <= 1) return clean[0];
+  const ratio = Math.max(0, Math.min(1, index / (pointCount - 1)));
+  const sampleIndex = Math.round(ratio * (clean.length - 1));
+  return clean[Math.max(0, Math.min(clean.length - 1, sampleIndex))];
+}
+
+function buildTracePoints(values = [], pointCount = 0, minValue = 0, maxValue = 1, bandTop = 0, bandHeight = 100) {
+  if (!Array.isArray(values) || !values.length || pointCount < 1) return "";
+  const points = [];
+  for (let idx = 0; idx < pointCount; idx += 1) {
+    const value = traceValueAt(values, idx, pointCount);
+    if (!Number.isFinite(value)) continue;
+    const denominator = Math.max(pointCount - 1, 1);
+    const x = (idx / denominator) * 100;
+    const range = Math.max(maxValue - minValue, 1);
+    const normalized = (value - minValue) / range;
+    const y = bandTop + (bandHeight - (Math.max(0, Math.min(1, normalized)) * bandHeight));
+    points.push(`${x.toFixed(2)},${Math.max(0, Math.min(100, y)).toFixed(2)}`);
+  }
+  return points.join(" ");
+}
+
+function buildTelemetryTraceInspection(payload = {}) {
+  const traces = payload?.traces || {};
+  const speed = Array.isArray(traces.speed) ? traces.speed.filter(Number.isFinite) : [];
+  const throttle = Array.isArray(traces.throttle) ? traces.throttle.filter(Number.isFinite).map(item => clampTelemetryPercent(item)).filter(Number.isFinite) : [];
+  const brake = Array.isArray(traces.brake) ? traces.brake.filter(Number.isFinite).map(item => clampTelemetryPercent(item)).filter(Number.isFinite) : [];
+  const gear = Array.isArray(traces.gear) ? traces.gear.filter(Number.isFinite) : [];
+  const rpm = Array.isArray(traces.rpm) ? traces.rpm.filter(Number.isFinite) : [];
+  const drs = Array.isArray(traces.drs) ? traces.drs.filter(Number.isFinite) : [];
+  const distance = Array.isArray(traces.distance) ? traces.distance.filter(Number.isFinite) : [];
+  const relativeDistance = Array.isArray(traces.relativeDistance) ? traces.relativeDistance.filter(Number.isFinite) : [];
+
+  const pointCount = Math.max(speed.length, throttle.length, brake.length, gear.length, rpm.length, drs.length, distance.length, relativeDistance.length, 0);
+  if (!pointCount) return null;
+  telemetryTraceInspector.pointCount = pointCount;
+  const selectedIndex = Number.isFinite(telemetryTraceInspector.index)
+    ? Math.max(0, Math.min(pointCount - 1, telemetryTraceInspector.index))
+    : pointCount - 1;
+  const ratio = pointCount > 1 ? selectedIndex / (pointCount - 1) : 0;
+  const selectedSpeed = traceValueAt(speed, selectedIndex, pointCount);
+  const selectedThrottle = traceValueAt(throttle, selectedIndex, pointCount);
+  const selectedBrake = traceValueAt(brake, selectedIndex, pointCount);
+  const selectedGear = traceValueAt(gear, selectedIndex, pointCount);
+  const selectedRpm = traceValueAt(rpm, selectedIndex, pointCount);
+  const selectedDrs = traceValueAt(drs, selectedIndex, pointCount);
+  const selectedDistance = traceValueAt(distance, selectedIndex, pointCount);
+  const selectedRelativeDistance = traceValueAt(relativeDistance, selectedIndex, pointCount);
+  const sectionRatio = Number.isFinite(selectedRelativeDistance) ? Math.max(0, Math.min(1, selectedRelativeDistance)) : ratio;
+  const sector = sectionRatio < (1 / 3) ? "S1" : sectionRatio < (2 / 3) ? "S2" : "S3";
+
+  return {
+    pointCount,
+    selectedIndex,
+    ratio,
+    sector,
+    speed,
+    throttle,
+    brake,
+    selectedValues: {
+      speed: selectedSpeed,
+      throttle: selectedThrottle,
+      brake: selectedBrake,
+      gear: selectedGear,
+      rpm: selectedRpm,
+      drs: Number.isFinite(selectedDrs) ? selectedDrs : null,
+      distance: selectedDistance,
+      relativeDistance: selectedRelativeDistance
+    }
+  };
+}
+
+function renderTelemetryTraceInspector(payload = {}) {
+  const inspection = buildTelemetryTraceInspection(payload);
+  if (!inspection) return `<div class="empty-line">Trazas no disponibles para inspección.</div>`;
+  const x = (inspection.ratio * 100).toFixed(2);
+  const selected = inspection.selectedValues;
+  const speedMax = Math.max(...inspection.speed, 1);
+  const throttleMax = 100;
+  const brakeMax = 100;
+  const distanceLabel = Number.isFinite(selected.distance)
+    ? `${Math.round(selected.distance)} m`
+    : Number.isFinite(selected.relativeDistance)
+      ? `${Math.round(selected.relativeDistance * 100)}% vuelta`
+      : `${Math.round(inspection.ratio * 100)}% vuelta`;
+  const drsLabel = Number.isFinite(selected.drs) ? (selected.drs > 0 ? "ON" : "OFF") : "N/D";
+
+  return `
+    <div class="telemetry-trace-inspector"
+      data-points="${inspection.pointCount}"
+      onpointerdown="engineerTelemetryTracePointerDown(event)"
+      onpointermove="engineerTelemetryTracePointerMove(event)"
+      onpointerup="engineerTelemetryTracePointerEnd(event)"
+      onpointercancel="engineerTelemetryTracePointerEnd(event)"
+      onpointerleave="engineerTelemetryTracePointerLeave(event)">
+      <div class="telemetry-trace-plot">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Trazas sincronizadas">
+          <line class="trace-grid-h" x1="0" y1="25" x2="100" y2="25"></line>
+          <line class="trace-grid-h" x1="0" y1="50" x2="100" y2="50"></line>
+          <line class="trace-grid-h" x1="0" y1="75" x2="100" y2="75"></line>
+          <polyline class="trace-line trace-line-speed" points="${buildTracePoints(inspection.speed, inspection.pointCount, 0, speedMax, 0, 31)}"></polyline>
+          <polyline class="trace-line trace-line-throttle" points="${buildTracePoints(inspection.throttle, inspection.pointCount, 0, throttleMax, 34, 31)}"></polyline>
+          <polyline class="trace-line trace-line-brake" points="${buildTracePoints(inspection.brake, inspection.pointCount, 0, brakeMax, 68, 31)}"></polyline>
+          <line class="trace-cursor" x1="${x}" y1="0" x2="${x}" y2="100"></line>
+        </svg>
+        <div class="telemetry-trace-axis">
+          <span>Speed</span><span>Throttle</span><span>Brake</span>
+        </div>
+      </div>
+      <div class="telemetry-trace-tooltip">
+        <div><span>Speed</span><strong>${escapeHtml(formatTelemetrySpeed(selected.speed))}</strong></div>
+        <div><span>Throttle</span><strong>${Number.isFinite(selected.throttle) ? `${Math.round(selected.throttle)}%` : "N/D"}</strong></div>
+        <div><span>Brake</span><strong>${Number.isFinite(selected.brake) ? `${Math.round(selected.brake)}%` : "N/D"}</strong></div>
+        ${Number.isFinite(selected.gear) ? `<div><span>Gear</span><strong>${Math.round(selected.gear)}</strong></div>` : ""}
+        ${Number.isFinite(selected.rpm) ? `<div><span>RPM</span><strong>${Math.round(selected.rpm)}</strong></div>` : ""}
+        ${Number.isFinite(selected.drs) ? `<div><span>DRS</span><strong>${escapeHtml(drsLabel)}</strong></div>` : ""}
+        <div><span>Distancia</span><strong>${escapeHtml(distanceLabel)}</strong></div>
+        <div><span>Sector</span><strong>${escapeHtml(inspection.sector)}</strong></div>
+      </div>
+    </div>
+  `;
+}
+
 function renderTelemetryDashboard(payload) {
   const summary = payload.summary || {};
   const weather = payload.weather || {};
@@ -883,19 +1026,15 @@ function renderTelemetryDashboard(payload) {
     </section>
 
     <section class="card engineer-card telemetry-traces-block">
-      <div class="telemetry-line-head"><strong>Trazas</strong><span>Speed / Throttle / Brake</span></div>
+      <div class="telemetry-line-head"><strong>Trazas</strong><span>Inspección sincronizada</span></div>
       ${payload.__partial
         ? `<div class="empty-line">Cargando trazas pesadas…</div>`
         : `
-          <div class="telemetry-speed-main">${renderTelemetryTrace("Speed", speedTrace, "speed")}</div>
-          <div class="telemetry-trace-compact">
-            ${renderTelemetryTrace("Throttle", throttleTrace, "percent")}
-            ${renderTelemetryTrace("Brake", brakeTrace, "brake")}
-          </div>
+          ${renderTelemetryTraceInspector(payload)}
           <div class="telemetry-secondary-signals">
-            <div><span>Gear</span><strong>${escapeHtml(availability.speedTrace === "available" ? "ON" : "N/D")}</strong></div>
-            <div><span>RPM</span><strong>${escapeHtml(payload.traces?.rpm?.length ? "ON" : "N/D")}</strong></div>
-            <div><span>DRS</span><strong>${escapeHtml(payload.traces?.gear?.length ? "SYNC" : "N/D")}</strong></div>
+            <div><span>Speed trace</span><strong>${escapeHtml(availability.speedTrace === "available" ? "OK" : "N/D")}</strong></div>
+            <div><span>Throttle trace</span><strong>${escapeHtml(availability.throttleTrace === "available" ? "OK" : "N/D")}</strong></div>
+            <div><span>Brake trace</span><strong>${escapeHtml(availability.brakeTrace === "available" ? "OK" : "N/D")}</strong></div>
           </div>
         `}
     </section>
@@ -1106,6 +1245,48 @@ function setEngineerTelemetryDriver(value) {
   loadTelemetryData();
 }
 
+function telemetryTraceIndexFromEvent(event) {
+  const target = event?.currentTarget;
+  const points = Math.max(1, Number(target?.dataset?.points) || telemetryTraceInspector.pointCount || 1);
+  const rect = target?.getBoundingClientRect?.();
+  if (!rect || rect.width <= 0) return 0;
+  const x = Math.max(0, Math.min(rect.width, (event.clientX || 0) - rect.left));
+  const ratio = rect.width ? x / rect.width : 0;
+  return Math.max(0, Math.min(points - 1, Math.round(ratio * (points - 1))));
+}
+
+function engineerTelemetryTracePointerDown(event) {
+  telemetryTraceInspector.active = true;
+  telemetryTraceInspector.index = telemetryTraceIndexFromEvent(event);
+  if (typeof event.currentTarget?.setPointerCapture === "function") {
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  renderEngineerScreen();
+}
+
+function engineerTelemetryTracePointerMove(event) {
+  if (event.pointerType === "mouse" && event.buttons === 0 && !telemetryTraceInspector.active) return;
+  telemetryTraceInspector.index = telemetryTraceIndexFromEvent(event);
+  renderEngineerScreen();
+}
+
+function engineerTelemetryTracePointerEnd(event) {
+  telemetryTraceInspector.active = false;
+  telemetryTraceInspector.index = null;
+  if (typeof event.currentTarget?.releasePointerCapture === "function") {
+    try { event.currentTarget.releasePointerCapture(event.pointerId); } catch (_error) { /* noop */ }
+  }
+  renderEngineerScreen();
+}
+
+function engineerTelemetryTracePointerLeave(event) {
+  if (telemetryTraceInspector.active) return;
+  if (event.pointerType === "mouse") {
+    telemetryTraceInspector.index = null;
+    renderEngineerScreen();
+  }
+}
+
 function renderEngineerScreen() {
   const selectedRace = getSelectedRace();
   const favorite = getFavorite();
@@ -1156,3 +1337,7 @@ window.setEngineerSubmode = setEngineerSubmode;
 window.setEngineerTelemetryGp = setEngineerTelemetryGp;
 window.setEngineerTelemetrySessionType = setEngineerTelemetrySessionType;
 window.setEngineerTelemetryDriver = setEngineerTelemetryDriver;
+window.engineerTelemetryTracePointerDown = engineerTelemetryTracePointerDown;
+window.engineerTelemetryTracePointerMove = engineerTelemetryTracePointerMove;
+window.engineerTelemetryTracePointerEnd = engineerTelemetryTracePointerEnd;
+window.engineerTelemetryTracePointerLeave = engineerTelemetryTracePointerLeave;
