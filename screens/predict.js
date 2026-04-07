@@ -863,6 +863,45 @@ function resolvePreferredMeeting(meetings = [], selectedMeetingKey = "") {
   return resolveLatestMeeting(meetings) || meetings[0] || null;
 }
 
+async function resolveStableTelemetryBootstrap({ meetings = [], telemetry = engineerState.telemetry }) {
+  if (!Array.isArray(meetings) || !meetings.length) return null;
+  const explicitMeeting = meetings.find(item => String(item?.meeting_key) === String(telemetry?.gp));
+  const meetingCandidates = [
+    ...(explicitMeeting ? [explicitMeeting] : []),
+    ...sortMeetingsByRecency(meetings).filter(item => String(item?.meeting_key) !== String(explicitMeeting?.meeting_key))
+  ];
+
+  for (const meeting of meetingCandidates) {
+    if (!meeting?.meeting_key) continue;
+    const sessions = sortSessionsByPriority(await loadSessionsCached(meeting.meeting_key).catch(() => []));
+    if (!sessions.length) continue;
+    const sessionCandidates = [
+      ...sessions.filter(item => isSessionTypePrimary(item?.type_key)),
+      ...sessions.filter(item => !isSessionTypePrimary(item?.type_key))
+    ];
+    for (const session of sessionCandidates) {
+      if (!session?.session_key) continue;
+      const drivers = await loadDriversCached(session.session_key).catch(() => []);
+      if (!Array.isArray(drivers) || !drivers.length) continue;
+      const selectedDriver = resolvePreferredDriver(drivers, telemetry);
+      if (!selectedDriver?.id) continue;
+      telemetryPreloadLog("bootstrap_resolved", {
+        meeting_key: meeting.meeting_key,
+        session_key: session.session_key,
+        driver: selectedDriver.id
+      });
+      return {
+        meeting,
+        sessions,
+        session,
+        drivers,
+        driver: selectedDriver
+      };
+    }
+  }
+  return null;
+}
+
 function resolvePreferredSession(sessions = [], telemetry = engineerState.telemetry) {
   if (!Array.isArray(sessions) || !sessions.length) return null;
   const sortedSessions = sortSessionsByPriority(sessions);
@@ -1039,25 +1078,20 @@ async function loadTelemetryContext() {
   const t = engineerState.telemetry;
   try {
     const meetings = await loadMeetingsCached();
-    const selectedMeeting = resolvePreferredMeeting(meetings, t.gp);
-    if (!selectedMeeting?.meeting_key) throw new Error("NO_MEETINGS");
-    const sessionsRaw = await loadSessionsCached(selectedMeeting.meeting_key);
-    const sessions = sortSessionsByPriority(sessionsRaw);
-    const selectedSession = resolvePreferredSession(sessions, t);
-    const drivers = selectedSession?.session_key ? await loadDriversCached(selectedSession.session_key) : [];
-    const selectedDriver = resolvePreferredDriver(drivers, t);
+    const bootstrap = await resolveStableTelemetryBootstrap({ meetings, telemetry: t });
+    if (!bootstrap?.meeting?.meeting_key) throw new Error("NO_MEETINGS");
     const payload = {
       year: TELEMETRY_SEASON_YEAR,
       season_focus: TELEMETRY_SEASON_YEAR,
       selections: {
-        meeting_key: selectedMeeting?.meeting_key || "",
-        session_type: selectedSession?.type_key || "",
-        session_key: selectedSession?.session_key || "",
-        driver: selectedDriver?.id || ""
+        meeting_key: bootstrap.meeting?.meeting_key || "",
+        session_type: bootstrap.session?.type_key || "",
+        session_key: bootstrap.session?.session_key || "",
+        driver: bootstrap.driver?.id || ""
       },
       meetings,
-      sessions,
-      drivers
+      sessions: bootstrap.sessions || [],
+      drivers: bootstrap.drivers || []
     };
     return cacheSet(engineerCache.context, key, payload);
   } catch (_error) {

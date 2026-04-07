@@ -1674,9 +1674,10 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
   const cacheKey = `${year}:${meetingKey}:${sessionKey}:${driverNumber}:${modeKey}`;
   const cached = getCached(cache.telemetry, cacheKey, TTL.telemetry);
   if (cached) {
-    telemetryLog("debug", "telemetry.cache_hit", { year, meeting_key: meetingKey, session_key: sessionKey, driver_number: driverNumber });
+    telemetryLog("info", "cache_hit", { layer: "telemetry", year, meeting_key: meetingKey, session_key: sessionKey, driver_number: driverNumber, mode: modeKey });
     return cached;
   }
+  telemetryLog("info", "cache_miss", { layer: "telemetry", year, meeting_key: meetingKey, session_key: sessionKey, driver_number: driverNumber, mode: modeKey });
 
   telemetryLog("info", "telemetry.request", { year, meeting_key: meetingKey, session_key: sessionKey, driver_number: driverNumber });
 
@@ -1688,6 +1689,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     error.code = "MEETING_NOT_FOUND";
     throw error;
   }
+  telemetryLog("info", "gp_resolved", { year, meeting_key: meeting.meeting_key, gp_label: meeting.gp_label || meeting.meeting_name || "" });
 
   const sessions = await getSessions(meetingKey, year);
   const sessionInput = String(sessionKey || "").trim();
@@ -1700,6 +1702,12 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     error.code = "SESSION_NOT_FOUND";
     throw error;
   }
+  telemetryLog("info", "session_resolved", {
+    year,
+    meeting_key: meeting.meeting_key,
+    session_key: session.session_key,
+    session_type: session.type_key
+  });
 
   const drivers = await getDrivers(session.session_key, year);
   const driver = drivers.find(item => item.id === String(driverNumber));
@@ -1709,6 +1717,13 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     error.code = "DRIVER_NOT_FOUND";
     throw error;
   }
+  telemetryLog("info", "driver_resolved", {
+    year,
+    meeting_key: meeting.meeting_key,
+    session_key: session.session_key,
+    driver_number: driver.id,
+    driver_name: driver.name || ""
+  });
 
   const openf1 = await getDriverMetricsOpenF1(session.session_key, driver.id, { includeTraces: includeHeavy }).catch(error => {
     telemetryLog("warn", "telemetry.provider_failed", {
@@ -1741,14 +1756,50 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     return null;
   });
   const fastf1 = includeHeavy
-    ? await getFastF1DriverMetrics({
-      meetingName: meeting.meeting_name || meeting.location || meeting.country_name,
-      sessionType: session.type_key,
-      driverNumber: driver.id
-    }).catch(() => ({ ok: false, reason: "FASTF1_ERROR" }))
+    ? await (async () => {
+      telemetryLog("info", "session_load_started", {
+        source: "fastf1",
+        meeting_key: meeting.meeting_key,
+        session_key: session.session_key,
+        session_type: session.type_key,
+        driver_number: driver.id
+      });
+      const result = await getFastF1DriverMetrics({
+        meetingName: meeting.meeting_name || meeting.location || meeting.country_name,
+        sessionType: session.type_key,
+        driverNumber: driver.id
+      }).catch(() => ({ ok: false, reason: "FASTF1_ERROR" }));
+      if (result?.ok) {
+        telemetryLog("info", "session_load_completed", {
+          source: "fastf1",
+          meeting_key: meeting.meeting_key,
+          session_key: session.session_key,
+          driver_number: driver.id,
+          lap_count: result?.lapCount || null
+        });
+      } else {
+        telemetryLog("warn", "session_load_failed", {
+          source: "fastf1",
+          meeting_key: meeting.meeting_key,
+          session_key: session.session_key,
+          driver_number: driver.id,
+          reason: result?.reason || "FASTF1_ERROR"
+        });
+      }
+      return result;
+    })()
     : { ok: false, reason: "FASTF1_SKIPPED_CORE_MODE" };
   const openf1Base = mergeTelemetryBlock(openf1, aggregate || {});
   const merged = mergeTelemetry(openf1Base, fastf1);
+  if (!fastf1?.ok) {
+    telemetryLog("info", "fallback_used", {
+      provider: "openf1",
+      reason: fastf1?.reason || "FASTF1_UNAVAILABLE",
+      meeting_key: meeting.meeting_key,
+      session_key: session.session_key,
+      driver_number: driver.id
+    });
+  }
   const weather = includeHeavy ? await loadSessionContext(session.session_key) : {};
   const sessionEvolution = Array.isArray(fastf1?.evolution) && fastf1.evolution.length
     ? fastf1.evolution.map(item => ({
@@ -1797,6 +1848,12 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     error.code = "NO_TELEMETRY";
     throw error;
   }
+  telemetryLog("info", "payload_ready", {
+    meeting_key: meeting.meeting_key,
+    session_key: session.session_key,
+    driver_number: driver.id,
+    source_primary: merged.primarySource || "openf1"
+  });
 
   const payload = {
     year,
@@ -1914,6 +1971,22 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
     source_primary: payload.source.primary,
     source_enrichment: payload.source.enrichment
   });
+  const tracesReady = Array.isArray(payload?.traces?.speed) && payload.traces.speed.length > 0;
+  if (tracesReady) {
+    telemetryLog("info", "traces_ready", {
+      meeting_key: meeting.meeting_key,
+      session_key: session.session_key,
+      driver_number: driver.id,
+      points: payload.traces.speed.length
+    });
+  } else {
+    telemetryLog("info", "traces_skipped_reason", {
+      meeting_key: meeting.meeting_key,
+      session_key: session.session_key,
+      driver_number: driver.id,
+      reason: includeHeavy ? "NO_TRACE_DATA" : "CORE_MODE"
+    });
+  }
 
   return setCached(cache.telemetry, cacheKey, payload);
 }
