@@ -49,9 +49,24 @@ export default async function handler(req, res) {
       mode: snapshotParams.mode
     });
 
-    const storedSnapshot = await readTelemetrySnapshot(snapshotParams);
+    let storedSnapshot = null;
+    let snapshotLookupFailed = false;
+    try {
+      storedSnapshot = await readTelemetrySnapshot(snapshotParams);
+    } catch (snapshotReadError) {
+      snapshotLookupFailed = true;
+      snapshotLog("snapshot_missing", {
+        year,
+        meeting_key: meetingKey,
+        session_key: sessionKey,
+        driver_number: driverNumber,
+        mode: snapshotParams.mode,
+        reason: "SNAPSHOT_LOOKUP_FAILED",
+        message: String(snapshotReadError?.message || "")
+      });
+    }
     if (storedSnapshot && !isSnapshotStale(storedSnapshot)) {
-      snapshotLog("snapshot_hit", {
+      snapshotLog("snapshot_found", {
         snapshot_id: storedSnapshot.snapshot_id,
         year,
         meeting_key: meetingKey,
@@ -72,8 +87,8 @@ export default async function handler(req, res) {
         driver_number: driverNumber,
         mode: snapshotParams.mode
       });
-    } else {
-      snapshotLog("snapshot_miss", {
+    } else if (!snapshotLookupFailed) {
+      snapshotLog("snapshot_missing", {
         year,
         meeting_key: meetingKey,
         session_key: sessionKey,
@@ -92,28 +107,62 @@ export default async function handler(req, res) {
     });
 
     const payload = await buildDriverTelemetry({ year, meetingKey, sessionKey, driverNumber, includeHeavy });
-    const persisted = await persistTelemetrySnapshot({
-      params: snapshotParams,
-      payload,
-      source: "runtime_fallback",
-      status: "ready"
-    });
 
-    snapshotLog("snapshot_generation_completed", {
-      snapshot_id: persisted.snapshot_id,
-      year,
-      meeting_key: meetingKey,
-      session_key: sessionKey,
-      driver_number: driverNumber,
-      mode: snapshotParams.mode,
-      trigger: "runtime_fallback"
-    });
+    let persisted = null;
+    try {
+      persisted = await persistTelemetrySnapshot({
+        params: snapshotParams,
+        payload,
+        source: "runtime_fallback",
+        status: "ready"
+      });
+      snapshotLog("snapshot_generation_completed", {
+        snapshot_id: persisted.snapshot_id,
+        year,
+        meeting_key: meetingKey,
+        session_key: sessionKey,
+        driver_number: driverNumber,
+        mode: snapshotParams.mode,
+        trigger: "runtime_fallback"
+      });
+    } catch (persistError) {
+      snapshotLog("snapshot_generation_failed", {
+        reason: "SNAPSHOT_PERSIST_FAILED",
+        message: String(persistError?.message || ""),
+        year,
+        meeting_key: meetingKey,
+        session_key: sessionKey,
+        driver_number: driverNumber,
+        mode: snapshotParams.mode,
+        trigger: "runtime_fallback"
+      });
+    }
 
-    const prepared = responseFromSnapshot(persisted, "generated");
+    const prepared = persisted ? responseFromSnapshot(persisted, "generated") : null;
+    if (!persisted) {
+      return res.status(200).json({
+        ...payload,
+        snapshot: {
+          id: "",
+          status: "generated_not_persisted",
+          freshness: {
+            status: "runtime_only",
+            generated_at: new Date().toISOString(),
+            source: "runtime_fallback",
+            retries: 0,
+            last_error: "SNAPSHOT_PERSIST_FAILED"
+          }
+        }
+      });
+    }
     return res.status(200).json(prepared || payload);
   } catch (error) {
     snapshotLog("snapshot_generation_failed", {
       reason: error?.code || "SNAPSHOT_GENERATION_FAILED",
+      message: String(error?.message || "")
+    });
+    snapshotLog("final_reason_unavailable", {
+      reason: error?.code || "TELEMETRY_UNAVAILABLE",
       message: String(error?.message || "")
     });
     if (error?.code === "MEETING_NOT_FOUND") return apiError(res, 404, "GP no válido para 2026", "MEETING_NOT_FOUND");

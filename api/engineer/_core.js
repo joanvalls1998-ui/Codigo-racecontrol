@@ -1411,6 +1411,12 @@ async function getFastF1DriverMetrics({ meetingName, sessionType, driverNumber }
   const cached = getCached(cache.fastf1, key, TTL.fastf1);
   if (cached) return cached;
 
+  telemetryLog("info", "fastf1_session_created", {
+    meeting_name: meetingName,
+    session_type: sessionType,
+    driver_number: String(driverNumber)
+  });
+
   const code = `
 import json
 import sys
@@ -1977,7 +1983,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
   });
   const fastf1 = includeHeavy
     ? await (async () => {
-      telemetryLog("info", "session_load_started", {
+      telemetryLog("info", "fastf1_session_load_started", {
         source: "fastf1",
         meeting_key: meeting.meeting_key,
         session_key: session.session_key,
@@ -1990,7 +1996,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
         driverNumber: driver.id
       }).catch(() => ({ ok: false, reason: "FASTF1_ERROR" }));
       if (result?.ok) {
-        telemetryLog("info", "session_load_completed", {
+        telemetryLog("info", "fastf1_session_load_completed", {
           source: "fastf1",
           meeting_key: meeting.meeting_key,
           session_key: session.session_key,
@@ -1998,7 +2004,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
           lap_count: result?.lapCount || null
         });
       } else {
-        telemetryLog("warn", "session_load_failed", {
+        telemetryLog("warn", "fastf1_session_load_failed", {
           source: "fastf1",
           meeting_key: meeting.meeting_key,
           session_key: session.session_key,
@@ -2012,7 +2018,7 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
   const openf1Base = mergeTelemetryBlock(openf1, aggregate || {});
   const merged = mergeTelemetry(openf1Base, fastf1);
   if (!fastf1?.ok) {
-    telemetryLog("info", "fallback_used", {
+    telemetryLog("info", "fallback_openf1_started", {
       provider: "openf1",
       reason: fastf1?.reason || "FASTF1_UNAVAILABLE",
       meeting_key: meeting.meeting_key,
@@ -2055,6 +2061,13 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
   });
 
   if (!hasAnyTelemetryData(merged)) {
+    telemetryLog("warn", "fallback_openf1_failed", {
+      provider: "openf1",
+      reason: "OPENF1_AND_AGGREGATE_EMPTY",
+      meeting_key: meeting.meeting_key,
+      session_key: session.session_key,
+      driver_number: driver.id
+    });
     telemetryLog("warn", "telemetry.no_data", {
       year,
       meeting_key: meetingKey,
@@ -2064,6 +2077,13 @@ async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKe
       fastf1_ok: !!fastf1?.ok,
       fastf1_reason: fastf1?.reason || "FASTF1_ACTIVE",
       aggregate_blocks: aggregate?.diagnostics?.blocks || {}
+    });
+    telemetryLog("warn", "final_reason_unavailable", {
+      reason: "NO_TELEMETRY",
+      meeting_key: meeting.meeting_key,
+      session_key: session.session_key,
+      driver_number: driver.id,
+      fastf1_reason: fastf1?.reason || "FASTF1_ACTIVE"
     });
     const error = new Error("No hay telemetría histórica disponible para este piloto en esta sesión.");
     error.code = "NO_TELEMETRY";
