@@ -1163,6 +1163,7 @@ function renderTelemetryPanelBody() {
 function renderTelemetryPanel() {
   const telemetry = engineerState.telemetry;
   const context = telemetry.context || { meetings: [], sessions: [], drivers: [] };
+  const snapshotState = context.snapshot_state || {};
   const disableSelectors = telemetry.status === "loading" && !telemetry.context;
   const perf = telemetry.perf || null;
   const gpOptions = (context.meetings || []).map(item => ({ value: String(item.meeting_key), label: item.gp_label }));
@@ -1176,7 +1177,7 @@ function renderTelemetryPanel() {
     <section class="card engineer-card telemetry-control-panel">
       <div class="telemetry-control-top">
         <div class="card-title">Telemetría · 2026</div>
-        <div class="card-sub">Control wall${perf?.coreMs ? ` · Core ${Math.round(perf.coreMs)} ms` : ""}${perf?.fullMs ? ` · Full ${Math.round(perf.fullMs)} ms` : ""}</div>
+        <div class="card-sub">Snapshots backend${snapshotState?.latest_useful?.gp_label ? ` · Último GP útil: ${escapeHtml(snapshotState.latest_useful.gp_label)}` : ""}${perf?.fullMs ? ` · ${Math.round(perf.fullMs)} ms` : ""}</div>
       </div>
       <div class="telemetry-control-strip">
         <label><span>GP</span><select class="select-input" onchange="setEngineerTelemetryGp(this.value)" ${disableSelectors ? "disabled" : ""}>${renderTelemetrySelector(gpOptions, telemetry.gp)}</select></label>
@@ -1219,18 +1220,17 @@ async function loadTelemetryData() {
       return;
     }
 
-    const coreStartedAt = nowMs();
-    const corePayload = await fetchEngineerApi("telemetry", {
+    const telemetryStartedAt = nowMs();
+    const snapshotPayload = await fetchEngineerApi("telemetry", {
       year: TELEMETRY_SEASON_YEAR,
       meeting_key: telemetry.gp,
       session_key: telemetry.sessionKey,
-      driver_number: telemetry.driver,
-      mode: "core"
+      driver_number: telemetry.driver
     });
     if (requestId !== telemetryRequestId) return;
-    perf.coreMs = nowMs() - coreStartedAt;
+    perf.fullMs = nowMs() - telemetryStartedAt;
 
-    if (!hasTelemetryPayloadData(corePayload)) {
+    if (!hasTelemetryPayloadData(snapshotPayload)) {
       telemetry.status = "empty";
       telemetry.payload = null;
       telemetry.userMessage = "La fuente actual no ofrece suficientes datos para esta combinación.";
@@ -1238,25 +1238,9 @@ async function loadTelemetryData() {
       return;
     }
 
-    const partialPayload = { ...corePayload, __partial: true };
-    telemetry.payload = partialPayload;
+    telemetry.payload = snapshotPayload;
     telemetry.status = "ready";
-    telemetry.phase = "core";
-    telemetry.perf = perf;
-    renderEngineerScreen();
-
-    const fullStartedAt = nowMs();
-    const fullPayload = await fetchEngineerApi("telemetry", {
-      year: TELEMETRY_SEASON_YEAR,
-      meeting_key: telemetry.gp,
-      session_key: telemetry.sessionKey,
-      driver_number: telemetry.driver
-    });
-    if (requestId !== telemetryRequestId) return;
-    perf.fullMs = nowMs() - fullStartedAt;
-    telemetry.payload = fullPayload;
     telemetry.phase = "full";
-    telemetry.status = "ready";
     telemetry.perf = perf;
     renderEngineerScreen();
     console.info("[telemetry.perf]", {
@@ -1264,9 +1248,8 @@ async function loadTelemetryData() {
       session_key: telemetry.sessionKey,
       driver: telemetry.driver,
       context_ms: Math.round(perf.contextMs || 0),
-      core_ms: Math.round(perf.coreMs || 0),
       full_ms: Math.round(perf.fullMs || 0),
-      total_ms: Math.round((perf.contextMs || 0) + (perf.coreMs || 0) + (perf.fullMs || 0))
+      total_ms: Math.round((perf.contextMs || 0) + (perf.fullMs || 0))
     });
   } catch (error) {
     if (requestId !== telemetryRequestId) return;
