@@ -535,6 +535,10 @@ function truncateSecondaryCopy(text, max = 110) {
   return `${raw.slice(0, max - 1).trim()}…`;
 }
 
+function getSafeNewsUrl(url) {
+  return sanitizeExternalUrl(url);
+}
+
 function getNewsWhoIsAffected(item, filter, phase = getNewsWeekendPhase()) {
   const lens = getNewsEditorialLens(item, filter, phase);
   if (lens.affectsFavorite) return "Afecta directamente al favorito.";
@@ -566,6 +570,7 @@ function renderFeaturedNews(item, filter, phase = getNewsWeekendPhase()) {
   const signals = getNewsEditorialSignals(item, filter, phase);
   const impactTier = getNewsImpactTier(item, filter, phase);
   const featuredDriver = findDriverMentionInText(`${item?.title || ""} ${item?.source || ""}`);
+  const safeUrl = getSafeNewsUrl(item?.link);
 
   return `
     <div class="news-hero news-hero-v2">
@@ -577,7 +582,7 @@ function renderFeaturedNews(item, filter, phase = getNewsWeekendPhase()) {
         <span class="tag ${category.key}">${escapeHtml(category.label)}</span>
         <span class="tag ${importanceClass}">${escapeHtml(importance)}</span>
         <span class="tag ${impactTier.className}">${escapeHtml(impactTier.label)}</span>
-        <a class="btn-secondary" href="${item.link}" target="_blank" rel="noopener noreferrer" style="width:auto; padding:10px 14px;">Abrir noticia</a>
+        ${safeUrl ? `<a class="btn-secondary" href="${safeUrl}" target="_blank" rel="noopener noreferrer" style="width:auto; padding:10px 14px;">Abrir noticia</a>` : `<span class="tag context">Enlace no disponible</span>`}
       </div>
       ${renderNewsPortadaBrief(item, filter, phase)}
       <div class="info-line" style="margin-top:10px;">${escapeHtml(impactText)}</div>
@@ -598,6 +603,7 @@ function renderNewsListItem(item, filter, phase = getNewsWeekendPhase()) {
   const signals = getNewsEditorialSignals(item, filter, phase);
   const impactTier = getNewsImpactTier(item, filter, phase);
   const mentionedDriver = findDriverMentionInText(`${item?.title || ""} ${item?.source || ""}`);
+  const safeUrl = getSafeNewsUrl(item?.link);
 
   return `
     <div class="news-item news-item-v2 ${isExpertMode() ? "expert" : "casual"}">
@@ -608,7 +614,9 @@ function renderNewsListItem(item, filter, phase = getNewsWeekendPhase()) {
       </div>
       <div class="news-item-mainline">
         ${mentionedDriver ? renderDriverAvatar(mentionedDriver.name, mentionedDriver.image, "row-avatar tiny-avatar") : ""}
-        <a class="news-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
+        ${safeUrl
+      ? `<a class="news-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>`
+      : `<span class="news-link">${escapeHtml(item.title)}</span>`}
       </div>
       <div class="news-source">${escapeHtml(item.source || "Noticias")}${formatNewsDate(item.pubDate) ? ` · ${formatNewsDate(item.pubDate)}` : ""}</div>
       <div class="info-line" style="margin-top:8px;">${escapeHtml(impactText)}</div>

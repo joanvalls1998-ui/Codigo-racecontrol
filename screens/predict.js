@@ -496,7 +496,7 @@ function renderEngineerPredictionPanel(favorite, raceName, activePredictData, ex
 const TELEMETRY_SEASON_YEAR = 2026;
 
 const engineerState = {
-  submode: "prediction",
+  submode: state.engineerSubmode === "telemetry" ? "telemetry" : "prediction",
   telemetry: {
     status: "idle",
     phase: "idle",
@@ -1145,7 +1145,9 @@ function renderTelemetryDashboard(payload) {
       ? `<label><span>Vuelta</span><select class="select-input" onchange="setEngineerTelemetryManualLap(this.value)">${renderTelemetrySelector(manualOptions, engineerState.telemetry.lapSelection.manualLap || String(activeLap?.lapNumber || ""))}</select></label>`
       : ""}
           </div>`
-        : `<div class="empty-line">No hay catálogo de vueltas con trazas.</div>`}
+        : payload.__partial
+          ? `<div class="empty-line">Preparando catálogo de vueltas con trazas…</div>`
+          : `<div class="empty-line">No hay catálogo de vueltas con trazas.</div>`}
       ${payload.__partial
         ? `<div class="empty-line">Cargando trazas pesadas…</div>`
         : `
@@ -1170,6 +1172,11 @@ function renderTelemetryDashboard(payload) {
     </section>
     ` : ""}
   `;
+}
+
+function persistEngineerSubmode(mode) {
+  state.engineerSubmode = mode === "telemetry" ? "telemetry" : "prediction";
+  saveUiState();
 }
 
 function renderTelemetryPanelBody() {
@@ -1285,6 +1292,7 @@ async function loadTelemetryData() {
 
 function setEngineerSubmode(mode) {
   engineerState.submode = mode === "telemetry" ? "telemetry" : "prediction";
+  persistEngineerSubmode(engineerState.submode);
   renderEngineerScreen();
   if (engineerState.submode === "telemetry") {
     loadTelemetryData();
@@ -1413,8 +1421,11 @@ function showPredict() {
   rememberScreen("predict");
   updateSubtitle();
 
-  engineerState.submode = "prediction";
+  engineerState.submode = state.engineerSubmode === "telemetry" ? "telemetry" : "prediction";
   renderEngineerScreen();
+  if (engineerState.submode === "telemetry" && !engineerState.telemetry.payload && engineerState.telemetry.status !== "loading") {
+    loadTelemetryData();
+  }
 }
 
 window.runPredict = runPredict;

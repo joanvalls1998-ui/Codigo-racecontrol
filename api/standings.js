@@ -282,6 +282,8 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
     updatedAt: new Date().toISOString(),
+    source: "static_snapshot",
+    isStaticSnapshot: true,
     drivers,
     teams
   });
