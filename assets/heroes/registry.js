@@ -1,7 +1,7 @@
 (function setupHeroRegistry(globalScope) {
   const fallbackHero = "assets/heroes/fallback/default-hero.svg";
 
-  // Mapping preparado para ir reemplazando placeholders por assets finales.
+  // Mapping preparado para heroes visuales (coche + casco + identidad), sin retratos realistas.
   // Clave: nombre normalizado en minúsculas.
   const heroByDriver = {
     "max verstappen": "assets/heroes/drivers/driver-placeholder.svg",

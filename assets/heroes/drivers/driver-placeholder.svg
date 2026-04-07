@@ -1,6 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Driver hero placeholder">
-  <rect width="1600" height="900" fill="#0f172a"/>
-  <circle cx="380" cy="450" r="220" fill="#1e293b"/>
-  <rect x="670" y="220" width="800" height="460" rx="36" fill="#111827" stroke="#334155" stroke-width="4"/>
-  <text x="120" y="790" fill="#cbd5e1" font-size="44" font-family="Inter, system-ui, sans-serif" letter-spacing="2">DRIVER HERO PLACEHOLDER</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Driver hero visual placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1020"/>
+      <stop offset="100%" stop-color="#121826"/>
+    </linearGradient>
+    <linearGradient id="car" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#60a5fa"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <g opacity="0.28">
+    <circle cx="1350" cy="140" r="220" fill="#1f2937"/>
+    <circle cx="120" cy="760" r="260" fill="#111827"/>
+  </g>
+  <g transform="translate(190 165)">
+    <rect x="220" y="260" width="760" height="170" rx="84" fill="url(#car)"/>
+    <rect x="455" y="216" width="170" height="96" rx="32" fill="#0f172a"/>
+    <circle cx="325" cy="448" r="72" fill="#0b1120" stroke="#7dd3fc" stroke-width="10"/>
+    <circle cx="872" cy="448" r="72" fill="#0b1120" stroke="#7dd3fc" stroke-width="10"/>
+  </g>
+  <g transform="translate(1180 300)">
+    <circle cx="0" cy="0" r="110" fill="#111827" stroke="#60a5fa" stroke-width="8"/>
+    <path d="M-64 -8c22-48 106-62 146-14 12 16 18 31 18 48 0 30-18 58-54 80h-104c-20-20-30-42-30-66 0-16 6-31 24-48z" fill="#38bdf8"/>
+    <rect x="-22" y="-12" width="76" height="34" rx="15" fill="#dbeafe"/>
+  </g>
+  <text x="118" y="792" fill="#dbeafe" font-size="42" font-family="Inter, system-ui, sans-serif" letter-spacing="3">DRIVER HERO · CAR + HELMET</text>
 </svg>
