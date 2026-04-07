@@ -3441,23 +3441,11 @@ async function showHome() {
   rememberScreen("home");
   updateSubtitle();
 
-  contentEl().innerHTML = renderLoadingCard("Inicio", "Preparando panel principal…", true);
+  contentEl().innerHTML = renderLoadingCard("Inicio", "Cargando portada editorial…", true);
 
-  const favorite = getFavorite();
-  const standingsReady = Array.isArray(state.standingsCache?.drivers) || Array.isArray(state.standingsCache?.teams);
-  const syncedFavoritePosition = favorite.type === "driver"
-    ? state.standingsCache?.drivers?.find(item => item.name === favorite.name)?.pos
-    : state.standingsCache?.teams?.find(item => item.team === favorite.name)?.pos;
-  const favoritePositionText = Number.isFinite(Number(syncedFavoritePosition))
-    ? `P${syncedFavoritePosition}`
-    : standingsReady
-      ? "—"
-      : "Actualizando";
   let calendarError = null;
-  let calendarData = null;
-
   try {
-    calendarData = await fetchCalendarData();
+    const calendarData = await fetchCalendarData();
     const nextRace = getNextRaceFromCalendar(calendarData?.events || []);
     if (nextRace) {
       const mappedRace = mapCalendarEventToPredictRace(nextRace);
@@ -3467,166 +3455,154 @@ async function showHome() {
     calendarError = error;
   }
 
+  const favorite = getFavorite();
   const context = getHomeWeekendContext();
-  const raceName = context?.raceName || getSelectedRace();
-  const lead = context?.currentSession || context?.nextSession || context?.lastCompletedSession;
-  const operation = getWeekendOperationalFocus(context);
-  const formatLabel = getCalendarFormatLabel(raceName);
-  const predictData = getActivePredictDataForRace(favorite, raceName);
-  const snapshot = getFavoriteComparativeSnapshot(favorite, raceName, predictData);
-  const events = Array.isArray(calendarData?.events) ? calendarData.events : (state.calendarCache?.events || []);
+  const events = Array.isArray(state.calendarCache?.events) ? state.calendarCache.events : [];
   const nextRace = getNextRaceFromCalendar(events) || null;
-  const previousGp = events
-    .filter(event => event.type === "race" && event.status === "completed")
-    .sort((a, b) => new Date(b.end || b.start || 0) - new Date(a.end || a.start || 0))[0] || null;
 
-  try { await fetchNewsDataForFavorite(favorite, false); } catch {}
+  const leadSession = context?.currentSession || context?.nextSession || context?.lastCompletedSession || null;
+  const sessionLabel = leadSession?.label || "Sin sesión cargada";
+  const sessionStatus = leadSession ? getSessionStatusLabel(leadSession.status) : "Pendiente";
+  const sessionUserTime = leadSession?.start ? formatSessionDateTime(leadSession.start) : "Sin hora";
 
-  const favoriteNewsFilter = { key: "favorite", favoritePayload: favorite };
-  const favoriteNewsCacheKey = getNewsCacheKey(favoriteNewsFilter.favoritePayload);
-  const favoriteNewsItems = Array.isArray(state.homeNewsCache?.[favoriteNewsCacheKey]?.items)
-    ? sortNewsItems(state.homeNewsCache[favoriteNewsCacheKey].items, favoriteNewsFilter, getNewsWeekendPhase()).slice(0, 3)
+  const driverPayload = favorite.type === "driver"
+    ? favorite
+    : {
+      type: "driver",
+      name: String(favorite.drivers || "").split(/[·,/]/)[0]?.trim() || getDefaultFavorite().name,
+      team: favorite.name,
+      colorClass: favorite.colorClass || "aston",
+      image: getDriverImageByName(String(favorite.drivers || "").split(/[·,/]/)[0]?.trim() || getDefaultFavorite().name, getDefaultFavorite().image)
+    };
+
+  const teamPayload = favorite.type === "driver"
+    ? { type: "team", name: favorite.team, colorClass: favorite.colorClass || "aston" }
+    : { type: "team", name: favorite.name, colorClass: favorite.colorClass || "aston" };
+
+  try {
+    await Promise.all([
+      fetchNewsDataForFavorite(driverPayload, false),
+      fetchNewsDataForFavorite(teamPayload, false)
+    ]);
+  } catch {}
+
+  const newsPhase = getNewsWeekendPhase();
+  const driverNewsFilter = { key: "favorite", favoritePayload: driverPayload };
+  const teamNewsFilter = { key: "favorite", favoritePayload: teamPayload };
+  const driverNewsItems = Array.isArray(state.homeNewsCache?.[getNewsCacheKey(driverPayload)]?.items)
+    ? sortNewsItems(state.homeNewsCache[getNewsCacheKey(driverPayload)].items, driverNewsFilter, newsPhase)
     : [];
+  const teamNewsItems = Array.isArray(state.homeNewsCache?.[getNewsCacheKey(teamPayload)]?.items)
+    ? sortNewsItems(state.homeNewsCache[getNewsCacheKey(teamPayload)].items, teamNewsFilter, newsPhase)
+    : [];
+  const driverNews = driverNewsItems[0] || null;
+  const teamNews = teamNewsItems[0] || null;
 
-  const favoriteAvatar = renderHomeFavoriteIdentity(favorite);
-  const expert = isExpertMode();
-  const nextSessionLine = lead
-    ? `${lead.label}${context?.nextSessionCountdown ? ` · ${context.nextSessionCountdown}` : ""}`
-    : "Sin sesión próxima cargada";
+  const standingsDrivers = Array.isArray(state.standingsCache?.drivers) ? state.standingsCache.drivers : [];
+  const standingsTeams = Array.isArray(state.standingsCache?.teams) ? state.standingsCache.teams : [];
 
-  const featuredNews = favoriteNewsItems[0] || null;
-  const featuredNewsUrl = sanitizeExternalUrl(featuredNews?.link);
-  const featuredMention = featuredNews ? findDriverMentionInText(`${featuredNews.title} ${featuredNews.source || ""}`) : null;
-  const compactHomeEnabled = Boolean(getSettings().homeCompactMode);
-  const compactHeadline = featuredNews
-    ? `${featuredNews.title}${featuredNews.source ? ` · ${featuredNews.source}` : ""}`
-    : "Sin titular destacado en caché para el favorito.";
-  const fullHomeLead = lead
-    ? `${lead.label} · ${getSessionStatusLabel(lead.status)}${context?.nextSessionCountdown ? ` · ${context.nextSessionCountdown}` : ""}`
-    : "Sin sesión principal cargada.";
-  const fullHomeBlocks = compactHomeEnabled ? "" : `
-    <div class="home-stack ${expert ? "home-stack-expert" : ""}" style="margin-top:12px;">
-      <div class="card app-panel-card">
-        <div class="card-title">Panorama del GP</div>
-        <div class="info-line" style="margin-top:8px;">${escapeHtml(fullHomeLead)}</div>
-        <div class="info-line">${escapeHtml(operation.detail)}</div>
-        ${nextRace ? `<div class="info-line">${escapeHtml(`Próximo GP: ${nextRace.title} · ${formatCalendarDateRange(nextRace.start, nextRace.end)}`)}</div>` : ""}
-        ${previousGp ? `<div class="info-line">${escapeHtml(`Último GP: ${previousGp.title} · ${formatCalendarDateRange(previousGp.start, previousGp.end)}`)}</div>` : ""}
-      </div>
-      ${renderHomePhaseHero(context)}
-      ${renderHomeNowCard(context, favorite, { compact: false })}
-      ${renderHomeCompetitivePulse(favorite, raceName, predictData)}
-      ${renderHomePhaseSummaryCard(context)}
-      ${renderHomeHierarchy(context, favorite)}
-      ${expert ? renderHomeWhatToWatchCard(context) : ""}
-      ${renderHomeQuickLinks(context)}
-      ${getHomeSimpleNewsPreview()}
-      ${expert ? renderHomeTeamStatus(favorite) : ""}
-      ${expert ? renderContextGlossaryCard("home", context?.phase || "pre_weekend") : ""}
-    </div>
-  `;
+  const driverStanding = standingsDrivers.find(item => item.name === driverPayload.name) || null;
+  const teamStanding = standingsTeams.find(item => item.team === teamPayload.name) || null;
+  const driverPosText = Number.isFinite(Number(driverStanding?.pos)) ? `P${driverStanding.pos}` : "—";
+  const teamPosText = Number.isFinite(Number(teamStanding?.pos)) ? `P${teamStanding.pos}` : "—";
+
+  const hero = window.HERO_IMAGES?.resolveFavoriteHero(favorite) || { src: "", source: "fallback" };
+  const heroStyle = hero.src ? ` style="--home-hero-image:url('${hero.src}')"` : "";
+  const helmetImage = favorite.type === "driver"
+    ? (favorite.image || getDefaultFavorite().image)
+    : (driverPayload.image || getDefaultFavorite().image);
+  const dorsal = favorite.type === "driver" ? favorite.number : (driverStanding?.number || "00");
+  const favoriteTeam = favorite.type === "driver" ? favorite.team : favorite.name;
+  const favoriteName = favorite.type === "driver" ? favorite.name : (driverPayload.name || favorite.name);
+
+  const nextGpName = nextRace?.title || context?.raceName || getSelectedRace();
+  const nextGpDate = nextRace ? formatCalendarDateRange(nextRace.start, nextRace.end) : "Fecha pendiente";
+  const raceEvent = events.find(event => event.type === "race" && event.status !== "completed");
+  const raceHour = raceEvent?.start ? formatSessionDateTime(raceEvent.start) : "Hora pendiente";
+
+  const mode = getExperienceMode();
 
   contentEl().innerHTML = `
-    <div class="card highlight-card app-home-favorite home-main-card ${expert ? "home-dashboard-expert" : ""} ${compactHomeEnabled ? "compact-home" : ""}">
-      <div class="card-head">
-        <div class="card-head-left"><div class="card-title">Home</div></div>
-        <div class="card-head-actions"><button class="icon-btn" onclick="openFavoriteSelectorModal('showHome')">Cambiar</button></div>
+    <section class="home-editorial">
+      <header class="home-editorial-top">
+        <h1 class="home-editorial-title">Inicio</h1>
+        <button class="icon-btn" onclick="openFavoriteSelectorModal('showHome')">Cambiar favorito</button>
+      </header>
+
+      <div class="home-mode-switch home-editorial-switch">
+        <button class="chip ${mode === "casual" ? "active" : ""}" onclick="setExperienceMode('casual')" aria-pressed="${mode === "casual"}">Casual</button>
+        <button class="chip ${mode === "expert" ? "active" : ""}" onclick="setExperienceMode('expert')" aria-pressed="${mode === "expert"}">Experto</button>
       </div>
 
-      <div class="home-favorite-head">
-        ${favoriteAvatar}
-        <div class="home-favorite-meta">
-          <strong>${escapeHtml(favorite.name)}</strong>
-          <div class="info-line" style="margin:0;">${escapeHtml(favorite.type === "driver" ? favorite.team : (favorite.drivers || "Equipo"))}</div>
+      <article class="home-editorial-hero"${heroStyle}>
+        <div class="home-editorial-hero-overlay"></div>
+        <div class="home-editorial-hero-content">
+          <div class="home-editorial-hero-kicker">Favorito</div>
+          <div class="home-editorial-hero-team">${escapeHtml(favoriteTeam)}</div>
+          <div class="home-editorial-hero-name">${escapeHtml(favoriteName)}</div>
         </div>
-        <span class="tag favorite" style="margin-left:auto;">${escapeHtml(favoritePositionText)}</span>
-      </div>
+        <img class="home-editorial-helmet" src="${escapeHtml(helmetImage)}" alt="${escapeHtml(favoriteName)}"
+          onerror="this.onerror=null; this.src='${escapeHtml(getDefaultFavorite().image)}';">
+        <div class="home-editorial-dorsal">${escapeHtml(String(dorsal || "00"))}</div>
+      </article>
 
-      <div class="home-main-kpis">
-        <div class="meta-tile">
-          <div class="meta-kicker">GP</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(nextRace?.title || raceName)}</div>
-          <div class="meta-caption">${escapeHtml(context?.phaseLabel || "Previa")}</div>
+      <section class="home-editorial-next">
+        <div class="home-editorial-next-item">
+          <div class="home-editorial-next-label">Próximo GP</div>
+          <div class="home-editorial-next-main">${escapeHtml(nextGpName)}</div>
+          <div class="home-editorial-next-sub">${escapeHtml(nextGpDate)} · Carrera ${escapeHtml(raceHour)}</div>
         </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Ahora</div>
-          <div class="meta-value" style="font-size:16px; line-height:1.25;">${escapeHtml(nextSessionLine)}</div>
-          <div class="meta-caption">Siguiente referencia</div>
+        <div class="home-editorial-next-divider"></div>
+        <div class="home-editorial-next-item">
+          <div class="home-editorial-next-label">Próxima sesión</div>
+          <div class="home-editorial-next-main">${escapeHtml(sessionLabel)}</div>
+          <div class="home-editorial-next-sub">${escapeHtml(sessionStatus)} · ${escapeHtml(sessionUserTime)}</div>
         </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">Favorito</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(snapshot?.objective?.realistic || "Sin objetivo")}</div>
-          <div class="meta-caption">${escapeHtml(snapshot?.metrics?.trendInfo?.label || "Sin señal")}</div>
-        </div>
-      </div>
+      </section>
 
-      <div class="app-two-actions" style="margin-top:12px;">
-        <button class="btn" onclick="showPredict()">Abrir Ingeniero</button>
-        <button class="icon-btn" onclick="showFavorito()">Ver favorito</button>
-      </div>
-
-      <div class="home-mode-switch" style="margin-top:10px;">
-        <button class="chip ${getExperienceMode() === "casual" ? "active" : ""}" onclick="setExperienceMode('casual')" aria-pressed="${getExperienceMode() === "casual"}">Casual</button>
-        <button class="chip ${getExperienceMode() === "expert" ? "active" : ""}" onclick="setExperienceMode('expert')" aria-pressed="${getExperienceMode() === "expert"}">Experto</button>
-      </div>
-
-      ${compactHomeEnabled ? `<div class="home-compact-pill">Inicio compacto activo · foco en lo esencial</div>` : ""}
-    </div>
-
-    ${compactHomeEnabled
-      ? `
-        <div class="card app-panel-card">
-          <div class="card-title">Lectura rápida</div>
-          <div class="info-line" style="margin-top:8px;">${escapeHtml(operation.detail)}</div>
-          <div class="info-line">${escapeHtml(compactHeadline)}</div>
-          <div class="app-two-actions" style="margin-top:10px;">
-            <button class="icon-btn" onclick="showNews()">Noticias</button>
-            <button class="icon-btn" onclick="showCalendar()">Calendario</button>
+      <section class="home-editorial-standing">
+        <div class="home-editorial-block-title">Clasificación resumida</div>
+        <div class="home-editorial-standing-grid">
+          <div class="home-editorial-standing-item">
+            <span>Posición piloto</span>
+            <strong>${escapeHtml(driverPosText)}</strong>
+          </div>
+          <div class="home-editorial-standing-item">
+            <span>Posición equipo</span>
+            <strong>${escapeHtml(teamPosText)}</strong>
           </div>
         </div>
-      `
-      : `
-        <div class="card app-panel-card home-single-news">
-          <div class="card-head">
-            <div class="card-head-left"><div class="card-title">${expert ? "Módulo secundario" : "Noticia principal"}</div></div>
-            <div class="card-head-actions"><a href="#" class="home-news-cta" onclick="showNews(); return false;">Noticias</a></div>
-          </div>
-          ${featuredNews
-            ? `
-              <div class="news-item home-headline-item">
-                ${featuredMention ? renderDriverAvatar(featuredMention.name, featuredMention.image, "row-avatar home-news-avatar") : ""}
-                <div>
-                  ${featuredNewsUrl
-      ? `<a class="news-link" href="${featuredNewsUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(featuredNews.title)}</a>`
-      : `<span class="news-link">${escapeHtml(featuredNews.title)}</span>`}
-                  <div class="news-source">${escapeHtml(featuredNews.source || "Noticias")}${formatNewsDate(featuredNews.pubDate) ? ` · ${formatNewsDate(featuredNews.pubDate)}` : ""}</div>
-                </div>
-              </div>
-            `
-            : `<div class="empty-line">Aún no hay titular principal en caché para el favorito.</div>`
-          }
+      </section>
+
+      <section class="home-editorial-news">
+        <div class="home-editorial-block-title">Noticias</div>
+        <div class="home-editorial-news-grid">
+          <article class="home-editorial-news-item">
+            <div class="home-editorial-news-tag">Piloto</div>
+            ${driverNews
+              ? `${sanitizeExternalUrl(driverNews.link)
+                  ? `<a class="home-editorial-news-link" href="${sanitizeExternalUrl(driverNews.link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(driverNews.title)}</a>`
+                  : `<div class="home-editorial-news-link">${escapeHtml(driverNews.title)}</div>`}
+                 <div class="home-editorial-news-meta">${escapeHtml(driverNews.source || "Noticias")} ${formatNewsDate(driverNews.pubDate) ? `· ${formatNewsDate(driverNews.pubDate)}` : ""}</div>`
+              : `<div class="empty-line">Sin noticia de piloto ahora mismo.</div>`}
+          </article>
+          <article class="home-editorial-news-item">
+            <div class="home-editorial-news-tag">Equipo</div>
+            ${teamNews
+              ? `${sanitizeExternalUrl(teamNews.link)
+                  ? `<a class="home-editorial-news-link" href="${sanitizeExternalUrl(teamNews.link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(teamNews.title)}</a>`
+                  : `<div class="home-editorial-news-link">${escapeHtml(teamNews.title)}</div>`}
+                 <div class="home-editorial-news-meta">${escapeHtml(teamNews.source || "Noticias")} ${formatNewsDate(teamNews.pubDate) ? `· ${formatNewsDate(teamNews.pubDate)}` : ""}</div>`
+              : `<div class="empty-line">Sin noticia de equipo ahora mismo.</div>`}
+          </article>
         </div>
-      `
-    }
+      </section>
 
-    <div class="card app-mini-card ${compactHomeEnabled ? "home-expert-tight" : ""}">
-      <div class="card-title">Contexto de fin de semana</div>
-      <div class="news-meta-row">
-        <span class="tag ${getWeekendPhaseTagClass(context?.phase || "pre_weekend")}">${escapeHtml(context?.phaseLabel || "Previa")}</span>
-        <span class="tag ${escapeHtml(operation.tagClass)}">${escapeHtml(operation.label)}</span>
-        <span class="tag technical">${escapeHtml(formatLabel)}</span>
-      </div>
-      <div class="info-line" style="margin-top:8px;">${escapeHtml(operation.detail)}</div>
-      ${previousGp && !expert ? `<div class="info-line">${escapeHtml(`Último GP: ${previousGp.title} · ${formatCalendarDateRange(previousGp.start, previousGp.end)}`)}</div>` : ""}
-    </div>
-
-    ${renderHomeWeekendModeControl()}
-    ${renderHomeWeekendModeBlock(context)}
-    ${fullHomeBlocks}
-
-    ${calendarError ? `<div class="empty-line">No se pudo actualizar calendario: ${escapeHtml(calendarError.message || "error")}</div>` : ""}
+      ${calendarError ? `<div class="empty-line">No se pudo actualizar calendario: ${escapeHtml(calendarError.message || "error")}</div>` : ""}
+    </section>
   `;
 }
+
 
 /* ===== FASE 4 v1.2 · PREDICCIÓN ADAPTATIVA ===== */
 
