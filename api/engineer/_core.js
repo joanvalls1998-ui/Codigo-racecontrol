@@ -453,7 +453,7 @@ function getLapReferenceSelection(lapsRows = []) {
       const sectorsSum = hasFullSectors ? (sector1 + sector2 + sector3) : Number.NaN;
       const sectorsCoherent = hasFullSectors
         ? Number.isFinite(lapTime) && lapTime > 0 && Math.abs(sectorsSum - lapTime) <= 0.9
-        : !hasAnySector;
+        : true;
 
       const isAccurate = normalizeBooleanFlagOrNull(item?.is_accurate)
         ?? normalizeBooleanFlagOrNull(item?.lap_is_accurate)
@@ -572,7 +572,10 @@ function buildOpenF1LapProfiles(lapsRows = [], carDataRows = []) {
       ? speed.map((_, pos, arr) => Number((arr.length <= 1 ? 0 : (pos / (arr.length - 1))).toFixed(4)))
       : [];
 
-    const hasTelemetry = speed.length >= 6 && (throttle.length >= 6 || brake.length >= 6);
+    const hasSpeedTrace = speed.length >= 6;
+    const hasControlTrace = throttle.length >= 6 || brake.length >= 6;
+    const hasPowerTrace = gear.length >= 6 || rpm.length >= 6;
+    const hasTelemetry = hasSpeedTrace || hasControlTrace || hasPowerTrace;
     const matchingSelection = referenceSelection.candidates.find(item => item.lapNumber === lap.lapNumber) || null;
     const hasUsefulTiming = !!matchingSelection?.hasConsistentTiming && !lap.isPitIn && !lap.isPitOut && !lap.isDeleted && !lap.isInvalid;
     let status = "invalid";
@@ -603,6 +606,11 @@ function buildOpenF1LapProfiles(lapsRows = [], carDataRows = []) {
       isInvalid: lap.isInvalid,
       isAccurate: lap.isAccurate,
       hasTelemetry,
+      telemetryChannels: {
+        speed: hasSpeedTrace,
+        controls: hasControlTrace,
+        powerUnit: hasPowerTrace
+      },
       hasUsefulTiming,
       status
     };
@@ -1016,10 +1024,13 @@ async function loadSessionContext(sessionKey) {
     fetchOpenF1WithRetry("team_radio", { session_key: sessionKey }, { retries: 1 }).catch(() => [])
   ]);
 
+  const hasWeatherRows = Array.isArray(weather) && weather.length > 0;
   return {
     avgTrackTemp: average(weather.map(item => parseMaybeNumber(item.track_temperature))),
     avgAirTemp: average(weather.map(item => parseMaybeNumber(item.air_temperature))),
-    weatherState: weather.some(item => Number(item.rainfall) > 0) ? "Lluvia" : "Seco",
+    weatherState: hasWeatherRows
+      ? (weather.some(item => Number(item.rainfall) > 0) ? "Lluvia" : "Seco")
+      : null,
     raceControlMessages: raceControl.length,
     pitStops: pit.length,
     overtakes: overtakes.length,
