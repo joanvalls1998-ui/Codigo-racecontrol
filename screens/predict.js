@@ -980,6 +980,7 @@ function renderTelemetryWorkspace(payload) {
       <div class="telemetry-work-grid">
         <article class="telemetry-work-main">
           ${hasTrackMap ? `<div class="telemetry-track-focus">
+            ${renderTelemetryRangeScrubber(traces, rangeStartPct, rangeEndPct, cursorPct)}
             <div class="telemetry-track-focus-head">
               <span>Track view · inspección</span>
               <strong>${escapeHtml(rangeLabel)} · ${escapeHtml(formatTraceValue("pct", lapPct))}</strong>
@@ -987,7 +988,9 @@ function renderTelemetryWorkspace(payload) {
             <div class="telemetry-track-map telemetry-track-map--focus">
               <svg viewBox="0 0 100 100">${mapSegments}${mapCursor}</svg>
             </div>
-          </div>` : ""}
+          </div>` : `
+            ${renderTelemetryRangeScrubber(traces, rangeStartPct, rangeEndPct, cursorPct)}
+          `}
 
           <div class="telemetry-readout-rack">${compactReadout}</div>
           <div class="telemetry-readout-subline">
@@ -1003,7 +1006,6 @@ function renderTelemetryWorkspace(payload) {
             <div><span>Top / Trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))} · ${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</strong></div>
             <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Reset tramo</button>
           </div>
-          ${renderTelemetryRangeScrubber(traces, rangeStartPct, rangeEndPct, cursorPct)}
 
           <div class="telemetry-work-traces telemetry-work-traces--primary telemetry-work-traces-grid">
             ${renderTraceBand("Speed", traces.speed || [], "speed", rangeStartPct, rangeEndPct, "speed", cursorPct)}
@@ -1027,12 +1029,17 @@ function renderTelemetryWorkspace(payload) {
             summary: `${secondarySignalTiles.length} bloques`,
             body: `<div class="telemetry-tech-strip">${secondarySignalTiles.join("")}</div>`
           }) : ""}
+          ${(sectors.length || stintRows.length) ? renderTelemetryAccordion({
+            key: "secondaryMetrics",
+            title: "Métricas secundarias",
+            subtitle: "Sectores · stints",
+            summary: `${sectors.length + stintRows.length} bloques`,
+            body: `
+              ${sectors.length ? `<div class="telemetry-sectors">${sectors.map(item => `<div><span>${item.label}</span><strong>${escapeHtml(formatTelemetrySeconds(item.value))}</strong></div>`).join("")}</div>` : ""}
+              ${stintRows.length ? `<div class="telemetry-stint-mini">${stintRows.map(item => `<div><span>S${item.number} · ${escapeHtml(item.compound || "-")}</span><strong>${escapeHtml(formatTelemetrySeconds(item.avgLap))}</strong></div>`).join("")}</div>` : ""}
+            `
+          }) : ""}
         </article>
-
-        <aside class="telemetry-work-side">
-          ${sectors.length ? `<div class="telemetry-sectors">${sectors.map(item => `<div><span>${item.label}</span><strong>${escapeHtml(formatTelemetrySeconds(item.value))}</strong></div>`).join("")}</div>` : ""}
-          ${stintRows.length ? `<div class="telemetry-stint-mini">${stintRows.map(item => `<div><span>S${item.number} · ${escapeHtml(item.compound || "-")}</span><strong>${escapeHtml(formatTelemetrySeconds(item.avgLap))}</strong></div>`).join("")}</div>` : ""}
-        </aside>
       </div>
     </section>
   `;
