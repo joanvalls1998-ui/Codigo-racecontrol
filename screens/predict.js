@@ -814,11 +814,10 @@ function renderLapOption(item = {}) {
 
 function renderTelemetryWorkspace(payload) {
   const summary = payload.summary || {};
-  const selector = payload.lap_selector || {};
   const traces = payload.traces || {};
-  const laps = Array.isArray(selector.laps) ? selector.laps.filter(item => Number.isFinite(item?.lapNumber) && item.hasTelemetry) : [];
+  const selector = payload.selector || { laps: [] };
+  const laps = Array.isArray(selector.laps) ? selector.laps : [];
   const selectedLap = laps.find(item => item.lapNumber === selector.selectedLapNumber) || null;
-  const manualOptions = laps.map(item => ({ value: String(item.lapNumber), label: renderLapOption(item) }));
   const rangeStartPct = engineerState.telemetry.rangeStartPct;
   const rangeEndPct = engineerState.telemetry.rangeEndPct;
   const cursorPct = engineerState.telemetry.cursorPct;
@@ -847,10 +846,8 @@ function renderTelemetryWorkspace(payload) {
   let mapCursor = "";
   if (hasTrackMap) {
     const length = Math.min(xSeries.length, ySeries.length);
-    const startIndex = Math.round((Math.max(0, Math.min(100, rangeStartPct)) / 100) * Math.max(0, length - 1));
-    const endIndex = Math.round((Math.max(0, Math.min(100, rangeEndPct)) / 100) * Math.max(0, length - 1));
-    const from = Math.max(0, Math.min(startIndex, endIndex));
-    const to = Math.max(from + 2, Math.min(length - 1, Math.max(startIndex, endIndex)));
+    const from = 0;
+    const to = Math.max(2, length - 1);
     const selectedX = xSeries.slice(from, to + 1);
     const selectedY = ySeries.slice(from, to + 1);
     const selectedSpeed = speedSeries.slice(from, to + 1);
@@ -861,106 +858,118 @@ function renderTelemetryWorkspace(payload) {
     const spanX = Math.max(1, maxX - minX);
     const spanY = Math.max(1, maxY - minY);
     const maxSpeed = selectedSpeed.length ? Math.max(...selectedSpeed, 1) : 1;
+    const rangeFrom = Math.round((Math.max(0, Math.min(100, rangeStartPct)) / 100) * Math.max(0, selectedX.length - 1));
+    const rangeTo = Math.round((Math.max(0, Math.min(100, rangeEndPct)) / 100) * Math.max(0, selectedX.length - 1));
+    const focusFrom = Math.max(0, Math.min(rangeFrom, rangeTo));
+    const focusTo = Math.max(focusFrom + 1, Math.min(selectedX.length - 1, Math.max(rangeFrom, rangeTo)));
     for (let idx = 0; idx < selectedX.length - 1; idx += 1) {
       const x1 = ((selectedX[idx] - minX) / spanX) * 100;
       const y1 = 100 - (((selectedY[idx] - minY) / spanY) * 100);
       const x2 = ((selectedX[idx + 1] - minX) / spanX) * 100;
       const y2 = 100 - (((selectedY[idx + 1] - minY) / spanY) * 100);
       const speedRatio = Math.max(0, Math.min(1, (selectedSpeed[idx] || 0) / maxSpeed));
-      const hue = 18 + (speedRatio * 130);
-      mapSegments += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="hsl(${hue.toFixed(0)} 86% 62%)"></line>`;
+      const hue = 14 + (speedRatio * 142);
+      const isInWindow = idx >= focusFrom && idx <= focusTo;
+      mapSegments += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="hsl(${hue.toFixed(0)} 88% ${isInWindow ? "63" : "36"}%)" opacity="${isInWindow ? "0.95" : "0.42"}"></line>`;
     }
-    const cursorIndex = Math.round((Math.max(from, Math.min(to, Math.round((Math.max(0, Math.min(100, cursorPct)) / 100) * Math.max(0, length - 1)))) - from));
+    const cursorIndex = Math.round((Math.max(0, Math.min(100, cursorPct)) / 100) * Math.max(0, selectedX.length - 1));
     const cursorXPos = ((selectedX[cursorIndex] - minX) / spanX) * 100;
     const cursorYPos = 100 - (((selectedY[cursorIndex] - minY) / spanY) * 100);
-    mapCursor = `<circle cx="${cursorXPos.toFixed(2)}" cy="${cursorYPos.toFixed(2)}" r="2.5"></circle>`;
+    mapCursor = `<circle cx="${cursorXPos.toFixed(2)}" cy="${cursorYPos.toFixed(2)}" r="3.2"></circle>`;
   }
-  const sessionLaps = laps.length;
 
+  const sessionLaps = laps.length;
   const weatherLabel = Number.isFinite(weather.airTemp) ? `${weather.airTemp.toFixed(1)}°C aire` : "Aire n/d";
   const weatherExtended = [
     Number.isFinite(weather.trackTemp) ? `${weather.trackTemp.toFixed(1)}°C pista` : "",
     Number.isFinite(weather.humidity) ? `${Math.round(weather.humidity)}% H` : "",
     Number.isFinite(weather.windSpeed) ? `${weather.windSpeed.toFixed(1)} m/s viento` : ""
   ].filter(Boolean).join(" · ");
+
+  const compactReadout = [
+    `<div><span>Speed</span><strong>${escapeHtml(formatTraceValue("speed", valueAtCursor(traces.speed || [], cursorPct)))}</strong></div>`,
+    `<div><span>Throttle</span><strong>${escapeHtml(formatTraceValue("pct", valueAtCursor(traces.throttle || [], cursorPct)))}</strong></div>`,
+    `<div><span>Brake</span><strong>${escapeHtml(formatTraceValue("pct", valueAtCursor(traces.brake || [], cursorPct)))}</strong></div>`,
+    `<div><span>Gear</span><strong>${escapeHtml(formatTraceValue("gear", valueAtCursor(traces.gear || [], cursorPct)))}</strong></div>`,
+    `<div><span>RPM</span><strong>${escapeHtml(formatTraceValue("rpm", valueAtCursor(traces.rpm || [], cursorPct)))}</strong></div>`,
+    `<div><span>DRS</span><strong>${escapeHtml(formatTraceValue("drs", valueAtCursor(traces.drs || [], cursorPct)))}</strong></div>`
+  ].join("");
+
   const secondarySignalTiles = [];
   if (hasGap) secondarySignalTiles.push(`<div><span>Driver ahead</span><strong>${escapeHtml(payload.context.driverAhead)}</strong><em>${escapeHtml(formatTraceValue("meters", valueAtCursor(gapAhead, cursorPct)))}</em></div>`);
   if (hasWeather) secondarySignalTiles.push(`<div><span>Weather ampliado</span><strong>${escapeHtml(weatherLabel)}</strong><em>${escapeHtml(weatherExtended)}</em></div>`);
   if (hasGForces) secondarySignalTiles.push(`<div><span>G-forces</span><strong>${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceX || [], cursorPct)))} / ${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceY || [], cursorPct)))}</strong><em>${escapeHtml(formatTraceValue("gforce", valueAtCursor(traces.gForceZ || [], cursorPct)))}</em></div>`);
+
   const secondaryTraceRows = [
-    hasRobustData(traces.speed || []) ? renderTraceBand("Speed", traces.speed || [], "speed", rangeStartPct, rangeEndPct, "speed", cursorPct) : "",
-    hasRobustData(traces.gear || []) ? renderTraceBand("Gear", traces.gear || [], "gear", rangeStartPct, rangeEndPct, "gear", cursorPct) : "",
     hasRobustData(traces.drs || []) ? renderTraceBand("DRS", traces.drs || [], "drs", rangeStartPct, rangeEndPct, "drs", cursorPct) : ""
   ].filter(Boolean).join("");
 
   return `
     <section class="card engineer-card telemetry-workspace">
       <div class="telemetry-work-topbar">
-        <div>
-          <div class="card-title">${escapeHtml(payload.labels?.gp || "GP")}</div>
-          <div class="card-sub">${escapeHtml(payload.labels?.session || "Sesión")} · ${escapeHtml(payload.labels?.driver || "Piloto")}</div>
+        <div class="telemetry-work-topbar-main">
+          <div><span>Vuelta activa</span><strong>${selectedLap ? `L${selectedLap.lapNumber}` : "—"}</strong></div>
+          <div><span>Tiempo</span><strong>${escapeHtml(formatTelemetrySeconds(selectedLap?.lapTime))}</strong></div>
+          <div><span>Compuesto</span><strong>${escapeHtml(selectedLap?.compound || "—")}</strong></div>
+          <div><span>Telemetría</span><strong>${payload?.status?.ok === false ? "Limitada" : "Disponible"}</strong></div>
         </div>
         <div class="telemetry-work-source">TracingInsights/2026</div>
       </div>
 
       <div class="telemetry-work-grid">
         <article class="telemetry-work-main">
-          <div class="telemetry-kpi-row telemetry-kpi-row--dense">
-            <div><span>Vuelta activa</span><strong>${selectedLap ? `L${selectedLap.lapNumber}` : "—"}</strong><em>${escapeHtml(formatTelemetrySeconds(selectedLap?.lapTime))}</em></div>
-            <div><span>Referencia</span><strong>${escapeHtml(formatTelemetrySeconds(summary.referenceLap))}</strong><em>${engineerState.telemetry.lapMode === "reference" ? "Modo referencia" : "Base de comparación"}</em></div>
-            <div><span>Ritmo sesión</span><strong>${escapeHtml(formatTelemetrySeconds(summary.averagePace))}</strong><em>${sessionLaps} vueltas con traza</em></div>
-            <div><span>Top / Trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))}</strong><em>${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</em></div>
-          </div>
-          <div class="telemetry-lap-range telemetry-lap-range--workspace">
-            <div><span>Rango</span><strong>${escapeHtml(rangeLabel)}</strong></div>
-            <div><span>Distancia</span><strong>${escapeHtml(formatTraceValue("meters", lapMeters))}</strong></div>
-            <div><span>% vuelta</span><strong>${escapeHtml(formatTraceValue("pct", lapPct))}</strong></div>
-            <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Reset tramo</button>
-          </div>
-          ${renderTelemetryRangeScrubber(traces, rangeStartPct, rangeEndPct, cursorPct)}
           ${hasTrackMap ? `<div class="telemetry-track-focus">
             <div class="telemetry-track-focus-head">
-              <span>Track view · vuelta activa</span>
-              <strong>${escapeHtml(rangeLabel)}</strong>
+              <span>Track view · inspección</span>
+              <strong>${escapeHtml(rangeLabel)} · ${escapeHtml(formatTraceValue("pct", lapPct))}</strong>
             </div>
             <div class="telemetry-track-map telemetry-track-map--focus">
               <svg viewBox="0 0 100 100">${mapSegments}${mapCursor}</svg>
             </div>
           </div>` : ""}
-          <div class="telemetry-work-traces telemetry-work-traces--primary">
+
+          <div class="telemetry-readout-rack">${compactReadout}</div>
+          <div class="telemetry-readout-subline">
+            <span>Sector</span><strong>${escapeHtml(summary.currentSector || "S—")}</strong>
+            <span>% vuelta</span><strong>${escapeHtml(formatTraceValue("pct", lapPct))}</strong>
+            <span>Distancia</span><strong>${escapeHtml(formatTraceValue("meters", lapMeters))}</strong>
+            <span>Referencia</span><strong>${escapeHtml(formatTelemetrySeconds(summary.referenceLap))}</strong>
+          </div>
+
+          <div class="telemetry-lap-range telemetry-lap-range--workspace">
+            <div><span>Rango</span><strong>${escapeHtml(rangeLabel)}</strong></div>
+            <div><span>Ritmo sesión</span><strong>${escapeHtml(formatTelemetrySeconds(summary.averagePace))}</strong></div>
+            <div><span>Top / Trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))} · ${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</strong></div>
+            <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Reset tramo</button>
+          </div>
+          ${renderTelemetryRangeScrubber(traces, rangeStartPct, rangeEndPct, cursorPct)}
+
+          <div class="telemetry-work-traces telemetry-work-traces--primary telemetry-work-traces-grid">
+            ${renderTraceBand("Speed", traces.speed || [], "speed", rangeStartPct, rangeEndPct, "speed", cursorPct)}
             ${renderTraceBand("Throttle", traces.throttle || [], "throttle", rangeStartPct, rangeEndPct, "pct", cursorPct)}
             ${renderTraceBand("Brake", traces.brake || [], "brake", rangeStartPct, rangeEndPct, "pct", cursorPct)}
+            ${hasRobustData(traces.gear || []) ? renderTraceBand("Gear", traces.gear || [], "gear", rangeStartPct, rangeEndPct, "gear", cursorPct) : ""}
             ${hasRobustData(traces.rpm || []) ? renderTraceBand("RPM", traces.rpm || [], "rpm", rangeStartPct, rangeEndPct, "rpm", cursorPct) : ""}
           </div>
+
           ${secondaryTraceRows ? renderTelemetryAccordion({
             key: "secondaryCharts",
-            title: "Gráficas secundarias",
-            subtitle: "Speed · Gear · DRS",
+            title: "Señales de apoyo",
+            subtitle: "DRS + trazas auxiliares",
+            summary: `${sessionLaps} vueltas`,
             body: `<div class="telemetry-work-traces">${secondaryTraceRows}</div>`
           }) : ""}
           ${secondarySignalTiles.length ? renderTelemetryAccordion({
             key: "secondarySignals",
-            title: "Señales secundarias",
-            subtitle: "Gap · G-forces · Weather ampliado",
+            title: "Contexto técnico",
+            subtitle: "Gap · G-forces · Weather",
+            summary: `${secondarySignalTiles.length} bloques`,
             body: `<div class="telemetry-tech-strip">${secondarySignalTiles.join("")}</div>`
           }) : ""}
         </article>
 
         <aside class="telemetry-work-side">
-          <div class="telemetry-lap-controls">
-            <div class="telemetry-lap-modes">
-              <button class="${engineerState.telemetry.lapMode === "reference" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('reference')">Referencia</button>
-              <button class="${engineerState.telemetry.lapMode === "latest" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('latest')">Última</button>
-              <button class="${engineerState.telemetry.lapMode === "manual" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('manual')">Manual</button>
-            </div>
-            ${engineerState.telemetry.lapMode === "manual"
-      ? `<select class="select-input" onchange="setEngineerTelemetryManualLap(this.value)">${renderTelemetrySelector(manualOptions, engineerState.telemetry.manualLap || String(selector.selectedLapNumber || ""))}</select>`
-      : ""}
-            ${selectedLap ? `<div class="telemetry-lap-active">L${selectedLap.lapNumber} · ${escapeHtml(formatTelemetrySeconds(selectedLap.lapTime))}</div>` : ""}
-          </div>
-
           ${sectors.length ? `<div class="telemetry-sectors">${sectors.map(item => `<div><span>${item.label}</span><strong>${escapeHtml(formatTelemetrySeconds(item.value))}</strong></div>`).join("")}</div>` : ""}
-
           ${stintRows.length ? `<div class="telemetry-stint-mini">${stintRows.map(item => `<div><span>S${item.number} · ${escapeHtml(item.compound || "-")}</span><strong>${escapeHtml(formatTelemetrySeconds(item.avgLap))}</strong></div>`).join("")}</div>` : ""}
         </aside>
       </div>
@@ -982,13 +991,25 @@ function renderTelemetryPanel() {
   const gpOptions = (context.meetings || []).map(item => ({ value: String(item.meeting_key), label: item.gp_label }));
   const sessionOptions = (context.sessions || []).map(item => ({ value: item.type_key, label: item.type_label }));
   const driverOptions = (context.drivers || []).map(item => ({ value: String(item.id || ""), label: item.team ? `${item.name} · ${item.team}` : item.name }));
+  const payload = telemetry.payload || {};
+  const selector = payload.selector || { laps: [] };
+  const laps = Array.isArray(selector.laps) ? selector.laps : [];
+  const manualOptions = laps.map(item => ({ value: String(item.lapNumber), label: renderLapOption(item) }));
 
   return `
-    <section class="card engineer-card telemetry-work-controls">
-      <div class="telemetry-work-controls-row">
+    <section class="card engineer-card telemetry-work-controls telemetry-work-controls--bar">
+      <div class="telemetry-work-controls-row telemetry-work-controls-row--topbar">
         <label><span>GP</span><select class="select-input" onchange="setEngineerTelemetryGp(this.value)">${renderTelemetrySelector(gpOptions, telemetry.gp)}</select></label>
         <label><span>Sesión</span><select class="select-input" onchange="setEngineerTelemetrySessionType(this.value)">${renderTelemetrySelector(sessionOptions, telemetry.sessionType)}</select></label>
         <label><span>Piloto</span><select class="select-input" onchange="setEngineerTelemetryDriver(this.value)">${renderTelemetrySelector(driverOptions, telemetry.driver)}</select></label>
+        <label><span>Modo vuelta</span><select class="select-input" onchange="setEngineerTelemetryLapMode(this.value)">${renderTelemetrySelector([
+          { value: "reference", label: "Referencia" },
+          { value: "latest", label: "Última" },
+          { value: "manual", label: "Manual" }
+        ], telemetry.lapMode)}</select></label>
+        ${telemetry.lapMode === "manual"
+      ? `<label><span>Vuelta</span><select class="select-input" onchange="setEngineerTelemetryManualLap(this.value)">${renderTelemetrySelector(manualOptions, telemetry.manualLap || String(selector.selectedLapNumber || ""))}</select></label>`
+      : ""}
       </div>
     </section>
     ${renderTelemetryPanelBody()}
@@ -1130,16 +1151,19 @@ function toggleTelemetryAccordion(key) {
   renderEngineerScreen();
 }
 
-function renderTelemetryAccordion({ key, title, subtitle = "", body = "" }) {
+function renderTelemetryAccordion({ key, title, subtitle = "", summary = "", body = "" }) {
   const isOpen = engineerState.telemetry.accordionState?.[key] === true;
   return `
     <section class="telemetry-accordion ${isOpen ? "open" : ""}">
       <button class="telemetry-accordion-toggle" onclick="toggleTelemetryAccordion('${escapeHtml(key)}')" aria-expanded="${isOpen ? "true" : "false"}">
-        <div>
+        <div class="telemetry-accordion-meta">
           <strong>${escapeHtml(title)}</strong>
           ${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ""}
         </div>
-        <em>${isOpen ? "Ocultar" : "Mostrar"}</em>
+        <div class="telemetry-accordion-state">
+          ${summary ? `<span>${escapeHtml(summary)}</span>` : ""}
+          <em>${isOpen ? "−" : "+"}</em>
+        </div>
       </button>
       ${isOpen ? `<div class="telemetry-accordion-body">${body}</div>` : ""}
     </section>
