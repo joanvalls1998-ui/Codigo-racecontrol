@@ -622,11 +622,12 @@ function formatTelemetryDelta(value, kind = "seconds") {
 }
 
 function formatTelemetryLapLabel(lap = {}) {
-  const lapNumber = Number.isFinite(lap?.lapNumber) ? `Lap ${Math.round(lap.lapNumber)}` : "Lap N/D";
+  const lapNumber = Number.isFinite(lap?.lapNumber) ? `Lap ${Math.round(lap.lapNumber)}` : "Lap ?";
   const lapTime = Number.isFinite(lap?.lapTime) ? formatTelemetrySeconds(lap.lapTime) : null;
   const tags = [];
   if (lap?.status === "pit") tags.push("PIT");
   if (lap?.status === "invalid") tags.push("Invalid");
+  if (lap?.status === "partial_trace") tags.push("Trace parcial");
   if (lap?.status === "no_trace") tags.push("Sin traza");
   if (lap?.isBest) tags.push("PB");
   const parts = [lapNumber];
@@ -644,18 +645,31 @@ function resolveTelemetryActiveLap(payload = {}, selection = {}) {
   const bestLapNumber = Number.isFinite(selectionConfig.referenceLapNumber) ? selectionConfig.referenceLapNumber : null;
   const latestLapNumber = Number.isFinite(selectionConfig.latestLapNumber) ? selectionConfig.latestLapNumber : null;
   const withMeta = catalogRaw.map(item => ({ ...item, isBest: Number.isFinite(bestLapNumber) && item.lapNumber === bestLapNumber }));
-  const usable = withMeta.filter(item => item.hasTelemetry);
+  const withTraces = withMeta.filter(item => item.hasTelemetry && tracesByLap[String(item.lapNumber)]);
+  const strictUsable = withTraces.filter(item => item.hasUsefulTiming && item.status !== "pit" && item.status !== "invalid");
+  const usable = strictUsable.length ? strictUsable : withTraces;
   if (!usable.length) return null;
   const getByNumber = value => usable.find(item => String(item.lapNumber) === String(value)) || null;
   const mode = TELEMETRY_LAP_MODES.includes(selection?.mode) ? selection.mode : "reference";
   let selectedLap = null;
+  let effectiveMode = mode;
   if (mode === "manual") selectedLap = getByNumber(selection?.manualLap);
   if (!selectedLap && mode === "latest") selectedLap = getByNumber(latestLapNumber);
-  if (!selectedLap) selectedLap = getByNumber(bestLapNumber);
-  if (!selectedLap) selectedLap = usable[usable.length - 1];
+  if (!selectedLap) {
+    selectedLap = getByNumber(bestLapNumber);
+    if (selectedLap) effectiveMode = "reference";
+  }
+  if (!selectedLap) {
+    selectedLap = getByNumber(latestLapNumber);
+    if (selectedLap) effectiveMode = "latest";
+  }
+  if (!selectedLap) {
+    selectedLap = usable[usable.length - 1];
+    effectiveMode = "manual";
+  }
   if (!selectedLap) return null;
   return {
-    mode: mode === "manual" && selectedLap ? "manual" : (mode === "latest" ? "latest" : "reference"),
+    mode: effectiveMode,
     bestLapNumber,
     latestLapNumber,
     selectedLap,
@@ -845,15 +859,15 @@ function renderTelemetryTraceInspector(payload = {}) {
     : Number.isFinite(selected.relativeDistance)
       ? `${Math.round(selected.relativeDistance * 100)}% vuelta`
       : `${Math.round(inspection.ratio * 100)}% vuelta`;
-  const drsLabel = Number.isFinite(selected.drs) ? (selected.drs > 0 ? "ON" : "OFF") : "N/D";
+  const drsLabel = Number.isFinite(selected.drs) ? (selected.drs > 0 ? "ON" : "OFF") : "—";
   const compactReadout = [
     { label: "Speed", value: formatTelemetrySpeed(selected.speed) },
-    { label: "Throttle", value: Number.isFinite(selected.throttle) ? `${Math.round(selected.throttle)}%` : "N/D" },
-    { label: "Brake", value: Number.isFinite(selected.brake) ? `${Math.round(selected.brake)}%` : "N/D" },
-    { label: "Gear", value: Number.isFinite(selected.gear) ? `${Math.round(selected.gear)}` : "N/D" },
-    { label: "RPM", value: Number.isFinite(selected.rpm) ? `${Math.round(selected.rpm)}` : "N/D" },
-    { label: "DRS", value: Number.isFinite(selected.drs) ? drsLabel : "N/D" }
+    { label: "Throttle", value: Number.isFinite(selected.throttle) ? `${Math.round(selected.throttle)}%` : "—" },
+    { label: "Brake", value: Number.isFinite(selected.brake) ? `${Math.round(selected.brake)}%` : "—" }
   ];
+  if (Number.isFinite(selected.gear)) compactReadout.push({ label: "Gear", value: `${Math.round(selected.gear)}` });
+  if (Number.isFinite(selected.rpm)) compactReadout.push({ label: "RPM", value: `${Math.round(selected.rpm)}` });
+  if (Number.isFinite(selected.drs)) compactReadout.push({ label: "DRS", value: drsLabel });
 
   return `
     <div class="telemetry-trace-inspector"
@@ -1058,6 +1072,10 @@ function renderTelemetryDashboard(payload) {
   const hasWeatherState = Boolean(String(weather.weatherState || "").trim()) && String(weather.weatherState || "").trim().toUpperCase() !== "N/D";
   const showSessionContextBlock = hasWeatherTemps || hasWeatherState;
   const showTracesBlock = Boolean(lapResolution) || payload.__partial;
+  const hasReferenceLap = isTelemetryMetricReady(summary.referenceLap, "lap");
+  const hasAveragePace = isTelemetryMetricReady(summary.averagePace, "pace");
+  const hasTopSpeed = isTelemetryMetricReady(summary.topSpeed, "speed");
+  const hasSpeedTrap = isTelemetryMetricReady(summary.speedTrap, "speed");
   const evolutionRows = evolutionValid.length
     ? evolutionValid.map((item, idx) => {
       const pace = item.averagePaceValue;
@@ -1102,22 +1120,22 @@ function renderTelemetryDashboard(payload) {
       : `
           <div class="telemetry-hero-core">
             <span>Vuelta referencia</span>
-            <strong>${escapeHtml(isTelemetryMetricReady(summary.referenceLap, "lap") ? formatTelemetrySeconds(summary.referenceLap) : "N/D")}</strong>
+            <strong>${escapeHtml(hasReferenceLap ? formatTelemetrySeconds(summary.referenceLap) : "No disponible")}</strong>
             <div class="telemetry-hero-meta">${escapeHtml(referenceMeta)}</div>
           </div>
           <div class="telemetry-hero-core telemetry-hero-core--secondary">
             <span>Ritmo medio</span>
-            <strong>${escapeHtml(isTelemetryMetricReady(summary.averagePace, "pace") ? formatTelemetrySeconds(summary.averagePace) : "N/D")}</strong>
+            <strong>${escapeHtml(hasAveragePace ? formatTelemetrySeconds(summary.averagePace) : "No disponible")}</strong>
             <div class="telemetry-hero-meta">Last ${stintLine.length || 0} valid laps</div>
           </div>
           <div class="telemetry-speed-pack">
             <div>
               <span>Top speed</span>
-              <strong>${escapeHtml(isTelemetryMetricReady(summary.topSpeed, "speed") ? formatTelemetrySpeed(summary.topSpeed) : "N/D")}</strong>
+              <strong>${escapeHtml(hasTopSpeed ? formatTelemetrySpeed(summary.topSpeed) : "No disponible")}</strong>
             </div>
             <div>
               <span>Speed trap</span>
-              <strong>${escapeHtml(isTelemetryMetricReady(summary.speedTrap, "speed") ? formatTelemetrySpeed(summary.speedTrap) : "N/D")}</strong>
+              <strong>${escapeHtml(hasSpeedTrap ? formatTelemetrySpeed(summary.speedTrap) : "No disponible")}</strong>
             </div>
           </div>
         `}
@@ -1147,7 +1165,7 @@ function renderTelemetryDashboard(payload) {
           </div>`
         : payload.__partial
           ? `<div class="empty-line">Preparando catálogo de vueltas con trazas…</div>`
-          : `<div class="empty-line">No hay catálogo de vueltas con trazas.</div>`}
+          : `<div class="empty-line">No hay vueltas con trazas utilizables para esta sesión.</div>`}
       ${payload.__partial
         ? `<div class="empty-line">Cargando trazas pesadas…</div>`
         : `
@@ -1183,7 +1201,7 @@ function renderTelemetryPanelBody() {
   const telemetry = engineerState.telemetry;
   if (telemetry.status === "loading" && !telemetry.payload) return `<div class="card engineer-card"><div class="empty-line">Cargando telemetría real 2026…</div></div>`;
   if (telemetry.status === "error") return `<div class="card engineer-card"><div class="card-title">Telemetría no disponible</div><div class="empty-line">${escapeHtml(telemetry.userMessage || "Sin telemetría")}</div><div class="card-sub">Prueba otra sesión del mismo GP.</div></div>`;
-  if (telemetry.status === "empty") return `<div class="card engineer-card"><div class="card-title">Sin datos</div><div class="empty-line">${escapeHtml(telemetry.userMessage || "No hay datos para esta combinación")}</div></div>`;
+  if (telemetry.status === "empty") return `<div class="card engineer-card"><div class="card-title">Telemetría no disponible</div><div class="empty-line">${escapeHtml(telemetry.userMessage || "No hay datos para esta combinación")}</div></div>`;
   if (!telemetry.payload) return `<div class="card engineer-card"><div class="empty-line">Selecciona GP, sesión y piloto para cargar telemetría real.</div></div>`;
   return renderTelemetryDashboard(telemetry.payload);
 }

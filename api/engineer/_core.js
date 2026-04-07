@@ -488,20 +488,24 @@ function getLapReferenceSelection(lapsRows = []) {
   const afterBox = candidates.filter(item => !item.isPitIn && !item.isPitOut);
   const afterDeleted = afterBox.filter(item => !item.isDeleted && !item.invalidByFlags);
   const strictPool = afterDeleted.filter(item => item.hasConsistentTiming && (item.isAccurate !== false));
-  const fallbackPool = afterDeleted.filter(item => item.hasConsistentTiming);
+  const consistentPool = afterDeleted.filter(item => item.hasConsistentTiming);
+  const timedPool = afterDeleted.filter(item => item.lapTimeValid);
+  const deletedTimedPool = afterBox.filter(item => item.lapTimeValid && !item.invalidByFlags);
 
   const strictChosen = [...strictPool].sort((a, b) => a.lapTime - b.lapTime)[0] || null;
-  const fallbackChosen = [...fallbackPool].sort((a, b) => a.lapTime - b.lapTime)[0] || null;
-  const chosen = strictChosen || fallbackChosen || null;
-  const fallbackLevel = strictChosen ? 1 : (fallbackChosen ? 2 : 3);
+  const consistentChosen = [...consistentPool].sort((a, b) => a.lapTime - b.lapTime)[0] || null;
+  const timedChosen = [...timedPool].sort((a, b) => a.lapTime - b.lapTime)[0] || null;
+  const deletedChosen = [...deletedTimedPool].sort((a, b) => a.lapTime - b.lapTime)[0] || null;
+  const chosen = strictChosen || consistentChosen || timedChosen || deletedChosen || null;
+  const fallbackLevel = strictChosen ? 1 : (consistentChosen ? 2 : (timedChosen ? 3 : (deletedChosen ? 4 : 5)));
   const reasonIfNoReference = chosen
     ? null
     : afterBox.length === 0
       ? "ALL_LAPS_FILTERED_BY_PIT_IN_OUT"
       : afterDeleted.length === 0
         ? "ALL_LAPS_FILTERED_BY_INVALID_OR_DELETED"
-        : fallbackPool.length === 0
-          ? "NO_LAP_WITH_CONSISTENT_TIMING"
+        : timedPool.length === 0
+          ? "NO_LAP_WITH_VALID_TIME"
           : "REFERENCE_NOT_AVAILABLE";
 
   return {
@@ -514,6 +518,8 @@ function getLapReferenceSelection(lapsRows = []) {
       laps_after_box_filter: afterBox.length,
       laps_after_deleted_filter: afterDeleted.length,
       laps_after_accuracy_filter: strictPool.length,
+      laps_after_consistency_filter: consistentPool.length,
+      laps_after_valid_time_filter: timedPool.length,
       chosen_reference_lap: chosen?.lapNumber ?? null,
       fallback_level_used: fallbackLevel,
       reason_if_no_reference: reasonIfNoReference
@@ -573,16 +579,18 @@ function buildOpenF1LapProfiles(lapsRows = [], carDataRows = []) {
       : [];
 
     const hasSpeedTrace = speed.length >= 6;
-    const hasControlTrace = throttle.length >= 6 || brake.length >= 6;
+    const hasControlTrace = throttle.length >= 4 || brake.length >= 4;
     const hasPowerTrace = gear.length >= 6 || rpm.length >= 6;
     const hasTelemetry = hasSpeedTrace || hasControlTrace || hasPowerTrace;
     const matchingSelection = referenceSelection.candidates.find(item => item.lapNumber === lap.lapNumber) || null;
-    const hasUsefulTiming = !!matchingSelection?.hasConsistentTiming && !lap.isPitIn && !lap.isPitOut && !lap.isDeleted && !lap.isInvalid;
+    const hasUsefulTiming = !!matchingSelection?.lapTimeValid && !lap.isPitIn && !lap.isPitOut && !lap.isInvalid;
+    const hasCoreTrace = hasSpeedTrace && hasControlTrace;
     let status = "invalid";
     if (!hasTelemetry) status = "no_trace";
     else if (lap.isPitIn || lap.isPitOut) status = "pit";
     else if (lap.isDeleted) status = "deleted";
     else if (lap.isInvalid) status = "invalid";
+    else if (!hasCoreTrace) status = "partial_trace";
     else if (lap.isValid) status = "valid";
 
     lapTraces[String(lap.lapNumber)] = {
@@ -606,6 +614,7 @@ function buildOpenF1LapProfiles(lapsRows = [], carDataRows = []) {
       isInvalid: lap.isInvalid,
       isAccurate: lap.isAccurate,
       hasTelemetry,
+      hasCoreTrace,
       telemetryChannels: {
         speed: hasSpeedTrace,
         controls: hasControlTrace,
