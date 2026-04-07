@@ -1,5 +1,8 @@
 import { spawn } from "node:child_process";
+import { setDefaultResultOrder } from "node:dns";
 import { getSnapshotIndex, summarizeMeetingReadiness } from "./_snapshots.js";
+
+setDefaultResultOrder("ipv4first");
 
 const OPENF1_BASE_URL = "https://api.openf1.org/v1";
 const RACEOPTIDATA_BASE_URL = "https://api.raceoptidata.com";
@@ -59,6 +62,51 @@ function telemetryLog(level = "info", event = "event", details = {}) {
   else console.log(line);
 }
 
+function shouldUseCurlFallback(error) {
+  const code = String(error?.code || error?.cause?.code || "").trim().toUpperCase();
+  return ["ENETUNREACH", "EAI_AGAIN", "ECONNRESET", "ETIMEDOUT", "ECONNREFUSED"].includes(code);
+}
+
+async function fetchJsonViaCurl(url, headers = {}) {
+  const args = ["-sS", "--fail", "--connect-timeout", "10", "--max-time", "30"];
+  Object.entries(headers || {}).forEach(([key, value]) => {
+    if (!key || value === undefined || value === null || value === "") return;
+    args.push("-H", `${key}: ${value}`);
+  });
+  args.push(url);
+
+  return new Promise((resolve, reject) => {
+    const child = spawn("curl", args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", chunk => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", chunk => {
+      stderr += chunk.toString();
+    });
+    child.on("error", error => reject(error));
+    child.on("close", code => {
+      if (code !== 0) {
+        const error = new Error(`CURL_HTTP_FAILED_${code}`);
+        error.code = "CURL_HTTP_FAILED";
+        error.details = stderr.trim();
+        reject(error);
+        return;
+      }
+      try {
+        const parsed = JSON.parse(stdout || "null");
+        resolve(parsed);
+      } catch (error) {
+        const parseError = new Error("CURL_JSON_PARSE_FAILED");
+        parseError.code = "CURL_JSON_PARSE_FAILED";
+        parseError.details = String(error?.message || "");
+        reject(parseError);
+      }
+    });
+  });
+}
+
 function setCached(map, key, value) {
   map.set(key, { ts: Date.now(), value });
   return value;
@@ -86,12 +134,24 @@ async function fetchOpenF1(endpoint, params = {}) {
     query.set(key, String(value));
   });
   let response;
+  const requestUrl = `${OPENF1_BASE_URL}/${endpoint}?${query.toString()}`;
+  const headers = { "User-Agent": "RaceControlEngineer/6.0" };
   try {
-    response = await fetch(`${OPENF1_BASE_URL}/${endpoint}?${query.toString()}`, {
-      headers: { "User-Agent": "RaceControlEngineer/6.0" },
+    response = await fetch(requestUrl, {
+      headers,
       cache: "no-store"
     });
   } catch (error) {
+    if (shouldUseCurlFallback(error)) {
+      telemetryLog("warn", "openf1.fetch_failed_retrying_with_curl", { endpoint, reason: String(error?.cause?.code || error?.code || error?.message || "OPENF1_FETCH_ERROR") });
+      const curlPayload = await fetchJsonViaCurl(requestUrl, headers);
+      sourceHealth.openf1 = {
+        ok: true,
+        last_success_ts: Date.now(),
+        last_error: null
+      };
+      return Array.isArray(curlPayload) ? curlPayload : [];
+    }
     sourceHealth.openf1 = {
       ok: false,
       last_success_ts: sourceHealth.openf1.last_success_ts,
@@ -148,12 +208,23 @@ async function fetchJolpica(pathname = "") {
   const trimmed = String(pathname || "").trim().replace(/^\/+/, "");
   const url = `${JOLPICA_BASE_URL}/${trimmed}`;
   let response;
+  const headers = { "User-Agent": "RaceControlEngineer/8.0" };
   try {
     response = await fetch(url, {
-      headers: { "User-Agent": "RaceControlEngineer/8.0" },
+      headers,
       cache: "no-store"
     });
   } catch (error) {
+    if (shouldUseCurlFallback(error)) {
+      telemetryLog("warn", "jolpica.fetch_failed_retrying_with_curl", { path: pathname, reason: String(error?.cause?.code || error?.code || error?.message || "JOLPICA_FETCH_ERROR") });
+      const curlPayload = await fetchJsonViaCurl(url, headers);
+      sourceHealth.jolpica = {
+        ok: true,
+        last_success_ts: Date.now(),
+        last_error: null
+      };
+      return curlPayload || {};
+    }
     sourceHealth.jolpica = {
       ok: false,
       last_success_ts: sourceHealth.jolpica.last_success_ts,
@@ -205,16 +276,23 @@ async function fetchRaceOpti(pathname, query = {}) {
     url.searchParams.set(key, String(value));
   });
   let response;
+  const headers = {
+    "User-Agent": "RaceControlEngineer/7.0",
+    "x-api-key": apiKey,
+    accept: "application/json"
+  };
   try {
     response = await fetch(url.toString(), {
-      headers: {
-        "User-Agent": "RaceControlEngineer/7.0",
-        "x-api-key": apiKey,
-        accept: "application/json"
-      },
+      headers,
       cache: "no-store"
     });
   } catch (error) {
+    if (shouldUseCurlFallback(error)) {
+      telemetryLog("warn", "raceoptidata.fetch_failed_retrying_with_curl", { path: pathname, reason: String(error?.cause?.code || error?.code || error?.message || "RACEOPTIDATA_FETCH_FAILED") });
+      const curlPayload = await fetchJsonViaCurl(url.toString(), headers);
+      sourceHealth.raceoptidata = { ok: true, last_success_ts: Date.now(), last_error: null };
+      return curlPayload;
+    }
     sourceHealth.raceoptidata = {
       ok: false,
       last_success_ts: sourceHealth.raceoptidata.last_success_ts,
