@@ -499,53 +499,23 @@ const engineerState = {
   submode: state.engineerSubmode === "telemetry" ? "telemetry" : "prediction",
   telemetry: {
     status: "idle",
-    phase: "idle",
     error: "",
     userMessage: "",
     gp: "",
     sessionType: "",
     sessionKey: "",
     driver: "",
+    lapMode: "reference",
+    manualLap: "",
     context: null,
-    payload: null,
-    perf: null,
-    lapSelection: {
-      mode: "reference",
-      manualLap: ""
-    }
+    payload: null
   }
 };
 
-const engineerCache = {
-  context: new Map()
-};
-
+const engineerCache = { context: new Map() };
 let telemetryRequestId = 0;
-const TELEMETRY_CACHE_TTL_MS = 1000 * 60 * 10;
-const telemetryTraceInspector = {
-  active: false,
-  index: null,
-  pointCount: 0
-};
-const TELEMETRY_PRELOAD_DEBUG = (() => {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage?.getItem("rc_debug_telemetry_preload") === "1";
-  } catch (_error) {
-    return false;
-  }
-})();
+const TELEMETRY_CACHE_TTL_MS = 1000 * 60 * 8;
 const TELEMETRY_LAP_MODES = Object.freeze(["reference", "latest", "manual"]);
-
-function nowMs() {
-  if (typeof performance !== "undefined" && typeof performance.now === "function") return performance.now();
-  return Date.now();
-}
-
-function telemetryPreloadLog(event, details = {}) {
-  if (!TELEMETRY_PRELOAD_DEBUG) return;
-  console.info(`[telemetry.preload] ${event}`, details);
-}
 
 function cacheGet(map, key) {
   const entry = map.get(key);
@@ -558,38 +528,17 @@ function cacheGet(map, key) {
 }
 
 function cacheSet(map, key, value, ttlMs = TELEMETRY_CACHE_TTL_MS) {
-  map.set(key, { value, expiresAt: Date.now() + Math.max(1000, ttlMs) });
+  map.set(key, { value, expiresAt: Date.now() + Math.max(2000, ttlMs) });
   return value;
 }
 
-function isTelemetryMetricReady(value, kind = "default") {
-  if (!Number.isFinite(value)) return false;
-  if (kind === "lap" || kind === "pace" || kind === "sector" || kind === "speed") return value > 0;
-  return true;
-}
-
-function hasTelemetryPayloadData(payload) {
-  if (!payload) return false;
-  const summary = payload.summary || {};
-  const hasCoreSummary = isTelemetryMetricReady(summary.referenceLap, "lap")
-    || isTelemetryMetricReady(summary.averagePace, "pace")
-    || isTelemetryMetricReady(summary.topSpeed, "speed")
-    || isTelemetryMetricReady(summary.speedTrap, "speed");
-  const hasTraces = Array.isArray(payload.traces?.speed) && payload.traces.speed.length > 0;
-  const hasStints = Array.isArray(payload.stints?.basic) && payload.stints.basic.length > 0;
-  return hasCoreSummary || hasTraces || hasStints;
-}
-
-function normalizeTelemetryDriverLabel(name = "") {
-  const clean = String(name || "").trim();
-  if (!clean) return "";
-  const parts = clean.split(/\s+/).filter(Boolean);
-  if (parts.length < 2) return clean;
-  return `${parts.slice(0, -1).join(" ")} ${parts[parts.length - 1].toUpperCase()}`;
+function telemetryContextKey() {
+  const t = engineerState.telemetry;
+  return `${TELEMETRY_SEASON_YEAR}:${t.gp || "auto"}:${t.sessionType || "auto"}:${t.driver || "auto"}`;
 }
 
 function formatTelemetrySeconds(value) {
-  if (!Number.isFinite(value)) return "N/D";
+  if (!Number.isFinite(value)) return "—";
   if (value >= 60) {
     const minutes = Math.floor(value / 60);
     const seconds = value - (minutes * 60);
@@ -599,93 +548,56 @@ function formatTelemetrySeconds(value) {
 }
 
 function formatTelemetrySpeed(value) {
-  if (!Number.isFinite(value)) return "N/D";
+  if (!Number.isFinite(value)) return "—";
   return `${Math.round(value)} km/h`;
 }
 
-function formatTelemetryTemp(value) {
-  if (!Number.isFinite(value)) return "N/D";
-  return `${value.toFixed(1)} °C`;
+function renderTelemetrySelector(options, current) {
+  return options.map(option => `<option value="${escapeHtml(option.value)}" ${String(option.value) === String(current) ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("");
 }
 
-function formatTelemetryCount(value) {
-  if (!Number.isFinite(value)) return "N/D";
-  return `${Math.round(value)}`;
+function buildSpark(values = [], className = "") {
+  const clean = (Array.isArray(values) ? values : []).filter(Number.isFinite);
+  if (!clean.length) return '<div class="empty-line">Sin traza útil.</div>';
+  const min = Math.min(...clean);
+  const max = Math.max(...clean);
+  const span = Math.max(1, max - min);
+  const sampled = clean.length > 250 ? clean.filter((_, idx) => idx % Math.ceil(clean.length / 250) === 0) : clean;
+  const points = sampled.map((item, idx) => {
+    const x = (idx / Math.max(1, sampled.length - 1)) * 100;
+    const y = 100 - (((item - min) / span) * 100);
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  });
+  return `<svg class="${className}" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="${points.join(" ")}"></polyline></svg>`;
 }
 
-function formatTelemetryDelta(value, kind = "seconds") {
-  if (!Number.isFinite(value)) return "N/D";
-  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
-  const absolute = Math.abs(value);
-  if (kind === "speed") return `${sign}${value.toFixed(1)} km/h`;
-  return `${sign}${absolute.toFixed(3)}`;
+function renderTraceBand(label, values, variant = "") {
+  const clean = (Array.isArray(values) ? values : []).filter(Number.isFinite);
+  const last = clean.length ? clean[clean.length - 1] : null;
+  const readout = label === "Speed" ? formatTelemetrySpeed(last) : Number.isFinite(last) ? `${Math.round(last)}%` : "—";
+  return `
+    <div class="telemetry-work-trace ${variant}">
+      <div class="telemetry-work-trace-head"><span>${escapeHtml(label)}</span><strong>${escapeHtml(readout)}</strong></div>
+      ${buildSpark(clean, "telemetry-work-spark")}
+    </div>
+  `;
 }
 
-function formatTelemetryLapLabel(lap = {}) {
-  const lapNumber = Number.isFinite(lap?.lapNumber) ? `Lap ${Math.round(lap.lapNumber)}` : "Lap ?";
-  const lapTime = Number.isFinite(lap?.lapTime) ? formatTelemetrySeconds(lap.lapTime) : null;
-  const tags = [];
-  if (lap?.status === "pit") tags.push("PIT");
-  if (lap?.status === "invalid") tags.push("Invalid");
-  if (lap?.status === "partial_trace") tags.push("Trace parcial");
-  if (lap?.status === "no_trace") tags.push("Sin traza");
-  if (lap?.isBest) tags.push("PB");
-  const parts = [lapNumber];
-  if (lapTime) parts.push(lapTime);
-  if (tags.length) parts.push(tags.join(" · "));
-  return parts.join(" · ");
+function telemetryErrorMessage(error) {
+  const message = String(error?.message || "");
+  if (message.includes("No hay telemetría histórica")) return "No hay telemetría histórica para esta combinación.";
+  if (message.includes("Piloto no disponible")) return "El piloto no está disponible en la sesión elegida.";
+  if (message.includes("Sesión no disponible")) return "La sesión no está disponible para este GP.";
+  return "No fue posible cargar telemetría desde TracingInsights/2026.";
 }
 
-function resolveTelemetryActiveLap(payload = {}, selection = {}) {
-  const lapContext = payload?.lap_context || {};
-  const catalogRaw = Array.isArray(lapContext.catalog) ? lapContext.catalog : [];
-  const tracesByLap = lapContext.traces_by_lap || {};
-  if (!catalogRaw.length) return null;
-  const selectionConfig = lapContext.selection || {};
-  const bestLapNumber = Number.isFinite(selectionConfig.referenceLapNumber) ? selectionConfig.referenceLapNumber : null;
-  const latestLapNumber = Number.isFinite(selectionConfig.latestLapNumber) ? selectionConfig.latestLapNumber : null;
-  const withMeta = catalogRaw.map(item => ({ ...item, isBest: Number.isFinite(bestLapNumber) && item.lapNumber === bestLapNumber }));
-  const withTraces = withMeta.filter(item => item.hasTelemetry && tracesByLap[String(item.lapNumber)]);
-  const strictUsable = withTraces.filter(item => item.hasUsefulTiming && item.status !== "pit" && item.status !== "invalid");
-  const usable = strictUsable.length ? strictUsable : withTraces;
-  if (!usable.length) return null;
-  const getByNumber = value => usable.find(item => String(item.lapNumber) === String(value)) || null;
-  const mode = TELEMETRY_LAP_MODES.includes(selection?.mode) ? selection.mode : "reference";
-  let selectedLap = null;
-  let effectiveMode = mode;
-  if (mode === "manual") selectedLap = getByNumber(selection?.manualLap);
-  if (!selectedLap && mode === "latest") selectedLap = getByNumber(latestLapNumber);
-  if (!selectedLap) {
-    selectedLap = getByNumber(bestLapNumber);
-    if (selectedLap) effectiveMode = "reference";
-  }
-  if (!selectedLap) {
-    selectedLap = getByNumber(latestLapNumber);
-    if (selectedLap) effectiveMode = "latest";
-  }
-  if (!selectedLap) {
-    selectedLap = usable[usable.length - 1];
-    effectiveMode = "manual";
-  }
-  if (!selectedLap) return null;
-  return {
-    mode: effectiveMode,
-    bestLapNumber,
-    latestLapNumber,
-    selectedLap,
-    availableLaps: usable,
-    traces: tracesByLap[String(selectedLap.lapNumber)] || null
-  };
-}
-
-async function fetchEngineerApi(endpoint, params = {}, options = {}) {
+async function fetchEngineerApi(endpoint, params = {}) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value === undefined || value === null || value === "") return;
     query.set(key, String(value));
   });
-
-  const response = await fetch(`/api/engineer/${endpoint}?${query.toString()}`, { cache: options.cacheMode || "no-store" });
+  const response = await fetch(`/api/engineer/${endpoint}?${query.toString()}`, { cache: "no-store" });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(payload?.error?.message || `Engineer API ${endpoint} (${response.status})`);
@@ -693,20 +605,6 @@ async function fetchEngineerApi(endpoint, params = {}, options = {}) {
     throw error;
   }
   return payload;
-}
-
-function telemetryContextKey() {
-  const t = engineerState.telemetry;
-  return `${TELEMETRY_SEASON_YEAR}:${t.gp || "auto"}:${t.sessionType || "auto"}:${t.driver || "auto"}`;
-}
-
-function telemetryErrorMessage(error) {
-  const message = String(error?.message || "");
-  if (message.includes("No hay telemetría histórica")) return "No hay telemetría histórica disponible para este piloto en esta sesión.";
-  if (message.includes("Piloto no disponible")) return "El piloto seleccionado no aparece con datos válidos en esta sesión.";
-  if (message.includes("Sesión no disponible")) return "La sesión seleccionada no está disponible en este GP 2026.";
-  if (message.includes("fetch")) return "No se pudo conectar con la capa de telemetría.";
-  return "No fue posible construir la telemetría real del piloto con las fuentes actuales.";
 }
 
 async function loadTelemetryContext() {
@@ -723,512 +621,102 @@ async function loadTelemetryContext() {
   return cacheSet(engineerCache.context, key, payload);
 }
 
-function renderTelemetrySelector(options, current) {
-  return options.map(option => `<option value="${escapeHtml(option.value)}" ${String(option.value) === String(current) ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("");
+function hasTelemetryPayloadData(payload) {
+  if (!payload) return false;
+  const laps = payload?.lap_selector?.laps || [];
+  return Array.isArray(payload?.traces?.speed) && payload.traces.speed.length > 0 && laps.some(item => Number.isFinite(item?.lapNumber));
 }
 
-function renderTelemetryTrace(title, values = [], kind = "speed") {
-  if (!Array.isArray(values) || !values.length) return `<div class="empty-line">${escapeHtml(title)} no disponible.</div>`;
-  const cleanValues = values.filter(Number.isFinite);
-  if (!cleanValues.length) return `<div class="empty-line">${escapeHtml(title)} no disponible.</div>`;
-  const sample = cleanValues.slice(0, 42);
-  const minValue = Math.min(...sample);
-  const maxValue = Math.max(...sample);
-  const range = Math.max(maxValue - minValue, 1);
-  const points = sample.map((item, index) => {
-    const denominator = Math.max(sample.length - 1, 1);
-    const x = (index / denominator) * 100;
-    const normalized = (item - minValue) / range;
-    const y = 100 - normalized * 100;
-    return `${x.toFixed(2)},${Math.min(100, Math.max(0, y)).toFixed(2)}`;
-  });
-  const latest = cleanValues[cleanValues.length - 1];
-  const latestLabel = kind === "speed"
-    ? formatTelemetrySpeed(latest)
-    : kind === "percent"
-      ? `${Math.round(latest || 0)} %`
-      : kind === "pace"
-        ? formatTelemetrySeconds(latest)
-        : `${Math.round(latest || 0)}`;
-  return `
-    <div class="telemetry-wave ${kind === "speed" ? "kind-speed" : ""} ${kind === "percent" ? "kind-percent" : ""} ${kind === "brake" ? "kind-brake" : ""}">
-      <div class="telemetry-wave-head">
-        <span>${escapeHtml(title)}</span>
-        <strong>${escapeHtml(latestLabel)}</strong>
-      </div>
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="${escapeHtml(title)}">
-        <polyline points="${points.join(" ")}"></polyline>
-      </svg>
-    </div>
-  `;
+function renderLapOption(item = {}) {
+  const chunks = [`L${Math.round(item.lapNumber || 0)}`];
+  if (Number.isFinite(item.lapTime)) chunks.push(formatTelemetrySeconds(item.lapTime));
+  if (item.isBest) chunks.push("PB");
+  if (item.compound) chunks.push(item.compound);
+  return chunks.join(" · ");
 }
 
-function clampTelemetryPercent(value) {
-  if (!Number.isFinite(value)) return null;
-  return Math.max(0, Math.min(100, value));
-}
-
-function traceValueAt(values = [], index = 0, pointCount = 0) {
-  if (!Array.isArray(values) || !values.length || !Number.isFinite(index) || pointCount < 1) return null;
-  const clean = values.filter(Number.isFinite);
-  if (!clean.length) return null;
-  if (clean.length === 1 || pointCount <= 1) return clean[0];
-  const ratio = Math.max(0, Math.min(1, index / (pointCount - 1)));
-  const sampleIndex = Math.round(ratio * (clean.length - 1));
-  return clean[Math.max(0, Math.min(clean.length - 1, sampleIndex))];
-}
-
-function buildTracePoints(values = [], pointCount = 0, minValue = 0, maxValue = 1, bandTop = 0, bandHeight = 100) {
-  if (!Array.isArray(values) || !values.length || pointCount < 1) return "";
-  const points = [];
-  for (let idx = 0; idx < pointCount; idx += 1) {
-    const value = traceValueAt(values, idx, pointCount);
-    if (!Number.isFinite(value)) continue;
-    const denominator = Math.max(pointCount - 1, 1);
-    const x = (idx / denominator) * 100;
-    const range = Math.max(maxValue - minValue, 1);
-    const normalized = (value - minValue) / range;
-    const y = bandTop + (bandHeight - (Math.max(0, Math.min(1, normalized)) * bandHeight));
-    points.push(`${x.toFixed(2)},${Math.max(0, Math.min(100, y)).toFixed(2)}`);
-  }
-  return points.join(" ");
-}
-
-function buildTelemetryTraceInspection(payload = {}, activeTraces = null) {
-  const traces = activeTraces || payload?.traces || {};
-  const speed = Array.isArray(traces.speed) ? traces.speed.filter(Number.isFinite) : [];
-  const throttle = Array.isArray(traces.throttle) ? traces.throttle.filter(Number.isFinite).map(item => clampTelemetryPercent(item)).filter(Number.isFinite) : [];
-  const brake = Array.isArray(traces.brake) ? traces.brake.filter(Number.isFinite).map(item => clampTelemetryPercent(item)).filter(Number.isFinite) : [];
-  const gear = Array.isArray(traces.gear) ? traces.gear.filter(Number.isFinite) : [];
-  const rpm = Array.isArray(traces.rpm) ? traces.rpm.filter(Number.isFinite) : [];
-  const drs = Array.isArray(traces.drs) ? traces.drs.filter(Number.isFinite) : [];
-  const distance = Array.isArray(traces.distance) ? traces.distance.filter(Number.isFinite) : [];
-  const relativeDistance = Array.isArray(traces.relativeDistance) ? traces.relativeDistance.filter(Number.isFinite) : [];
-
-  const pointCount = Math.max(speed.length, throttle.length, brake.length, gear.length, rpm.length, drs.length, distance.length, relativeDistance.length, 0);
-  if (!pointCount) return null;
-  telemetryTraceInspector.pointCount = pointCount;
-  const selectedIndex = Number.isFinite(telemetryTraceInspector.index)
-    ? Math.max(0, Math.min(pointCount - 1, telemetryTraceInspector.index))
-    : pointCount - 1;
-  const ratio = pointCount > 1 ? selectedIndex / (pointCount - 1) : 0;
-  const selectedSpeed = traceValueAt(speed, selectedIndex, pointCount);
-  const selectedThrottle = traceValueAt(throttle, selectedIndex, pointCount);
-  const selectedBrake = traceValueAt(brake, selectedIndex, pointCount);
-  const selectedGear = traceValueAt(gear, selectedIndex, pointCount);
-  const selectedRpm = traceValueAt(rpm, selectedIndex, pointCount);
-  const selectedDrs = traceValueAt(drs, selectedIndex, pointCount);
-  const selectedDistance = traceValueAt(distance, selectedIndex, pointCount);
-  const selectedRelativeDistance = traceValueAt(relativeDistance, selectedIndex, pointCount);
-  const sectionRatio = Number.isFinite(selectedRelativeDistance) ? Math.max(0, Math.min(1, selectedRelativeDistance)) : ratio;
-  const sector = sectionRatio < (1 / 3) ? "S1" : sectionRatio < (2 / 3) ? "S2" : "S3";
-
-  return {
-    pointCount,
-    selectedIndex,
-    ratio,
-    sector,
-    speed,
-    throttle,
-    brake,
-    selectedValues: {
-      speed: selectedSpeed,
-      throttle: selectedThrottle,
-      brake: selectedBrake,
-      gear: selectedGear,
-      rpm: selectedRpm,
-      drs: Number.isFinite(selectedDrs) ? selectedDrs : null,
-      distance: selectedDistance,
-      relativeDistance: selectedRelativeDistance
-    }
-  };
-}
-
-function renderTelemetryTraceInspector(payload = {}) {
-  const telemetry = engineerState.telemetry;
-  const activeLap = resolveTelemetryActiveLap(payload, telemetry.lapSelection || {});
-  const inspection = buildTelemetryTraceInspection(payload, activeLap?.traces || null);
-  if (!inspection) return `<div class="empty-line">Trazas no disponibles para inspección.</div>`;
-  const x = (inspection.ratio * 100).toFixed(2);
-  const selected = inspection.selectedValues;
-  const speedMax = Math.max(...inspection.speed, 1);
-  const throttleMax = 100;
-  const brakeMax = 100;
-  const distanceLabel = Number.isFinite(selected.distance)
-    ? `${Math.round(selected.distance)} m`
-    : Number.isFinite(selected.relativeDistance)
-      ? `${Math.round(selected.relativeDistance * 100)}% vuelta`
-      : `${Math.round(inspection.ratio * 100)}% vuelta`;
-  const drsLabel = Number.isFinite(selected.drs) ? (selected.drs > 0 ? "ON" : "OFF") : "—";
-  const compactReadout = [
-    { label: "Speed", value: formatTelemetrySpeed(selected.speed) },
-    { label: "Throttle", value: Number.isFinite(selected.throttle) ? `${Math.round(selected.throttle)}%` : "—" },
-    { label: "Brake", value: Number.isFinite(selected.brake) ? `${Math.round(selected.brake)}%` : "—" }
-  ];
-  if (Number.isFinite(selected.gear)) compactReadout.push({ label: "Gear", value: `${Math.round(selected.gear)}` });
-  if (Number.isFinite(selected.rpm)) compactReadout.push({ label: "RPM", value: `${Math.round(selected.rpm)}` });
-  if (Number.isFinite(selected.drs)) compactReadout.push({ label: "DRS", value: drsLabel });
-
-  return `
-    <div class="telemetry-trace-inspector"
-      data-points="${inspection.pointCount}"
-      onpointerdown="engineerTelemetryTracePointerDown(event)"
-      onpointermove="engineerTelemetryTracePointerMove(event)"
-      onpointerup="engineerTelemetryTracePointerEnd(event)"
-      onpointercancel="engineerTelemetryTracePointerEnd(event)"
-      onpointerleave="engineerTelemetryTracePointerLeave(event)">
-      <div class="telemetry-trace-plot">
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Trazas sincronizadas">
-          <line class="trace-grid-h" x1="0" y1="25" x2="100" y2="25"></line>
-          <line class="trace-grid-h" x1="0" y1="50" x2="100" y2="50"></line>
-          <line class="trace-grid-h" x1="0" y1="75" x2="100" y2="75"></line>
-          <polyline class="trace-line trace-line-speed" points="${buildTracePoints(inspection.speed, inspection.pointCount, 0, speedMax, 0, 31)}"></polyline>
-          <polyline class="trace-line trace-line-throttle" points="${buildTracePoints(inspection.throttle, inspection.pointCount, 0, throttleMax, 34, 31)}"></polyline>
-          <polyline class="trace-line trace-line-brake" points="${buildTracePoints(inspection.brake, inspection.pointCount, 0, brakeMax, 68, 31)}"></polyline>
-          <line class="trace-cursor" x1="${x}" y1="0" x2="${x}" y2="100"></line>
-        </svg>
-        <div class="telemetry-trace-axis">
-          <span>Speed</span><span>Throttle</span><span>Brake</span>
-        </div>
-      </div>
-      <div class="telemetry-trace-tooltip">
-        <div class="telemetry-trace-tooltip-row telemetry-trace-tooltip-row--main">
-          ${compactReadout.map(item => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></div>`).join("")}
-        </div>
-        <div class="telemetry-trace-tooltip-row telemetry-trace-tooltip-row--meta">
-          <div><span>Distancia</span><strong>${escapeHtml(distanceLabel)}</strong></div>
-          <div><span>Sector</span><strong>${escapeHtml(inspection.sector)}</strong></div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function buildTelemetryUsefulStints(stintBasic, lapCatalog) {
-  const catalog = Array.isArray(lapCatalog) ? lapCatalog : [];
-  const MIN_VALID_LAPS = 4;
-  const MIN_COMPLETE_RATIO = 0.7;
-  return (Array.isArray(stintBasic) ? stintBasic : [])
-    .map((stint, idx) => {
-      const lapStart = Number.isFinite(stint?.lapStart) ? stint.lapStart : null;
-      const lapEnd = Number.isFinite(stint?.lapEnd) ? stint.lapEnd : null;
-      const expectedLaps = Number.isFinite(lapStart) && Number.isFinite(lapEnd) && lapEnd >= lapStart
-        ? (lapEnd - lapStart + 1)
-        : null;
-      const lapsInRange = Number.isFinite(lapStart) && Number.isFinite(lapEnd)
-        ? catalog.filter(lap => Number.isFinite(lap?.lapNumber) && lap.lapNumber >= lapStart && lap.lapNumber <= lapEnd)
-        : [];
-      const validLaps = lapsInRange
-        .filter(lap => Number.isFinite(lap?.lapTime) && lap?.hasUsefulTiming !== false)
-        .map(lap => lap.lapTime);
-      const completionRatio = Number.isFinite(expectedLaps) && expectedLaps > 0
-        ? (validLaps.length / expectedLaps)
-        : 0;
-      const startPace = validLaps.length >= 2 ? average(validLaps.slice(0, 2)) : (validLaps[0] ?? null);
-      const latestPace = validLaps.length >= 2 ? average(validLaps.slice(-2)) : (validLaps[validLaps.length - 1] ?? null);
-      const averagePace = validLaps.length ? average(validLaps) : null;
-      const bestPace = validLaps.length ? Math.min(...validLaps) : null;
-      const worstPace = validLaps.length ? Math.max(...validLaps) : null;
-      const degradation = Number.isFinite(startPace) && Number.isFinite(latestPace) ? latestPace - startPace : null;
-      const consistency = Number.isFinite(bestPace) && Number.isFinite(worstPace) ? worstPace - bestPace : null;
-      const isUseful = validLaps.length >= MIN_VALID_LAPS
-        && completionRatio >= MIN_COMPLETE_RATIO
-        && Number.isFinite(startPace)
-        && Number.isFinite(latestPace)
-        && Number.isFinite(degradation);
-      return {
-        key: `${stint?.number || idx + 1}-${idx}`,
-        number: Number.isFinite(stint?.number) ? stint.number : idx + 1,
-        compound: stint?.compound || "N/D",
-        laps: validLaps.length,
-        averagePace,
-        startPace,
-        latestPace,
-        degradation,
-        consistency,
-        isUseful
-      };
-    })
-    .filter(stint => stint.isUseful);
-}
-
-function renderTelemetryStintComparativeBlock(usefulStints) {
-  if (!Array.isArray(usefulStints) || usefulStints.length < 2) return "";
-  const fastestAvg = Math.min(...usefulStints.map(stint => stint.averagePace).filter(Number.isFinite));
-  const maxDeg = Math.max(...usefulStints.map(stint => Math.abs(stint.degradation)).filter(Number.isFinite), 0.001);
-  const summaryCards = usefulStints.map(stint => `
-    <article class="telemetry-stint-summary-card">
-      <div class="telemetry-stint-summary-head">
-        <strong>S${stint.number}</strong>
-        <span>${escapeHtml(stint.compound)} · ${stint.laps} laps</span>
-      </div>
-      <div class="telemetry-stint-summary-metrics">
-        <div><span>Avg</span><strong>${escapeHtml(formatTelemetrySeconds(stint.averagePace))}</strong></div>
-        <div><span>Deg</span><strong>${escapeHtml(formatTelemetryDelta(stint.degradation))}</strong></div>
-      </div>
-    </article>
-  `).join("");
-  const bars = usefulStints.map(stint => {
-    const relative = Number.isFinite(stint.averagePace) && Number.isFinite(fastestAvg)
-      ? Math.max(0, Math.min(1, (stint.averagePace - fastestAvg) / 1.8))
-      : 0.5;
-    const width = 30 + (relative * 70);
-    const slope = Number.isFinite(stint.degradation)
-      ? Math.max(-1, Math.min(1, stint.degradation / maxDeg))
-      : 0;
-    return `
-      <div class="telemetry-stint-compare-row">
-        <div class="telemetry-stint-compare-tag">
-          <strong>S${stint.number}</strong>
-          <span>${escapeHtml(stint.compound)}</span>
-        </div>
-        <div class="telemetry-stint-compare-lane">
-          <div class="telemetry-stint-compare-bar" style="width:${width.toFixed(1)}%"></div>
-          <div class="telemetry-stint-compare-trend ${slope > 0.2 ? "down" : slope < -0.2 ? "up" : "stable"}">
-            <span>Start ${escapeHtml(formatTelemetrySeconds(stint.startPace))}</span>
-            <span>End ${escapeHtml(formatTelemetrySeconds(stint.latestPace))}</span>
-          </div>
-        </div>
-        <div class="telemetry-stint-compare-extra">
-          <span>Cons ${escapeHtml(formatTelemetryDelta(stint.consistency))}</span>
-          <strong>${escapeHtml(formatTelemetryDelta(stint.degradation))}</strong>
-        </div>
-      </div>
-    `;
-  }).join("");
-
-  return `
-    <section class="card engineer-card telemetry-stint-block">
-      <div class="telemetry-line-head"><strong>Stint Comparison</strong><span>${usefulStints.length} stints útiles</span></div>
-      <div class="telemetry-stint-summary-grid">
-        ${summaryCards}
-      </div>
-      <div class="telemetry-stint-compare-chart">
-        ${bars}
-      </div>
-    </section>
-  `;
-}
-
-function renderTelemetryDashboard(payload) {
+function renderTelemetryWorkspace(payload) {
   const summary = payload.summary || {};
-  const weather = payload.weather || {};
-  const evolution = payload.session_evolution || [];
-  const lapResolution = resolveTelemetryActiveLap(payload, engineerState.telemetry.lapSelection || {});
-  const activeLap = lapResolution?.selectedLap || null;
-  const activeMode = lapResolution?.mode || "reference";
-  const tracesPayload = lapResolution?.traces ? { ...payload, traces: lapResolution.traces } : payload;
-  const tracesTitle = activeMode === "manual"
-    ? `Trazas · ${formatTelemetryLapLabel(activeLap)}`
-    : activeMode === "latest"
-      ? `Trazas · Latest Valid Lap${activeLap?.lapTime ? ` · ${formatTelemetrySeconds(activeLap.lapTime)}` : ""}`
-      : `Trazas · Best Lap${activeLap?.lapTime ? ` · ${formatTelemetrySeconds(activeLap.lapTime)}` : ""}`;
-  const manualOptions = (lapResolution?.availableLaps || []).map(item => ({
-    value: String(item.lapNumber),
-    label: formatTelemetryLapLabel(item)
-  }));
-  const stintBasic = payload.stints?.basic || [];
-  const stintEvolution = payload.stints?.evolution || [];
-  const currentStint = stintBasic[stintBasic.length - 1] || null;
-  const referenceLapNumber = Number.isFinite(payload?.lap_context?.selection?.referenceLapNumber)
-    ? payload.lap_context.selection.referenceLapNumber
-    : null;
-  const referenceStint = Number.isFinite(referenceLapNumber)
-    ? stintBasic.find(item => Number.isFinite(item?.lapStart) && Number.isFinite(item?.lapEnd) && referenceLapNumber >= item.lapStart && referenceLapNumber <= item.lapEnd)
-    : null;
-  const referenceMeta = Number.isFinite(referenceLapNumber)
-    ? `Lap ${Math.round(referenceLapNumber)} · ${referenceStint?.compound || "N/D"}`
-    : `Compuesto · ${currentStint?.compound || "N/D"}`;
-  const stintLine = stintEvolution.map(item => Number.isFinite(item.averagePace) ? item.averagePace : null).filter(Number.isFinite);
-  const usefulStints = buildTelemetryUsefulStints(stintBasic, payload.stints?.catalog || []);
-  const stintBlock = renderTelemetryStintComparativeBlock(usefulStints);
-  const sectorValues = [summary.sector1, summary.sector2, summary.sector3].filter(Number.isFinite);
-  const sectorBaseline = sectorValues.length ? Math.min(...sectorValues) : null;
+  const selector = payload.lap_selector || {};
+  const laps = Array.isArray(selector.laps) ? selector.laps.filter(item => Number.isFinite(item?.lapNumber) && item.hasTelemetry) : [];
+  const selectedLap = laps.find(item => item.lapNumber === selector.selectedLapNumber) || null;
+  const manualOptions = laps.map(item => ({ value: String(item.lapNumber), label: renderLapOption(item) }));
 
-  const renderSectorBand = (label, value) => {
-    let statusClass = "neutral";
-    if (Number.isFinite(value) && Number.isFinite(sectorBaseline)) {
-      if (Math.abs(value - sectorBaseline) < 0.001) statusClass = "purple";
-      else if ((value - sectorBaseline) <= 0.18) statusClass = "green";
-    }
-    return `
-      <div class="telemetry-sector-chip ${statusClass}">
-        <span>${escapeHtml(label)}</span>
-        <strong>${escapeHtml(formatTelemetrySeconds(value))}</strong>
-      </div>
-    `;
-  };
-
-  const evolutionValid = evolution
-    .map(item => ({
-      ...item,
-      referenceLapValue: isTelemetryMetricReady(item.referenceLap, "lap") ? item.referenceLap : null,
-      averagePaceValue: isTelemetryMetricReady(item.averagePace, "pace") ? item.averagePace : null
-    }))
-    .filter(item => Number.isFinite(item.referenceLapValue) || Number.isFinite(item.averagePaceValue));
-  const evolutionWithPace = evolutionValid.filter(item => Number.isFinite(item.averagePaceValue));
-  const hasUsefulEvolution = evolutionWithPace.length >= 2;
-  const hasWeatherTemps = Number.isFinite(weather.avgTrackTemp) || Number.isFinite(weather.avgAirTemp);
-  const hasWeatherState = Boolean(String(weather.weatherState || "").trim()) && String(weather.weatherState || "").trim().toUpperCase() !== "N/D";
-  const showSessionContextBlock = hasWeatherTemps || hasWeatherState;
-  const showTracesBlock = Boolean(lapResolution) || payload.__partial;
-  const hasReferenceLap = isTelemetryMetricReady(summary.referenceLap, "lap");
-  const hasAveragePace = isTelemetryMetricReady(summary.averagePace, "pace");
-  const hasTopSpeed = isTelemetryMetricReady(summary.topSpeed, "speed");
-  const hasSpeedTrap = isTelemetryMetricReady(summary.speedTrap, "speed");
-  const evolutionRows = evolutionValid.length
-    ? evolutionValid.map((item, idx) => {
-      const pace = item.averagePaceValue;
-      const prev = idx > 0 && Number.isFinite(evolutionValid[idx - 1]?.averagePaceValue) ? evolutionValid[idx - 1].averagePaceValue : null;
-      const best = evolutionValid.map(row => row.averagePaceValue).filter(Number.isFinite).sort((a, b) => a - b)[0];
-      let status = "stable";
-      if (Number.isFinite(pace) && Number.isFinite(prev)) {
-        if (pace < prev - 0.06) status = "up";
-        else if (pace > prev + 0.06) status = "down";
-      }
-      if (Number.isFinite(pace) && Number.isFinite(best) && Math.abs(pace - best) < 0.001) status = "best";
-      return `
-        <div class="telemetry-timeline-node ${status}">
-          <span>${escapeHtml(item.session_label || item.session_type || "SES")}</span>
-          ${Number.isFinite(item.referenceLapValue) ? `<strong>${escapeHtml(formatTelemetrySeconds(item.referenceLapValue))}</strong>` : ""}
-          ${Number.isFinite(item.averagePaceValue) ? `<em>${escapeHtml(formatTelemetrySeconds(item.averagePaceValue))}</em>` : ""}
-          ${!Number.isFinite(item.referenceLapValue) && !Number.isFinite(item.averagePaceValue) ? "<em>N/D</em>" : ""}
-        </div>
-      `;
-    }).join("")
-    : `<div class="empty-line">${payload.__partial ? "Evolución cargando…" : "Sin evolución inter-sesión útil para este piloto."}</div>`;
-  const heroLoading = Boolean(payload.__partial);
+  const sectors = [
+    { label: "S1", value: summary.sector1 },
+    { label: "S2", value: summary.sector2 },
+    { label: "S3", value: summary.sector3 }
+  ].filter(item => Number.isFinite(item.value));
+  const stintRows = (payload.stints || []).filter(item => item.lapCount >= 3);
 
   return `
-    <section class="card engineer-card telemetry-f1-hero">
-      <div class="telemetry-f1-head">
+    <section class="card engineer-card telemetry-workspace">
+      <div class="telemetry-work-topbar">
         <div>
-          <div class="card-title">${escapeHtml(payload.labels?.gp || "2026")}</div>
-          <div class="card-sub">${escapeHtml(payload.labels?.session || "Sesión")} · ${escapeHtml(payload.labels?.driver || "N/D")}</div>
+          <div class="card-title">${escapeHtml(payload.labels?.gp || "GP")}</div>
+          <div class="card-sub">${escapeHtml(payload.labels?.session || "Sesión")} · ${escapeHtml(payload.labels?.driver || "Piloto")}</div>
         </div>
-        <div class="telemetry-provider-tag">${escapeHtml(payload.source?.primary || "openf1")}</div>
+        <div class="telemetry-work-source">TracingInsights/2026</div>
       </div>
-      <div class="telemetry-f1-hero-grid">
-        ${heroLoading
-      ? `
-          <div class="telemetry-hero-skeleton" aria-label="Cargando hero de telemetría">
-            <div class="skeleton skeleton-line lg"></div>
-            <div class="skeleton skeleton-line md"></div>
-            <div class="skeleton skeleton-line sm"></div>
-          </div>
-        `
-      : `
-          <div class="telemetry-hero-core">
-            <span>Vuelta referencia</span>
-            <strong>${escapeHtml(hasReferenceLap ? formatTelemetrySeconds(summary.referenceLap) : "No disponible")}</strong>
-            <div class="telemetry-hero-meta">${escapeHtml(referenceMeta)}</div>
-          </div>
-          <div class="telemetry-hero-core telemetry-hero-core--secondary">
-            <span>Ritmo medio</span>
-            <strong>${escapeHtml(hasAveragePace ? formatTelemetrySeconds(summary.averagePace) : "No disponible")}</strong>
-            <div class="telemetry-hero-meta">Last ${stintLine.length || 0} valid laps</div>
-          </div>
-          <div class="telemetry-speed-pack">
-            <div>
-              <span>Top speed</span>
-              <strong>${escapeHtml(hasTopSpeed ? formatTelemetrySpeed(summary.topSpeed) : "No disponible")}</strong>
-            </div>
-            <div>
-              <span>Speed trap</span>
-              <strong>${escapeHtml(hasSpeedTrap ? formatTelemetrySpeed(summary.speedTrap) : "No disponible")}</strong>
-            </div>
-          </div>
-        `}
-      </div>
-      <div class="telemetry-sector-band">
-        ${renderSectorBand("S1", summary.sector1)}
-        ${renderSectorBand("S2", summary.sector2)}
-        ${renderSectorBand("S3", summary.sector3)}
-      </div>
-    </section>
 
-    ${stintBlock}
+      <div class="telemetry-work-grid">
+        <article class="telemetry-work-main">
+          <div class="telemetry-kpi-row">
+            <div><span>Lap seleccionada</span><strong>${escapeHtml(formatTelemetrySeconds(summary.referenceLap))}</strong></div>
+            <div><span>Ritmo medio</span><strong>${escapeHtml(formatTelemetrySeconds(summary.averagePace))}</strong></div>
+            <div><span>Top speed</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))}</strong></div>
+            <div><span>Speed trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</strong></div>
+          </div>
+          <div class="telemetry-work-traces">
+            ${renderTraceBand("Speed", payload.traces?.speed || [], "speed")}
+            ${renderTraceBand("Throttle", payload.traces?.throttle || [], "throttle")}
+            ${renderTraceBand("Brake", payload.traces?.brake || [], "brake")}
+          </div>
+        </article>
 
-    ${showTracesBlock ? `
-    <section class="card engineer-card telemetry-traces-block">
-      <div class="telemetry-line-head"><strong>${escapeHtml(tracesTitle)}</strong><span>Inspección sincronizada</span></div>
-      ${lapResolution
-        ? `<div class="telemetry-lap-mode">
-            <div class="telemetry-lap-segments" role="tablist" aria-label="Selector de vuelta de trazas">
-              <button class="${activeMode === "reference" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('reference')">Referencia</button>
-              <button class="${activeMode === "latest" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('latest')">Última</button>
-              <button class="${activeMode === "manual" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('manual')">Manual</button>
+        <aside class="telemetry-work-side">
+          <div class="telemetry-lap-controls">
+            <div class="telemetry-lap-modes">
+              <button class="${engineerState.telemetry.lapMode === "reference" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('reference')">Referencia</button>
+              <button class="${engineerState.telemetry.lapMode === "latest" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('latest')">Última</button>
+              <button class="${engineerState.telemetry.lapMode === "manual" ? "active" : ""}" onclick="setEngineerTelemetryLapMode('manual')">Manual</button>
             </div>
-            ${activeMode === "manual"
-      ? `<label><span>Vuelta</span><select class="select-input" onchange="setEngineerTelemetryManualLap(this.value)">${renderTelemetrySelector(manualOptions, engineerState.telemetry.lapSelection.manualLap || String(activeLap?.lapNumber || ""))}</select></label>`
+            ${engineerState.telemetry.lapMode === "manual"
+      ? `<select class="select-input" onchange="setEngineerTelemetryManualLap(this.value)">${renderTelemetrySelector(manualOptions, engineerState.telemetry.manualLap || String(selector.selectedLapNumber || ""))}</select>`
       : ""}
-          </div>`
-        : payload.__partial
-          ? `<div class="empty-line">Preparando catálogo de vueltas con trazas…</div>`
-          : `<div class="empty-line">No hay vueltas con trazas utilizables para esta sesión.</div>`}
-      ${payload.__partial
-        ? `<div class="empty-line">Cargando trazas pesadas…</div>`
-        : `
-          ${renderTelemetryTraceInspector(tracesPayload)}
-        `}
-    </section>
-    ` : ""}
+            ${selectedLap ? `<div class="telemetry-lap-active">L${selectedLap.lapNumber} · ${escapeHtml(formatTelemetrySeconds(selectedLap.lapTime))}</div>` : ""}
+          </div>
 
-    ${showSessionContextBlock ? `
-    <section class="card engineer-card telemetry-session-bar">
-      <div><span>TRACK / AIR</span><strong>${escapeHtml(formatTelemetryTemp(weather.avgTrackTemp))} / ${escapeHtml(formatTelemetryTemp(weather.avgAirTemp))}</strong></div>
-      <div><span>WEATHER</span><strong>${escapeHtml(hasWeatherState ? weather.weatherState : "—")}</strong></div>
-    </section>
-    ` : ""}
+          ${sectors.length ? `<div class="telemetry-sectors">${sectors.map(item => `<div><span>${item.label}</span><strong>${escapeHtml(formatTelemetrySeconds(item.value))}</strong></div>`).join("")}</div>` : ""}
 
-    ${hasUsefulEvolution ? `
-    <section class="card engineer-card telemetry-evolution-timeline">
-      <div class="telemetry-line-head"><strong>Evolución sesiones</strong><span>Ref + Ritmo</span></div>
-      <div class="telemetry-timeline-strip">
-        ${evolutionRows}
+          ${stintRows.length ? `<div class="telemetry-stint-mini">${stintRows.map(item => `<div><span>S${item.number} · ${escapeHtml(item.compound || "-")}</span><strong>${escapeHtml(formatTelemetrySeconds(item.avgLap))}</strong></div>`).join("")}</div>` : ""}
+        </aside>
       </div>
     </section>
-    ` : ""}
   `;
-}
-
-function persistEngineerSubmode(mode) {
-  state.engineerSubmode = mode === "telemetry" ? "telemetry" : "prediction";
-  saveUiState();
 }
 
 function renderTelemetryPanelBody() {
   const telemetry = engineerState.telemetry;
-  if (telemetry.status === "loading" && !telemetry.payload) return `<div class="card engineer-card"><div class="empty-line">Cargando telemetría real 2026…</div></div>`;
-  if (telemetry.status === "error") return `<div class="card engineer-card"><div class="card-title">Telemetría no disponible</div><div class="empty-line">${escapeHtml(telemetry.userMessage || "Sin telemetría")}</div><div class="card-sub">Prueba otra sesión del mismo GP.</div></div>`;
-  if (telemetry.status === "empty") return `<div class="card engineer-card"><div class="card-title">Telemetría no disponible</div><div class="empty-line">${escapeHtml(telemetry.userMessage || "No hay datos para esta combinación")}</div></div>`;
-  if (!telemetry.payload) return `<div class="card engineer-card"><div class="empty-line">Selecciona GP, sesión y piloto para cargar telemetría real.</div></div>`;
-  return renderTelemetryDashboard(telemetry.payload);
+  if (telemetry.status === "loading" && !telemetry.payload) return `<div class="card engineer-card"><div class="empty-line">Cargando workspace técnico 2026…</div></div>`;
+  if (telemetry.status === "error") return `<div class="card engineer-card"><div class="card-title">Telemetría no disponible</div><div class="empty-line">${escapeHtml(telemetry.userMessage)}</div></div>`;
+  if (!telemetry.payload) return `<div class="card engineer-card"><div class="empty-line">Selecciona GP, sesión y piloto para comenzar.</div></div>`;
+  return renderTelemetryWorkspace(telemetry.payload);
 }
 
 function renderTelemetryPanel() {
   const telemetry = engineerState.telemetry;
   const context = telemetry.context || { meetings: [], sessions: [], drivers: [] };
-  const snapshotState = context.snapshot_state || {};
-  const disableSelectors = telemetry.status === "loading" && !telemetry.context;
-  const perf = telemetry.perf || null;
   const gpOptions = (context.meetings || []).map(item => ({ value: String(item.meeting_key), label: item.gp_label }));
   const sessionOptions = (context.sessions || []).map(item => ({ value: item.type_key, label: item.type_label }));
-  const driverOptions = (context.drivers || []).map(item => ({
-    value: String(item.id || ""),
-    label: item.team ? `${normalizeTelemetryDriverLabel(item.name)} · ${item.team}` : normalizeTelemetryDriverLabel(item.name)
-  }));
+  const driverOptions = (context.drivers || []).map(item => ({ value: String(item.id || ""), label: item.team ? `${item.name} · ${item.team}` : item.name }));
 
   return `
-    <section class="card engineer-card telemetry-control-panel">
-      <div class="telemetry-control-top">
-        <div class="card-title">Telemetría · 2026</div>
-        <div class="card-sub">Snapshots backend${snapshotState?.latest_useful?.gp_label ? ` · Último GP útil: ${escapeHtml(snapshotState.latest_useful.gp_label)}` : ""}${perf?.fullMs ? ` · ${Math.round(perf.fullMs)} ms` : ""}</div>
-      </div>
-      <div class="telemetry-control-strip">
-        <label><span>GP</span><select class="select-input" onchange="setEngineerTelemetryGp(this.value)" ${disableSelectors ? "disabled" : ""}>${renderTelemetrySelector(gpOptions, telemetry.gp)}</select></label>
-        <label><span>Sesión</span><select class="select-input" onchange="setEngineerTelemetrySessionType(this.value)" ${disableSelectors ? "disabled" : ""}>${renderTelemetrySelector(sessionOptions, telemetry.sessionType)}</select></label>
-        <label><span>Piloto</span><select class="select-input" onchange="setEngineerTelemetryDriver(this.value)" ${disableSelectors ? "disabled" : ""}>${renderTelemetrySelector(driverOptions, telemetry.driver)}</select></label>
+    <section class="card engineer-card telemetry-work-controls">
+      <div class="telemetry-work-controls-row">
+        <label><span>GP</span><select class="select-input" onchange="setEngineerTelemetryGp(this.value)">${renderTelemetrySelector(gpOptions, telemetry.gp)}</select></label>
+        <label><span>Sesión</span><select class="select-input" onchange="setEngineerTelemetrySessionType(this.value)">${renderTelemetrySelector(sessionOptions, telemetry.sessionType)}</select></label>
+        <label><span>Piloto</span><select class="select-input" onchange="setEngineerTelemetryDriver(this.value)">${renderTelemetrySelector(driverOptions, telemetry.driver)}</select></label>
       </div>
     </section>
     ${renderTelemetryPanelBody()}
@@ -1239,16 +727,12 @@ async function loadTelemetryData() {
   const telemetry = engineerState.telemetry;
   const requestId = ++telemetryRequestId;
   telemetry.status = "loading";
-  telemetry.phase = "context";
   telemetry.error = "";
   telemetry.userMessage = "";
   renderEngineerScreen();
 
   try {
-    const perf = { startedAt: nowMs() };
-    const contextStartedAt = nowMs();
     const context = await loadTelemetryContext();
-    perf.contextMs = nowMs() - contextStartedAt;
     if (requestId !== telemetryRequestId) return;
 
     telemetry.context = context;
@@ -1256,51 +740,39 @@ async function loadTelemetryData() {
     telemetry.sessionType = context.selections?.session_type || "";
     telemetry.sessionKey = context.selections?.session_key || "";
     telemetry.driver = context.selections?.driver || "";
-    telemetry.perf = perf;
 
     if (!telemetry.sessionKey || !telemetry.driver) {
-      telemetry.status = "empty";
+      telemetry.status = "error";
+      telemetry.userMessage = "No hay combinación válida GP/sesión/piloto con datos.";
       telemetry.payload = null;
-      telemetry.userMessage = "No hay pilotos válidos con datos para esta sesión 2026.";
       renderEngineerScreen();
       return;
     }
 
-    const telemetryStartedAt = nowMs();
-    const snapshotPayload = await fetchEngineerApi("telemetry", {
+    const payload = await fetchEngineerApi("telemetry", {
       year: TELEMETRY_SEASON_YEAR,
       meeting_key: telemetry.gp,
       session_key: telemetry.sessionKey,
-      driver_number: telemetry.driver
+      driver_number: telemetry.driver,
+      lap_mode: telemetry.lapMode,
+      manual_lap: telemetry.manualLap
     });
     if (requestId !== telemetryRequestId) return;
-    perf.fullMs = nowMs() - telemetryStartedAt;
 
-    if (!hasTelemetryPayloadData(snapshotPayload)) {
-      telemetry.status = "empty";
+    if (!hasTelemetryPayloadData(payload)) {
+      telemetry.status = "error";
+      telemetry.userMessage = "La sesión no trae trazas útiles para este piloto.";
       telemetry.payload = null;
-      telemetry.userMessage = "La fuente actual no ofrece suficientes datos para esta combinación.";
       renderEngineerScreen();
       return;
     }
 
-    telemetry.payload = snapshotPayload;
+    telemetry.payload = payload;
     telemetry.status = "ready";
-    telemetry.phase = "full";
-    telemetry.perf = perf;
     renderEngineerScreen();
-    console.info("[telemetry.perf]", {
-      gp: telemetry.gp,
-      session_key: telemetry.sessionKey,
-      driver: telemetry.driver,
-      context_ms: Math.round(perf.contextMs || 0),
-      full_ms: Math.round(perf.fullMs || 0),
-      total_ms: Math.round((perf.contextMs || 0) + (perf.fullMs || 0))
-    });
   } catch (error) {
     if (requestId !== telemetryRequestId) return;
     telemetry.status = "error";
-    telemetry.phase = "error";
     telemetry.error = String(error?.message || "");
     telemetry.userMessage = telemetryErrorMessage(error);
     telemetry.payload = null;
@@ -1312,9 +784,13 @@ function setEngineerSubmode(mode) {
   engineerState.submode = mode === "telemetry" ? "telemetry" : "prediction";
   persistEngineerSubmode(engineerState.submode);
   renderEngineerScreen();
-  if (engineerState.submode === "telemetry") {
-    loadTelemetryData();
-  }
+  if (engineerState.submode === "telemetry") loadTelemetryData();
+}
+
+function resetTelemetrySelection() {
+  engineerState.telemetry.payload = null;
+  engineerState.telemetry.manualLap = "";
+  engineerState.telemetry.lapMode = "reference";
 }
 
 function setEngineerTelemetryGp(value) {
@@ -1323,8 +799,7 @@ function setEngineerTelemetryGp(value) {
   engineerState.telemetry.sessionType = "";
   engineerState.telemetry.sessionKey = "";
   engineerState.telemetry.driver = "";
-  engineerState.telemetry.payload = null;
-  engineerState.telemetry.lapSelection = { mode: "reference", manualLap: "" };
+  resetTelemetrySelection();
   loadTelemetryData();
 }
 
@@ -1333,74 +808,28 @@ function setEngineerTelemetrySessionType(value) {
   engineerState.telemetry.context = null;
   engineerState.telemetry.sessionKey = "";
   engineerState.telemetry.driver = "";
-  engineerState.telemetry.payload = null;
-  engineerState.telemetry.lapSelection = { mode: "reference", manualLap: "" };
+  resetTelemetrySelection();
   loadTelemetryData();
 }
 
 function setEngineerTelemetryDriver(value) {
   engineerState.telemetry.driver = value || "";
   engineerState.telemetry.sessionKey = "";
-  engineerState.telemetry.payload = null;
-  engineerState.telemetry.lapSelection = { mode: "reference", manualLap: "" };
+  resetTelemetrySelection();
   loadTelemetryData();
 }
 
 function setEngineerTelemetryLapMode(mode) {
   if (!TELEMETRY_LAP_MODES.includes(mode)) return;
-  engineerState.telemetry.lapSelection.mode = mode;
-  if (mode !== "manual") engineerState.telemetry.lapSelection.manualLap = "";
-  telemetryTraceInspector.index = null;
-  renderEngineerScreen();
+  engineerState.telemetry.lapMode = mode;
+  if (mode !== "manual") engineerState.telemetry.manualLap = "";
+  loadTelemetryData();
 }
 
 function setEngineerTelemetryManualLap(value) {
-  engineerState.telemetry.lapSelection.mode = "manual";
-  engineerState.telemetry.lapSelection.manualLap = String(value || "");
-  telemetryTraceInspector.index = null;
-  renderEngineerScreen();
-}
-
-function telemetryTraceIndexFromEvent(event) {
-  const target = event?.currentTarget;
-  const points = Math.max(1, Number(target?.dataset?.points) || telemetryTraceInspector.pointCount || 1);
-  const rect = target?.getBoundingClientRect?.();
-  if (!rect || rect.width <= 0) return 0;
-  const x = Math.max(0, Math.min(rect.width, (event.clientX || 0) - rect.left));
-  const ratio = rect.width ? x / rect.width : 0;
-  return Math.max(0, Math.min(points - 1, Math.round(ratio * (points - 1))));
-}
-
-function engineerTelemetryTracePointerDown(event) {
-  telemetryTraceInspector.active = true;
-  telemetryTraceInspector.index = telemetryTraceIndexFromEvent(event);
-  if (typeof event.currentTarget?.setPointerCapture === "function") {
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-  renderEngineerScreen();
-}
-
-function engineerTelemetryTracePointerMove(event) {
-  if (event.pointerType === "mouse" && event.buttons === 0 && !telemetryTraceInspector.active) return;
-  telemetryTraceInspector.index = telemetryTraceIndexFromEvent(event);
-  renderEngineerScreen();
-}
-
-function engineerTelemetryTracePointerEnd(event) {
-  telemetryTraceInspector.active = false;
-  telemetryTraceInspector.index = null;
-  if (typeof event.currentTarget?.releasePointerCapture === "function") {
-    try { event.currentTarget.releasePointerCapture(event.pointerId); } catch (_error) { /* noop */ }
-  }
-  renderEngineerScreen();
-}
-
-function engineerTelemetryTracePointerLeave(event) {
-  if (telemetryTraceInspector.active) return;
-  if (event.pointerType === "mouse") {
-    telemetryTraceInspector.index = null;
-    renderEngineerScreen();
-  }
+  engineerState.telemetry.lapMode = "manual";
+  engineerState.telemetry.manualLap = String(value || "");
+  loadTelemetryData();
 }
 
 function renderEngineerScreen() {
@@ -1458,7 +887,9 @@ window.setEngineerTelemetrySessionType = setEngineerTelemetrySessionType;
 window.setEngineerTelemetryDriver = setEngineerTelemetryDriver;
 window.setEngineerTelemetryLapMode = setEngineerTelemetryLapMode;
 window.setEngineerTelemetryManualLap = setEngineerTelemetryManualLap;
-window.engineerTelemetryTracePointerDown = engineerTelemetryTracePointerDown;
-window.engineerTelemetryTracePointerMove = engineerTelemetryTracePointerMove;
-window.engineerTelemetryTracePointerEnd = engineerTelemetryTracePointerEnd;
-window.engineerTelemetryTracePointerLeave = engineerTelemetryTracePointerLeave;
+
+
+function persistEngineerSubmode(mode) {
+  state.engineerSubmode = mode === "telemetry" ? "telemetry" : "prediction";
+  saveUiState();
+}
