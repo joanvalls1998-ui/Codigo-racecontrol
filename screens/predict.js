@@ -414,6 +414,22 @@ function renderPredictPrimaryFocusCard(favorite, raceName, activePredictData) {
   `;
 }
 
+function renderEngineerTelemetryCompactHeader(telemetry, selector = {}, context = {}) {
+  const meeting = (context.meetings || []).find(item => String(item.meeting_key) === String(telemetry.gp));
+  const session = (context.sessions || []).find(item => String(item.type_key) === String(telemetry.sessionType));
+  const driver = (context.drivers || []).find(item => String(item.id || "") === String(telemetry.driver));
+  return `
+    <div class="telemetry-compact-header">
+      <div><span>GP</span><strong>${escapeHtml(meeting?.gp_label || "—")}</strong></div>
+      <div><span>Sesión</span><strong>${escapeHtml(session?.type_label || telemetry.sessionType || "—")}</strong></div>
+      <div><span>Piloto</span><strong>${escapeHtml(driver?.name || "—")}</strong></div>
+      <div><span>Modo vuelta</span><strong>${escapeHtml(telemetry.lapMode === "manual" ? "Manual" : telemetry.lapMode === "latest" ? "Última" : "Referencia")}</strong></div>
+      <div><span>Vuelta activa</span><strong>${selector?.selectedLapNumber ? `L${selector.selectedLapNumber}` : "—"}</strong></div>
+      <div><span>Estado</span><strong>${telemetry.status === "loading" ? "Cargando" : telemetry.status === "ready" ? "Ready" : "Idle"}</strong></div>
+    </div>
+  `;
+}
+
 function renderEngineerPredictionPanel(favorite, raceName, activePredictData, expert) {
   const scenarios = getPredictScenarios(favorite, raceName, activePredictData);
   const base = scenarios[1] || scenarios[0] || { value: "—", text: "Escenario base pendiente." };
@@ -421,75 +437,49 @@ function renderEngineerPredictionPanel(favorite, raceName, activePredictData, ex
   const mainFocus = getPredictMainFocus(favorite, raceName, activePredictData);
   const risk = mainFocus.riskFactor || { title: "Riesgo principal", text: "Lectura pendiente" };
   const needText = getWeekendKeyPoints(favorite, raceName)[0] || "Convertir ritmo en resultado sin errores.";
+  const favoritePrediction = formatFavoritePredictionText(activePredictData?.favoritePrediction);
+  const strategy = getStrategyNarrative(favorite, raceName, activePredictData);
+  const balance = getQualyRaceBalance(favorite, raceName, activePredictData);
+  const summary = activePredictData?.summary || {};
 
   return `
-    <div class="card engineer-card">
-      <div class="card-head">
-        <div class="card-head-left">
-          <div class="card-title">Predicción</div>
-          <div class="card-sub">Lectura compacta del GP</div>
+    <section class="card engineer-card engineer-wall-panel engineer-prediction-shell">
+      <div class="engineer-panel-heading">
+        <div>
+          <div class="engineer-panel-title">Predicción táctica</div>
+          <div class="engineer-panel-subtitle">Mismo lenguaje de muro · capa estratégica</div>
         </div>
         <div class="card-head-actions">
           <button class="icon-btn" onclick="sharePrediction()">Compartir</button>
         </div>
       </div>
-
-      <div class="engineer-compact-grid" style="margin-top:12px;">
-        <div class="meta-tile">
-          <div class="meta-kicker">1 · Lectura principal</div>
-          <div class="meta-value" style="font-size:18px;">${escapeHtml(mainFocus.strategy.label)}</div>
-          <div class="meta-caption">${escapeHtml(mainFocus.focus)}</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">2 · Suelo</div>
-          <div class="meta-value" style="font-size:17px;">${escapeHtml(scenarios[0]?.value || "—")}</div>
-          <div class="meta-caption">${escapeHtml(scenarios[0]?.text || "Escenario conservador")}</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">2 · Base</div>
-          <div class="meta-value" style="font-size:17px;">${escapeHtml(base.value || "—")}</div>
-          <div class="meta-caption">${escapeHtml(base.text || "Escenario base")}</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">2 · Techo</div>
-          <div class="meta-value" style="font-size:17px;">${escapeHtml(ceiling.value || "—")}</div>
-          <div class="meta-caption">${escapeHtml(ceiling.text || "Escenario alto")}</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">3 · Riesgo principal</div>
-          <div class="meta-value" style="font-size:17px;">${escapeHtml(risk.title)}</div>
-          <div class="meta-caption">${escapeHtml(risk.text)}</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">4 · Factor crítico</div>
-          <div class="meta-value" style="font-size:17px;">${escapeHtml(mainFocus.strategy.factor)}</div>
-          <div class="meta-caption">${escapeHtml(mainFocus.signal.description)}</div>
-        </div>
-        <div class="meta-tile">
-          <div class="meta-kicker">5 · Qué necesita el favorito</div>
-          <div class="meta-value" style="font-size:17px;">Ejecución limpia</div>
-          <div class="meta-caption">${escapeHtml(needText)}</div>
-        </div>
+      <div class="engineer-prediction-grid">
+        <article class="engineer-prediction-main">
+          <div class="engineer-console-line">
+            <div><span>GP</span><strong>${escapeHtml(raceName)}</strong></div>
+            <div><span>Piloto</span><strong>${escapeHtml(favorite.name)}</strong></div>
+            <div><span>Fase</span><strong>${escapeHtml(mainFocus.sprint ? "Sprint" : "Race")}</strong></div>
+            <div><span>Modo</span><strong>${expert ? "Experto" : "Casual"}</strong></div>
+          </div>
+          <div class="engineer-compact-grid" style="margin-top:10px;">
+            <div class="meta-tile"><div class="meta-kicker">1 · Lectura principal</div><div class="meta-value" style="font-size:18px;">${escapeHtml(mainFocus.strategy.label)}</div><div class="meta-caption">${escapeHtml(mainFocus.focus)}</div></div>
+            <div class="meta-tile"><div class="meta-kicker">2 · Suelo</div><div class="meta-value" style="font-size:17px;">${escapeHtml(scenarios[0]?.value || "—")}</div><div class="meta-caption">${escapeHtml(scenarios[0]?.text || "Escenario conservador")}</div></div>
+            <div class="meta-tile"><div class="meta-kicker">2 · Base</div><div class="meta-value" style="font-size:17px;">${escapeHtml(base.value || "—")}</div><div class="meta-caption">${escapeHtml(base.text || "Escenario base")}</div></div>
+            <div class="meta-tile"><div class="meta-kicker">2 · Techo</div><div class="meta-value" style="font-size:17px;">${escapeHtml(ceiling.value || "—")}</div><div class="meta-caption">${escapeHtml(ceiling.text || "Escenario alto")}</div></div>
+            <div class="meta-tile"><div class="meta-kicker">3 · Riesgo principal</div><div class="meta-value" style="font-size:17px;">${escapeHtml(risk.title)}</div><div class="meta-caption">${escapeHtml(risk.text)}</div></div>
+            <div class="meta-tile"><div class="meta-kicker">4 · Factor crítico</div><div class="meta-value" style="font-size:17px;">${escapeHtml(mainFocus.strategy.factor)}</div><div class="meta-caption">${escapeHtml(mainFocus.signal.description)}</div></div>
+            <div class="meta-tile"><div class="meta-kicker">5 · Qué necesita el favorito</div><div class="meta-value" style="font-size:17px;">Ejecución limpia</div><div class="meta-caption">${escapeHtml(needText)}</div></div>
+          </div>
+          <div style="margin-top:10px;"><div class="meta-kicker" style="margin-bottom:7px;">6 · Sábado / Domingo</div><div id="predictQualyRace">${renderPredictExecutionSplitCard(favorite, raceName, activePredictData, expert)}</div></div>
+        </article>
+        <aside class="engineer-prediction-side">
+          <section><h4>Tiempos</h4><div class="engineer-side-list"><div><span>Qualy</span><strong>${escapeHtml(favoritePrediction.qualy)}</strong></div><div><span>Carrera</span><strong>${escapeHtml(favoritePrediction.race)}</strong></div><div><span>Puntos</span><strong>${escapeHtml(favoritePrediction.points)}</strong></div><div><span>DNF</span><strong>${escapeHtml(favoritePrediction.dnf)}</strong></div></div></section>
+          <section><h4>Stint / plan</h4><div class="engineer-side-list"><div><span>Estrategia</span><strong>${escapeHtml(strategy.label)}</strong></div><div><span>Paradas</span><strong>${escapeHtml(strategy.stops)}</strong></div><div><span>Ventana</span><strong>${escapeHtml(strategy.window)}</strong></div><div><span>Balance</span><strong>${escapeHtml(balance.label)}</strong></div></div></section>
+          <section><h4>Estado sesión</h4><div class="engineer-side-list"><div><span>Ganador esperado</span><strong>${escapeHtml(summary.predictedWinner || "—")}</strong></div><div><span>Neumático base</span><strong>${escapeHtml(summary.strategy?.baseCompound || "—")}</strong></div><div><span>Meteo impacto</span><strong>${escapeHtml(summary.weatherImpact?.label || "Normal")}</strong></div><div><span>Riesgo GP</span><strong>${escapeHtml(risk.title)}</strong></div></div></section>
+        </aside>
       </div>
-
-      <div style="margin-top:12px;">
-        <div class="meta-kicker" style="margin-bottom:8px;">6 · Sábado / Domingo</div>
-        <div id="predictQualyRace">${renderPredictExecutionSplitCard(favorite, raceName, activePredictData, expert)}</div>
-      </div>
-    </div>
-
-    <div class="card engineer-card">
-      <details>
-        <summary style="cursor:pointer; font-weight:700;">7 · Análisis ampliado</summary>
-        <div id="predictSummaryCards" style="margin-top:12px;">${activePredictData ? renderPredictSummaryCards(activePredictData) : renderPredictPreviewCards(favorite, raceName)}</div>
-        <div id="predictScenarioCards" style="margin-top:10px;">${renderPredictScenarioCards(favorite, raceName, activePredictData)}</div>
-        <div id="predictKeyFactors" style="margin-top:10px;">${renderPredictKeyFactors(favorite, raceName, activePredictData)}</div>
-        <div id="predictStrategyDetail" style="margin-top:10px;">${renderPredictStrategyDetail(favorite, raceName, activePredictData)}</div>
-        <div id="predictGridRead" style="margin-top:10px;">${renderPredictGridRead(favorite, raceName, activePredictData)}</div>
-        <pre id="predictOutput" class="ai-output predict-v2-raw-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción…"}</pre>
-        <div id="predictionHistoryBox" style="margin-top:10px;">${renderPredictionHistory()}</div>
-      </details>
-    </div>
+    </section>
+    <section class="card engineer-card engineer-wall-panel"><details><summary style="cursor:pointer; font-weight:700;">7 · Análisis ampliado</summary><div id="predictSummaryCards" style="margin-top:12px;">${activePredictData ? renderPredictSummaryCards(activePredictData) : renderPredictPreviewCards(favorite, raceName)}</div><div id="predictScenarioCards" style="margin-top:10px;">${renderPredictScenarioCards(favorite, raceName, activePredictData)}</div><div id="predictKeyFactors" style="margin-top:10px;">${renderPredictKeyFactors(favorite, raceName, activePredictData)}</div><div id="predictStrategyDetail" style="margin-top:10px;">${renderPredictStrategyDetail(favorite, raceName, activePredictData)}</div><div id="predictGridRead" style="margin-top:10px;">${renderPredictGridRead(favorite, raceName, activePredictData)}</div><pre id="predictOutput" class="ai-output predict-v2-raw-output">${activePredictData ? escapeHtml(formatPredictResponse(activePredictData)) : "Preparando predicción…"}</pre><div id="predictionHistoryBox" style="margin-top:10px;">${renderPredictionHistory()}</div></details></section>
   `;
 }
 
@@ -1094,6 +1084,8 @@ function renderTelemetryWorkspace(payload) {
   ].filter(Boolean).join(" · ");
 
   const compactReadout = [
+    `<div><span>Lap</span><strong>${selectedLap ? `L${selectedLap.lapNumber}` : "—"}</strong></div>`,
+    `<div><span>Sector</span><strong>${escapeHtml(summary.currentSector || "S—")}</strong></div>`,
     `<div><span>Speed</span><strong>${escapeHtml(formatTraceValue("speed", valueAtCursor(traces.speed || [], cursorPct)))}</strong></div>`,
     `<div><span>Throttle</span><strong>${escapeHtml(formatTraceValue("pct", valueAtCursor(traces.throttle || [], cursorPct)))}</strong></div>`,
     `<div><span>Brake</span><strong>${escapeHtml(formatTraceValue("pct", valueAtCursor(traces.brake || [], cursorPct)))}</strong></div>`,
@@ -1191,6 +1183,38 @@ function renderTelemetryWorkspace(payload) {
             `
           }) : ""}
         </article>
+        <aside class="telemetry-work-side">
+          <section class="telemetry-side-block">
+            <h4>Tiempos</h4>
+            <div class="telemetry-side-list">
+              <div><span>Actual</span><strong>${escapeHtml(formatTelemetrySeconds(selectedLap?.lapTime))}</strong></div>
+              <div><span>Referencia</span><strong>${escapeHtml(formatTelemetrySeconds(summary.referenceLap))}</strong></div>
+              <div><span>S1</span><strong>${escapeHtml(formatTelemetrySeconds(summary.sector1))}</strong></div>
+              <div><span>S2</span><strong>${escapeHtml(formatTelemetrySeconds(summary.sector2))}</strong></div>
+              <div><span>S3</span><strong>${escapeHtml(formatTelemetrySeconds(summary.sector3))}</strong></div>
+            </div>
+          </section>
+
+          <section class="telemetry-side-block">
+            <h4>Stint</h4>
+            <div class="telemetry-side-list">
+              <div><span>Compuesto</span><strong>${escapeHtml(selectedLap?.compound || "—")}</strong></div>
+              <div><span>Vueltas sesión</span><strong>${sessionLaps}</strong></div>
+              <div><span>Ritmo medio</span><strong>${escapeHtml(formatTelemetrySeconds(summary.averagePace))}</strong></div>
+              <div><span>Top speed</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))}</strong></div>
+            </div>
+          </section>
+
+          <section class="telemetry-side-block">
+            <h4>Meteo</h4>
+            <div class="telemetry-side-list">
+              <div><span>Aire</span><strong>${Number.isFinite(weather.airTemp) ? `${weather.airTemp.toFixed(1)}°C` : "—"}</strong></div>
+              <div><span>Pista</span><strong>${Number.isFinite(weather.trackTemp) ? `${weather.trackTemp.toFixed(1)}°C` : "—"}</strong></div>
+              <div><span>Humedad</span><strong>${Number.isFinite(weather.humidity) ? `${Math.round(weather.humidity)}%` : "—"}</strong></div>
+              <div><span>Viento</span><strong>${Number.isFinite(weather.windSpeed) ? `${weather.windSpeed.toFixed(1)} m/s` : "—"}</strong></div>
+            </div>
+          </section>
+        </aside>
       </div>
     </section>
   `;
@@ -1222,6 +1246,7 @@ function renderTelemetryPanel() {
 
   return `
     <section class="card engineer-card telemetry-work-controls telemetry-work-controls--bar">
+      ${renderEngineerTelemetryCompactHeader(telemetry, selector, context)}
       <div class="telemetry-work-controls-row telemetry-work-controls-row--topbar">
         <label><span>GP</span><select class="select-input" onchange="setEngineerTelemetryGp(this.value)">${renderTelemetrySelector(gpOptions, telemetry.gp)}</select></label>
         <label><span>Sesión</span><select class="select-input" onchange="setEngineerTelemetrySessionType(this.value)">${renderTelemetrySelector(sessionOptions, telemetry.sessionType)}</select></label>
@@ -1606,16 +1631,16 @@ function renderEngineerScreen() {
   const expert = isExpertMode();
 
   contentEl().innerHTML = `
-    <div class="card engineer-card engineer-top-card">
-      <div class="card-head">
-        <div class="card-head-left">
+    <div class="card engineer-card engineer-top-card engineer-wall-header">
+      <div class="engineer-topline">
+        <div class="engineer-brand-line">
           <div class="card-title">Ingeniero</div>
-          <div class="card-sub">Predicción + telemetría técnica integrada</div>
+          <div class="card-sub">Control Wall · predicción y telemetría integradas</div>
         </div>
-      </div>
-      <div class="engineer-submode-switch" role="tablist" aria-label="Submodo ingeniero" style="margin-top:10px;">
-        <button class="toggle-btn ${engineerState.submode === "prediction" ? "active" : ""}" onclick="setEngineerSubmode('prediction')">Predicción</button>
-        <button class="toggle-btn ${engineerState.submode === "telemetry" ? "active" : ""}" onclick="setEngineerSubmode('telemetry')">Telemetría</button>
+        <div class="engineer-submode-switch" role="tablist" aria-label="Submodo ingeniero">
+          <button class="toggle-btn ${engineerState.submode === "prediction" ? "active" : ""}" onclick="setEngineerSubmode('prediction')">Predicción</button>
+          <button class="toggle-btn ${engineerState.submode === "telemetry" ? "active" : ""}" onclick="setEngineerSubmode('telemetry')">Telemetría</button>
+        </div>
       </div>
     </div>
 
