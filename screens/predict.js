@@ -1014,7 +1014,6 @@ function renderTelemetryWorkspace(payload) {
   const distance = traces.distance || [];
   const lapPct = valueAtCursor(relativeDistance, cursorPct);
   const lapMeters = valueAtCursor(distance, cursorPct);
-  const rangeLabel = `${Math.round(rangeStartPct)}-${Math.round(rangeEndPct)}%`;
 
   const sectors = [
     { label: "S1", value: summary.sector1 },
@@ -1155,14 +1154,6 @@ function renderTelemetryWorkspace(payload) {
             <span>% vuelta</span><strong>${escapeHtml(formatTraceValue("pct", lapPct))}</strong>
             <span>Distancia</span><strong>${escapeHtml(formatTraceValue("meters", lapMeters))}</strong>
             <span>Referencia</span><strong>${escapeHtml(formatTelemetrySeconds(summary.referenceLap))}</strong>
-          </div>
-
-          <div class="telemetry-work-traces telemetry-work-traces--primary telemetry-work-traces-grid">
-            ${renderTraceBand("Speed", traces.speed || [], "speed", rangeStartPct, rangeEndPct, "speed", cursorPct)}
-            ${renderTraceBand("Throttle", traces.throttle || [], "throttle", rangeStartPct, rangeEndPct, "pct", cursorPct)}
-            ${renderTraceBand("Brake", traces.brake || [], "brake", rangeStartPct, rangeEndPct, "pct", cursorPct)}
-            ${hasRobustData(traces.gear || []) ? renderTraceBand("Gear", traces.gear || [], "gear", rangeStartPct, rangeEndPct, "gear", cursorPct) : ""}
-            ${hasRobustData(traces.rpm || []) ? renderTraceBand("RPM", traces.rpm || [], "rpm", rangeStartPct, rangeEndPct, "rpm", cursorPct) : ""}
           </div>
 
           ${secondaryTraceRows ? renderTelemetryAccordion({
