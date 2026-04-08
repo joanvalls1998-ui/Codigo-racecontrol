@@ -855,11 +855,7 @@ function renderTelemetryRangeScrubber(traces = {}, rangeStartPct = 0, rangeEndPc
   const width = Math.max(1, end - start);
   const cursor = Math.max(start, Math.min(end, cursorPct));
   return `
-    <div class="telemetry-range-scrubber" onpointerdown="handleTelemetryScrubberPointerDown(event)">
-      <div class="telemetry-range-scrubber-top">
-        <span>Timeline de vuelta</span>
-        <strong>${Math.round(start)}-${Math.round(end)}%</strong>
-      </div>
+    <div class="telemetry-range-scrubber telemetry-range-scrubber--inline" onpointerdown="handleTelemetryScrubberPointerDown(event)">
       <div class="telemetry-range-scrubber-map">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           <polyline points="${points}" class="telemetry-range-overview-line"></polyline>
@@ -1102,7 +1098,7 @@ function renderTelemetryWorkspace(payload) {
   const secondaryTraceRows = [
     hasRobustData(traces.drs || []) ? renderTraceBand("DRS", traces.drs || [], "drs", rangeStartPct, rangeEndPct, "drs", cursorPct) : ""
   ].filter(Boolean).join("");
-  logTelemetryDriverEvent("telemetry_timeline_built_for_lap", {
+  logTelemetryDriverEvent("telemetry_track_range_built_for_lap", {
     selection_key: telemetrySelectionKey(),
     lap_number: Number(selector.selectedLapNumber) || null,
     has_timeline: Array.isArray(traces.speed) && traces.speed.length > 0
@@ -1123,16 +1119,34 @@ function renderTelemetryWorkspace(payload) {
       <div class="telemetry-work-grid">
         <article class="telemetry-work-main">
           ${hasTrackMap ? `<div class="telemetry-track-focus">
-            ${renderTelemetryRangeScrubber(traces, rangeStartPct, rangeEndPct, cursorPct)}
             <div class="telemetry-track-focus-head">
               <span>Track view · inspección</span>
-              <strong>${escapeHtml(rangeLabel)} · ${escapeHtml(formatTraceValue("pct", lapPct))}</strong>
+              <strong>${escapeHtml(`${Math.round(rangeStartPct)}–${Math.round(rangeEndPct)}% · ${Math.round(cursorPct)}%`)}</strong>
             </div>
+            <div class="telemetry-track-focus-meta">
+              <div><span>Distancia</span><strong>${escapeHtml(formatTraceValue("meters", lapMeters))}</strong></div>
+              <div><span>Ritmo sesión</span><strong>${escapeHtml(formatTelemetrySeconds(summary.averagePace))}</strong></div>
+              <div><span>Top / Trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))} · ${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</strong></div>
+              <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Reset tramo</button>
+            </div>
+            ${renderTelemetryRangeScrubber(traces, rangeStartPct, rangeEndPct, cursorPct)}
             <div class="telemetry-track-map telemetry-track-map--focus">
               <svg viewBox="0 0 100 100">${mapSegments}${mapCursor}</svg>
             </div>
           </div>` : `
-            ${renderTelemetryRangeScrubber(traces, rangeStartPct, rangeEndPct, cursorPct)}
+            <div class="telemetry-track-focus telemetry-track-focus--no-map">
+              <div class="telemetry-track-focus-head">
+                <span>Track view · inspección</span>
+                <strong>${escapeHtml(`${Math.round(rangeStartPct)}–${Math.round(rangeEndPct)}% · ${Math.round(cursorPct)}%`)}</strong>
+              </div>
+              <div class="telemetry-track-focus-meta">
+                <div><span>Distancia</span><strong>${escapeHtml(formatTraceValue("meters", lapMeters))}</strong></div>
+                <div><span>Ritmo sesión</span><strong>${escapeHtml(formatTelemetrySeconds(summary.averagePace))}</strong></div>
+                <div><span>Top / Trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))} · ${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</strong></div>
+                <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Reset tramo</button>
+              </div>
+              ${renderTelemetryRangeScrubber(traces, rangeStartPct, rangeEndPct, cursorPct)}
+            </div>
           `}
 
           <div class="telemetry-readout-rack">${compactReadout}</div>
@@ -1141,13 +1155,6 @@ function renderTelemetryWorkspace(payload) {
             <span>% vuelta</span><strong>${escapeHtml(formatTraceValue("pct", lapPct))}</strong>
             <span>Distancia</span><strong>${escapeHtml(formatTraceValue("meters", lapMeters))}</strong>
             <span>Referencia</span><strong>${escapeHtml(formatTelemetrySeconds(summary.referenceLap))}</strong>
-          </div>
-
-          <div class="telemetry-lap-range telemetry-lap-range--workspace">
-            <div><span>Rango</span><strong>${escapeHtml(rangeLabel)}</strong></div>
-            <div><span>Ritmo sesión</span><strong>${escapeHtml(formatTelemetrySeconds(summary.averagePace))}</strong></div>
-            <div><span>Top / Trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))} · ${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</strong></div>
-            <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Reset tramo</button>
           </div>
 
           <div class="telemetry-work-traces telemetry-work-traces--primary telemetry-work-traces-grid">
