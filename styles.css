@@ -4562,9 +4562,9 @@ nav > *,
 .telemetry-track-focus {
   border: 1px solid rgba(102, 248, 224, 0.3);
   border-radius: 8px;
-  padding: 9px;
+  padding: 10px;
   background: linear-gradient(180deg, rgba(11, 16, 20, 0.98), rgba(7, 10, 12, 0.98));
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .telemetry-track-focus-head {
@@ -4609,7 +4609,7 @@ nav > *,
   padding: 8px;
 }
 
-.telemetry-track-map--focus svg { height: 360px; }
+.telemetry-track-map--focus svg { height: 460px; }
 .telemetry-track-map line { fill: none; stroke-width: 2.2; stroke-linecap: round; }
 .telemetry-track-map circle { fill: #9afff1; stroke: rgba(7, 16, 19, 0.9); stroke-width: 0.9; }
 
