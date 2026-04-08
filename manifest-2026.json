@@ -1,0 +1,165 @@
+{
+  "notes": {
+    "purpose": "Non-F1 source-page URL manifest for 2026 RaceControl visual sourcing. Use these pages as sources to fetch/download lead images into the repo. Avoid hotlinking in production.",
+    "image_policy": "Prefer downloading the lead/infobox image from each source page into local repo assets instead of rendering external URLs directly.",
+    "season_basis": "2026 official driver/team line-up verified against Formula 1 drivers/teams pages and 2026 standings."
+  },
+  "drivers": {
+    "fernando-alonso": {
+      "name": "Fernando Alonso",
+      "team": "Aston Martin",
+      "source_page": "https://en.wikipedia.org/wiki/Fernando_Alonso"
+    },
+    "lance-stroll": {
+      "name": "Lance Stroll",
+      "team": "Aston Martin",
+      "source_page": "https://en.wikipedia.org/wiki/Lance_Stroll"
+    },
+    "george-russell": {
+      "name": "George Russell",
+      "team": "Mercedes",
+      "source_page": "https://en.wikipedia.org/wiki/George_Russell_(racing_driver)"
+    },
+    "kimi-antonelli": {
+      "name": "Kimi Antonelli",
+      "team": "Mercedes",
+      "source_page": "https://en.wikipedia.org/wiki/Andrea_Kimi_Antonelli"
+    },
+    "charles-leclerc": {
+      "name": "Charles Leclerc",
+      "team": "Ferrari",
+      "source_page": "https://en.wikipedia.org/wiki/Charles_Leclerc"
+    },
+    "lewis-hamilton": {
+      "name": "Lewis Hamilton",
+      "team": "Ferrari",
+      "source_page": "https://en.wikipedia.org/wiki/Lewis_Hamilton"
+    },
+    "lando-norris": {
+      "name": "Lando Norris",
+      "team": "McLaren",
+      "source_page": "https://en.wikipedia.org/wiki/Lando_Norris"
+    },
+    "oscar-piastri": {
+      "name": "Oscar Piastri",
+      "team": "McLaren",
+      "source_page": "https://en.wikipedia.org/wiki/Oscar_Piastri"
+    },
+    "max-verstappen": {
+      "name": "Max Verstappen",
+      "team": "Red Bull Racing",
+      "source_page": "https://en.wikipedia.org/wiki/Max_Verstappen"
+    },
+    "isack-hadjar": {
+      "name": "Isack Hadjar",
+      "team": "Red Bull Racing",
+      "source_page": "https://en.wikipedia.org/wiki/Isack_Hadjar"
+    },
+    "liam-lawson": {
+      "name": "Liam Lawson",
+      "team": "Racing Bulls",
+      "source_page": "https://en.wikipedia.org/wiki/Liam_Lawson"
+    },
+    "arvid-lindblad": {
+      "name": "Arvid Lindblad",
+      "team": "Racing Bulls",
+      "source_page": "https://en.wikipedia.org/wiki/Arvid_Lindblad"
+    },
+    "carlos-sainz": {
+      "name": "Carlos Sainz",
+      "team": "Williams",
+      "source_page": "https://en.wikipedia.org/wiki/Carlos_Sainz_Jr."
+    },
+    "alexander-albon": {
+      "name": "Alexander Albon",
+      "team": "Williams",
+      "source_page": "https://en.wikipedia.org/wiki/Alexander_Albon"
+    },
+    "pierre-gasly": {
+      "name": "Pierre Gasly",
+      "team": "Alpine",
+      "source_page": "https://en.wikipedia.org/wiki/Pierre_Gasly"
+    },
+    "franco-colapinto": {
+      "name": "Franco Colapinto",
+      "team": "Alpine",
+      "source_page": "https://en.wikipedia.org/wiki/Franco_Colapinto"
+    },
+    "esteban-ocon": {
+      "name": "Esteban Ocon",
+      "team": "Haas",
+      "source_page": "https://en.wikipedia.org/wiki/Esteban_Ocon"
+    },
+    "oliver-bearman": {
+      "name": "Oliver Bearman",
+      "team": "Haas",
+      "source_page": "https://en.wikipedia.org/wiki/Oliver_Bearman"
+    },
+    "nico-hulkenberg": {
+      "name": "Nico Hulkenberg",
+      "team": "Audi",
+      "source_page": "https://en.wikipedia.org/wiki/Nico_H%C3%BClkenberg"
+    },
+    "gabriel-bortoleto": {
+      "name": "Gabriel Bortoleto",
+      "team": "Audi",
+      "source_page": "https://en.wikipedia.org/wiki/Gabriel_Bortoleto"
+    },
+    "sergio-perez": {
+      "name": "Sergio Perez",
+      "team": "Cadillac",
+      "source_page": "https://en.wikipedia.org/wiki/Sergio_P%C3%A9rez"
+    },
+    "valtteri-bottas": {
+      "name": "Valtteri Bottas",
+      "team": "Cadillac",
+      "source_page": "https://en.wikipedia.org/wiki/Valtteri_Bottas"
+    }
+  },
+  "teams": {
+    "aston-martin": {
+      "name": "Aston Martin",
+      "source_page": "https://en.wikipedia.org/wiki/Aston_Martin_in_Formula_One"
+    },
+    "mercedes": {
+      "name": "Mercedes",
+      "source_page": "https://en.wikipedia.org/wiki/Mercedes-Benz_in_Formula_One"
+    },
+    "ferrari": {
+      "name": "Ferrari",
+      "source_page": "https://en.wikipedia.org/wiki/Scuderia_Ferrari"
+    },
+    "mclaren": {
+      "name": "McLaren",
+      "source_page": "https://en.wikipedia.org/wiki/McLaren"
+    },
+    "red-bull-racing": {
+      "name": "Red Bull Racing",
+      "source_page": "https://en.wikipedia.org/wiki/Red_Bull_Racing"
+    },
+    "racing-bulls": {
+      "name": "Racing Bulls",
+      "source_page": "https://en.wikipedia.org/wiki/Racing_Bulls"
+    },
+    "williams": {
+      "name": "Williams",
+      "source_page": "https://en.wikipedia.org/wiki/Williams_Grand_Prix_Engineering"
+    },
+    "alpine": {
+      "name": "Alpine",
+      "source_page": "https://en.wikipedia.org/wiki/Alpine_F1_Team"
+    },
+    "haas": {
+      "name": "Haas",
+      "source_page": "https://en.wikipedia.org/wiki/Haas_F1_Team"
+    },
+    "audi": {
+      "name": "Audi",
+      "source_page": "https://en.wikipedia.org/wiki/Audi_in_Formula_One"
+    },
+    "cadillac": {
+      "name": "Cadillac",
+      "source_page": "https://en.wikipedia.org/wiki/Cadillac_Formula_One_Team"
+    }
+  }
+}
