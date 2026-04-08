@@ -831,37 +831,17 @@ function renderTraceBand(label, values, variant = "", rangeStartPct = 0, rangeEn
   `;
 }
 
-function pickTelemetryOverviewTrace(traces = {}) {
-  const candidates = [traces.speed, traces.throttle, traces.brake, traces.rpm, traces.gear];
-  for (const series of candidates) {
-    const clean = normalizeTrace(series || []);
-    if (clean.length >= 12) return clean;
-  }
-  return [];
-}
-
-function renderTelemetryRangeScrubber(traces = {}, rangeStartPct = 0, rangeEndPct = 100, cursorPct = 0) {
-  const sampled = sampleTrace(pickTelemetryOverviewTrace(traces), 220);
-  const min = sampled.length ? Math.min(...sampled) : 0;
-  const max = sampled.length ? Math.max(...sampled) : 1;
-  const span = Math.max(1, max - min);
-  const points = sampled.map((item, idx) => {
-    const x = (idx / Math.max(1, sampled.length - 1)) * 100;
-    const y = 100 - (((item - min) / span) * 100);
-    return `${x.toFixed(2)},${y.toFixed(2)}`;
-  }).join(" ");
+function renderTelemetryTrackRangeControls(rangeStartPct = 0, rangeEndPct = 100, cursorPct = 0) {
   const start = Math.max(0, Math.min(99, rangeStartPct));
   const end = Math.max(start + 1, Math.min(100, rangeEndPct));
   const width = Math.max(1, end - start);
   const cursor = Math.max(start, Math.min(end, cursorPct));
   return `
-    <div class="telemetry-range-scrubber telemetry-range-scrubber--inline" onpointerdown="handleTelemetryScrubberPointerDown(event)">
+    <div class="telemetry-track-range-controls" onpointerdown="handleTelemetryScrubberPointerDown(event)">
       <div class="telemetry-range-scrubber-map">
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <polyline points="${points}" class="telemetry-range-overview-line"></polyline>
-          <rect x="${start.toFixed(2)}" y="0" width="${width.toFixed(2)}" height="100" class="telemetry-range-overview-window"></rect>
-          <line x1="${cursor.toFixed(2)}" y1="0" x2="${cursor.toFixed(2)}" y2="100" class="telemetry-range-overview-cursor"></line>
-        </svg>
+        <div class="telemetry-track-range-rail" aria-hidden="true"></div>
+        <div class="telemetry-track-range-window" style="left:${start.toFixed(2)}%; width:${width.toFixed(2)}%;" aria-hidden="true"></div>
+        <div class="telemetry-track-range-cursor" style="left:${cursor.toFixed(2)}%;" aria-hidden="true"></div>
         <button class="telemetry-range-window-hit" style="left:${start.toFixed(2)}%; width:${width.toFixed(2)}%;" data-drag="window" aria-label="Mover tramo"></button>
         <button class="telemetry-range-handle start" style="left:${start.toFixed(2)}%;" data-drag="start" aria-label="Mover inicio tramo"></button>
         <button class="telemetry-range-handle end" style="left:${end.toFixed(2)}%;" data-drag="end" aria-label="Mover fin tramo"></button>
@@ -1129,9 +1109,9 @@ function renderTelemetryWorkspace(payload) {
               <div><span>Top / Trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))} · ${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</strong></div>
               <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Reset tramo</button>
             </div>
-            ${renderTelemetryRangeScrubber(traces, rangeStartPct, rangeEndPct, cursorPct)}
             <div class="telemetry-track-map telemetry-track-map--focus">
               <svg viewBox="0 0 100 100">${mapSegments}${mapCursor}</svg>
+              ${renderTelemetryTrackRangeControls(rangeStartPct, rangeEndPct, cursorPct)}
             </div>
           </div>` : `
             <div class="telemetry-track-focus telemetry-track-focus--no-map">
@@ -1145,7 +1125,7 @@ function renderTelemetryWorkspace(payload) {
                 <div><span>Top / Trap</span><strong>${escapeHtml(formatTelemetrySpeed(summary.topSpeed))} · ${escapeHtml(formatTelemetrySpeed(summary.speedTrap))}</strong></div>
                 <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Reset tramo</button>
               </div>
-              ${renderTelemetryRangeScrubber(traces, rangeStartPct, rangeEndPct, cursorPct)}
+              ${renderTelemetryTrackRangeControls(rangeStartPct, rangeEndPct, cursorPct)}
             </div>
           `}
 
