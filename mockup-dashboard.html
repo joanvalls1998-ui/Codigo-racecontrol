@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RaceControl - Mockup Dashboard</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0f;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    /* === TOP BAR === */
+    .topbar {
+      background: linear-gradient(90deg, #001a1a 0%, #0d1f1f 50%, #0a1818 100%);
+      border-bottom: 1px solid #00ff94;
+      padding: 0 16px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .topbar-brand .logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #00ff94, #00cc75);
+      border-radius: 6px;
+    }
+
+    .topbar-brand .title {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .topbar-brand .subtitle {
+      font-size: 11px;
+      color: #00ff94;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .live-badge {
+      background: #ff0033;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 1px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* === NAV TABS === */
+    .nav-tabs {
+      background: #0d1117;
+      display: flex;
+      padding: 0 16px;
+      border-bottom: 1px solid #1e2530;
+    }
+
+    .nav-tab {
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b7280;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
+    }
+
+    .nav-tab.active {
+      color: #00ff94;
+      border-bottom-color: #00ff94;
+    }
+
+    .nav-tab:hover:not(.active) {
+      color: #9ca3af;
+    }
+
+    /* === ENGINEER DASHBOARD === */
+    .engineer-container {
+      flex: 1;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+    }
+
+    /* === SESSION HEADER CARD === */
+    .session-header {
+      background: linear-gradient(135deg, #0f2020 0%, #132424 50%, #0a1818 100%);
+      border: 1px solid #00ff9433;
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .gp-info {
+      flex: 1;
+    }
+
+    .gp-info .gp-name {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      margin-bottom: 4px;
+    }
+
+    .gp-info .session-info {
+      font-size: 12px;
+      color: #00ff94;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .session-stats {
+      display: flex;
+      gap: 20px;
+    }
+
+    .session-stat {
+      text-align: right;
+    }
+
+    .session-stat .val {
+      font-size: 20px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: #00ff94;
+    }
+
+    .session-stat .lbl {
+      font-size: 10px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* === TRACK VIEW CARD === */
+    .track-card {
+      background: #0d1117;
+      border: 1px solid #1e2530;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .track-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #161b22;
+      border-bottom: 1px solid #1e2530;
+    }
+
+    .track-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .track-header .driver-chip {
+      background: #1a2332;
+      border: 1px solid #2a3a52;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .driver-chip .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00ff94;
+    }
+
+    .driver-chip .team {
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    .track-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .lap-counter {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    .lap-counter span {
+      color: #fff;
+      font-weight: 700;
+    }
+
+    /* === TRACK SVG === */
+    .track-view-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: radial-gradient(ellipse at center, #0f1a1a 0%, #070d0d 70%);
+    }
+
+    .track-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .track-path {
+      fill: none;
+      stroke: #2a3a52;
+      stroke-width: 14;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .track-path-infield {
+      fill: none;
+      stroke: #1e2530;
+      stroke-width: 10;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* tyre marks */
+    .track-tyre-soft {
+      fill: none;
+      stroke: #ff6b35;
+      stroke-width: 3;
+      stroke-linecap: round;
+      opacity: 0.7;
+    }
+
+    .track-tyre-hard {
+      fill: none;
+      stroke: #ffffff;
+      stroke-width: 3;
+      stroke-linecap: round;
+      opacity: 0.7;
+    }
+
+    /* lap animation dot */
+    .car-dot {
+      fill: #00ff94;
+      filter: drop-shadow(0 0 6px #00ff94);
+    }
+
+    /* start/finish line */
+    .start-finish {
+      stroke: #fff;
+      stroke-width: 3;
+    }
+
+    /* === PLAYBACK CONTROLS === */
+    .playback-bar {
+      background: #161b22;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-top: 1px solid #1e2530;
+    }
+
+    .play-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #00ff94;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .play-btn svg {
+      fill: #0a0a0f;
+      width: 14px;
+      height: 14px;
+    }
+
+    .play-btn.paused svg {
+      width: 12px;
+      height: 14px;
+    }
+
+    .play-btn.paused {
+      background: #2a3a52;
+    }
+
+    .play-btn.paused svg path {
+      fill: #00ff94;
+    }
+
+    .timeline-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .timeline-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #6b7280;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .timeline-track {
+      height: 6px;
+      background: #1e2530;
+      border-radius: 3px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .timeline-progress {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 35%;
+      background: linear-gradient(90deg, #00ff94, #00ffaa);
+      border-radius: 3px;
+    }
+
+    .timeline-thumb {
+      position: absolute;
+      left: 35%;
+      top: -2px;
+      width: 10px;
+      height: 10px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 0 6px rgba(0,255,148,0.5);
+    }
+
+    .speed-control {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .speed-btn {
+      background: #1a2332;
+      border: 1px solid #2a3a52;
+      color: #9ca3af;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .speed-btn.active {
+      background: #00ff94;
+      color: #0a0a0f;
+      border-color: #00ff94;
+    }
+
+    /* === METRICS GRID === */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .metric-tile {
+      background: #0d1117;
+      border: 1px solid #1e2530;
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .metric-tile .lbl {
+      font-size: 10px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .metric-tile .val {
+      font-size: 22px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .metric-tile .unit {
+      font-size: 11px;
+      color: #6b7280;
+      margin-left: 2px;
+    }
+
+    .metric-tile .delta {
+      font-size: 11px;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    .delta.pos { color: #00ff94; }
+    .delta.neg { color: #ff4444; }
+    .delta.neu { color: #9ca3af; }
+
+    .metric-tile.highlight {
+      border-color: #00ff9444;
+      background: linear-gradient(135deg, #0f2020, #0d1818);
+    }
+
+    .metric-tile.highlight .val { color: #00ff94; }
+
+    /* === LAP SELECTOR === */
+    .lap-selector-row {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .lap-chip {
+      flex-shrink: 0;
+      background: #1a2332;
+      border: 1px solid #2a3a52;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 64px;
+    }
+
+    .lap-chip.selected {
+      background: #00ff94;
+      border-color: #00ff94;
+      color: #0a0a0f;
+    }
+
+    .lap-chip .lnum {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .lap-chip .ltime {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      opacity: 0.7;
+    }
+
+    .lap-chip.selected .ltime { opacity: 0.6; }
+
+    .lap-chip .compound {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .compound-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .compound.soft .compound-dot { background: #ff6b35; }
+    .compound.medium .compound-dot { background: #fff; }
+    .compound.hard .compound-dot { background: #888; }
+    .compound.inter .compound-dot { background: #88f; }
+    .compound.wet .compound-dot { background: #4af; }
+
+    /* === CIRCUIT PREVIEW (CALENDAR) === */
+    .circuit-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      padding: 12px;
+      background: #0d1117;
+    }
+
+    .circuit-item {
+      background: #161b22;
+      border: 1px solid #1e2530;
+      border-radius: 10px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .circuit-thumb {
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: #0d1117;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .circuit-thumb svg {
+      width: 90%;
+      height: 90%;
+    }
+
+    .circuit-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .circuit-meta .name {
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .circuit-meta .date {
+      font-size: 10px;
+      color: #6b7280;
+    }
+
+    .circuit-item.featured {
+      border-color: #00ff9466;
+      background: linear-gradient(135deg, #0f2020, #161b22);
+    }
+
+    .circuit-item.featured .name {
+      color: #00ff94;
+    }
+
+    /* === STINTS BAR === */
+    .stints-bar {
+      display: flex;
+      gap: 6px;
+      padding: 12px 16px;
+      background: #161b22;
+      border-top: 1px solid #1e2530;
+    }
+
+    .stint-segment {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      position: relative;
+    }
+
+    .stint-segment.soft { background: #ff6b35; }
+    .stint-segment.medium { background: #ccc; }
+    .stint-segment.hard { background: #666; }
+    .stint-segment.wet { background: #4af; }
+
+    .stint-segment .stint-info {
+      position: absolute;
+      top: -16px;
+      left: 0;
+      font-size: 9px;
+      color: #6b7280;
+      white-space: nowrap;
+    }
+
+    /* === SECTION LABEL === */
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #00ff94;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #00ff9422;
+    }
+
+    /* === MOCK CIRCUIT SVG (realistic layout for Melbourne) === */
+    .circuit-placeholder {
+      color: #3a4a5a;
+      font-size: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="logo"></div>
+    <div>
+      <div class="title">RaceControl</div>
+      <div class="subtitle">Telemetry &amp; Prediction</div>
+    </div>
+  </div>
+  <div class="live-badge">● LIVE</div>
+</div>
+
+<!-- NAV TABS -->
+<div class="nav-tabs">
+  <div class="nav-tab">Inicio</div>
+  <div class="nav-tab active">Ingeniero</div>
+  <div class="nav-tab">Favorito</div>
+  <div class="nav-tab">Calendario</div>
+  <div class="nav-tab">Clasificación</div>
+  <div class="nav-tab">Más</div>
+</div>
+
+<!-- ENGINEER CONTAINER -->
+<div class="engineer-container">
+
+  <!-- SECTION: Session Header -->
+  <div>
+    <div class="section-label">Session</div>
+    <div class="session-header">
+      <div class="gp-info">
+        <div class="gp-name">Australian Grand Prix 2026</div>
+        <div class="session-info">FP3 · Practice 3</div>
+      </div>
+      <div class="session-stats">
+        <div class="session-stat">
+          <div class="val">21</div>
+          <div class="lbl">Vueltas</div>
+        </div>
+        <div class="session-stat">
+          <div class="val">22°</div>
+          <div class="lbl">Temp</div>
+        </div>
+        <div class="session-stat">
+          <div class="val">5°</div>
+          <div class="lbl">Pista</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: Track View -->
+  <div>
+    <div class="section-label">Track View · Reproducció automàtica</div>
+    <div class="track-card">
+
+      <!-- Track header -->
+      <div class="track-header">
+        <div class="track-header-left">
+          <div class="driver-chip">
+            <div class="dot"></div>
+            <span>ALB</span>
+            <span class="team">Williams</span>
+          </div>
+        </div>
+        <div class="track-header-right">
+          <div class="lap-counter">VOLTA <span>83</span> / 21</div>
+        </div>
+      </div>
+
+      <!-- Track SVG (realistic Melbourne layout) -->
+      <div class="track-view-container">
+        <svg class="track-svg" viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+          <!-- Track background (infield) -->
+          <path class="track-path-infield"
+            d="M 340 380 C 240 380, 160 300, 160 200 C 160 120, 220 60, 320 60
+               C 380 60, 440 80, 480 100 C 520 120, 560 120, 600 100
+               C 660 70, 700 100, 700 160 C 700 240, 640 300, 560 320
+               C 500 335, 440 330, 400 310"
+            stroke-dasharray="8 4"/>
+          
+          <!-- Main track outline -->
+          <path class="track-path"
+            d="M 340 380 C 240 380, 160 300, 160 200 C 160 120, 220 60, 320 60
+               C 380 60, 440 80, 480 100 C 520 120, 560 120, 600 100
+               C 660 70, 700 100, 700 160 C 700 240, 640 300, 560 320
+               C 500 335, 440 330, 400 310 C 380 302, 365 380, 365 380"
+          />
+          
+          <!-- Start/finish line -->
+          <line class="start-finish" x1="340" y1="370" x2="340" y2="395"/>
+
+          <!-- Animated car dot (simulated position at 35% of lap) -->
+          <circle class="car-dot" cx="340" cy="380" r="7"/>
+          
+          <!-- Sector markers -->
+          <circle cx="160" cy="200" r="4" fill="#ff6b35" opacity="0.6"/>
+          <circle cx="320" cy="60" r="4" fill="#ff6b35" opacity="0.6"/>
+          <circle cx="700" cy="160" r="4" fill="#ff6b35" opacity="0.6"/>
+        </svg>
+      </div>
+
+      <!-- Playback bar -->
+      <div class="playback-bar">
+        <button class="play-btn paused">
+          <svg viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+        </button>
+        <div class="timeline-container">
+          <div class="timeline-labels">
+            <span>0%</span>
+            <span>START/FIN</span>
+            <span>100%</span>
+          </div>
+          <div class="timeline-track">
+            <div class="timeline-progress"></div>
+            <div class="timeline-thumb"></div>
+          </div>
+        </div>
+        <div class="speed-control">
+          <button class="speed-btn">0.5×</button>
+          <button class="speed-btn active">1×</button>
+          <button class="speed-btn">2×</button>
+        </div>
+      </div>
+
+      <!-- Stints bar -->
+      <div class="stints-bar">
+        <div class="stint-segment soft" title="Soft">
+          <div class="stint-info">S1 · 25 laps</div>
+        </div>
+        <div class="stint-segment medium" title="Medium">
+          <div class="stint-info">M2 · 18 laps</div>
+        </div>
+        <div class="stint-segment hard" title="Hard">
+          <div class="stint-info">H3 · —</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: Lap Selector -->
+  <div>
+    <div class="section-label">Selectorna volta</div>
+    <div class="lap-selector-row">
+      <div class="lap-chip">
+        <span class="lnum">L1</span>
+        <span class="ltime">1:32.451</span>
+        <div class="compound soft"><div class="compound-dot"></div> Soft</div>
+      </div>
+      <div class="lap-chip">
+        <span class="lnum">L2</span>
+        <span class="ltime">1:31.882</span>
+        <div class="compound soft"><div class="compound-dot"></div> Soft</div>
+      </div>
+      <div class="lap-chip selected">
+        <span class="lnum">L3</span>
+        <span class="ltime">1:31.234</span>
+        <div class="compound soft"><div class="compound-dot"></div> Soft</div>
+      </div>
+      <div class="lap-chip">
+        <span class="lnum">L4</span>
+        <span class="ltime">1:38.112</span>
+        <div class="compound medium"><div class="compound-dot"></div> Medium</div>
+      </div>
+      <div class="lap-chip">
+        <span class="lnum">L5</span>
+        <span class="ltime">1:37.891</span>
+        <div class="compound medium"><div class="compound-dot"></div> Medium</div>
+      </div>
+      <div class="lap-chip">
+        <span class="lnum">L6</span>
+        <span class="ltime">1:37.654</span>
+        <div class="compound medium"><div class="compound-dot"></div> Medium</div>
+      </div>
+      <div class="lap-chip">
+        <span class="lnum">L7</span>
+        <span class="ltime">—</span>
+        <div class="compound hard"><div class="compound-dot"></div> Hard</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: Key Metrics -->
+  <div>
+    <div class="section-label">Telemetría · Oscar Piastri · McLaren</div>
+    <div class="metrics-grid">
+      <div class="metric-tile highlight">
+        <div class="lbl">Tiempo volta</div>
+        <div class="val">1:30.1<span class="unit">s</span></div>
+        <div class="delta pos">▲ +0.234 vs best</div>
+      </div>
+      <div class="metric-tile">
+        <div class="lbl">Velocidad max</div>
+        <div class="val">311<span class="unit">km/h</span></div>
+        <div class="delta neu">— vs avg</div>
+      </div>
+      <div class="metric-tile">
+        <div class="lbl">Fuerza G</div>
+        <div class="val">4.8<span class="unit">G</span></div>
+        <div class="delta neg">▼ -0.3 vs best</div>
+      </div>
+      <div class="metric-tile">
+        <div class="lbl">Throttle</div>
+        <div class="val">89<span class="unit">%</span></div>
+        <div class="delta neu">— avg</div>
+      </div>
+      <div class="metric-tile">
+        <div class="lbl">Brake</div>
+        <div class="val">11<span class="unit">%</span></div>
+        <div class="delta neu">—</div>
+      </div>
+      <div class="metric-tile">
+        <div class="lbl">ERS</div>
+        <div class="val">+2.3<span class="unit">MJ/lap</span></div>
+        <div class="delta pos">▲</div>
+      </div>
+      <div class="metric-tile">
+        <div class="lbl">Fuel</div>
+        <div class="val">78<span class="unit">kg</span></div>
+        <div class="delta neu">P17</div>
+      </div>
+      <div class="metric-tile">
+        <div class="lbl">Tyre life</div>
+        <div class="val">18<span class="unit">laps</span></div>
+        <div class="delta neu">Medium</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: Circuit Calendar Preview -->
+  <div>
+    <div class="section-label">Calendari 2026</div>
+    <div class="circuit-grid">
+      <div class="circuit-item featured">
+        <div class="circuit-thumb">
+          <!-- Real SVG circuit: Melbourne Albert Park -->
+          <svg viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 65 C10 60, 8 40, 15 28 C20 18, 35 10, 50 10 C65 10, 80 18, 88 30 C96 42, 92 60, 80 68 C68 75, 40 75, 30 70" stroke="#00ff94" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M20 65 L15 68 M88 30 L93 26 M80 68 L84 72" stroke="#00ff94" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="20" cy="65" r="2" fill="#00ff94"/>
+          </svg>
+        </div>
+        <div class="circuit-meta">
+          <div class="name">Australian GP</div>
+          <div class="date">16 Mar</div>
+        </div>
+      </div>
+      <div class="circuit-item">
+        <div class="circuit-thumb">
+          <!-- Shanghai SVG -->
+          <svg viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M25 60 C15 55, 10 40, 20 25 C30 10, 50 8, 70 10 C90 12, 105 25, 100 45 C95 65, 70 75, 50 70 C35 66, 28 65, 25 60" stroke="#3a5070" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M70 10 L70 3 M100 45 L108 42" stroke="#3a5070" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="25" cy="60" r="2" fill="#3a5070"/>
+          </svg>
+        </div>
+        <div class="circuit-meta">
+          <div class="name">Chinese GP</div>
+          <div class="date">23 Mar</div>
+        </div>
+      </div>
+      <div class="circuit-item">
+        <div class="circuit-thumb">
+          <!-- Suzuka SVG -->
+          <svg viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 55 C8 45, 12 30, 25 20 C38 10, 60 5, 80 8 C100 11, 110 25, 105 45 C100 65, 75 75, 50 70 C30 66, 18 62, 15 55" stroke="#3a5070" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <circle cx="13" cy="13" r="8" stroke="#3a5070" stroke-width="2" fill="none"/>
+            <path d="M15 55 L8 58 M80 8 L83 2" stroke="#3a5070" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="circuit-meta">
+          <div class="name">Japanese GP</div>
+          <div class="date">6 Abr</div>
+        </div>
+      </div>
+      <div class="circuit-item">
+        <div class="circuit-thumb">
+          <!-- Bahrain SVG -->
+          <svg viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M60 10 C80 10, 105 25, 105 50 C105 75, 75 78, 50 70 C25 62, 15 40, 20 25 C25 12, 40 8, 60 10" stroke="#3a5070" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M60 10 L60 2 M105 50 L113 50" stroke="#3a5070" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="circuit-meta">
+          <div class="name">Bahrain GP</div>
+          <div class="date">13 Abr</div>
+        </div>
+      </div>
+      <div class="circuit-item">
+        <div class="circuit-thumb">
+          <!-- Miami SVG -->
+          <svg viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 50 C10 45, 8 30, 18 18 C28 6, 50 5, 72 10 C95 15, 110 35, 105 55 C100 72, 75 78, 55 72 C35 66, 25 56, 20 50" stroke="#3a5070" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M60 8 L60 1 M105 35 L112 30" stroke="#3a5070" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="circuit-meta">
+          <div class="name">Miami GP</div>
+          <div class="date">4 May</div>
+        </div>
+      </div>
+      <div class="circuit-item">
+        <div class="circuit-thumb">
+          <!-- Monaco SVG -->
+          <svg viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M30 15 C50 8, 90 8, 105 25 C120 42, 110 70, 85 75 C60 80, 20 70, 15 45 C10 22, 15 18, 30 15" stroke="#3a5070" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <circle cx="15" cy="45" r="6" stroke="#3a5070" stroke-width="2" fill="none"/>
+            <path d="M30 15 L28 6" stroke="#3a5070" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="circuit-meta">
+          <div class="name">Monaco GP</div>
+          <div class="date">25 May</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

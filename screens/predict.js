@@ -851,6 +851,50 @@ function renderTelemetryTrackRangeControls(rangeStartPct = 0, rangeEndPct = 100,
   `;
 }
 
+/**
+ * Playback controls bar rendered below the track map.
+ * Hands-off: does NOT render the scrubber (that is the existing range scrubber).
+ * The player drives the car dot; user can also drag the playback scrubber.
+ */
+function renderTelemetryPlaybackControls(relativeDistance = [], speed = [], selectedLap = null) {
+  const lapLabel = selectedLap ? `L${selectedLap.lapNumber}` : "—";
+  const lapTime  = selectedLap && Number.isFinite(selectedLap.lapTime)
+    ? formatTelemetrySeconds(selectedLap.lapTime) : "—";
+  return `
+    <div class="telemetry-playback-bar">
+      <div class="telemetry-playback-head">
+        <div class="telemetry-playback-lap-info">
+          <span class="telemetry-playback-lap-label">${escapeHtml(lapLabel)}</span>
+          <span class="telemetry-playback-lap-time">${escapeHtml(lapTime)}</span>
+        </div>
+        <div class="telemetry-playback-controls">
+          <button id="telemetry-play-btn" class="telemetry-playback-btn" aria-label="Reproducir" title="Reproducir / Pausar">
+            ▶
+          </button>
+          <div class="telemetry-speed-group" role="group" aria-label="Velocidad de reproducción">
+            <button id="telemetry-speed-05" class="telemetry-speed-btn" data-speed="0.5" aria-pressed="false">0.5×</button>
+            <button id="telemetry-speed-1"  class="telemetry-speed-btn active" data-speed="1"   aria-pressed="true">1×</button>
+            <button id="telemetry-speed-2"  class="telemetry-speed-btn" data-speed="2"   aria-pressed="false">2×</button>
+          </div>
+          <button class="telemetry-playback-btn telemetry-playback-stop-btn" id="telemetry-stop-btn" aria-label="Detener" title="Detener y reiniciar">
+            ⏹
+          </button>
+        </div>
+      </div>
+      <div class="telemetry-playback-scrubber-row">
+        <input
+          type="range"
+          id="telemetry-playback-scrubber"
+          class="telemetry-playback-scrubber"
+          min="0" max="100" value="0" step="0.1"
+          aria-label="Progreso de vuelta"
+        />
+        <span id="telemetry-playback-time" class="telemetry-playback-time">0%</span>
+      </div>
+    </div>
+  `;
+}
+
 function hasRobustData(values = [], min = 8) {
   return (Array.isArray(values) ? values : []).filter(Number.isFinite).length >= min;
 }
@@ -978,6 +1022,276 @@ function renderLapOption(item = {}) {
   if (item.isBest) chunks.push("PB");
   if (item.compound) chunks.push(item.compound);
   return chunks.join(" · ");
+}
+
+/**
+ * TelemetryPlayer — animates a car dot along the track path with playback controls.
+ *
+ * Usage:
+ *   const player = new TelemetryPlayer({
+ *     containerId: "telemetry-track-map--focus",  // ID of the map div (no #)
+ *     trackSvgId:  "telemetry-track-playback-svg", // ID of the <svg> inside container
+ *     carDotId:    "telemetry-car-dot",            // ID of the <circle> car element
+ *     scrubberId:  "telemetry-playback-scrubber",  // ID of the <input type="range">
+ *     playBtnId:   "telemetry-play-btn",           // ID of the play/pause <button>
+ *     speedBtnIds: ["telemetry-speed-05","telemetry-speed-1","telemetry-speed-2"],
+ *     onSeek: (pct) => { setEngineerTelemetryCursor(pct); },
+ *     onPlayStateChange: (isPlaying) => { ... }
+ *   });
+ *   player.setData({ trackX, trackY, speed, relativeDistance });
+ *   player.play(); // etc.
+ */
+class TelemetryPlayer {
+  constructor({
+    containerId, trackSvgId, carDotId, scrubberId, playBtnId, speedBtnIds = [],
+    onSeek, onPlayStateChange
+  } = {}) {
+    this.containerId = containerId;
+    this.trackSvgId  = trackSvgId;
+    this.carDotId   = carDotId;
+    this.scrubberId = scrubberId;
+    this.playBtnId  = playBtnId;
+    this.speedBtnIds = speedBtnIds;
+    this.onSeek = onSeek || (() => {});
+    this.onPlayStateChange = onPlayStateChange || (() => {});
+
+    this.trackX = [];
+    this.trackY = [];
+    this.speed  = [];
+    this.relativeDistance = [];
+
+    this._playing    = false;
+    this._animId     = null;
+    this._lastTs     = null;
+    this._progress   = 0;   // 0–100
+    this._speed      = 1;   // 0.5 | 1 | 2
+    this._carIndex   = 0;
+    this._pathLength = 0;
+
+    this._bindEvents();
+  }
+
+  // ─── Public API ───────────────────────────────────────────────────────────
+
+  setData({ trackX = [], trackY = [], speed = [], relativeDistance = [] } = {}) {
+    this.trackX = normalizeTrace(trackX);
+    this.trackY = normalizeTrace(trackY);
+    this.speed  = normalizeTrace(speed);
+    this.relativeDistance = normalizeTrace(relativeDistance);
+    this._carIndex = 0;
+    this._progress = 0;
+    this._syncCarDot(0);
+    this._syncScrubber(0);
+    this._buildPath();
+  }
+
+  play() {
+    if (this._playing) return;
+    if (this._progress >= 100) {
+      this._progress = 0;
+      this._carIndex = 0;
+    }
+    this._playing = true;
+    this._lastTs = null;
+    this._updatePlayBtn(true);
+    this.onPlayStateChange(true);
+    this._animId = requestAnimationFrame(ts => this._tick(ts));
+  }
+
+  pause() {
+    this._playing = false;
+    if (this._animId) cancelAnimationFrame(this._animId);
+    this._animId = null;
+    this._updatePlayBtn(false);
+    this.onPlayStateChange(false);
+  }
+
+  stop() {
+    this.pause();
+    this._progress = 0;
+    this._carIndex = 0;
+    this._syncCarDot(0);
+    this._syncScrubber(0);
+    this.onSeek(0);
+  }
+
+  setSpeed(s) {
+    this._speed = s;
+    this.speedBtnIds.forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      const isActive = btn.dataset.speed === String(s);
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
+
+  seekTo(pct) {
+    this._progress = Math.max(0, Math.min(100, pct));
+    this._carIndex = this._carIndexFromProgress(this._progress);
+    this._syncCarDot(this._progress);
+    this._syncScrubber(this._progress);
+    this.onSeek(this._progress);
+  }
+
+  destroy() {
+    this.pause();
+    document.removeEventListener("pointermove", this._onPointerMove);
+    document.removeEventListener("pointerup",   this._onPointerUp);
+  }
+
+  // ─── Private ───────────────────────────────────────────────────────────────
+
+  _bindEvents() {
+    // Play / pause
+    const playBtn = document.getElementById(this.playBtnId);
+    if (playBtn) playBtn.addEventListener("click", () => this._playing ? this.pause() : this.play());
+
+    // Speed buttons
+    this.speedBtnIds.forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.addEventListener("click", () => {
+        const s = parseFloat(btn.dataset.speed);
+        if (!Number.isFinite(s)) return;
+        this.setSpeed(s);
+      });
+    });
+
+    // Scrubber drag
+    this._onPointerMove = e => {
+      if (!this._dragging) return;
+      const pct = this._scrubberPct(e.clientX);
+      this.seekTo(pct);
+    };
+    this._onPointerUp = () => {
+      this._dragging = false;
+    };
+    document.addEventListener("pointermove", this._onPointerMove);
+    document.addEventListener("pointerup",   this._onPointerUp);
+
+    const scrubber = document.getElementById(this.scrubberId);
+    if (scrubber) {
+      scrubber.addEventListener("pointerdown", e => {
+        this._dragging = true;
+        const pct = this._scrubberPct(e.clientX);
+        this.seekTo(pct);
+        e.preventDefault();
+      });
+    }
+  }
+
+  _scrubberPct(clientX) {
+    const scrubber = document.getElementById(this.scrubberId);
+    if (!scrubber) return 0;
+    const rect = scrubber.getBoundingClientRect();
+    return ((clientX - rect.left) / rect.width) * 100;
+  }
+
+  _buildPath() {
+    const svg = document.getElementById(this.trackSvgId);
+    if (!svg || this.trackX.length < 2) return;
+
+    const minX = Math.min(...this.trackX);
+    const maxX = Math.max(...this.trackX);
+    const minY = Math.min(...this.trackY);
+    const maxY = Math.max(...this.trackY);
+    const spanX = Math.max(1, maxX - minX);
+    const spanY = Math.max(1, maxY - minY);
+    const maxSpeed = this.speed.length ? Math.max(...this.speed, 1) : 1;
+
+    const n = this.trackX.length;
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const x = ((this.trackX[i] - minX) / spanX) * 100;
+      const y = 100 - (((this.trackY[i] - minY) / spanY) * 100);
+      pts.push({ x, y, speedRatio: this.speed[i] / maxSpeed });
+    }
+
+    // Rebuild track segments with speed hue
+    let segmentsHtml = "";
+    for (let i = 0; i < pts.length - 1; i++) {
+      const hue = 14 + (pts[i].speedRatio * 142);
+      const opacity = 0.42;
+      segmentsHtml += `<line x1="${pts[i].x.toFixed(2)}" y1="${pts[i].y.toFixed(2)}" x2="${pts[i+1].x.toFixed(2)}" y2="${pts[i+1].y.toFixed(2)}" stroke="hsl(${hue.toFixed(0)} 88% 63%)" opacity="${opacity}" stroke-width="2.2" stroke-linecap="round"></line>`;
+    }
+
+    // Update only the <line> elements in the SVG
+    const existingLines = svg.querySelectorAll("line");
+    existingLines.forEach(el => el.remove());
+    svg.insertAdjacentHTML("afterbegin", segmentsHtml);
+
+    // Compute path length for progress mapping
+    this._pts = pts;
+    this._minX = minX; this._maxX = maxX; this._spanX = spanX;
+    this._minY = minY; this._maxY = maxY; this._spanY = spanY;
+    this._pathLength = pts.length;
+  }
+
+  _carIndexFromProgress(pct) {
+    if (!this._pts || !this._pts.length) return 0;
+    return Math.round((pct / 100) * (this._pts.length - 1));
+  }
+
+  _syncCarDot(pct) {
+    const dot = document.getElementById(this.carDotId);
+    const svg = document.getElementById(this.trackSvgId);
+    if (!dot || !svg) return;
+    const idx = this._carIndexFromProgress(pct);
+    const pts = this._pts || [];
+    if (!pts.length) return;
+    const p = pts[Math.max(0, Math.min(idx, pts.length - 1))];
+    if (!p) return;
+    dot.setAttribute("cx", p.x.toFixed(2));
+    dot.setAttribute("cy", p.y.toFixed(2));
+  }
+
+  _syncScrubber(pct) {
+    const scrubber = document.getElementById(this.scrubberId);
+    if (scrubber) scrubber.value = Math.max(0, Math.min(100, pct));
+    const label = document.getElementById("telemetry-playback-time");
+    if (label) {
+      label.textContent = `${Math.round(pct)}%`;
+    }
+  }
+
+  _updatePlayBtn(isPlaying) {
+    const btn = document.getElementById(this.playBtnId);
+    if (!btn) return;
+    btn.textContent = isPlaying ? "⏸" : "▶";
+    btn.setAttribute("aria-label", isPlaying ? "Pausar" : "Reproducir");
+    btn.classList.toggle("playing", isPlaying);
+  }
+
+  _tick(ts) {
+    if (!this._playing) return;
+
+    if (this._lastTs === null) {
+      this._lastTs = ts;
+      this._animId = requestAnimationFrame(t => this._tick(t));
+      return;
+    }
+
+    const deltaMs  = ts - this._lastTs;
+    this._lastTs   = ts;
+    // Full lap animation in ~18 seconds at 1× speed
+    const msPerPct = (18 * 1000) / 100;
+    this._progress += (deltaMs / msPerPct) * this._speed;
+
+    if (this._progress >= 100) {
+      this._progress = 100;
+      this._syncCarDot(100);
+      this._syncScrubber(100);
+      this.onSeek(100);
+      this.pause();
+      return;
+    }
+
+    this._carIndex = this._carIndexFromProgress(this._progress);
+    this._syncCarDot(this._progress);
+    this._syncScrubber(this._progress);
+    this.onSeek(this._progress);
+    this._animId = requestAnimationFrame(t => this._tick(t));
+  }
 }
 
 function renderTelemetryWorkspace(payload) {
@@ -1110,9 +1424,9 @@ function renderTelemetryWorkspace(payload) {
               <button class="btn-secondary" onclick="resetEngineerTelemetryRange()">Reset tramo</button>
             </div>
             <div class="telemetry-track-map telemetry-track-map--focus">
-              <svg viewBox="0 0 100 100">${mapSegments}${mapCursor}</svg>
-              ${renderTelemetryTrackRangeControls(rangeStartPct, rangeEndPct, cursorPct)}
+              <svg id="telemetry-track-playback-svg" viewBox="0 0 100 100">${mapSegments}${mapCursor}<circle id="telemetry-car-dot" cx="50" cy="50" r="4"></circle></svg>
             </div>
+            ${renderTelemetryPlaybackControls(relativeDistance, speedSeries, selectedLap)}
           </div>` : `
             <div class="telemetry-track-focus telemetry-track-focus--no-map">
               <div class="telemetry-track-focus-head">
@@ -1504,6 +1818,7 @@ function setEngineerTelemetryRangeStart(value) {
   const start = Math.max(0, Math.min(99, Number(value) || 0));
   engineerState.telemetry.rangeStartPct = Math.min(start, engineerState.telemetry.rangeEndPct - 1);
   engineerState.telemetry.cursorPct = Math.max(engineerState.telemetry.rangeStartPct, Math.min(engineerState.telemetry.cursorPct, engineerState.telemetry.rangeEndPct));
+  if (telemetryPlayer && telemetryPlayer._playing) return;
   renderEngineerScreen();
 }
 
@@ -1511,16 +1826,22 @@ function setEngineerTelemetryRangeEnd(value) {
   const end = Math.max(1, Math.min(100, Number(value) || 100));
   engineerState.telemetry.rangeEndPct = Math.max(end, engineerState.telemetry.rangeStartPct + 1);
   engineerState.telemetry.cursorPct = Math.min(engineerState.telemetry.rangeEndPct, Math.max(engineerState.telemetry.cursorPct, engineerState.telemetry.rangeStartPct));
+  if (telemetryPlayer && telemetryPlayer._playing) return;
   renderEngineerScreen();
 }
 
 function setEngineerTelemetryCursor(value) {
   const cursor = Number(value) || 0;
   engineerState.telemetry.cursorPct = Math.max(engineerState.telemetry.rangeStartPct, Math.min(engineerState.telemetry.rangeEndPct, cursor));
+  // Skip full re-render if player is already live — just update state
+  if (telemetryPlayer && telemetryPlayer._playing) {
+    return;
+  }
   renderEngineerScreen();
 }
 
 function resetEngineerTelemetryRange() {
+  if (telemetryPlayer) telemetryPlayer.stop();
   engineerState.telemetry.rangeStartPct = 0;
   engineerState.telemetry.rangeEndPct = 100;
   engineerState.telemetry.cursorPct = 0;
@@ -1609,6 +1930,49 @@ function handleTelemetryScrubberPointerDown(event) {
   document.addEventListener("pointercancel", handleTelemetryScrubberPointerUp);
 }
 
+let telemetryPlayer = null;
+
+function initTelemetryPlayer() {
+  // Tear down previous player
+  if (telemetryPlayer) {
+    telemetryPlayer.destroy();
+    telemetryPlayer = null;
+  }
+
+  const payload = engineerState.telemetry.payload;
+  if (!payload) return;
+
+  const traces = payload.traces || {};
+  telemetryPlayer = new TelemetryPlayer({
+    containerId:  "telemetry-track-map--focus",
+    trackSvgId:   "telemetry-track-playback-svg",
+    carDotId:     "telemetry-car-dot",
+    scrubberId:    "telemetry-playback-scrubber",
+    playBtnId:    "telemetry-play-btn",
+    speedBtnIds:  ["telemetry-speed-05", "telemetry-speed-1", "telemetry-speed-2"],
+    onSeek: pct => setEngineerTelemetryCursor(pct),
+    onPlayStateChange: isPlaying => {
+      // Keep range scrubber and playback scrubber in sync while playing
+    }
+  });
+
+  telemetryPlayer.setData({
+    trackX:          traces.trackX || [],
+    trackY:          traces.trackY || [],
+    speed:           traces.speed  || [],
+    relativeDistance: traces.relativeDistance || []
+  });
+
+  // Wire stop button
+  const stopBtn = document.getElementById("telemetry-stop-btn");
+  if (stopBtn) {
+    stopBtn.addEventListener("click", () => {
+      if (telemetryPlayer) telemetryPlayer.stop();
+      resetEngineerTelemetryRange();
+    });
+  }
+}
+
 function renderEngineerScreen() {
   const selectedRace = getSelectedRace();
   const isPrediction = engineerState.submode === "prediction";
@@ -1635,6 +1999,11 @@ function renderEngineerScreen() {
       ? renderEngineerPredictionPanel(favorite, selectedRace, activePredictData, expert)
       : renderTelemetryPanel()}
   `;
+
+  // Bootstrap the playback player once DOM is painted
+  setTimeout(() => {
+    if (engineerState.submode === "telemetry") initTelemetryPlayer();
+  }, 0);
 
   if (engineerState.submode === "prediction" && needFreshPredict) {
     setTimeout(() => runPredict(), 80);
@@ -1671,6 +2040,7 @@ window.setEngineerTelemetryCursor = setEngineerTelemetryCursor;
 window.resetEngineerTelemetryRange = resetEngineerTelemetryRange;
 window.handleTelemetryScrubberPointerDown = handleTelemetryScrubberPointerDown;
 window.toggleTelemetryAccordion = toggleTelemetryAccordion;
+window.initTelemetryPlayer = initTelemetryPlayer;
 
 
 function persistEngineerSubmode(mode) {

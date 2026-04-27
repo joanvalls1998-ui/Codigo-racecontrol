@@ -4710,6 +4710,178 @@ nav > *,
 .telemetry-stint-mini { display: grid; gap: 6px; }
 .telemetry-stint-mini { margin-top: 6px; }
 
+/* ── Playback track view ──────────────────────────────────────── */
+.telemetry-playback-bar {
+  margin-top: 10px;
+  padding: 10px 12px 12px;
+  border-radius: 10px;
+  background: rgba(8, 13, 16, 0.96);
+  border: 1px solid rgba(102, 248, 224, 0.28);
+  box-shadow: inset 0 1px 0 rgba(102, 248, 224, 0.1);
+}
+
+.telemetry-playback-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.telemetry-playback-lap-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.telemetry-playback-lap-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #66f8e0;
+  letter-spacing: 0.01em;
+}
+
+.telemetry-playback-lap-time {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.telemetry-playback-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.telemetry-playback-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(102, 248, 224, 0.12);
+  border: 1px solid rgba(102, 248, 224, 0.3);
+  color: #66f8e0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.14s ease;
+}
+
+.telemetry-playback-btn:hover {
+  background: rgba(102, 248, 224, 0.22);
+}
+
+.telemetry-playback-btn:active {
+  transform: scale(0.95);
+}
+
+.telemetry-playback-btn.playing {
+  background: rgba(102, 248, 224, 0.2);
+  box-shadow: 0 0 0 1.5px rgba(102, 248, 224, 0.4);
+}
+
+.telemetry-playback-stop-btn {
+  background: rgba(255, 100, 100, 0.1);
+  border-color: rgba(255, 100, 100, 0.28);
+  color: rgba(255, 140, 140, 0.9);
+}
+
+.telemetry-playback-stop-btn:hover {
+  background: rgba(255, 100, 100, 0.18);
+}
+
+.telemetry-speed-group {
+  display: flex;
+  gap: 4px;
+}
+
+.telemetry-speed-btn {
+  min-width: 36px;
+  height: 28px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.telemetry-speed-btn:hover {
+  background: rgba(102, 248, 224, 0.08);
+  border-color: rgba(102, 248, 224, 0.28);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.telemetry-speed-btn.active {
+  background: rgba(102, 248, 224, 0.16);
+  border-color: rgba(102, 248, 224, 0.44);
+  color: #66f8e0;
+}
+
+/* Playback scrubber row */
+.telemetry-playback-scrubber-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.telemetry-playback-scrubber {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+  cursor: pointer;
+}
+
+.telemetry-playback-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #66f8e0;
+  box-shadow: 0 0 6px rgba(102, 248, 224, 0.5), 0 2px 5px rgba(0, 0, 0, 0.4);
+  cursor: grab;
+  transition: transform 0.14s ease;
+}
+
+.telemetry-playback-scrubber::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.2);
+}
+
+.telemetry-playback-scrubber::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background: #66f8e0;
+  box-shadow: 0 0 6px rgba(102, 248, 224, 0.5), 0 2px 5px rgba(0, 0, 0, 0.4);
+  cursor: grab;
+}
+
+.telemetry-playback-time {
+  min-width: 36px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  color: #66f8e0;
+  letter-spacing: 0.01em;
+}
+
+/* Car dot — matches existing telemetry-track-map circle style */
+#telemetry-car-dot {
+  fill: #9afff1;
+  stroke: rgba(7, 16, 19, 0.9);
+  stroke-width: 0.8;
+  filter: drop-shadow(0 0 4px rgba(154, 255, 241, 0.7));
+  transition: r 0.1s ease;
+}
+
 @media (max-width: 980px) {
   .engineer-topline,
   .engineer-prediction-grid,
