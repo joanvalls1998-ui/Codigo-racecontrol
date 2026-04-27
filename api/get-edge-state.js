@@ -1,15 +1,4 @@
-import { get } from "@vercel/edge-config";
-
-const DEFAULT_STATE = {
-  meta: {
-    updatedAt: null,
-    version: 1
-  },
-  teams: {},
-  drivers: {},
-  newsSignals: [],
-  weeklySnapshots: []
-};
+import { readState } from "../lib/state-manager.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -17,38 +6,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const edgeState = await get("state");
-
-    if (
-      edgeState &&
-      typeof edgeState === "object" &&
-      !Array.isArray(edgeState)
-    ) {
-      return res.status(200).json({
-        ok: true,
-        source: "edge-config",
-        state: {
-          meta: edgeState.meta || DEFAULT_STATE.meta,
-          teams: edgeState.teams || {},
-          drivers: edgeState.drivers || {},
-          newsSignals: Array.isArray(edgeState.newsSignals)
-            ? edgeState.newsSignals
-            : [],
-          weeklySnapshots: Array.isArray(edgeState.weeklySnapshots)
-            ? edgeState.weeklySnapshots
-            : []
-        }
-      });
-    }
-
+    const state = await readState();
     return res.status(200).json({
       ok: true,
-      source: "default-empty",
-      state: DEFAULT_STATE
+      source: "local",
+      state
     });
   } catch (error) {
     return res.status(500).json({
-      error: "Error al leer Edge Config",
+      error: "Error al leer state",
       message: error.message
     });
   }
