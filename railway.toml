@@ -1,13 +1,8 @@
 [build]
-builder = "nixpacks"
-nixpacksVersion = "latest"
-
-[build.environment]
-NODE_VERSION = "18"
+builder = "dockerfile"
 
 [deploy]
 startCommand = "node server.js"
-healthcheckPath = "/"
 restartPolicyType = "ON_FAILURE"
 restartPolicyLimit = 3
 
