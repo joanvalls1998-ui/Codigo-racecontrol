@@ -1,0 +1,15 @@
+[build]
+builder = "nixpacks"
+nixpacksVersion = "latest"
+
+[build.environment]
+NODE_VERSION = "18"
+
+[deploy]
+startCommand = "node server.js"
+healthcheckPath = "/"
+restartPolicyType = "ON_FAILURE"
+restartPolicyLimit = 3
+
+[[ports]]
+containerPort = 3000
