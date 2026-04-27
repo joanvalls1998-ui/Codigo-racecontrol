@@ -202,11 +202,12 @@ app.use("/api/reset-edge-state", (req, res) => {
 });
 
 // ENGINEER routes
+async function loadEngineer(name) {
+  try { return await import(`./api/engineer/${name}.js`); } catch { return null; }
+}
+
 app.get("/api/engineer/snapshot-index", async (req, res) => {
-  try {
-    const index = getSnapshotIndex();
-    res.json(index);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json(getSnapshotIndex()); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post("/api/engineer/persist-snapshot", async (req, res) => {
@@ -214,8 +215,7 @@ app.post("/api/engineer/persist-snapshot", async (req, res) => {
     const { params, payload, source, status } = getBody(req);
     if (!params) return res.status(400).json({ error: "Faltan params" });
     const snapshotId = buildSnapshotId(params);
-    const fileName = buildSnapshotFileName(snapshotId);
-    const filePath = join(SNAPSHOTS_DIR, fileName);
+    const filePath = join(SNAPSHOTS_DIR, buildSnapshotFileName(snapshotId));
     ensureSnapshotsDir();
     const entry = {
       snapshot_id: snapshotId, status: status || "ready",
@@ -235,10 +235,25 @@ app.get("/api/engineer/read-snapshot", async (req, res) => {
     const snapshotId = buildSnapshotId({ year, meetingKey, sessionKey, driverNumber, mode });
     const filePath = join(SNAPSHOTS_DIR, buildSnapshotFileName(snapshotId));
     if (!existsSync(filePath)) return res.status(404).json({ error: "Snapshot no encontrado" });
-    const data = JSON.parse(readFileSync(filePath, "utf-8"));
-    res.json(data);
+    res.json(JSON.parse(readFileSync(filePath, "utf-8")));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+// Mount all engineer API handlers
+const engineerHandlers = [
+  ["entities", "GET"], ["meetings", "GET"], ["sessions", "GET"],
+  ["telemetry", "GET"], ["context", "GET"], ["compare", "GET"],
+  ["summary", "GET"], ["sectors", "GET"], ["stints", "GET"],
+  ["evolution", "GET"], ["coverage", "GET"], ["snapshot-status", "GET"],
+  ["debug", "GET"]
+];
+
+for (const [name, method] of engineerHandlers) {
+  const mod = await loadEngineer(name);
+  if (mod) {
+    app[method.toLowerCase()](`/api/engineer/${name}`, (req, res) => mod.default(req, res));
+  }
+}
 
 // POST /api/sim
 app.post("/api/sim", (req, res) => {
