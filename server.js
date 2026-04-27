@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from "fs";
 import { join, dirname, extname } from "path";
 import { fileURLToPath } from "url";
 
@@ -56,7 +56,6 @@ function readState() {
 
 function writeState(state) {
   const dir = dirname(STATE_FILE);
-  const { mkdirSync, writeFileSync } = require("fs");
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
   return true;
@@ -64,7 +63,6 @@ function writeState(state) {
 
 // ——— SNAPSHOT HELPERS ———
 function ensureSnapshotsDir() {
-  const { mkdirSync } = require("fs");
   if (!existsSync(SNAPSHOTS_DIR)) mkdirSync(SNAPSHOTS_DIR, { recursive: true });
 }
 
@@ -79,7 +77,6 @@ function getSnapshotIndex() {
 
 function writeSnapshotIndex(index) {
   ensureSnapshotsDir();
-  const { writeFileSync } = require("fs");
   writeFileSync(INDEX_FILE, JSON.stringify(index, null, 2));
 }
 
@@ -226,7 +223,6 @@ app.post("/api/engineer/persist-snapshot", async (req, res) => {
       key: { year: params.year, meeting_key: params.meetingKey, session_key: params.sessionKey, driver_number: params.driverNumber, mode: params.mode || "full" },
       payload
     };
-    const { writeFileSync } = require("fs");
     writeFileSync(filePath, JSON.stringify(entry, null, 2));
     res.json({ ok: true, snapshotId, entry });
   } catch (e) { res.status(500).json({ error: e.message }); }
