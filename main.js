@@ -1961,9 +1961,32 @@ function computeStandingsDelta(data) {
 
 async function fetchStandingsData(force = false) {
   if (state.standingsCache && !force) return state.standingsCache;
-  const response = await fetch("/api/standings");
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.error || "No se pudo cargar la clasificación");
+  
+  // Datos estáticos de clasificación (actualizar manualmente cuando cambie)
+  const data = {
+    updatedAt: new Date().toISOString(),
+    drivers: [
+      { pos: 1, number: "12", name: "Kimi Antonelli", team: "Mercedes", points: 72 },
+      { pos: 2, number: "63", name: "George Russell", team: "Mercedes", points: 63 },
+      { pos: 3, number: "16", name: "Charles Leclerc", team: "Ferrari", points: 49 },
+      { pos: 4, number: "44", name: "Lewis Hamilton", team: "Ferrari", points: 41 },
+      { pos: 5, number: "1", name: "Lando Norris", team: "McLaren", points: 25 },
+      { pos: 6, number: "81", name: "Oscar Piastri", team: "McLaren", points: 24 },
+      { pos: 7, number: "14", name: "Fernando Alonso", team: "Aston Martin", points: 18 },
+      { pos: 8, number: "18", name: "Lance Stroll", team: "Aston Martin", points: 12 },
+      { pos: 9, number: "27", name: "Nico Hulkenberg", team: "Haas", points: 8 },
+      { pos: 10, number: "23", name: "Alexander Albon", team: "Williams", points: 6 }
+    ],
+    teams: [
+      { pos: 1, team: "Mercedes", points: 135 },
+      { pos: 2, team: "Ferrari", points: 90 },
+      { pos: 3, team: "McLaren", points: 49 },
+      { pos: 4, team: "Aston Martin", points: 30 },
+      { pos: 5, team: "Haas", points: 8 },
+      { pos: 6, team: "Williams", points: 6 }
+    ]
+  };
+  
   state.standingsCache = data;
   computeStandingsDelta(data);
   refreshFavoriteFromStandings(data);
@@ -1972,19 +1995,36 @@ async function fetchStandingsData(force = false) {
 
 async function fetchCalendarData(force = false) {
   if (state.calendarCache && !force) return state.calendarCache;
+  
+  // Importar datos estáticos del calendario
+  const { calendarEvents } = await import('./data/calendar-events.js');
+  
+  const now = new Date();
+  let nextRaceAssigned = false;
 
-  const response = await fetch("/api/calendar");
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.error || "No se pudo cargar el calendario");
+  const enriched = calendarEvents.map((event) => {
+    const endDate = new Date(`${event.end}T23:59:59Z`);
+    let status = "upcoming";
 
+    if (endDate < now) {
+      status = "completed";
+    } else if (!nextRaceAssigned && event.type === "race") {
+      status = "next";
+      nextRaceAssigned = true;
+    }
+
+    return { ...event, status };
+  });
+
+  const data = { events: enriched };
   state.calendarCache = data;
 
-  const nextRace = getNextRaceFromCalendar(data?.events || []);
+  const nextRace = getNextRaceFromCalendar(enriched);
   const mappedRace = mapCalendarEventToPredictRace(nextRace);
   if (mappedRace) state.detectedNextRaceName = mappedRace;
 
   const favorite = getFavorite();
-  state.weekendContext = buildWeekendContext(data?.events || [], favorite);
+  state.weekendContext = buildWeekendContext(enriched, favorite);
   state.weekendNowIso = new Date().toISOString();
 
   return data;
@@ -1997,23 +2037,47 @@ function getNewsCacheKey(favorite) {
 async function fetchNewsDataForFavorite(favorite, force = false) {
   const cacheKey = getNewsCacheKey(favorite);
   if (state.homeNewsCache[cacheKey] && !force) return state.homeNewsCache[cacheKey];
-
-  const response = await fetch("/api/news", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ favorite })
-  });
-
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.message || data?.error || "No se pudieron cargar las noticias");
+  
+  // Temporalmente devolver noticias vacías (CORS en GitHub Pages)
+  // Opción futura: usar Cloudflare Worker para proxy RSS
+  const data = {
+    favorite,
+    items: []
+  };
+  
   state.homeNewsCache[cacheKey] = data;
   return data;
 }
 
 async function fetchPredictData(favorite, raceName) {
-  const response = await fetch("/api/predict", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+  // Usar Web Worker para simulaciones
+  return new Promise((resolve, reject) => {
+    const worker = new Worker('workers/sim-worker.js');
+    
+    worker.onmessage = (e) => {
+      const { type, data } = e.data;
+      if (type === 'prediction_complete' || type === 'simulation_complete') {
+        resolve(data);
+      } else if (type === 'error') {
+        reject(new Error(data.error));
+      }
+    };
+    
+    worker.onerror = (e) => reject(e);
+    
+    // Enviar parámetros de simulación
+    worker.postMessage({
+      type: 'predict_strategy',
+      data: {
+        favorite,
+        raceName,
+        track: raceName?.toLowerCase()?.replace('gp de ', '') || 'monaco',
+        laps: 57,
+        weather: { current: 'dry', changing: false }
+      }
+    });
+  });
+},
     body: JSON.stringify({ favorite, raceName })
   });
   const data = await response.json();
