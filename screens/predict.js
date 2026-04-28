@@ -869,16 +869,39 @@ function renderTelemetryPlaybackControls(relativeDistance = [], speed = [], sele
         </div>
         <div class="telemetry-playback-controls">
           <button id="telemetry-play-btn" class="telemetry-playback-btn" aria-label="Reproducir" title="Reproducir / Pausar">
-            ▶
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
           </button>
           <div class="telemetry-speed-group" role="group" aria-label="Velocidad de reproducción">
-            <button id="telemetry-speed-05" class="telemetry-speed-btn" data-speed="0.5" aria-pressed="false">0.5×</button>
-            <button id="telemetry-speed-1"  class="telemetry-speed-btn active" data-speed="1"   aria-pressed="true">1×</button>
-            <button id="telemetry-speed-2"  class="telemetry-speed-btn" data-speed="2"   aria-pressed="false">2×</button>
+            <button id="telemetry-speed-025" class="telemetry-speed-btn" data-speed="0.25" aria-pressed="false">0.25×</button>
+            <button id="telemetry-speed-05"  class="telemetry-speed-btn" data-speed="0.5"  aria-pressed="false">0.5×</button>
+            <button id="telemetry-speed-1"   class="telemetry-speed-btn active" data-speed="1" aria-pressed="true">1×</button>
+            <button id="telemetry-speed-2"   class="telemetry-speed-btn" data-speed="2"   aria-pressed="false">2×</button>
           </div>
           <button class="telemetry-playback-btn telemetry-playback-stop-btn" id="telemetry-stop-btn" aria-label="Detener" title="Detener y reiniciar">
-            ⏹
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
           </button>
+        </div>
+      </div>
+      <div class="telemetry-playback-metrics">
+        <div class="telemetry-playback-metric">
+          <span class="telemetry-playback-metric-label">Live</span>
+          <span id="telemetry-playback-live-time" class="telemetry-playback-metric-value telemetry-playback-live-time">—</span>
+        </div>
+        <div class="telemetry-playback-metric">
+          <span class="telemetry-playback-metric-label">Speed</span>
+          <span id="telemetry-playback-speed" class="telemetry-playback-metric-value">—</span>
+        </div>
+        <div class="telemetry-playback-metric">
+          <span class="telemetry-playback-metric-label">Throttle</span>
+          <span id="telemetry-playback-throttle" class="telemetry-playback-metric-value">—</span>
+        </div>
+        <div class="telemetry-playback-metric">
+          <span class="telemetry-playback-metric-label">Brake</span>
+          <span id="telemetry-playback-brake" class="telemetry-playback-metric-value">—</span>
+        </div>
+        <div class="telemetry-playback-metric">
+          <span class="telemetry-playback-metric-label">Sector</span>
+          <span id="telemetry-playback-sector-indicator" class="telemetry-playback-sector-indicator">—</span>
         </div>
       </div>
       <div class="telemetry-playback-scrubber-row">
@@ -1034,11 +1057,11 @@ function renderLapOption(item = {}) {
  *     carDotId:    "telemetry-car-dot",            // ID of the <circle> car element
  *     scrubberId:  "telemetry-playback-scrubber",  // ID of the <input type="range">
  *     playBtnId:   "telemetry-play-btn",           // ID of the play/pause <button>
- *     speedBtnIds: ["telemetry-speed-05","telemetry-speed-1","telemetry-speed-2"],
+ *     speedBtnIds: ["telemetry-speed-025","telemetry-speed-05","telemetry-speed-1","telemetry-speed-2"],
  *     onSeek: (pct) => { setEngineerTelemetryCursor(pct); },
  *     onPlayStateChange: (isPlaying) => { ... }
  *   });
- *   player.setData({ trackX, trackY, speed, relativeDistance });
+ *   player.setData({ trackX, trackY, speed, throttle, brake, relativeDistance, lapTime, sector1, sector2, sector3 });
  *   player.play(); // etc.
  */
 class TelemetryPlayer {
@@ -1058,47 +1081,74 @@ class TelemetryPlayer {
     this.trackX = [];
     this.trackY = [];
     this.speed  = [];
+    this.throttle = [];
+    this.brake = [];
     this.relativeDistance = [];
+    this.lapTime = null;
+    this.sector1 = null;
+    this.sector2 = null;
+    this.sector3 = null;
 
-    this._playing    = false;
-    this._animId     = null;
-    this._lastTs     = null;
-    this._progress   = 0;   // 0–100
-    this._speed      = 1;   // 0.5 | 1 | 2
-    this._carIndex   = 0;
-    this._pathLength = 0;
+    this._playing     = false;
+    this._animId      = null;
+    this._lastTs      = null;
+    this._progress    = 0;   // 0–100
+    this._speed       = 1;   // 0.25 | 0.5 | 1 | 2
+    this._pts         = [];
+    this._lapStart    = null; // Date.now() when playback started/resumed
+    this._lapElapsed  = 0;    // accumulated ms before current play segment
+    this._dataLen     = 0;
+    this._dragging    = false;
 
     this._bindEvents();
   }
 
   // ─── Public API ───────────────────────────────────────────────────────────
 
-  setData({ trackX = [], trackY = [], speed = [], relativeDistance = [] } = {}) {
+  setData({
+    trackX = [], trackY = [], speed = [], throttle = [], brake = [],
+    relativeDistance = [], lapTime = null,
+    sector1 = null, sector2 = null, sector3 = null
+  } = {}) {
     this.trackX = normalizeTrace(trackX);
     this.trackY = normalizeTrace(trackY);
     this.speed  = normalizeTrace(speed);
+    this.throttle = normalizeTrace(throttle);
+    this.brake   = normalizeTrace(brake);
     this.relativeDistance = normalizeTrace(relativeDistance);
-    this._carIndex = 0;
-    this._progress = 0;
+    this.lapTime = Number.isFinite(lapTime) ? lapTime : null;
+    this.sector1 = Number.isFinite(sector1) ? sector1 : null;
+    this.sector2 = Number.isFinite(sector2) ? sector2 : null;
+    this.sector3 = Number.isFinite(sector3) ? sector3 : null;
+    this._progress   = 0;
+    this._lapStart   = null;
+    this._lapElapsed = 0;
+    this._dataLen    = this.trackX.length;
     this._syncCarDot(0);
     this._syncScrubber(0);
+    this._syncMetrics(0);
     this._buildPath();
   }
 
   play() {
     if (this._playing) return;
     if (this._progress >= 100) {
-      this._progress = 0;
-      this._carIndex = 0;
+      this._progress  = 0;
+      this._lapStart   = null;
+      this._lapElapsed = 0;
     }
     this._playing = true;
-    this._lastTs = null;
+    this._lastTs  = null;
+    this._lapStart = Date.now();
     this._updatePlayBtn(true);
     this.onPlayStateChange(true);
     this._animId = requestAnimationFrame(ts => this._tick(ts));
   }
 
   pause() {
+    if (this._playing) {
+      this._lapElapsed += Date.now() - (this._lapStart || Date.now());
+    }
     this._playing = false;
     if (this._animId) cancelAnimationFrame(this._animId);
     this._animId = null;
@@ -1108,10 +1158,12 @@ class TelemetryPlayer {
 
   stop() {
     this.pause();
-    this._progress = 0;
-    this._carIndex = 0;
+    this._progress  = 0;
+    this._lapStart   = null;
+    this._lapElapsed = 0;
     this._syncCarDot(0);
     this._syncScrubber(0);
+    this._syncMetrics(0);
     this.onSeek(0);
   }
 
@@ -1128,9 +1180,12 @@ class TelemetryPlayer {
 
   seekTo(pct) {
     this._progress = Math.max(0, Math.min(100, pct));
-    this._carIndex = this._carIndexFromProgress(this._progress);
+    if (this.lapTime) {
+      this._lapElapsed = (this._progress / 100) * this.lapTime * 1000;
+    }
     this._syncCarDot(this._progress);
     this._syncScrubber(this._progress);
+    this._syncMetrics(this._progress);
     this.onSeek(this._progress);
   }
 
@@ -1143,29 +1198,28 @@ class TelemetryPlayer {
   // ─── Private ───────────────────────────────────────────────────────────────
 
   _bindEvents() {
-    // Play / pause
     const playBtn = document.getElementById(this.playBtnId);
     if (playBtn) playBtn.addEventListener("click", () => this._playing ? this.pause() : this.play());
 
-    // Speed buttons
     this.speedBtnIds.forEach(id => {
       const btn = document.getElementById(id);
       if (btn) btn.addEventListener("click", () => {
         const s = parseFloat(btn.dataset.speed);
         if (!Number.isFinite(s)) return;
+        if (this._playing) {
+          this._lapElapsed += Date.now() - (this._lapStart || Date.now());
+          this._lapStart = Date.now();
+        }
         this.setSpeed(s);
       });
     });
 
-    // Scrubber drag
     this._onPointerMove = e => {
       if (!this._dragging) return;
       const pct = this._scrubberPct(e.clientX);
       this.seekTo(pct);
     };
-    this._onPointerUp = () => {
-      this._dragging = false;
-    };
+    this._onPointerUp = () => { this._dragging = false; };
     document.addEventListener("pointermove", this._onPointerMove);
     document.addEventListener("pointerup",   this._onPointerUp);
 
@@ -1207,57 +1261,116 @@ class TelemetryPlayer {
       pts.push({ x, y, speedRatio: this.speed[i] / maxSpeed });
     }
 
-    // Rebuild track segments with speed hue
     let segmentsHtml = "";
     for (let i = 0; i < pts.length - 1; i++) {
       const hue = 14 + (pts[i].speedRatio * 142);
-      const opacity = 0.42;
-      segmentsHtml += `<line x1="${pts[i].x.toFixed(2)}" y1="${pts[i].y.toFixed(2)}" x2="${pts[i+1].x.toFixed(2)}" y2="${pts[i+1].y.toFixed(2)}" stroke="hsl(${hue.toFixed(0)} 88% 63%)" opacity="${opacity}" stroke-width="2.2" stroke-linecap="round"></line>`;
+      segmentsHtml += `<line x1="${pts[i].x.toFixed(2)}" y1="${pts[i].y.toFixed(2)}" x2="${pts[i+1].x.toFixed(2)}" y2="${pts[i+1].y.toFixed(2)}" stroke="hsl(${hue.toFixed(0)} 88% 63%)" opacity="0.42" stroke-width="2.2" stroke-linecap="round"></line>`;
     }
 
-    // Update only the <line> elements in the SVG
     const existingLines = svg.querySelectorAll("line");
     existingLines.forEach(el => el.remove());
     svg.insertAdjacentHTML("afterbegin", segmentsHtml);
 
-    // Compute path length for progress mapping
     this._pts = pts;
-    this._minX = minX; this._maxX = maxX; this._spanX = spanX;
-    this._minY = minY; this._maxY = maxY; this._spanY = spanY;
-    this._pathLength = pts.length;
   }
 
-  _carIndexFromProgress(pct) {
-    if (!this._pts || !this._pts.length) return 0;
-    return Math.round((pct / 100) * (this._pts.length - 1));
+  /** Interpolated position between track points for smooth dot movement. */
+  _interpolatedPos(progressPct) {
+    const pts = this._pts;
+    if (!pts || pts.length < 2) return { x: 50, y: 50 };
+    const n = pts.length;
+    const rawIndex = (progressPct / 100) * (n - 1);
+    const i = Math.max(0, Math.min(n - 2, Math.floor(rawIndex)));
+    const t = rawIndex - i;
+    return {
+      x: pts[i].x + t * (pts[i + 1].x - pts[i].x),
+      y: pts[i].y + t * (pts[i + 1].y - pts[i].y)
+    };
   }
 
   _syncCarDot(pct) {
     const dot = document.getElementById(this.carDotId);
-    const svg = document.getElementById(this.trackSvgId);
-    if (!dot || !svg) return;
-    const idx = this._carIndexFromProgress(pct);
-    const pts = this._pts || [];
-    if (!pts.length) return;
-    const p = pts[Math.max(0, Math.min(idx, pts.length - 1))];
-    if (!p) return;
-    dot.setAttribute("cx", p.x.toFixed(2));
-    dot.setAttribute("cy", p.y.toFixed(2));
+    if (!dot) return;
+    const pos = this._interpolatedPos(pct);
+    dot.setAttribute("cx", pos.x.toFixed(3));
+    dot.setAttribute("cy", pos.y.toFixed(3));
   }
 
   _syncScrubber(pct) {
     const scrubber = document.getElementById(this.scrubberId);
     if (scrubber) scrubber.value = Math.max(0, Math.min(100, pct));
     const label = document.getElementById("telemetry-playback-time");
-    if (label) {
-      label.textContent = `${Math.round(pct)}%`;
+    if (label) label.textContent = `${Math.round(pct)}%`;
+  }
+
+  _currentMetrics(pct) {
+    const idx = Math.round((Math.max(0, Math.min(100, pct)) / 100) * (this.throttle.length - 1));
+    return {
+      throttle: this.throttle[idx] ?? null,
+      brake:    this.brake[idx] ?? null,
+      speed:    this.speed[idx] ?? null
+    };
+  }
+
+  _currentSector(pct) {
+    const rd = this.relativeDistance;
+    if (!rd || !rd.length) return null;
+    const cursor = Math.round((Math.max(0, Math.min(100, pct)) / 100) * (rd.length - 1));
+    const dist = rd[cursor] ?? 0;
+    const s1End = this.sector1 ? 33.3 : 33.3;
+    const s2End = this.sector2 ? 66.6 : 66.6;
+    if (dist < s1End) return 1;
+    if (dist < s2End) return 2;
+    return 3;
+  }
+
+  _sectorColor(pct) {
+    const sector = this._currentSector(pct);
+    if (!sector) return "neutral";
+    const refTime = sector === 1 ? this.sector1 : sector === 2 ? this.sector2 : this.sector3;
+    if (!Number.isFinite(refTime)) return "neutral";
+    const totalSec = this._lapElapsed / 1000;
+    const sectorFrac = sector === 1 ? 1/3 : sector === 2 ? 1/3 : 1/3;
+    const timeSpent  = totalSec * (pct / 100) * sectorFrac;
+    const ratio = timeSpent / refTime;
+    if (ratio <= 1.03) return "green";
+    if (ratio <= 1.07) return "yellow";
+    return "red";
+  }
+
+  _syncMetrics(pct) {
+    const { throttle, brake, speed } = this._currentMetrics(pct);
+    const sectorColor = this._sectorColor(pct);
+
+    const thEl = document.getElementById("telemetry-playback-throttle");
+    if (thEl) thEl.textContent = Number.isFinite(throttle) ? `${Math.round(throttle)}%` : "—";
+
+    const brEl = document.getElementById("telemetry-playback-brake");
+    if (brEl) brEl.textContent = Number.isFinite(brake) ? `${Math.round(brake)}%` : "—";
+
+    const spEl = document.getElementById("telemetry-playback-speed");
+    if (spEl) spEl.textContent = Number.isFinite(speed) ? `${Math.round(speed)} km/h` : "—";
+
+    const sectorEl = document.getElementById("telemetry-playback-sector-indicator");
+    if (sectorEl) {
+      const s = this._currentSector(pct);
+      sectorEl.textContent = s ? `S${s}` : "—";
+      sectorEl.className = `telemetry-playback-sector-indicator telemetry-sector-${sectorColor}`;
+    }
+
+    const liveEl = document.getElementById("telemetry-playback-live-time");
+    if (liveEl && this.lapTime) {
+      const elapsedSec = this._lapElapsed / 1000;
+      liveEl.textContent = formatTelemetrySeconds(Math.min(elapsedSec, this.lapTime));
     }
   }
 
   _updatePlayBtn(isPlaying) {
     const btn = document.getElementById(this.playBtnId);
     if (!btn) return;
-    btn.textContent = isPlaying ? "⏸" : "▶";
+    btn.innerHTML = isPlaying
+      ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>`
+      : `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`;
     btn.setAttribute("aria-label", isPlaying ? "Pausar" : "Reproducir");
     btn.classList.toggle("playing", isPlaying);
   }
@@ -1271,24 +1384,25 @@ class TelemetryPlayer {
       return;
     }
 
-    const deltaMs  = ts - this._lastTs;
-    this._lastTs   = ts;
-    // Full lap animation in ~18 seconds at 1× speed
-    const msPerPct = (18 * 1000) / 100;
+    const deltaMs = ts - this._lastTs;
+    this._lastTs  = ts;
+    const msPerPct = (this.lapTime ? this.lapTime * 1000 : 18000) / 100;
     this._progress += (deltaMs / msPerPct) * this._speed;
 
     if (this._progress >= 100) {
       this._progress = 100;
+      this._lapElapsed = (this.lapTime || 18) * 1000;
       this._syncCarDot(100);
       this._syncScrubber(100);
+      this._syncMetrics(100);
       this.onSeek(100);
       this.pause();
       return;
     }
 
-    this._carIndex = this._carIndexFromProgress(this._progress);
     this._syncCarDot(this._progress);
     this._syncScrubber(this._progress);
+    this._syncMetrics(this._progress);
     this.onSeek(this._progress);
     this._animId = requestAnimationFrame(t => this._tick(t));
   }
@@ -1942,14 +2056,19 @@ function initTelemetryPlayer() {
   const payload = engineerState.telemetry.payload;
   if (!payload) return;
 
-  const traces = payload.traces || {};
+  const traces  = payload.traces || {};
+  const summary = payload.summary || {};
+  const sel     = payload.lap_selector || {};
+  const laps    = Array.isArray(sel.laps) ? sel.laps : [];
+  const selectedLap = laps.find(item => Number(item.lapNumber) === Number(sel.selectedLapNumber)) || null;
+
   telemetryPlayer = new TelemetryPlayer({
     containerId:  "telemetry-track-map--focus",
     trackSvgId:   "telemetry-track-playback-svg",
     carDotId:     "telemetry-car-dot",
     scrubberId:    "telemetry-playback-scrubber",
     playBtnId:    "telemetry-play-btn",
-    speedBtnIds:  ["telemetry-speed-05", "telemetry-speed-1", "telemetry-speed-2"],
+    speedBtnIds:  ["telemetry-speed-025", "telemetry-speed-05", "telemetry-speed-1", "telemetry-speed-2"],
     onSeek: pct => setEngineerTelemetryCursor(pct),
     onPlayStateChange: isPlaying => {
       // Keep range scrubber and playback scrubber in sync while playing
@@ -1957,10 +2076,16 @@ function initTelemetryPlayer() {
   });
 
   telemetryPlayer.setData({
-    trackX:          traces.trackX || [],
-    trackY:          traces.trackY || [],
-    speed:           traces.speed  || [],
-    relativeDistance: traces.relativeDistance || []
+    trackX:           traces.trackX           || [],
+    trackY:           traces.trackY           || [],
+    speed:            traces.speed            || [],
+    throttle:         traces.throttle         || [],
+    brake:            traces.brake            || [],
+    relativeDistance: traces.relativeDistance || [],
+    lapTime:          selectedLap?.lapTime   ?? null,
+    sector1:          summary.sector1        ?? null,
+    sector2:          summary.sector2        ?? null,
+    sector3:          summary.sector3        ?? null
   });
 
   // Wire stop button
