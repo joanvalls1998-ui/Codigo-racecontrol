@@ -2098,20 +2098,416 @@ function initTelemetryPlayer() {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// F1 Broadcast-style Engineer Dashboard Components
+// (prefixed wrapper classes to avoid clashing with app .topbar)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const COMPOUND_COLORS = {
+  soft:   { dot: "#ff6b35", label: "Soft" },
+  medium: { dot: "#ffffff", label: "Medium" },
+  hard:   { dot: "#888888", label: "Hard" },
+  inter:  { dot: "#8888ff", label: "Inter" },
+  wet:    { dot: "#44aaff", label: "Wet" }
+};
+
+function getCompoundInfo(compound = "") {
+  const c = String(compound || "").toLowerCase().trim();
+  return COMPOUND_COLORS[c] || { dot: "#888", label: compound || "—" };
+}
+
+/** F1 top bar with brand + live badge */
+function renderTopbar() {
+  return `
+    <div class="f1-topbar">
+      <div class="f1-topbar-brand">
+        <div class="f1-logo"></div>
+        <div>
+          <div class="f1-topbar-title">RaceControl</div>
+          <div class="f1-topbar-subtitle">Telemetry &amp; Prediction</div>
+        </div>
+      </div>
+      <div class="f1-live-badge">● LIVE</div>
+    </div>
+  `;
+}
+
+/** F1 nav tabs; active tab is 'Ingeniero' */
+function renderNavTabs() {
+  const tabs = ["Inicio", "Ingeniero", "Favorito", "Calendario", "Clasificación", "Más"];
+  return `
+    <div class="f1-nav-tabs">
+      ${tabs.map((t, i) => `
+        <div class="f1-nav-tab${i === 1 ? " active" : ""}" data-tab="${t}">${t}</div>
+      `).join("")}
+    </div>
+  `;
+}
+
+/** Session header card: GP name + session info + stats */
+function renderSessionHeaderCard({ gpName = "Australian Grand Prix 2026", sessionInfo = "FP3 · Practice 3", totalLaps = 21, airTemp = 22, trackTemp = 5 } = {}) {
+  return `
+    <div>
+      <div class="section-label">Session</div>
+      <div class="session-header">
+        <div class="gp-info">
+          <div class="gp-name">${escapeHtml(gpName)}</div>
+          <div class="session-info">${escapeHtml(sessionInfo)}</div>
+        </div>
+        <div class="session-stats">
+          <div class="session-stat">
+            <div class="val">${totalLaps}</div>
+            <div class="lbl">Vueltas</div>
+          </div>
+          <div class="session-stat">
+            <div class="val">${airTemp}°</div>
+            <div class="lbl">Temp</div>
+          </div>
+          <div class="session-stat">
+            <div class="val">${trackTemp}°</div>
+            <div class="lbl">Pista</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/** Track card with SVG circuit, driver chip, lap counter, playback bar, stints bar */
+function renderTrackCard({ driverCode = "ALB", teamName = "Williams", currentLap = 83, totalLaps = 21, stints = [], laps = [] } = {}) {
+  const stintHtml = stints.length
+    ? stints.map(s => {
+        const compound = s.compound?.toLowerCase() || "medium";
+        return `<div class="stint-segment ${compound}"><div class="stint-label">${escapeHtml(s.label || "")}</div></div>`;
+      }).join("")
+    : `<div class="stint-segment medium"><div class="stint-label">M1 · —</div></div>
+       <div class="stint-segment soft"><div class="stint-label">S2 · —</div></div>
+       <div class="stint-segment hard"><div class="stint-label">H3 · —</div></div>`;
+
+  return `
+    <div>
+      <div class="section-label">Track View · Reproducció automàtica</div>
+      <div class="track-card">
+        <div class="track-header">
+          <div class="track-header-left">
+            <div class="driver-chip">
+              <div class="dot"></div>
+              <span>${escapeHtml(driverCode)}</span>
+              <span class="team">${escapeHtml(teamName)}</span>
+            </div>
+          </div>
+          <div class="track-header-right">
+            <div class="lap-counter">VOLTA <span>${currentLap}</span> / ${totalLaps}</div>
+          </div>
+        </div>
+
+        <div class="track-view-container">
+          <svg class="track-svg" viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            <path class="track-path-infield"
+              d="M 340 380 C 240 380, 160 300, 160 200 C 160 120, 220 60, 320 60
+                 C 380 60, 440 80, 480 100 C 520 120, 560 120, 600 100
+                 C 660 70, 700 100, 700 160 C 700 240, 640 300, 560 320
+                 C 500 335, 440 330, 400 310"
+              stroke-dasharray="8 4"/>
+            <path class="track-path"
+              d="M 340 380 C 240 380, 160 300, 160 200 C 160 120, 220 60, 320 60
+                 C 380 60, 440 80, 480 100 C 520 120, 560 120, 600 100
+                 C 660 70, 700 100, 700 160 C 700 240, 640 300, 560 320
+                 C 500 335, 440 330, 400 310 C 380 302, 365 380, 365 380"/>
+            <line class="start-finish" x1="340" y1="370" x2="340" y2="395"/>
+            <circle class="car-dot" cx="340" cy="380" r="7"/>
+            <circle cx="160" cy="200" r="4" fill="#ff6b35" opacity="0.6"/>
+            <circle cx="320" cy="60" r="4" fill="#ff6b35" opacity="0.6"/>
+            <circle cx="700" cy="160" r="4" fill="#ff6b35" opacity="0.6"/>
+          </svg>
+        </div>
+
+        <div class="playback-bar">
+          <button class="play-btn paused">
+            <svg viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+          </button>
+          <div class="timeline-container">
+            <div class="timeline-labels">
+              <span>0%</span><span>START/FIN</span><span>100%</span>
+            </div>
+            <div class="timeline-track">
+              <div class="timeline-progress"></div>
+              <div class="timeline-thumb"></div>
+            </div>
+          </div>
+          <div class="speed-control">
+            <button class="speed-btn">0.5×</button>
+            <button class="speed-btn active">1×</button>
+            <button class="speed-btn">2×</button>
+          </div>
+        </div>
+
+        <div class="stints-bar">
+          ${stintHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/** Horizontal lap selector with chips */
+function renderLapSelector({ laps = [], selectedLapNumber = null } = {}) {
+  const chips = laps.slice(0, 20).map(lap => {
+    const isSelected = Number(lap.lapNumber) === Number(selectedLapNumber);
+    const compound = getCompoundInfo(lap.compound);
+    const timeStr = Number.isFinite(lap.lapTime) ? formatTelemetrySeconds(lap.lapTime) : "—";
+    return `
+      <div class="lap-chip${isSelected ? " selected" : ""}" onclick="selectTelemetryLap(${lap.lapNumber})">
+        <span class="lnum">L${Math.round(lap.lapNumber || 0)}</span>
+        <span class="ltime">${escapeHtml(timeStr)}</span>
+        <div class="compound ${lap.compound?.toLowerCase() || ""}">
+          <div class="compound-dot" style="background:${compound.dot}"></div>
+          ${compound.label}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div>
+      <div class="section-label">Selectora volta</div>
+      <div class="lap-selector-row">
+        ${chips || `<div class="lap-chip"><span class="lnum">—</span><span class="ltime">Sin vueltas</span></div>`}
+      </div>
+    </div>
+  `;
+}
+
+/** 4-column metrics grid */
+function renderMetricsGrid({ speed = null, throttle = null, brake = null, ers = null, fuel = null, tyreLife = null, lapTime = null, lapTimeDelta = null, gForce = null, maxSpeed = null } = {}) {
+  const tile = (label, value, unit = "", delta = null, highlight = false) => {
+    const deltaClass = delta
+      ? (delta.startsWith("▲") ? "pos" : delta.startsWith("▼") ? "neg" : "neu")
+      : "neu";
+    const deltaHtml = delta ? `<div class="delta ${deltaClass}">${escapeHtml(delta)}</div>` : "";
+    return `
+      <div class="metric-tile${highlight ? " highlight" : ""}">
+        <div class="lbl">${escapeHtml(label)}</div>
+        <div class="val">${escapeHtml(value)}${unit ? `<span class="unit">${escapeHtml(unit)}</span>` : ""}</div>
+        ${deltaHtml}
+      </div>
+    `;
+  };
+
+  return `
+    <div>
+      <div class="section-label">Telemetría · Temps real</div>
+      <div class="metrics-grid">
+        ${tile("Tiempo volta", lapTime || "—", "s", lapTimeDelta, true)}
+        ${tile("Velocidad max", maxSpeed ? String(Math.round(maxSpeed)) : "—", "km/h", null)}
+        ${tile("Fuerza G", gForce ? String(gForce.toFixed(1)) : "—", "G", null)}
+        ${tile("Throttle", throttle !== null ? String(Math.round(throttle)) : "—", "%", null)}
+        ${tile("Brake", brake !== null ? String(Math.round(brake)) : "—", "%", null)}
+        ${tile("ERS", ers !== null ? (ers >= 0 ? "+" : "") + ers.toFixed(1) : "—", "MJ/lap", ers !== null ? (ers >= 0 ? "▲" : "▼") : null)}
+        ${tile("Fuel", fuel !== null ? String(Math.round(fuel)) : "—", "kg", null)}
+        ${tile("Tyre life", tyreLife !== null ? String(tyreLife) : "—", "laps", null)}
+      </div>
+    </div>
+  `;
+}
+
+/** Track map + playback (used inside telemetry workspace) */
+function renderBroadcastTrackSection(payload) {
+  const summary  = payload?.summary  || {};
+  const traces   = payload?.traces   || {};
+  const selector = payload?.selector || {};
+  const laps     = Array.isArray(selector.laps) ? selector.laps : [];
+  const selectedLap = laps.find(item => Number(item?.lapNumber) === Number(selector.selectedLapNumber)) || null;
+  const selectedLapNumber = Number(selector.selectedLapNumber);
+  const currentLap = selectedLap?.lapNumber || "—";
+
+  const stints = (payload.stints || []).filter(s => s.lapCount >= 3);
+  const stintHtml = stints.length
+    ? stints.map(s => {
+        const c = s.compound?.toLowerCase() || "medium";
+        return `<div class="stint-segment ${c}"><div class="stint-label">${escapeHtml(s.compound || "?")} ${s.number || ""} · ${s.lapCount || 0} laps</div></div>`;
+      }).join("")
+    : `<div class="stint-segment medium"><div class="stint-label">M1 · —</div></div>
+       <div class="stint-segment soft"><div class="stint-label">S2 · —</div></div>`;
+
+  const hasTrackMap = hasRobustData(traces.trackX) && hasRobustData(traces.trackY);
+  const xS = normalizeTrace(traces.trackX || []);
+  const yS = normalizeTrace(traces.trackY || []);
+  const spS = normalizeTrace(traces.speed  || []);
+  let mapSegments = "", mapCursor = "";
+
+  if (hasTrackMap) {
+    const minX = Math.min(...xS), maxX = Math.max(...xS);
+    const minY = Math.min(...yS), maxY = Math.max(...yS);
+    const spanX = Math.max(1, maxX - minX), spanY = Math.max(1, maxY - minY);
+    const maxSp  = spS.length ? Math.max(...spS, 1) : 1;
+    const n = Math.min(xS.length, yS.length);
+    for (let i = 0; i < n - 1; i++) {
+      const x1 = ((xS[i]   - minX) / spanX) * 100;
+      const y1 = 100 - (((yS[i]   - minY) / spanY) * 100);
+      const x2 = ((xS[i+1] - minX) / spanX) * 100;
+      const y2 = 100 - (((yS[i+1] - minY) / spanY) * 100);
+      const sr = Math.max(0, Math.min(1, (spS[i] || 0) / maxSp));
+      const hue = 14 + sr * 142;
+      mapSegments += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="hsl(${hue.toFixed(0)} 88% 63%)" opacity="0.85" stroke-width="2.2" stroke-linecap="round">`;
+    }
+    const cIdx = Math.round((engineerState.telemetry.cursorPct / 100) * Math.max(0, n - 1));
+    const cx = ((xS[cIdx] - minX) / spanX) * 100;
+    const cy = 100 - (((yS[cIdx] - minY) / spanY) * 100);
+    mapCursor = `<circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="3.2"></circle>`;
+  }
+
+  const lapTime = Number.isFinite(selectedLap?.lapTime) ? formatTelemetrySeconds(selectedLap.lapTime) : "—";
+  const speed   = valueAtCursor(traces.speed,    engineerState.telemetry.cursorPct);
+  const throttle = valueAtCursor(traces.throttle, engineerState.telemetry.cursorPct);
+  const brakeVal = valueAtCursor(traces.brake,    engineerState.telemetry.cursorPct);
+  const ersVal  = valueAtCursor(traces.ers,       engineerState.telemetry.cursorPct);
+  const fuel    = Number.isFinite(summary.fuel) ? summary.fuel : null;
+  const tyreLife = selectedLap?.tyreLife || null;
+  const gForce  = null;
+
+  return `
+    ${renderSessionHeaderCard({
+      gpName: payload?.context?.gpLabel || getSelectedRace() || "—",
+      sessionInfo: payload?.context?.sessionLabel || "—",
+      totalLaps: laps.length,
+      airTemp: Number.isFinite(summary.airTemp) ? Math.round(summary.airTemp) : 22,
+      trackTemp: Number.isFinite(summary.trackTemp) ? Math.round(summary.trackTemp) : 5
+    })}
+
+    <div>
+      <div class="section-label">Track View · Reproducció automàtica</div>
+      <div class="track-card">
+        <div class="track-header">
+          <div class="track-header-left">
+            <div class="driver-chip">
+              <div class="dot"></div>
+              <span>${escapeHtml(payload?.context?.driverCode || "—")}</span>
+              <span class="team">${escapeHtml(payload?.context?.teamName || "—")}</span>
+            </div>
+          </div>
+          <div class="track-header-right">
+            <div class="lap-counter">VOLTA <span>${currentLap}</span> / ${laps.length}</div>
+          </div>
+        </div>
+
+        <div class="track-view-container">
+          <svg class="track-svg" viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            ${mapSegments}${mapCursor}
+            <circle id="telemetry-car-dot" cx="50" cy="50" r="7"></circle>
+          </svg>
+        </div>
+
+        <div class="playback-bar">
+          <button class="play-btn paused" id="telemetry-play-btn">
+            <svg viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+          </button>
+          <div class="timeline-container">
+            <div class="timeline-labels">
+              <span>0%</span><span>START/FIN</span><span>100%</span>
+            </div>
+            <div class="timeline-track">
+              <div class="timeline-progress"></div>
+              <div class="timeline-thumb"></div>
+            </div>
+          </div>
+          <div class="speed-control">
+            <button class="speed-btn" id="telemetry-speed-025" data-speed="0.25">0.25×</button>
+            <button class="speed-btn" id="telemetry-speed-05"  data-speed="0.5">0.5×</button>
+            <button class="speed-btn active" id="telemetry-speed-1" data-speed="1">1×</button>
+            <button class="speed-btn" id="telemetry-speed-2" data-speed="2">2×</button>
+          </div>
+        </div>
+
+        <div class="stints-bar">${stintHtml}</div>
+      </div>
+    </div>
+
+    ${renderLapSelector({ laps, selectedLapNumber })}
+
+    ${renderMetricsGrid({
+      lapTime,
+      lapTimeDelta: null,
+      maxSpeed: Number.isFinite(summary.topSpeed) ? summary.topSpeed : (speed ? Math.round(speed) : null),
+      gForce,
+      throttle: throttle !== null ? throttle : null,
+      brake: brakeVal !== null ? brakeVal : null,
+      ers: ersVal !== null ? ersVal : null,
+      fuel,
+      tyreLife
+    })}
+  `;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// renderEngineerScreen — Full F1 Broadcast Layout
+// ─────────────────────────────────────────────────────────────────────────────
+
 function renderEngineerScreen() {
   const selectedRace = getSelectedRace();
   const isPrediction = engineerState.submode === "prediction";
+  const isTelemetry   = engineerState.submode === "telemetry";
   const favorite = isPrediction ? getFavorite() : null;
   const needFreshPredict = isPrediction ? shouldAutoGeneratePredict(favorite, selectedRace) : false;
   const activePredictData = !needFreshPredict ? state.lastPredictData : null;
   const expert = isExpertMode();
+  const telemetry = engineerState.telemetry;
+  const telemetryPayload = telemetry.payload;
 
+  // ── Build the engineer container ─────────────────────────────────────────
+  let engineerBody = "";
+
+  if (isTelemetry && telemetryPayload?.status?.ready) {
+    // ── Full broadcast dashboard for telemetry ──
+    engineerBody = renderBroadcastTrackSection(telemetryPayload);
+
+    // Keep existing prediction/telemetry panels below the broadcast header
+    engineerBody += `
+      <section class="card engineer-card engineer-wall-panel" style="margin-top:12px;">
+        <div class="engineer-panel-heading">
+          <div class="engineer-panel-title">Panel de control</div>
+          <div class="engineer-panel-subtitle">GP · Sesión · Piloto</div>
+        </div>
+      </section>
+    `;
+    // Controls bar (dropped in below)
+    engineerBody += renderTelemetryPanel();
+
+  } else if (isTelemetry) {
+    // Telemetry mode but no data yet — show controls + loading
+    engineerBody = `
+      <section class="card engineer-card engineer-wall-panel">
+        <div class="engineer-panel-heading">
+          <div class="engineer-panel-title">Telemetría</div>
+          <div class="engineer-panel-subtitle">Selecciona GP, sesión y piloto</div>
+        </div>
+      </section>
+    `;
+    engineerBody += renderTelemetryPanel();
+
+  } else {
+    // Prediction mode
+    engineerBody = `
+      ${renderEngineerPredictionPanel(favorite, selectedRace, activePredictData, expert)}
+    `;
+  }
+
+  // Wrap everything in the engineer container
+  const containerHtml = `
+    <div class="engineer-container">
+      ${engineerBody}
+    </div>
+  `;
+
+  // ── Assemble full page ─────────────────────────────────────────────────────
   contentEl().innerHTML = `
+    ${renderTopbar()}
+    ${renderNavTabs()}
     <div class="card engineer-card engineer-top-card engineer-wall-header">
       <div class="engineer-topline">
         <div class="engineer-brand-line">
           <div class="card-title">Ingeniero</div>
-          <div class="card-sub">Control Wall · predicción y telemetría integradas</div>
+          <div class="card-sub">Control Wall · Predicción y Telemetría</div>
         </div>
         <div class="engineer-submode-switch" role="tablist" aria-label="Submodo ingeniero">
           <button class="toggle-btn ${engineerState.submode === "prediction" ? "active" : ""}" onclick="setEngineerSubmode('prediction')">Predicción</button>
@@ -2119,10 +2515,7 @@ function renderEngineerScreen() {
         </div>
       </div>
     </div>
-
-    ${engineerState.submode === "prediction"
-      ? renderEngineerPredictionPanel(favorite, selectedRace, activePredictData, expert)
-      : renderTelemetryPanel()}
+    ${containerHtml}
   `;
 
   // Bootstrap the playback player once DOM is painted
@@ -2147,6 +2540,23 @@ function showPredict() {
   }
 }
 
+window.navigateTab = function(tab) {
+  // Stub: handle nav tab clicks — route to existing show* functions
+  const tabMap = {
+    "Inicio": "home", "Ingeniero": "predict", "Favorito": "favorito",
+    "Calendario": "calendar", "Clasificación": "standings"
+  };
+  const screen = tabMap[tab];
+  if (screen && typeof window[`show${screen.charAt(0).toUpperCase() + screen.slice(1)}`] === "function") {
+    window[`show${screen.charAt(0).toUpperCase() + screen.slice(1)}`]();
+  }
+};
+window.selectTelemetryLap = function(lapNumber) {
+  engineerState.telemetry.manualLap = String(lapNumber);
+  engineerState.telemetry.lapMode = "manual";
+  invalidateTelemetryPayload("manual_lap_changed");
+  loadTelemetryData();
+};
 window.runPredict = runPredict;
 window.refreshPredict = refreshPredict;
 window.showPredict = showPredict;

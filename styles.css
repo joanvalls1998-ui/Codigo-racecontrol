@@ -3013,6 +3013,244 @@ nav > *,
   font-size: 13px;
 }
 
+/* ─── Section labels ─────────────────────────────────────── */
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--theme-accent, #00ff94);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--theme-accent, #00ff94) 20%, transparent);
+}
+
+/* ─── Session header card ─────────────────────────────────── */
+.session-header {
+  background: linear-gradient(135deg, #0f2020 0%, #132424 50%, #0a1818 100%);
+  border: 1px solid color-mix(in srgb, var(--theme-accent, #00ff94) 22%, transparent);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.gp-info { flex: 1; }
+.gp-info .gp-name { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
+.gp-info .session-info {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--theme-accent, #00ff94);
+  margin-top: 2px;
+}
+.session-stats { display: flex; gap: 20px; }
+.session-stat { text-align: right; }
+.session-stat .val {
+  font-size: 20px; font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--theme-accent, #00ff94);
+}
+.session-stat .lbl {
+  font-size: 10px; color: var(--text-faint, rgba(255,255,255,0.5));
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* ─── Track card (session-aware) ─────────────────────────── */
+.track-card {
+  background: var(--bg-elev-1, rgba(18,20,26,0.78));
+  border: 1px solid var(--line, rgba(255,255,255,0.08));
+  border-radius: 12px;
+  overflow: hidden;
+}
+.track-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg-elev-2, rgba(24,27,35,0.92));
+  border-bottom: 1px solid var(--line, rgba(255,255,255,0.08));
+}
+.track-header-left { display: flex; align-items: center; gap: 10px; }
+.driver-chip {
+  background: #1a2332; border: 1px solid #2a3a52;
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; gap: 6px;
+}
+.driver-chip .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--theme-accent, #00ff94);
+  box-shadow: 0 0 4px var(--theme-accent, #00ff94);
+}
+.driver-chip .team { color: var(--text-soft, rgba(255,255,255,0.74)); font-weight: 500; }
+.track-header-right { display: flex; align-items: center; gap: 8px; }
+.lap-counter { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-soft, rgba(255,255,255,0.74)); }
+.lap-counter span { color: #fff; font-weight: 700; }
+
+/* ─── Track SVG ───────────────────────────────────────────── */
+.track-view-container {
+  position: relative; width: 100%; aspect-ratio: 16/9;
+  background: radial-gradient(ellipse at center, #0f1a1a 0%, #070d0d 70%);
+}
+.track-svg { width: 100%; height: 100%; }
+.track-path {
+  fill: none; stroke: #2a3a52; stroke-width: 14;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.track-path-infield {
+  fill: none; stroke: var(--line, rgba(255,255,255,0.08));
+  stroke-width: 10; stroke-linecap: round; stroke-linejoin: round;
+}
+.track-tyre-soft  { fill: none; stroke: #ff6b35; stroke-width: 3; stroke-linecap: round; opacity: 0.7; }
+.track-tyre-hard  { fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; opacity: 0.7; }
+.track-tyre-medium { fill: none; stroke: #ccc; stroke-width: 3; stroke-linecap: round; opacity: 0.7; }
+.car-dot {
+  fill: var(--theme-accent, #00ff94);
+  filter: drop-shadow(0 0 6px var(--theme-accent, #00ff94));
+}
+.start-finish { stroke: #fff; stroke-width: 3; }
+
+/* ─── Playback bar ───────────────────────────────────────── */
+.playback-bar {
+  background: var(--bg-elev-2, rgba(24,27,35,0.92));
+  padding: 10px 16px;
+  display: flex; align-items: center; gap: 12px;
+  border-top: 1px solid var(--line, rgba(255,255,255,0.08));
+}
+.play-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--theme-accent, #00ff94); border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+}
+.play-btn svg { fill: #0a0a0f; width: 14px; height: 14px; }
+.play-btn.paused { background: #2a3a52; }
+.play-btn.paused svg path { fill: var(--theme-accent, #00ff94); }
+.timeline-container { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.timeline-labels {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--text-faint, rgba(255,255,255,0.5));
+  font-family: 'JetBrains Mono', monospace;
+}
+.timeline-track {
+  height: 6px; background: var(--line, rgba(255,255,255,0.08));
+  border-radius: 3px; position: relative; overflow: hidden;
+}
+.timeline-progress {
+  position: absolute; left: 0; top: 0; height: 100%;
+  width: 35%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--theme-accent, #00ff94), #00ffaa);
+}
+.timeline-thumb {
+  position: absolute; left: 35%; top: -2px;
+  width: 10px; height: 10px; background: #fff;
+  border-radius: 50%; box-shadow: 0 0 6px rgba(0,255,148,0.5);
+}
+.speed-control { display: flex; align-items: center; gap: 4px; }
+.speed-btn {
+  background: #1a2332; border: 1px solid #2a3a52;
+  color: var(--text-soft, rgba(255,255,255,0.74));
+  font-size: 11px; font-weight: 600; padding: 4px 8px;
+  border-radius: 6px; cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+}
+.speed-btn.active {
+  background: var(--theme-accent, #00ff94);
+  color: #0a0a0f; border-color: var(--theme-accent, #00ff94);
+}
+
+/* ─── Stints bar ──────────────────────────────────────────── */
+.stints-bar {
+  display: flex; gap: 6px;
+  padding: 12px 16px;
+  background: var(--bg-elev-2, rgba(24,27,35,0.92));
+  border-top: 1px solid var(--line, rgba(255,255,255,0.08));
+}
+.stint-segment {
+  flex: 1; height: 6px; border-radius: 3px;
+  position: relative; overflow: visible;
+}
+.stint-segment.soft   { background: #ff6b35; }
+.stint-segment.medium { background: #ccc; }
+.stint-segment.hard   { background: #666; }
+.stint-segment.wet     { background: #4af; }
+.stint-segment .stint-label {
+  position: absolute; top: -16px; left: 0;
+  font-size: 9px; color: var(--text-faint, rgba(255,255,255,0.5));
+  white-space: nowrap;
+}
+
+/* ─── Metrics grid ────────────────────────────────────────── */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.metric-tile {
+  background: var(--bg-elev-1, rgba(18,20,26,0.78));
+  border: 1px solid var(--line, rgba(255,255,255,0.08));
+  border-radius: 10px; padding: 12px;
+}
+.metric-tile .lbl {
+  font-size: 10px; color: var(--text-faint, rgba(255,255,255,0.5));
+  text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;
+}
+.metric-tile .val {
+  font-size: 22px; font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+}
+.metric-tile .unit { font-size: 11px; color: var(--text-faint, rgba(255,255,255,0.5)); margin-left: 2px; }
+.metric-tile .delta { font-size: 11px; margin-top: 4px; font-weight: 600; }
+.metric-tile .delta.pos { color: #00ff94; }
+.metric-tile .delta.neg { color: #ff4444; }
+.metric-tile .delta.neu { color: var(--text-soft, rgba(255,255,255,0.74)); }
+.metric-tile.highlight {
+  border-color: color-mix(in srgb, var(--theme-accent, #00ff94) 28%, transparent);
+  background: linear-gradient(135deg, #0f2020, #0d1818);
+}
+.metric-tile.highlight .val { color: var(--theme-accent, #00ff94); }
+
+/* ─── Lap selector row ───────────────────────────────────── */
+.lap-selector-row {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;
+}
+.lap-chip {
+  flex-shrink: 0;
+  background: #1a2332; border: 1px solid #2a3a52;
+  border-radius: 8px; padding: 6px 12px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px; min-width: 64px;
+}
+.lap-chip.selected {
+  background: var(--theme-accent, #00ff94);
+  border-color: var(--theme-accent, #00ff94); color: #0a0a0f;
+}
+.lap-chip .lnum { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; }
+.lap-chip .ltime { font-size: 10px; font-family: 'JetBrains Mono', monospace; opacity: 0.7; }
+.lap-chip.selected .ltime { opacity: 0.6; }
+.lap-chip .compound {
+  display: flex; align-items: center; gap: 3px;
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.compound-dot { width: 6px; height: 6px; border-radius: 50%; }
+.compound.soft   .compound-dot { background: #ff6b35; }
+.compound.medium .compound-dot { background: #fff; }
+.compound.hard   .compound-dot { background: #888; }
+.compound.inter  .compound-dot { background: #88f; }
+.compound.wet    .compound-dot { background: #4af; }
+
+/* ─── Lap chip pill (inline driver selector) ──────────────── */
+.driver-lap-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #1a2332; border: 1px solid #2a3a52;
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 12px; font-weight: 700;
+}
+
 .engineer-compact-grid,
 .telemetry-summary-grid {
   display: grid;
@@ -4972,4 +5210,238 @@ nav > *,
   }
 
   .telemetry-track-map--focus svg { height: 240px; }
+}
+
+/* ─── Override: engineer wall panels — dark mockup style ─── */
+.engineer-wall-panel {
+  background: #0d1117;
+  border: 1px solid #1e2530;
+  border-radius: 12px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.engineer-panel-heading {
+  display: none; /* heading replaced by session-header above */
+}
+
+/* Prediction grid → single column, full-width like mockup */
+.engineer-prediction-grid {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.engineer-prediction-side { display: none; }
+
+/* ─── Session header (top of engineer panel) ──────────────── */
+.engineer-session-header {
+  background: linear-gradient(135deg, #0f2020 0%, #132424 50%, #0a1818 100%);
+  border-bottom: 1px solid rgba(0, 255, 148, 0.15);
+  border-radius: 0;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+}
+
+.engineer-session-header .gp-info { flex: 1; }
+.engineer-session-header .gp-name {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  margin-bottom: 4px;
+}
+.engineer-session-header .session-info {
+  font-size: 11px;
+  color: #00ff94;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.engineer-session-stats { display: flex; gap: 20px; }
+.engineer-session-stat { text-align: right; }
+.engineer-session-stat .val {
+  font-size: 20px;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  color: #00ff94;
+}
+.engineer-session-stat .lbl {
+  font-size: 10px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ─── Lap selector row ────────────────────────────────────── */
+.engineer-lap-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 10px 16px;
+  background: #0d1117;
+  border-bottom: 1px solid #1e2530;
+  scrollbar-width: none;
+}
+.engineer-lap-row::-webkit-scrollbar { display: none; }
+
+.engineer-lap-chip {
+  flex-shrink: 0;
+  background: #1a2332;
+  border: 1px solid #2a3a52;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 64px;
+  color: #fff;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.engineer-lap-chip:hover { border-color: #3a5060; }
+.engineer-lap-chip.selected {
+  background: #00ff94;
+  border-color: #00ff94;
+  color: #0a0a0f;
+}
+.engineer-lap-chip .lnum {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+}
+.engineer-lap-chip .ltime {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  opacity: 0.7;
+}
+.engineer-lap-chip.selected .ltime { opacity: 0.55; }
+.engineer-lap-chip .compound {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.75;
+}
+.engineer-lap-chip.selected .compound { opacity: 0.6; }
+.compound-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.compound.soft   .compound-dot { background: #ff6b35; }
+.compound.medium .compound-dot { background: #fff; }
+.compound.hard   .compound-dot { background: #888; }
+.compound.inter  .compound-dot { background: #88f; }
+.compound.wet    .compound-dot { background: #4af; }
+
+/* ─── Metrics grid (4-col) inside prediction panel ───────── */
+.engineer-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 12px 16px;
+  background: #0d1117;
+  border-bottom: 1px solid #1e2530;
+}
+
+.engineer-metric-tile {
+  background: #161b22;
+  border: 1px solid #1e2530;
+  border-radius: 10px;
+  padding: 12px;
+}
+.engineer-metric-tile.highlight {
+  border-color: rgba(0, 255, 148, 0.25);
+  background: linear-gradient(135deg, #0f2020, #0d1818);
+}
+.engineer-metric-tile .lbl {
+  font-size: 10px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.engineer-metric-tile .val {
+  font-size: 22px;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+}
+.engineer-metric-tile.highlight .val { color: #00ff94; }
+.engineer-metric-tile .unit {
+  font-size: 11px;
+  color: #6b7280;
+  margin-left: 2px;
+}
+.engineer-metric-tile .delta {
+  font-size: 11px;
+  margin-top: 4px;
+  font-weight: 600;
+}
+.engineer-metric-tile .delta.pos { color: #00ff94; }
+.engineer-metric-tile .delta.neg { color: #ff4444; }
+.engineer-metric-tile .delta.neu { color: #9ca3af; }
+
+/* ─── Stints bar (prediction panel) ──────────────────────── */
+.engineer-stints-bar {
+  display: flex;
+  gap: 6px;
+  padding: 12px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #1e2530;
+}
+.engineer-stint-seg {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  position: relative;
+}
+.engineer-stint-seg.soft  { background: #ff6b35; }
+.engineer-stint-seg.medium{ background: #ccc; }
+.engineer-stint-seg.hard  { background: #666; }
+.engineer-stint-seg.wet   { background: #4af; }
+.engineer-stint-seg .si {
+  position: absolute;
+  top: -16px;
+  left: 0;
+  font-size: 9px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+/* ─── Section label (prediction panel) ──────────────────── */
+.engineer-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #00ff94;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px 0;
+}
+.engineer-section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(0, 255, 148, 0.12);
+}
+
+/* ─── Prediction console line (GP / Pilot / Phase / Mode) ─ */
+.engineer-console-line {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid rgba(100, 130, 138, 0.38);
+  background: rgba(9, 13, 18, 0.96);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 12px 16px 0;
 }
