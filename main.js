@@ -2052,7 +2052,7 @@ async function fetchNewsDataForFavorite(favorite, force = false) {
 async function fetchPredictData(favorite, raceName) {
   // Usar Web Worker para simulaciones
   return new Promise((resolve, reject) => {
-    const worker = new Worker('workers/sim-worker.js');
+    const worker = new Worker('/Codigo-racecontrol/workers/sim-worker.js');
     
     worker.onmessage = (e) => {
       const { type, data } = e.data;
@@ -2077,12 +2077,6 @@ async function fetchPredictData(favorite, raceName) {
       }
     });
   });
-},
-    body: JSON.stringify({ favorite, raceName })
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.message || data?.error || "Error al generar la predicción");
-  return data;
 }
 
 function refreshFavoriteFromStandings(data) {
