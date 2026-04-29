@@ -1,80 +1,108 @@
 #!/bin/bash
+# Deploy script for RaceControl API Gateway
+# Usage: ./deploy-worker.sh
 
-# 🚀 Script de Deploy de RaceControl API Gateway a Cloudflare Workers
-# Ejecuta esto cuando estés frente al Mac y puedas autorizar el login
+set -e
 
-set -e  # Detener si hay error
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKER_DIR="$SCRIPT_DIR/cloudflare-worker/api-gateway"
+API_URL="https://racecontrol-api-gateway.joanvalls1998.workers.dev"
 
-echo "🏁 RaceControl - Deploy a Cloudflare Workers"
-echo "============================================"
+echo "🚀 RaceControl Worker Deploy Script"
+echo "===================================="
 echo ""
 
-# 1. Instalar Wrangler si no existe
+# Check if CLOUDFLARE_API_TOKEN is set
+if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+    echo "⚠️  CLOUDFLARE_API_TOKEN no está configurado"
+    echo ""
+    echo "Opciones:"
+    echo "1. Exportar el token:"
+    echo "   export CLOUDFLARE_API_TOKEN='tu-token-aqui'"
+    echo ""
+    echo "2. O ejecutar wrangler login primero:"
+    echo "   wrangler login"
+    echo ""
+    read -p "¿Quieres continuar sin token? (se intentará con wrangler login) [y/N]: " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+cd "$WORKER_DIR"
+
+echo "📁 Directorio: $(pwd)"
+echo ""
+
+# Check if wrangler is installed
 if ! command -v wrangler &> /dev/null; then
-    echo "📦 Instalando Wrangler..."
-    npm install -g wrangler
+    echo "❌ wrangler no está instalado"
+    echo "Instala con: npm install -g wrangler"
+    exit 1
+fi
+
+echo "📦 Wrangler version: $(wrangler --version)"
+echo ""
+
+# Dry run first
+echo "🔍 Verificando configuración..."
+wrangler deploy --dry-run || {
+    echo "❌ Error en dry-run. Revisa wrangler.toml"
+    exit 1
+}
+
+echo ""
+echo "🚀 Deployando Worker..."
+wrangler deploy
+
+echo ""
+echo "✅ Deploy completado!"
+echo ""
+echo "🧪 Testing endpoints..."
+echo ""
+
+# Test standings
+echo "1. Testing /api/standings..."
+STANDINGS_RESPONSE=$(curl -s "$API_URL/api/standings")
+if echo "$STANDINGS_RESPONSE" | grep -q "drivers"; then
+    echo "   ✅ Standings OK"
+    echo "$STANDINGS_RESPONSE" | python3 -m json.tool | head -20
 else
-    echo "✅ Wrangler ya está instalado"
+    echo "   ❌ Standings FAILED"
+    echo "$STANDINGS_RESPONSE" | head -5
 fi
 
 echo ""
-echo "🔐 Paso 1: Login en Cloudflare"
-echo "   Se abrirá el navegador. Autoriza el acceso."
-echo "   (Presiona Enter cuando hayas autorizado)"
-read -p ""
 
-wrangler login
-
-echo ""
-echo "🚀 Paso 2: Deploy del API Gateway..."
-cd /Users/joanvalls/.openclaw/workspace/Codigo-racecontrol/cloudflare-worker/api-gateway
-
-# Deploy y capturar la URL
-OUTPUT=$(wrangler deploy 2>&1)
-echo "$OUTPUT"
-
-# Extraer la URL del output
-WORKER_URL=$(echo "$OUTPUT" | grep -oP 'https://racecontrol-api-gateway\.[\w.-]+\.workers\.dev' | head -1)
-
-if [ -z "$WORKER_URL" ]; then
-    echo "⚠️  No pude extraer la URL del Worker automáticamente"
-    echo "   Copia la URL que ves arriba (empieza por https://racecontrol-api-gateway...)"
-    read -p "Pega la URL del Worker: " WORKER_URL
+# Test calendar
+echo "2. Testing /api/calendar..."
+CALENDAR_RESPONSE=$(curl -s "$API_URL/api/calendar")
+if echo "$CALENDAR_RESPONSE" | grep -q "events"; then
+    echo "   ✅ Calendar OK"
+    echo "$CALENDAR_RESPONSE" | python3 -m json.tool | head -20
+else
+    echo "   ❌ Calendar FAILED"
+    echo "$CALENDAR_RESPONSE" | head -5
 fi
 
 echo ""
-echo "✅ Worker deployed en: $WORKER_URL"
-echo ""
 
-# 3. Actualizar config.js
-echo "📝 Paso 3: Actualizando config.js..."
-cd /Users/joanvalls/.openclaw/workspace/Codigo-racecontrol
-
-# Crear backup
-cp config.js config.js.bak
-
-# Reemplazar API_BASE_URL
-sed -i '' "s|API_BASE_URL: ''|API_BASE_URL: '$WORKER_URL'|" config.js
-
-echo "✅ config.js actualizado con: $WORKER_URL"
-echo ""
-
-# 4. Commit y push a GitHub
-echo "📤 Paso 4: Push a GitHub..."
-git add .
-git commit -m "🚀 Migrar APIs a Cloudflare Workers - $(date +%Y-%m-%d)"
-git push origin main
+# Test news
+echo "3. Testing /api/news..."
+NEWS_RESPONSE=$(curl -s "$API_URL/api/news?url=https://news.google.com/rss/search?q=F1&hl=es&gl=ES" | head -c 200)
+if echo "$NEWS_RESPONSE" | grep -q "<?xml"; then
+    echo "   ✅ News OK"
+else
+    echo "   ❌ News FAILED"
+    echo "$NEWS_RESPONSE"
+fi
 
 echo ""
-echo "============================================"
-echo "✅ ¡DEPLOY COMPLETADO!"
+echo "===================================="
+echo "🎉 Deploy finalizado"
 echo ""
-echo "📱 Tu web está en:"
-echo "   https://joanvalls1998-ui.github.io/Codigo-racecontrol/"
+echo "Web: https://joanvalls1998-ui.github.io/Codigo-racecontrol/"
+echo "API: $API_URL"
 echo ""
-echo "🔧 Tu API Gateway está en:"
-echo "   $WORKER_URL"
-echo ""
-echo "⚠️  Próximo paso: Migrar la lógica de las APIs"
-echo "   Lee MIGRACION-README.md para más info"
-echo "============================================"
+echo "💡 Hard refresh en el navegador: Cmd+Shift+R"
