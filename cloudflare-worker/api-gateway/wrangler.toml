@@ -6,6 +6,13 @@ account_id = "50273c01c7f7511b7fdab08de6ab21d4"
 # Variables de entorno
 [vars]
 ALLOWED_ORIGINS = "https://joanvalls1998-ui.github.io,http://localhost:3000"
+OPENAI_API_KEY = "tu-api-key-aqui"
+
+# KV Namespace para estado persistente (edge state, ajustes)
+# Pendiente de crear: wrangler kv namespace create "EDGE_STATE"
+# [[kv_namespaces]]
+# binding = "EDGE_STATE"
+# id = ""
 
 # Durable Objects para estado persistente (opcional, para ingeniero/telemetría)
 # [durable_objects]

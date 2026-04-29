@@ -1,126 +1,154 @@
-# RaceControl API Gateway - Cloudflare Worker
+# API Gateway - RaceControl
 
-Este Worker reemplaza todas las APIs que antes funcionaban en Vercel. Ahora corren en Cloudflare Workers (gratis hasta 100k requests/día).
+Cloudflare Worker que sirve como API Gateway para RaceControl, con las APIs migradas desde Node.js.
 
-## Endpoints disponibles
+## Endpoints Disponibles
 
-```
-/api/engineer/context
-/api/engineer/telemetry
-/api/engineer/sessions
-/api/engineer/sectors
-/api/engineer/stints
-/api/engineer/coverage
-/api/engineer/evolution
-/api/engineer/meetings
-/api/engineer/entities
-/api/predict
-/api/standings
-/api/calendar
-/api/news
-/api/sim
-/api/get-edge-state
-/api/init-edge-state
-/api/reset-edge-state
-/api/apply-adjustments
-/api/update-adjustments
-```
+### APIs Migradas (Nativas en Worker)
 
-## Deploy paso a paso
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/api/predict` | POST | Predicción semideterminista de carreras |
+| `/api/standings` | GET | Clasificación de pilotos y equipos |
+| `/api/calendar` | GET | Calendario de carreras con estados |
+| `/api/sim` | POST | Simulación con IA (OpenAI) |
 
-### 1. Instalar Wrangler (CLI de Cloudflare)
+### Edge State (KV)
+
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/api/get-edge-state` | GET | Obtener estado de ajustes |
+| `/api/init-edge-state` | POST | Inicializar estado |
+| `/api/reset-edge-state` | POST | Resetear estado |
+| `/api/apply-adjustments` | POST | Aplicar ajustes |
+| `/api/update-adjustments` | POST | Actualizar ajustes |
+
+### Engineer API (En implementación)
+
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/api/engineer/telemetry` | GET | Telemetría por vuelta |
+| `/api/engineer/context` | GET | Contexto de sesión |
+| `/api/engineer/sessions` | GET | Lista de sesiones |
+| `/api/engineer/sectors` | GET | Datos por sector |
+| `/api/engineer/stints` | GET | Stints de neumáticos |
+| `/api/engineer/coverage` | GET | Cobertura de sesión |
+| `/api/engineer/evolution` | GET | Evolución de tiempos |
+| `/api/engineer/meetings` | GET | Lista de meetings |
+| `/api/engineer/entities` | GET | Entidades F1 API |
+
+## Deploy
+
+### 1. Configurar variables de entorno
 
 ```bash
-npm install -g wrangler
+# Opción A: Exportar antes de deploy
+export CLOUDFLARE_API_TOKEN="tu-api-token"
+export OPENAI_API_KEY="tu-openai-key"
+
+# Opción B: Usar wrangler secrets
+wrangler secret put OPENAI_API_KEY
 ```
 
-### 2. Iniciar sesión en Cloudflare
-
-```bash
-wrangler login
-```
-
-Se abrirá el navegador. Autoriza el acceso.
-
-### 3. Deploy del Worker
+### 2. Crear KV Namespace (para edge state)
 
 ```bash
 cd cloudflare-worker/api-gateway
+wrangler kv namespace create "EDGE_STATE"
+```
+
+Anota el `id` que devuelve y actualiza `wrangler.toml`:
+
+```toml
+[[kv_namespaces]]
+binding = "EDGE_STATE"
+id = "xxxxxxxxxxxxxxxx"
+```
+
+### 3. Deploy
+
+```bash
 wrangler deploy
 ```
 
-### 4. Obtener la URL
+URL resultante: `https://racecontrol-api-gateway.joanvalls1998.workers.dev`
 
-Después del deploy, Wrangler te dará una URL como:
-```
-https://racecontrol-api-gateway.[tu-subdomain].workers.dev
-```
+## Test de Endpoints
 
-### 5. Actualizar tu web
-
-En tu código frontend, cambia las llamadas a `/api/...` por la URL del Worker:
-
-**Antes:**
-```javascript
-fetch('/api/engineer/context', ...)
-```
-
-**Después:**
-```javascript
-fetch('https://racecontrol-api-gateway.[tu-subdomain].workers.dev/api/engineer/context', ...)
-```
-
-O mejor, usa una variable de entorno en tu `main.js`:
-
-```javascript
-const API_BASE = 'https://racecontrol-api-gateway.[tu-subdomain].workers.dev';
-```
-
-## Migrar la lógica de las APIs
-
-Ahora mismo los handlers retornan datos mock. Tienes que migrar la lógica de cada archivo `api/*.js` a su handler correspondiente en `src/index.js`.
-
-**Ejemplo:**
-
-El archivo `api/predict.js` tiene toda la lógica de predicciones. Copia esa lógica al handler `handlePredict()` en `src/index.js`.
-
-**Importante:** Cloudflare Workers tiene algunas limitaciones:
-- No puedes usar `fs` (sistema de archivos)
-- No puedes usar librerías nativas de Node.js
-- Sí puedes usar `fetch()` para APIs externas
-- Sí puedes usar almacenamiento KV (clave-valor) si necesitas persistencia
-
-Si alguna API necesita acceso a archivos, tendrás que:
-1. Mover los datos a Cloudflare KV, o
-2. Usar un endpoint externo que sirva los datos
-
-## Testing local
-
-Puedes probar el Worker en local antes de deployar:
+### Test Predict
 
 ```bash
-wrangler dev
+curl -X POST "https://racecontrol-api-gateway.joanvalls1998.workers.dev/api/predict" \
+  -H "Content-Type: application/json" \
+  -d '{"raceName": "GP Miami", "favorite": {"type": "driver", "name": "Fernando Alonso"}}'
 ```
 
-Esto levanta un servidor local en `http://localhost:8787`.
+### Test Standings
 
-## Límites del plan gratis
+```bash
+curl "https://racecontrol-api-gateway.joanvalls1998.workers.dev/api/standings"
+```
 
-- 100,000 requests por día
-- 10ms CPU time por request (puede ser poco para cálculos complejos)
-- Almacenamiento KV: 1GB gratis
+### Test Calendar
 
-Si superas los límites, Cloudflare te avisa y puedes upgrading o optimizar.
+```bash
+curl "https://racecontrol-api-gateway.joanvalls1998.workers.dev/api/calendar"
+```
 
-## Siguientes pasos
+### Test Sim
 
-1. ✅ Deployar este Worker base
-2. 🔄 Migrar la lógica de cada API (empezar por `engineer/telemetry` que es la más importante)
-3. 🔄 Actualizar el frontend para usar la nueva URL
-4. 🔄 Testear cada endpoint
-5. ✅ Desactivar Vercel cuando todo funcione
+```bash
+curl -X POST "https://racecontrol-api-gateway.joanvalls1998.workers.dev/api/sim"
+```
 
-## Dudas
+## Arquitectura
 
-Cualquier problema, revisa los logs en el dashboard de Cloudflare:
-https://dash.cloudflare.com/?to=/:account/workers
+### Migración de Node.js a Cloudflare Workers
+
+**Cambios clave:**
+
+1. **Sin `fs`**: Todos los datos se cargan via `fetch()` desde GitHub raw
+2. **Sin imports ES nativos**: Se parsean los módulos con `fetchModule()` que extrae exports
+3. **Persistencia con KV**: El estado de ajustes se guarda en Cloudflare KV
+4. **Fetch nativo**: Usamos `fetch()` de Cloudflare Workers (con `cacheTtl`)
+
+### Estructura de Datos
+
+Los datos se cargan desde:
+- `https://raw.githubusercontent.com/joanvalls1998-ui/Codigo-racecontrol/main/data/`
+
+Archivos:
+- `grid.js` → Parrilla de pilotos 2026
+- `performance.js` → Rendimientos base de equipos y pilotos
+- `manual-adjustments.js` → Límites y ajustes manuales
+- `circuits.js` → Perfiles de circuitos
+- `calendar-events.js` → Calendario oficial
+
+## Limitaciones
+
+1. **Cache TTL**: Los datos de GitHub se cachean 1 hora (3600s)
+2. **KV opcional**: Sin KV configurado, los ajustes usan el estado base
+3. **OpenAI requiere secret**: La API de sim necesita `OPENAI_API_KEY` configurada
+
+## Scripts Útiles
+
+```bash
+# Ver logs en tiempo real
+wrangler tail
+
+# Ver estado del deploy
+wrangler deployments list
+
+# Rollback a versión anterior
+wrangler rollback
+
+# Eliminar deploy
+wrangler delete
+```
+
+## Próximos Pasos
+
+- [ ] Migrar telemetría del ingeniero (requiere _core.js)
+- [ ] Añadir validación de schemas con Zod
+- [ ] Rate limiting por IP
+- [ ] Métricas con Cloudflare Analytics
