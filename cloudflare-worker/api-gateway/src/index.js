@@ -2191,12 +2191,17 @@ async function handleEngineerTelemetry(query, corsHeaders) {
     const driverNumber = query.get('driver_number');
     const lapMode = query.get('lap_mode') || 'reference';
     const manualLap = query.get('manual_lap') || '';
+    const year = query.get('year');
+
+    console.log('[TELEMETRY] Request:', JSON.stringify({ meetingKey, sessionKey, driverNumber, lapMode, manualLap, year }));
 
     if (!meetingKey || !sessionKey || !driverNumber) {
+      console.log('[TELEMETRY] Missing params:', { meetingKey, sessionKey, driverNumber });
       return jsonResponse({
         error: 'Faltan parámetros',
         required: ['meeting_key', 'session_key', 'driver_number'],
-        example: '/api/engineer/telemetry?meeting_key=australian-grand-prix&session_key=australian-grand-prix__race&driver_number=12&lap_mode=best'
+        received: { meeting_key: meetingKey, session_key: sessionKey, driver_number: driverNumber },
+        example: '/api/engineer/telemetry?meeting_key=Australian%20Grand%20Prix&session_key=Australian%20Grand%20Prix__Race&driver_number=12&lap_mode=best'
       }, corsHeaders, 400);
     }
 
@@ -2209,7 +2214,46 @@ async function handleEngineerTelemetry(query, corsHeaders) {
       manualLap
     });
 
-    return jsonResponse(payload, corsHeaders);
+    // Transformar al formato que espera la web
+    const transformed = {
+      year: payload.year,
+      meeting_key: payload.meeting_key,
+      session_key: payload.session_key,
+      driver: payload.driver,
+      lap_selector: {
+        laps: payload.laps.map(lap => ({
+          lapNumber: lap.lapNumber,
+          lapTime: lap.lapTime,
+          compound: lap.compound,
+          stint: lap.stint,
+          status: lap.status,
+          isBest: lap.isBest,
+          hasTelemetry: lap.hasTelemetry,
+          hasTiming: lap.hasTiming,
+          hasSectors: lap.hasSectors,
+          isPitIn: lap.isPitIn,
+          isPitOut: lap.isPitOut,
+          telemetryPoints: lap.telemetryPoints
+        })),
+        selectedLapNumber: payload.lap.number
+      },
+      traces: {
+        speed: payload.telemetry.speed,
+        throttle: payload.telemetry.throttle,
+        brake: payload.telemetry.brake,
+        distance: payload.telemetry.distance,
+        relativeDistance: payload.telemetry.relDistance,
+        trackX: payload.telemetry.trackX,
+        trackY: payload.telemetry.trackY,
+        rpm: payload.telemetry.rpm,
+        gear: payload.telemetry.gear
+      },
+      trace: payload.trace,
+      source: payload.source,
+      generatedAt: payload.generatedAt
+    };
+
+    return jsonResponse(transformed, corsHeaders);
   } catch (error) {
     if (error?.code === 'MEETING_NOT_FOUND') {
       return jsonResponse({ error: 'GP no válido para 2026', code: 'MEETING_NOT_FOUND' }, corsHeaders, 404);
@@ -2221,7 +2265,8 @@ async function handleEngineerTelemetry(query, corsHeaders) {
       return jsonResponse({ error: 'Piloto no disponible en esta sesión', code: 'DRIVER_NOT_FOUND' }, corsHeaders, 404);
     }
     if (error?.code === 'NO_TELEMETRY') {
-      return jsonResponse({ error: 'No hay telemetría disponible para esta vuelta', code: 'NO_TELEMETRY' }, corsHeaders, 404);
+      console.log('[TELEMETRY] NO_TELEMETRY error for:', { meetingKey, sessionKey, driverNumber, lapMode });
+      return jsonResponse({ error: 'No hay telemetría disponible para esta vuelta', code: 'NO_TELEMETRY', debug: { meetingKey, sessionKey, driverNumber, lapMode } }, corsHeaders, 404);
     }
     console.error('Telemetry error:', error);
     return jsonResponse({ error: 'Error interno', message: error?.message, code: error?.code }, corsHeaders, 500);
