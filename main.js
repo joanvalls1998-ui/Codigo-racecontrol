@@ -2038,15 +2038,74 @@ async function fetchNewsDataForFavorite(favorite, force = false) {
   const cacheKey = getNewsCacheKey(favorite);
   if (state.homeNewsCache[cacheKey] && !force) return state.homeNewsCache[cacheKey];
   
-  // Temporalmente devolver noticias vacías (CORS en GitHub Pages)
-  // Opción futura: usar Cloudflare Worker para proxy RSS
-  const data = {
-    favorite,
-    items: []
-  };
+  try {
+    // Usar Cloudflare Worker para proxy RSS
+    const newsUrl = encodeURIComponent('https://news.google.com/rss/search?q=F1+formula+1&hl=es&gl=ES&ceid=ES:es');
+    const apiUrl = `${RACECONTROL_CONFIG.API_BASE_URL}/api/news?url=${newsUrl}`;
+    
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+    
+    const xmlText = await response.text();
+    const items = parseRSSXML(xmlText);
+    
+    const data = {
+      favorite,
+      items
+    };
+    
+    state.homeNewsCache[cacheKey] = data;
+    return data;
+  } catch (error) {
+    console.error('Error fetching news:', error);
+    // Devolver vacío en caso de error pero con mensaje
+    const data = {
+      favorite,
+      items: [],
+      error: error.message
+    };
+    state.homeNewsCache[cacheKey] = data;
+    return data;
+  }
+}
+
+function parseRSSXML(xmlText) {
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+  const items = xmlDoc.querySelectorAll('item');
   
-  state.homeNewsCache[cacheKey] = data;
-  return data;
+  const results = [];
+  items.forEach(item => {
+    const title = item.querySelector('title')?.textContent || '';
+    const link = item.querySelector('link')?.textContent || '';
+    const pubDate = item.querySelector('pubDate')?.textContent || '';
+    const source = item.querySelector('source')?.textContent || 'Noticias';
+    const description = item.querySelector('description')?.textContent || '';
+    
+    // Google News RSS tiene estructura especial: title = "Titular - Fuente"
+    let cleanTitle = title;
+    let cleanSource = source;
+    
+    if (title.includes(' - ')) {
+      const parts = title.split(' - ');
+      cleanTitle = parts[0].trim();
+      if (parts.length > 1 && !cleanSource) {
+        cleanSource = parts[parts.length - 1].trim();
+      }
+    }
+    
+    results.push({
+      title: cleanTitle,
+      link: sanitizeExternalUrl(link),
+      pubDate,
+      source: cleanSource || 'Noticias',
+      description
+    });
+  });
+  
+  return results;
 }
 
 async function fetchPredictData(favorite, raceName) {
