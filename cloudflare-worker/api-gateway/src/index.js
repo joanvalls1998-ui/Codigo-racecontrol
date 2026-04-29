@@ -124,21 +124,37 @@ async function handlePredict(query, corsHeaders, request, env) {
       }, corsHeaders, 400);
     }
     
-    // Cargar datos desde GitHub (grid, performance, adjustments)
-    const [gridModule, performanceModule, adjustmentsModule] = await Promise.all([
-      fetchModule(DATA_URLS.grid),
-      fetchModule(DATA_URLS.performance),
-      fetchModule(DATA_URLS.manualAdjustments)
-    ]);
+    // Usar datos embebidos para grid y performance (evita bugs de parseo/red en Cloudflare)
+    const gridData = getGridDataEmbedded();
+    const { drivers2026, teams2026 } = gridData;
+    const driverByName = Object.fromEntries(drivers2026.map(d => [d.name, d]));
+    const teamByName = Object.fromEntries(teams2026.map(t => [t.name, t]));
     
-    const { drivers2026, driverByName, teamByName } = gridModule;
-    const { performanceState } = performanceModule;
+    const performanceState = getPerformanceDataEmbedded();
+    
+    // Cargar solo adjustments desde GitHub
+    const adjustmentsCode = await fetch(DATA_URLS.manualAdjustments).then(r => r.text());
+    const adjustmentsModule = fetchModuleFromCode(adjustmentsCode);
     const { manualAdjustmentsState } = adjustmentsModule || {};
     
     // Obtener estado de ajustes runtime (desde KV si existe, o usar base)
     const runtimeAdjustmentsState = await getRuntimeAdjustmentsState(env, manualAdjustmentsState);
     
     // Construir predicciones
+    console.log('drivers2026 type:', typeof drivers2026, 'isArray:', Array.isArray(drivers2026));
+    console.log('performanceState type:', typeof performanceState);
+    console.log('driverByName type:', typeof driverByName);
+    
+    if (!drivers2026 || !Array.isArray(drivers2026)) {
+      return jsonResponse({
+        error: 'Grid data no cargada correctamente',
+        debug: {
+          drivers2026: drivers2026 ? 'exists' : 'undefined',
+          gridModuleKeys: Object.keys(gridModule)
+        }
+      }, corsHeaders, 500);
+    }
+    
     const { qualyOrder, raceOrder } = buildRacePredictions(circuit, runtimeAdjustmentsState, drivers2026, performanceState, driverByName);
     const teamSummary = buildTeamSummary(raceOrder, qualyOrder);
     const strategy = computeStrategy(circuit);
@@ -581,6 +597,889 @@ const RACE_OPTIONS_EMBEDDED = [
   "GP de São Paulo", "GP de Las Vegas", "GP de Catar", "GP de Abu Dabi"
 ];
 
+// === GRID DATA EMBEDDED ===
+function getGridDataEmbedded() {
+  return {
+    drivers2026: [
+  {
+    name: "George Russell",
+    shortCode: "RUS",
+    number: "63",
+    team: "Mercedes",
+    officialTeam: "Mercedes",
+    teamKey: "mercedes",
+    colorClass: "mercedes"
+  },
+  {
+    name: "Kimi Antonelli",
+    shortCode: "ANT",
+    number: "12",
+    team: "Mercedes",
+    officialTeam: "Mercedes",
+    teamKey: "mercedes",
+    colorClass: "mercedes"
+  },
+  {
+    name: "Charles Leclerc",
+    shortCode: "LEC",
+    number: "16",
+    team: "Ferrari",
+    officialTeam: "Ferrari",
+    teamKey: "ferrari",
+    colorClass: "ferrari"
+  },
+  {
+    name: "Lewis Hamilton",
+    shortCode: "HAM",
+    number: "44",
+    team: "Ferrari",
+    officialTeam: "Ferrari",
+    teamKey: "ferrari",
+    colorClass: "ferrari"
+  },
+  {
+    name: "Lando Norris",
+    shortCode: "NOR",
+    number: "1",
+    team: "McLaren",
+    officialTeam: "McLaren",
+    teamKey: "mclaren",
+    colorClass: "mclaren"
+  },
+  {
+    name: "Oscar Piastri",
+    shortCode: "PIA",
+    number: "81",
+    team: "McLaren",
+    officialTeam: "McLaren",
+    teamKey: "mclaren",
+    colorClass: "mclaren"
+  },
+  {
+    name: "Max Verstappen",
+    shortCode: "VER",
+    number: "3",
+    team: "Red Bull",
+    officialTeam: "Red Bull Racing",
+    teamKey: "redbull",
+    colorClass: "redbull"
+  },
+  {
+    name: "Isack Hadjar",
+    shortCode: "HAD",
+    number: "6",
+    team: "Red Bull",
+    officialTeam: "Red Bull Racing",
+    teamKey: "redbull",
+    colorClass: "redbull"
+  },
+  {
+    name: "Esteban Ocon",
+    shortCode: "OCO",
+    number: "31",
+    team: "Haas",
+    officialTeam: "Haas F1 Team",
+    teamKey: "haas",
+    colorClass: "haas"
+  },
+  {
+    name: "Oliver Bearman",
+    shortCode: "BEA",
+    number: "87",
+    team: "Haas",
+    officialTeam: "Haas F1 Team",
+    teamKey: "haas",
+    colorClass: "haas"
+  },
+  {
+    name: "Liam Lawson",
+    shortCode: "LAW",
+    number: "30",
+    team: "Racing Bulls",
+    officialTeam: "Racing Bulls",
+    teamKey: "rb",
+    colorClass: "rb"
+  },
+  {
+    name: "Arvid Lindblad",
+    shortCode: "LIN",
+    number: "41",
+    team: "Racing Bulls",
+    officialTeam: "Racing Bulls",
+    teamKey: "rb",
+    colorClass: "rb"
+  },
+  {
+    name: "Pierre Gasly",
+    shortCode: "GAS",
+    number: "10",
+    team: "Alpine",
+    officialTeam: "Alpine",
+    teamKey: "alpine",
+    colorClass: "alpine"
+  },
+  {
+    name: "Franco Colapinto",
+    shortCode: "COL",
+    number: "43",
+    team: "Alpine",
+    officialTeam: "Alpine",
+    teamKey: "alpine",
+    colorClass: "alpine"
+  },
+  {
+    name: "Nico Hulkenberg",
+    shortCode: "HUL",
+    number: "27",
+    team: "Audi",
+    officialTeam: "Audi",
+    teamKey: "audi",
+    colorClass: "audi"
+  },
+  {
+    name: "Gabriel Bortoleto",
+    shortCode: "BOR",
+    number: "5",
+    team: "Audi",
+    officialTeam: "Audi",
+    teamKey: "audi",
+    colorClass: "audi"
+  },
+  {
+    name: "Carlos Sainz",
+    shortCode: "SAI",
+    number: "55",
+    team: "Williams",
+    officialTeam: "Williams",
+    teamKey: "williams",
+    colorClass: "williams"
+  },
+  {
+    name: "Alexander Albon",
+    shortCode: "ALB",
+    number: "23",
+    team: "Williams",
+    officialTeam: "Williams",
+    teamKey: "williams",
+    colorClass: "williams"
+  },
+  {
+    name: "Sergio Perez",
+    shortCode: "PER",
+    number: "11",
+    team: "Cadillac",
+    officialTeam: "Cadillac",
+    teamKey: "cadillac",
+    colorClass: "cadillac"
+  },
+  {
+    name: "Valtteri Bottas",
+    shortCode: "BOT",
+    number: "77",
+    team: "Cadillac",
+    officialTeam: "Cadillac",
+    teamKey: "cadillac",
+    colorClass: "cadillac"
+  },
+  {
+    name: "Fernando Alonso",
+    shortCode: "ALO",
+    number: "14",
+    team: "Aston Martin",
+    officialTeam: "Aston Martin",
+    teamKey: "aston",
+    colorClass: "aston"
+  },
+  {
+    name: "Lance Stroll",
+    shortCode: "STR",
+    number: "18",
+    team: "Aston Martin",
+    officialTeam: "Aston Martin",
+    teamKey: "aston",
+    colorClass: "aston"
+  }
+],
+    teams2026: [
+  {
+    key: "mercedes",
+    name: "Mercedes",
+    officialName: "Mercedes",
+    colorClass: "mercedes",
+    drivers: ["George Russell", "Kimi Antonelli"]
+  },
+  {
+    key: "ferrari",
+    name: "Ferrari",
+    officialName: "Ferrari",
+    colorClass: "ferrari",
+    drivers: ["Charles Leclerc", "Lewis Hamilton"]
+  },
+  {
+    key: "mclaren",
+    name: "McLaren",
+    officialName: "McLaren",
+    colorClass: "mclaren",
+    drivers: ["Lando Norris", "Oscar Piastri"]
+  },
+  {
+    key: "redbull",
+    name: "Red Bull",
+    officialName: "Red Bull Racing",
+    colorClass: "redbull",
+    drivers: ["Max Verstappen", "Isack Hadjar"]
+  },
+  {
+    key: "haas",
+    name: "Haas",
+    officialName: "Haas F1 Team",
+    colorClass: "haas",
+    drivers: ["Esteban Ocon", "Oliver Bearman"]
+  },
+  {
+    key: "rb",
+    name: "Racing Bulls",
+    officialName: "Racing Bulls",
+    colorClass: "rb",
+    drivers: ["Liam Lawson", "Arvid Lindblad"]
+  },
+  {
+    key: "alpine",
+    name: "Alpine",
+    officialName: "Alpine",
+    colorClass: "alpine",
+    drivers: ["Pierre Gasly", "Franco Colapinto"]
+  },
+  {
+    key: "audi",
+    name: "Audi",
+    officialName: "Audi",
+    colorClass: "audi",
+    drivers: ["Nico Hulkenberg", "Gabriel Bortoleto"]
+  },
+  {
+    key: "williams",
+    name: "Williams",
+    officialName: "Williams",
+    colorClass: "williams",
+    drivers: ["Carlos Sainz", "Alexander Albon"]
+  },
+  {
+    key: "cadillac",
+    name: "Cadillac",
+    officialName: "Cadillac",
+    colorClass: "cadillac",
+    drivers: ["Sergio Perez", "Valtteri Bottas"]
+  },
+  {
+    key: "aston",
+    name: "Aston Martin",
+    officialName: "Aston Martin",
+    colorClass: "aston",
+    drivers: ["Fernando Alonso", "Lance Stroll"]
+  }
+]
+  };
+}
+
+// === PERFORMANCE DATA EMBEDDED ===
+function getPerformanceDataEmbedded() {
+  return {
+  meta: {
+    sourceDate: "2026-04-01",
+    seededFrom: "official_grid_and_current_2026_form_snapshot",
+    modelVersion: 1,
+    notes: [
+      "Base editable para predicción semideterminista",
+      "Los valores NO son oficiales: son una foto de rendimiento modelada",
+      "La parrilla oficial vive en data/grid.js",
+      "Este archivo está pensado para actualizarse tras cada GP"
+    ]
+  },
+
+  teams: {
+    Mercedes: {
+      qualyPace: 93,
+      racePace: 92,
+      reliability: 85,
+      aero: 90,
+      topSpeed: 85,
+      traction: 88,
+      tyreManagement: 84,
+      streetTrack: 83,
+      wetPerformance: 84,
+      upgradeMomentum: 3,
+      recentTrend: 4,
+      baseVariance: 5
+    },
+
+    Ferrari: {
+      qualyPace: 89,
+      racePace: 88,
+      reliability: 79,
+      aero: 86,
+      topSpeed: 90,
+      traction: 84,
+      tyreManagement: 80,
+      streetTrack: 82,
+      wetPerformance: 80,
+      upgradeMomentum: 2,
+      recentTrend: 2,
+      baseVariance: 6
+    },
+
+    McLaren: {
+      qualyPace: 86,
+      racePace: 85,
+      reliability: 80,
+      aero: 87,
+      topSpeed: 82,
+      traction: 85,
+      tyreManagement: 84,
+      streetTrack: 79,
+      wetPerformance: 81,
+      upgradeMomentum: 1,
+      recentTrend: 1,
+      baseVariance: 6
+    },
+
+    "Red Bull": {
+      qualyPace: 79,
+      racePace: 78,
+      reliability: 68,
+      aero: 88,
+      topSpeed: 84,
+      traction: 81,
+      tyreManagement: 75,
+      streetTrack: 77,
+      wetPerformance: 83,
+      upgradeMomentum: 0,
+      recentTrend: -2,
+      baseVariance: 8
+    },
+
+    Haas: {
+      qualyPace: 72,
+      racePace: 72,
+      reliability: 72,
+      aero: 69,
+      topSpeed: 73,
+      traction: 70,
+      tyreManagement: 69,
+      streetTrack: 68,
+      wetPerformance: 67,
+      upgradeMomentum: 1,
+      recentTrend: 2,
+      baseVariance: 7
+    },
+
+    "Racing Bulls": {
+      qualyPace: 71,
+      racePace: 70,
+      reliability: 70,
+      aero: 72,
+      topSpeed: 70,
+      traction: 71,
+      tyreManagement: 68,
+      streetTrack: 72,
+      wetPerformance: 69,
+      upgradeMomentum: 1,
+      recentTrend: 1,
+      baseVariance: 7
+    },
+
+    Alpine: {
+      qualyPace: 69,
+      racePace: 68,
+      reliability: 68,
+      aero: 70,
+      topSpeed: 67,
+      traction: 69,
+      tyreManagement: 67,
+      streetTrack: 68,
+      wetPerformance: 69,
+      upgradeMomentum: 0,
+      recentTrend: 1,
+      baseVariance: 7
+    },
+
+    Audi: {
+      qualyPace: 63,
+      racePace: 63,
+      reliability: 69,
+      aero: 64,
+      topSpeed: 64,
+      traction: 63,
+      tyreManagement: 65,
+      streetTrack: 61,
+      wetPerformance: 64,
+      upgradeMomentum: 0,
+      recentTrend: 0,
+      baseVariance: 6
+    },
+
+    Williams: {
+      qualyPace: 63,
+      racePace: 62,
+      reliability: 67,
+      aero: 63,
+      topSpeed: 68,
+      traction: 61,
+      tyreManagement: 63,
+      streetTrack: 60,
+      wetPerformance: 63,
+      upgradeMomentum: 0,
+      recentTrend: -1,
+      baseVariance: 7
+    },
+
+    Cadillac: {
+      qualyPace: 61,
+      racePace: 61,
+      reliability: 64,
+      aero: 60,
+      topSpeed: 66,
+      traction: 60,
+      tyreManagement: 62,
+      streetTrack: 63,
+      wetPerformance: 62,
+      upgradeMomentum: 0,
+      recentTrend: 0,
+      baseVariance: 7
+    },
+
+    "Aston Martin": {
+      qualyPace: 57,
+      racePace: 58,
+      reliability: 60,
+      aero: 60,
+      topSpeed: 56,
+      traction: 58,
+      tyreManagement: 60,
+      streetTrack: 57,
+      wetPerformance: 61,
+      upgradeMomentum: -1,
+      recentTrend: -2,
+      baseVariance: 8
+    }
+  },
+
+  drivers: {
+    "George Russell": {
+      form: 90,
+      qualySkill: 89,
+      raceSkill: 88,
+      tyreSaving: 83,
+      wetWeather: 84,
+      streetCraft: 80,
+      starts: 83,
+      defence: 86,
+      attack: 85,
+      consistency: 89,
+      aggression: 72,
+      risk: 18,
+      recentTrend: 2,
+      confidence: 90
+    },
+
+    "Kimi Antonelli": {
+      form: 94,
+      qualySkill: 91,
+      raceSkill: 88,
+      tyreSaving: 82,
+      wetWeather: 81,
+      streetCraft: 77,
+      starts: 87,
+      defence: 81,
+      attack: 86,
+      consistency: 84,
+      aggression: 78,
+      risk: 24,
+      recentTrend: 4,
+      confidence: 93
+    },
+
+    "Charles Leclerc": {
+      form: 88,
+      qualySkill: 91,
+      raceSkill: 86,
+      tyreSaving: 80,
+      wetWeather: 80,
+      streetCraft: 85,
+      starts: 80,
+      defence: 84,
+      attack: 88,
+      consistency: 84,
+      aggression: 76,
+      risk: 22,
+      recentTrend: 2,
+      confidence: 87
+    },
+
+    "Lewis Hamilton": {
+      form: 86,
+      qualySkill: 85,
+      raceSkill: 90,
+      tyreSaving: 86,
+      wetWeather: 90,
+      streetCraft: 91,
+      starts: 82,
+      defence: 90,
+      attack: 87,
+      consistency: 88,
+      aggression: 70,
+      risk: 18,
+      recentTrend: 1,
+      confidence: 86
+    },
+
+    "Lando Norris": {
+      form: 82,
+      qualySkill: 86,
+      raceSkill: 83,
+      tyreSaving: 82,
+      wetWeather: 78,
+      streetCraft: 79,
+      starts: 79,
+      defence: 80,
+      attack: 84,
+      consistency: 80,
+      aggression: 75,
+      risk: 22,
+      recentTrend: 0,
+      confidence: 81
+    },
+
+    "Oscar Piastri": {
+      form: 81,
+      qualySkill: 84,
+      raceSkill: 84,
+      tyreSaving: 83,
+      wetWeather: 77,
+      streetCraft: 78,
+      starts: 82,
+      defence: 79,
+      attack: 82,
+      consistency: 82,
+      aggression: 71,
+      risk: 20,
+      recentTrend: 1,
+      confidence: 81
+    },
+
+    "Max Verstappen": {
+      form: 85,
+      qualySkill: 89,
+      raceSkill: 92,
+      tyreSaving: 84,
+      wetWeather: 89,
+      streetCraft: 88,
+      starts: 88,
+      defence: 91,
+      attack: 94,
+      consistency: 86,
+      aggression: 82,
+      risk: 19,
+      recentTrend: -1,
+      confidence: 84
+    },
+
+    "Isack Hadjar": {
+      form: 73,
+      qualySkill: 76,
+      raceSkill: 71,
+      tyreSaving: 70,
+      wetWeather: 69,
+      streetCraft: 71,
+      starts: 74,
+      defence: 68,
+      attack: 73,
+      consistency: 68,
+      aggression: 79,
+      risk: 28,
+      recentTrend: 0,
+      confidence: 72
+    },
+
+    "Esteban Ocon": {
+      form: 70,
+      qualySkill: 69,
+      raceSkill: 74,
+      tyreSaving: 72,
+      wetWeather: 72,
+      streetCraft: 72,
+      starts: 71,
+      defence: 77,
+      attack: 71,
+      consistency: 74,
+      aggression: 68,
+      risk: 22,
+      recentTrend: -1,
+      confidence: 70
+    },
+
+    "Oliver Bearman": {
+      form: 82,
+      qualySkill: 79,
+      raceSkill: 80,
+      tyreSaving: 75,
+      wetWeather: 73,
+      streetCraft: 76,
+      starts: 78,
+      defence: 76,
+      attack: 80,
+      consistency: 78,
+      aggression: 77,
+      risk: 25,
+      recentTrend: 3,
+      confidence: 81
+    },
+
+    "Liam Lawson": {
+      form: 76,
+      qualySkill: 75,
+      raceSkill: 74,
+      tyreSaving: 72,
+      wetWeather: 71,
+      streetCraft: 74,
+      starts: 75,
+      defence: 72,
+      attack: 75,
+      consistency: 73,
+      aggression: 74,
+      risk: 24,
+      recentTrend: 1,
+      confidence: 75
+    },
+
+    "Arvid Lindblad": {
+      form: 74,
+      qualySkill: 76,
+      raceSkill: 70,
+      tyreSaving: 70,
+      wetWeather: 68,
+      streetCraft: 72,
+      starts: 76,
+      defence: 67,
+      attack: 75,
+      consistency: 67,
+      aggression: 80,
+      risk: 30,
+      recentTrend: 2,
+      confidence: 74
+    },
+
+    "Pierre Gasly": {
+      form: 79,
+      qualySkill: 78,
+      raceSkill: 79,
+      tyreSaving: 76,
+      wetWeather: 77,
+      streetCraft: 78,
+      starts: 75,
+      defence: 78,
+      attack: 79,
+      consistency: 80,
+      aggression: 71,
+      risk: 20,
+      recentTrend: 2,
+      confidence: 79
+    },
+
+    "Franco Colapinto": {
+      form: 71,
+      qualySkill: 70,
+      raceSkill: 70,
+      tyreSaving: 69,
+      wetWeather: 68,
+      streetCraft: 70,
+      starts: 72,
+      defence: 67,
+      attack: 72,
+      consistency: 68,
+      aggression: 78,
+      risk: 28,
+      recentTrend: 0,
+      confidence: 70
+    },
+
+    "Nico Hulkenberg": {
+      form: 73,
+      qualySkill: 72,
+      raceSkill: 78,
+      tyreSaving: 74,
+      wetWeather: 72,
+      streetCraft: 73,
+      starts: 71,
+      defence: 77,
+      attack: 72,
+      consistency: 79,
+      aggression: 63,
+      risk: 18,
+      recentTrend: 0,
+      confidence: 73
+    },
+
+    "Gabriel Bortoleto": {
+      form: 72,
+      qualySkill: 71,
+      raceSkill: 70,
+      tyreSaving: 71,
+      wetWeather: 69,
+      streetCraft: 69,
+      starts: 73,
+      defence: 68,
+      attack: 71,
+      consistency: 69,
+      aggression: 74,
+      risk: 24,
+      recentTrend: 1,
+      confidence: 71
+    },
+
+    "Carlos Sainz": {
+      form: 76,
+      qualySkill: 75,
+      raceSkill: 81,
+      tyreSaving: 80,
+      wetWeather: 78,
+      streetCraft: 80,
+      starts: 74,
+      defence: 80,
+      attack: 78,
+      consistency: 82,
+      aggression: 66,
+      risk: 18,
+      recentTrend: 0,
+      confidence: 76
+    },
+
+    "Alexander Albon": {
+      form: 73,
+      qualySkill: 74,
+      raceSkill: 75,
+      tyreSaving: 73,
+      wetWeather: 72,
+      streetCraft: 73,
+      starts: 73,
+      defence: 74,
+      attack: 75,
+      consistency: 74,
+      aggression: 70,
+      risk: 21,
+      recentTrend: -1,
+      confidence: 72
+    },
+
+    "Sergio Perez": {
+      form: 73,
+      qualySkill: 71,
+      raceSkill: 77,
+      tyreSaving: 76,
+      wetWeather: 74,
+      streetCraft: 76,
+      starts: 77,
+      defence: 73,
+      attack: 76,
+      consistency: 74,
+      aggression: 69,
+      risk: 21,
+      recentTrend: 0,
+      confidence: 72
+    },
+
+    "Valtteri Bottas": {
+      form: 72,
+      qualySkill: 74,
+      raceSkill: 75,
+      tyreSaving: 75,
+      wetWeather: 74,
+      streetCraft: 71,
+      starts: 72,
+      defence: 74,
+      attack: 71,
+      consistency: 77,
+      aggression: 60,
+      risk: 17,
+      recentTrend: 0,
+      confidence: 72
+    },
+
+    "Fernando Alonso": {
+      form: 84,
+      qualySkill: 82,
+      raceSkill: 91,
+      tyreSaving: 88,
+      wetWeather: 89,
+      streetCraft: 90,
+      starts: 79,
+      defence: 90,
+      attack: 88,
+      consistency: 87,
+      aggression: 67,
+      risk: 18,
+      recentTrend: 0,
+      confidence: 83
+    },
+
+    "Lance Stroll": {
+      form: 69,
+      qualySkill: 68,
+      raceSkill: 68,
+      tyreSaving: 69,
+      wetWeather: 70,
+      streetCraft: 70,
+      starts: 70,
+      defence: 67,
+      attack: 68,
+      consistency: 67,
+      aggression: 66,
+      risk: 24,
+      recentTrend: -1,
+      confidence: 68
+    }
+  },
+
+  manualAdjustments: {
+    teams: {
+      // Ejemplo:
+      // "Aston Martin": {
+      //   qualyPace: +2,
+      //   racePace: +3,
+      //   reliability: -1
+      // }
+    },
+
+    drivers: {
+      // Ejemplo:
+      // "Fernando Alonso": {
+      //   form: +1,
+      //   raceSkill: +1
+      // }
+    }
+  },
+
+  weeklyUpdateTemplate: {
+    teams: {
+      // ejemplo de estructura que luego podrá rellenar la IA
+      // "Ferrari": {
+      //   reason: "mejora de suelo en Miami",
+      //   changes: { racePace: +2, tyreManagement: +1 }
+      // }
+    },
+    drivers: {
+      // "Kimi Antonelli": {
+      //   reason: "muy buen último triplete",
+      //   changes: { confidence: +2, form: +2 }
+      // }
+    }
+  }
+};
+}
+
+
+
+
 // Sim API - OpenAI integration
 async function handleSim(query, corsHeaders, env) {
   const apiKey = env.OPENAI_API_KEY;
@@ -784,58 +1683,756 @@ async function handleUpdateAdjustments(query, corsHeaders, env) {
 }
 
 // Engineer API handlers (placeholders)
-async function handleEngineerTelemetry(query, corsHeaders) {
-  return jsonResponse({
-    error: 'Telemetría en implementación',
-    message: 'La API de telemetría requiere migrar la lógica de _core.js al Worker',
-    status: 'pending'
-  }, corsHeaders, 501);
+// === ENGINEER API CORE - Cloudflare Workers Version ===
+// Migrado de spawn('curl') a fetch() nativo
+
+const DEFAULT_YEAR = 2026;
+
+const SESSION_TYPES = Object.freeze([
+  { key: "fp1", label: "FP1" },
+  { key: "fp2", label: "FP2" },
+  { key: "fp3", label: "FP3" },
+  { key: "qualy", label: "Qualy" },
+  { key: "sprint_qualy", label: "Sprint Qualy" },
+  { key: "sprint_race", label: "Sprint" },
+  { key: "race", label: "Race" }
+]);
+
+const TTL = Object.freeze({
+  meetings: 1000 * 60 * 30,
+  sessions: 1000 * 60 * 15,
+  drivers: 1000 * 60 * 8,
+  laptimes: 1000 * 60 * 6,
+  telemetry: 1000 * 60 * 4,
+  context: 1000 * 60 * 5
+});
+
+// Cache simple con Map (funciona en Cloudflare Workers)
+const cache = {
+  meetings: new Map(),
+  sessions: new Map(),
+  drivers: new Map(),
+  laptimes: new Map(),
+  telemetry: new Map(),
+  context: new Map()
+};
+
+function setCached(map, key, value) {
+  map.set(key, { ts: Date.now(), value });
+  return value;
 }
 
-async function handleEngineerContext(query, corsHeaders) {
-  const year = query.get('year') || '2026';
-  const meeting_key = query.get('meeting_key');
-  const session_type = query.get('session_type');
-  
-  if (!meeting_key || !session_type) {
-    return jsonResponse({
-      error: 'Faltan parámetros',
-      required: ['meeting_key', 'session_type']
-    }, corsHeaders, 400);
+function getCached(map, key, ttlMs) {
+  const hit = map.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.ts > ttlMs) {
+    map.delete(key);
+    return null;
   }
-  
-  return jsonResponse({
-    status: 'ok',
-    data: { year, meeting_key, session_type, message: 'Contexto de ingeniero' }
-  }, corsHeaders);
+  return hit.value;
 }
+
+// Fetch nativo de Cloudflare Workers (reemplaza spawn('curl'))
+async function fetchJson(url) {
+  const isGithubApi = url.includes('api.github.com');
+  const headers = isGithubApi ? { 'User-Agent': 'RaceControl-Worker/1.0' } : {};
+  const response = await fetch(url, { 
+    headers,
+    cf: { cacheTtl: 300 }
+  });
+  if (!response.ok) {
+    const error = new Error(`HTTP_${response.status}`);
+    error.code = `HTTP_${response.status}`;
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
+
+async function fetchRepoContents(path = "") {
+  const encoded = path.split("/").map(segment => encodeURIComponent(segment)).join("/");
+  const url = `https://api.github.com/repos/TracingInsights/2026/contents${encoded ? `/${encoded}` : ""}?ref=main`;
+  const data = await fetchJson(url);
+  return Array.isArray(data) ? data : [];
+}
+
+async function fetchRawJson(path = "") {
+  const encoded = path.split("/").map(segment => encodeURIComponent(segment)).join("/");
+  const url = `https://raw.githubusercontent.com/TracingInsights/2026/main/${encoded}`;
+  return fetchJson(url);
+}
+
+function normalizeSessionType(folder = "") {
+  const clean = String(folder || "").trim().toLowerCase();
+  if (["practice 1", "fp1", "p1"].includes(clean)) return { key: "fp1", label: "FP1" };
+  if (["practice 2", "fp2", "p2"].includes(clean)) return { key: "fp2", label: "FP2" };
+  if (["practice 3", "fp3", "p3"].includes(clean)) return { key: "fp3", label: "FP3" };
+  if (["qualifying", "q", "qualy"].includes(clean)) return { key: "qualy", label: "Qualy" };
+  if (["sprint qualifying", "sprint shootout", "sq"].includes(clean)) return { key: "sprint_qualy", label: "Sprint Qualy" };
+  if (["sprint", "sprint race", "sr"].includes(clean)) return { key: "sprint_race", label: "Sprint" };
+  if (["race", "grand prix", "r"].includes(clean)) return { key: "race", label: "Race" };
+  return { key: clean.replace(/\s+/g, "_"), label: folder || "Sesión" };
+}
+
+function sessionPriority(typeKey = "") {
+  const order = ["fp1", "fp2", "fp3", "sprint_qualy", "qualy", "sprint_race", "race"];
+  const index = order.indexOf(typeKey);
+  return index === -1 ? 999 : index;
+}
+
+async function getMeetings() {
+  const key = `${DEFAULT_YEAR}`;
+  const cached = getCached(cache.meetings, key, TTL.meetings);
+  if (cached) return cached;
+
+  const root = await fetchRepoContents("");
+  const meetings = root
+    .filter(item => item?.type === "dir")
+    .map(item => String(item.name || "").trim())
+    .filter(name => name && !name.startsWith(".") && !name.toLowerCase().includes("cache"))
+    .filter(name => /grand prix/i.test(name))
+    .map(name => ({
+      meeting_key: name,
+      gp_label: name,
+      meeting_name: name
+    }))
+    .sort((a, b) => a.gp_label.localeCompare(b.gp_label));
+
+  return setCached(cache.meetings, key, meetings);
+}
+
+async function getSessions(meetingKey) {
+  const cleanMeeting = String(meetingKey || "").trim();
+  if (!cleanMeeting) return [];
+  const key = `${DEFAULT_YEAR}:${cleanMeeting}`;
+  const cached = getCached(cache.sessions, key, TTL.sessions);
+  if (cached) return cached;
+
+  const entries = await fetchRepoContents(cleanMeeting);
+  const sessions = entries
+    .filter(item => item?.type === "dir")
+    .map(item => {
+      const normalized = normalizeSessionType(item.name);
+      return {
+        session_key: `${cleanMeeting}__${item.name}`,
+        folder: item.name,
+        type_key: normalized.key,
+        type_label: normalized.label
+      };
+    })
+    .sort((a, b) => sessionPriority(a.type_key) - sessionPriority(b.type_key) || a.folder.localeCompare(b.folder));
+
+  return setCached(cache.sessions, key, sessions);
+}
+
+async function getDrivers(sessionKey) {
+  const cleanSession = String(sessionKey || "").trim();
+  if (!cleanSession || !cleanSession.includes("__")) return [];
+  const key = `${DEFAULT_YEAR}:${cleanSession}`;
+  const cached = getCached(cache.drivers, key, TTL.drivers);
+  if (cached) return cached;
+
+  const [meetingKey, sessionFolder] = cleanSession.split("__");
+  const payload = await fetchRawJson(`${meetingKey}/${sessionFolder}/drivers.json`);
+  const drivers = (Array.isArray(payload?.drivers) ? payload.drivers : [])
+    .map(item => ({
+      id: String(item?.dn || "").trim() || String(item?.driver || "").trim(),
+      code: String(item?.driver || "").trim(),
+      name: String(item?.fn || "").trim() + " " + String(item?.ln || "").trim(),
+      team: String(item?.team || "").trim(),
+      number: String(item?.dn || "").trim()
+    }))
+    .filter(item => item.id && item.code)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return setCached(cache.drivers, key, drivers);
+}
+
+async function loadLaptimes({ meetingKey, sessionFolder, driverCode }) {
+  const key = `${meetingKey}:${sessionFolder}:${driverCode}`;
+  const cached = getCached(cache.laptimes, key, TTL.laptimes);
+  if (cached) return cached;
+  const data = await fetchRawJson(`${meetingKey}/${sessionFolder}/${driverCode}/laptimes.json`);
+  return setCached(cache.laptimes, key, data || {});
+}
+
+async function loadLapTelemetry({ meetingKey, sessionFolder, driverCode, lapNumber }) {
+  const key = `${meetingKey}:${sessionFolder}:${driverCode}:${lapNumber}`;
+  const cached = getCached(cache.telemetry, key, TTL.telemetry);
+  if (cached) return cached;
+  const data = await fetchRawJson(`${meetingKey}/${sessionFolder}/${driverCode}/${lapNumber}_tel.json`);
+  return setCached(cache.telemetry, key, data || {});
+}
+
+function parseNumber(value) {
+  if (value === null || value === undefined) return null;
+  if (value === "None") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function hasSamples(values = []) {
+  return Array.isArray(values) && values.some(value => Number.isFinite(parseNumber(value)));
+}
+
+function readFlagArray(source = {}, keys = []) {
+  for (const key of keys) {
+    if (!Array.isArray(source?.[key])) continue;
+    return source[key];
+  }
+  return [];
+}
+
+function parsePitFlag(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+  const clean = String(value).trim().toLowerCase();
+  return ["1", "true", "yes", "y", "pit", "in", "out"].includes(clean);
+}
+
+function readTrace(trace = {}, keys = []) {
+  for (const key of keys) {
+    if (Array.isArray(trace?.[key])) return trace[key];
+  }
+  return [];
+}
+
+function assessTraceUsefulness(trace = null) {
+  if (!trace || typeof trace !== "object") {
+    return { hasTelemetry: false, points: 0, hasSpeed: false, hasDistance: false, hasTrack: false };
+  }
+  const speed = readTrace(trace, ["speed"]);
+  const throttle = readTrace(trace, ["throttle"]);
+  const brake = readTrace(trace, ["brake"]);
+  const distance = readTrace(trace, ["distance"]);
+  const relDistance = readTrace(trace, ["rel_distance", "relative_distance", "pct_distance"]);
+  const trackX = readTrace(trace, ["x", "pos_x"]);
+  const trackY = readTrace(trace, ["y", "pos_y"]);
+  const hasSpeed = hasSamples(speed);
+  const hasDistance = hasSamples(distance) || hasSamples(relDistance);
+  const hasTrack = hasSamples(trackX) && hasSamples(trackY);
+  const hasControl = hasSamples(throttle) || hasSamples(brake);
+  const points = [hasSpeed, hasDistance, hasTrack, hasControl].filter(Boolean).length;
+  return { hasTelemetry: points > 0, points, hasSpeed, hasDistance, hasTrack };
+}
+
+function buildLapCatalog(laptimes = {}) {
+  const lapNumbers = Array.isArray(laptimes.lap) ? laptimes.lap : [];
+  const lapTimes = Array.isArray(laptimes.time) ? laptimes.time : [];
+  const compounds = Array.isArray(laptimes.compound) ? laptimes.compound : [];
+  const stints = Array.isArray(laptimes.stint) ? laptimes.stint : [];
+  const s1 = Array.isArray(laptimes.s1) ? laptimes.s1 : [];
+  const s2 = Array.isArray(laptimes.s2) ? laptimes.s2 : [];
+  const s3 = Array.isArray(laptimes.s3) ? laptimes.s3 : [];
+  const pitIn = readFlagArray(laptimes, ["pit_in", "pitin", "is_pit_in", "pit"]);
+  const pitOut = readFlagArray(laptimes, ["pit_out", "pitout", "is_pit_out"]);
+
+  const catalog = lapNumbers.map((rawLap, index) => {
+    const lapNumber = parseNumber(rawLap);
+    const lapTime = parseNumber(lapTimes[index]);
+    const sector1 = parseNumber(s1[index]);
+    const sector2 = parseNumber(s2[index]);
+    const sector3 = parseNumber(s3[index]);
+    const isPitIn = parsePitFlag(pitIn[index]);
+    const isPitOut = parsePitFlag(pitOut[index]);
+    const hasTiming = Number.isFinite(lapTime);
+    const hasSectors = Number.isFinite(sector1) || Number.isFinite(sector2) || Number.isFinite(sector3);
+    const status = isPitIn || isPitOut ? "pit" : (hasTiming ? "valid" : "invalid");
+    return {
+      lapNumber,
+      lapTime,
+      compound: String(compounds[index] || "").trim() || null,
+      stint: parseNumber(stints[index]),
+      sector1,
+      sector2,
+      sector3,
+      isPitIn,
+      isPitOut,
+      hasTiming,
+      hasSectors
+    };
+  });
+
+  const validLaps = catalog.filter(lap => Number.isFinite(lap.lapNumber) && lap.hasTiming);
+  const bestLap = validLaps.reduce((best, lap) => (!best || lap.lapTime < best.lapTime ? lap : best), null);
+  const latestLap = validLaps.length ? validLaps.reduce((max, lap) => (!max || lap.lapNumber > max.lapNumber ? lap : max), null) : null;
+
+  return {
+    catalog,
+    bestLapNumber: bestLap?.lapNumber ?? null,
+    latestLapNumber: latestLap?.lapNumber ?? null
+  };
+}
+
+async function resolveTelemetryContext({ year = DEFAULT_YEAR, meetingKey = "", sessionType = "", driver = "" }) {
+  if (year !== DEFAULT_YEAR) {
+    const error = new Error("INVALID_YEAR");
+    error.code = "INVALID_YEAR";
+    throw error;
+  }
+
+  const cacheKey = `${year}:${meetingKey || "auto"}:${sessionType || "auto"}:${driver || "auto"}`;
+  const hit = getCached(cache.context, cacheKey, TTL.context);
+  if (hit) return hit;
+
+  const meetings = await getMeetings();
+  if (!meetings.length) {
+    const error = new Error("MEETINGS_UNAVAILABLE");
+    error.code = "MEETINGS_UNAVAILABLE";
+    throw error;
+  }
+
+  const selectedMeeting = meetings.find(item => item.meeting_key === meetingKey) || meetings[0];
+  const sessions = await getSessions(selectedMeeting.meeting_key);
+  const selectedSession = sessions.find(item => item.type_key === sessionType) || sessions[0] || null;
+  const drivers = selectedSession ? await getDrivers(selectedSession.session_key) : [];
+  const selectedDriver = drivers.find(item => String(item.id) === String(driver) || String(item.code) === String(driver)) || drivers[0] || null;
+
+  return setCached(cache.context, cacheKey, {
+    year,
+    source: "tracinginsights/2026",
+    meetings,
+    sessions,
+    drivers,
+    selections: {
+      meeting_key: selectedMeeting.meeting_key,
+      session_key: selectedSession?.session_key || "",
+      session_type: selectedSession?.type_key || "",
+      driver: selectedDriver?.id || ""
+    }
+  });
+}
+
+async function buildDriverTelemetry({ year = DEFAULT_YEAR, meetingKey, sessionKey, driverNumber, lapMode = "reference", manualLap = "" }) {
+  if (year !== DEFAULT_YEAR) {
+    const error = new Error("INVALID_YEAR");
+    error.code = "INVALID_YEAR";
+    throw error;
+  }
+
+  const context = await resolveTelemetryContext({ year, meetingKey, driver: driverNumber });
+  const selectedMeeting = context.meetings.find(item => item.meeting_key === meetingKey);
+  if (!selectedMeeting) {
+    const error = new Error("MEETING_NOT_FOUND");
+    error.code = "MEETING_NOT_FOUND";
+    throw error;
+  }
+
+  const sessions = await getSessions(meetingKey);
+  const selectedSession = sessions.find(item => item.session_key === sessionKey);
+  if (!selectedSession) {
+    const error = new Error("SESSION_NOT_FOUND");
+    error.code = "SESSION_NOT_FOUND";
+    throw error;
+  }
+
+  const drivers = await getDrivers(selectedSession.session_key);
+  const selectedDriver = drivers.find(item => String(item.id) === String(driverNumber) || String(item.code) === String(driverNumber));
+  if (!selectedDriver) {
+    const error = new Error("DRIVER_NOT_FOUND");
+    error.code = "DRIVER_NOT_FOUND";
+    throw error;
+  }
+
+  const laptimes = await loadLaptimes({ meetingKey, sessionFolder: selectedSession.folder, driverCode: selectedDriver.code });
+  const built = buildLapCatalog(laptimes);
+  const telemetryByLap = new Map();
+  const telemetryCoverageByLap = new Map();
+
+  for (const lap of built.catalog) {
+    try {
+      const candidate = await loadLapTelemetry({
+        meetingKey,
+        sessionFolder: selectedSession.folder,
+        driverCode: selectedDriver.code,
+        lapNumber: lap.lapNumber
+      });
+      const trace = candidate?.tel;
+      const coverage = assessTraceUsefulness(trace);
+      telemetryCoverageByLap.set(lap.lapNumber, coverage);
+      if (coverage.hasTelemetry) {
+        telemetryByLap.set(lap.lapNumber, trace);
+      }
+    } catch {
+      telemetryCoverageByLap.set(lap.lapNumber, { hasTelemetry: false, points: 0, hasSpeed: false, hasDistance: false, hasTrack: false });
+    }
+  }
+
+  const lapsForSelector = built.catalog.map(item => {
+    const coverage = telemetryCoverageByLap.get(item.lapNumber) || { hasTelemetry: false, points: 0, hasSpeed: false, hasDistance: false, hasTrack: false };
+    const hasUsefulTiming = item.hasTiming || item.hasSectors;
+    const hasUsefulTelemetry = coverage.hasTelemetry;
+    const hasManualEligibility = (hasUsefulTiming || hasUsefulTelemetry) && !(item.isPitIn || item.isPitOut ? (!hasUsefulTelemetry && !item.hasTiming) : false);
+    let manualExclusionReason = "";
+    if (!hasManualEligibility) {
+      if (item.isPitIn || item.isPitOut) manualExclusionReason = "pit_transition_without_data";
+      else if (!hasUsefulTiming && !hasUsefulTelemetry) manualExclusionReason = "empty_lap";
+      else manualExclusionReason = "insufficient_data";
+    }
+    return {
+      lapNumber: item.lapNumber,
+      lapTime: item.lapTime,
+      compound: item.compound,
+      stint: item.stint,
+      status: item.status,
+      isBest: Number.isFinite(built.bestLapNumber) && item.lapNumber === built.bestLapNumber,
+      hasTelemetry: coverage.hasTelemetry,
+      hasTiming: item.hasTiming,
+      hasSectors: item.hasSectors,
+      isPitIn: item.isPitIn,
+      isPitOut: item.isPitOut,
+      telemetryPoints: coverage.points,
+      hasManualEligibility,
+      manualExclusionReason
+    };
+  });
+
+  const manualEligibleLaps = lapsForSelector.filter(item => item.hasManualEligibility);
+
+  if (!manualEligibleLaps.length) {
+    const error = new Error("NO_TELEMETRY");
+    error.code = "NO_TELEMETRY";
+    throw error;
+  }
+
+  const telemetryEligibleLaps = manualEligibleLaps.filter(item => item.hasTelemetry).map(item => item.lapNumber);
+
+  const preferredLapByMode = () => {
+    if (lapMode === "manual") {
+      const lap = Number(manualLap);
+      if (Number.isFinite(lap)) return lap;
+      return null;
+    }
+    if (lapMode === "latest") return built.latestLapNumber;
+    return built.bestLapNumber;
+  };
+
+  const preferredLap = preferredLapByMode();
+  const fallbackByMode = lapMode === "latest"
+    ? manualEligibleLaps.map(item => item.lapNumber).slice().sort((a, b) => b - a)
+    : manualEligibleLaps.map(item => item.lapNumber).slice().sort((a, b) => a - b);
+  const orderedCandidates = [preferredLap, ...fallbackByMode]
+    .filter((value, idx, arr) => Number.isFinite(value) && arr.indexOf(value) === idx);
+
+  const selectedLapNumber = orderedCandidates.find(lapNumber => telemetryByLap.has(lapNumber))
+    ?? telemetryEligibleLaps[0]
+    ?? null;
+  const selectedLapTelemetry = Number.isFinite(selectedLapNumber) ? telemetryByLap.get(selectedLapNumber) : null;
+  
+  if (!selectedLapTelemetry || !Number.isFinite(selectedLapNumber)) {
+    const error = new Error("NO_TELEMETRY");
+    error.code = "NO_TELEMETRY";
+    throw error;
+  }
+
+  const trace = selectedLapTelemetry;
+  const speed = readTrace(trace, ["speed"]);
+  const throttle = readTrace(trace, ["throttle"]);
+  const brake = readTrace(trace, ["brake"]);
+  const distance = readTrace(trace, ["distance"]);
+  const relDistance = readTrace(trace, ["rel_distance", "relative_distance", "pct_distance"]);
+  const trackX = readTrace(trace, ["x", "pos_x"]);
+  const trackY = readTrace(trace, ["y", "pos_y"]);
+  const rpm = readTrace(trace, ["rpm"]);
+  const gear = readTrace(trace, ["gear"]);
+
+  return {
+    year,
+    meeting_key: selectedMeeting.meeting_key,
+    session_key: selectedSession.session_key,
+    driver: {
+      number: selectedDriver.id,
+      code: selectedDriver.code,
+      name: selectedDriver.name,
+      team: selectedDriver.team
+    },
+    lap: {
+      number: selectedLapNumber,
+      time: built.catalog.find(l => l.lapNumber === selectedLapNumber)?.lapTime ?? null,
+      mode: lapMode,
+      isBest: selectedLapNumber === built.bestLapNumber,
+      isLatest: selectedLapNumber === built.latestLapNumber
+    },
+    telemetry: {
+      speed: speed.map(parseNumber).filter(Number.isFinite),
+      throttle: throttle.map(parseNumber).filter(Number.isFinite),
+      brake: brake.map(parseNumber).filter(Number.isFinite),
+      distance: distance.map(parseNumber).filter(Number.isFinite),
+      relDistance: relDistance.map(parseNumber).filter(Number.isFinite),
+      trackX: trackX.map(parseNumber).filter(Number.isFinite),
+      trackY: trackY.map(parseNumber).filter(Number.isFinite),
+      rpm: rpm.map(parseNumber).filter(Number.isFinite),
+      gear: gear.map(parseNumber).filter(Number.isFinite)
+    },
+    trace: {
+      hasSpeed: hasSamples(speed),
+      hasThrottle: hasSamples(throttle),
+      hasBrake: hasSamples(brake),
+      hasDistance: hasSamples(distance) || hasSamples(relDistance),
+      hasTrack: hasSamples(trackX) && hasSamples(trackY),
+      hasRpm: hasSamples(rpm),
+      hasGear: hasSamples(gear)
+    },
+    laps: lapsForSelector,
+    source: "tracinginsights/2026",
+    generatedAt: new Date().toISOString()
+  };
+}
+
+// Export para usar en el Worker
+export { buildDriverTelemetry, resolveTelemetryContext, getMeetings, getSessions, getDrivers };
+
+
+async function handleEngineerTelemetry(query, corsHeaders) {
+  try {
+    const meetingKey = query.get('meeting_key');
+    const sessionKey = query.get('session_key');
+    const driverNumber = query.get('driver_number');
+    const lapMode = query.get('lap_mode') || 'reference';
+    const manualLap = query.get('manual_lap') || '';
+
+    if (!meetingKey || !sessionKey || !driverNumber) {
+      return jsonResponse({
+        error: 'Faltan parámetros',
+        required: ['meeting_key', 'session_key', 'driver_number'],
+        example: '/api/engineer/telemetry?meeting_key=australian-grand-prix&session_key=australian-grand-prix__race&driver_number=12&lap_mode=best'
+      }, corsHeaders, 400);
+    }
+
+    const payload = await buildDriverTelemetry({
+      year: DEFAULT_YEAR,
+      meetingKey,
+      sessionKey,
+      driverNumber,
+      lapMode,
+      manualLap
+    });
+
+    return jsonResponse(payload, corsHeaders);
+  } catch (error) {
+    if (error?.code === 'MEETING_NOT_FOUND') {
+      return jsonResponse({ error: 'GP no válido para 2026', code: 'MEETING_NOT_FOUND' }, corsHeaders, 404);
+    }
+    if (error?.code === 'SESSION_NOT_FOUND') {
+      return jsonResponse({ error: 'Sesión no disponible para este GP', code: 'SESSION_NOT_FOUND' }, corsHeaders, 404);
+    }
+    if (error?.code === 'DRIVER_NOT_FOUND') {
+      return jsonResponse({ error: 'Piloto no disponible en esta sesión', code: 'DRIVER_NOT_FOUND' }, corsHeaders, 404);
+    }
+    if (error?.code === 'NO_TELEMETRY') {
+      return jsonResponse({ error: 'No hay telemetría disponible para esta vuelta', code: 'NO_TELEMETRY' }, corsHeaders, 404);
+    }
+    console.error('Telemetry error:', error);
+    return jsonResponse({ error: 'Error interno', message: error?.message, code: error?.code }, corsHeaders, 500);
+  }
+}
+
+// === ENGINEER API HANDLERS ADICIONALES ===
 
 async function handleEngineerSessions(query, corsHeaders) {
-  return jsonResponse({ status: 'ok', data: { message: 'Sessions - implementar' } }, corsHeaders);
+  try {
+    const meetingKey = query.get('meeting_key');
+    
+    if (!meetingKey) {
+      return jsonResponse({
+        error: 'Falta meeting_key',
+        required: ['meeting_key'],
+        example: '/api/engineer/sessions?meeting_key=Australian%20Grand%20Prix'
+      }, corsHeaders, 400);
+    }
+
+    const sessions = await getSessions(meetingKey);
+    
+    return jsonResponse({
+      year: DEFAULT_YEAR,
+      meeting_key: meetingKey,
+      sessions: sessions.map(s => ({
+        session_key: s.session_key,
+        folder: s.folder,
+        type_key: s.type_key,
+        type_label: s.type_label
+      }))
+    }, corsHeaders);
+  } catch (error) {
+    console.error('Sessions error:', error);
+    return jsonResponse({ error: 'No se pudieron cargar sesiones', message: error?.message, code: error?.code }, corsHeaders, 500);
+  }
 }
 
 async function handleEngineerSectors(query, corsHeaders) {
-  return jsonResponse({ status: 'ok', data: { message: 'Sectors - implementar' } }, corsHeaders);
+  // Endpoint simplificado - devuelve estructura básica
+  const meetingKey = query.get('meeting_key');
+  const sessionKey = query.get('session_key');
+  const type = query.get('type') || 'driver';
+  const a = query.get('a');
+  const b = query.get('b');
+
+  if (!meetingKey || !sessionKey || !a || !b) {
+    return jsonResponse({
+      error: 'Faltan parámetros',
+      required: ['meeting_key', 'session_key', 'a', 'b'],
+      example: '/api/engineer/sectors?meeting_key=Australian%20Grand%20Prix&session_key=Australian%20Grand%20Prix__Race&type=driver&a=12&b=63'
+    }, corsHeaders, 400);
+  }
+
+  // Nota: buildComparison está retirado en el código original
+  return jsonResponse({
+    year: DEFAULT_YEAR,
+    meeting_key: meetingKey,
+    session_key: sessionKey,
+    type: type,
+    sectors: null,
+    note: 'Comparativas sectoriales retiradas en esta versión'
+  }, corsHeaders);
 }
 
 async function handleEngineerStints(query, corsHeaders) {
-  return jsonResponse({ status: 'ok', data: { message: 'Stints - implementar' } }, corsHeaders);
+  const meetingKey = query.get('meeting_key');
+  const sessionKey = query.get('session_key');
+  const type = query.get('type') || 'driver';
+  const a = query.get('a');
+  const b = query.get('b');
+
+  if (!meetingKey || !sessionKey || !a || !b) {
+    return jsonResponse({
+      error: 'Faltan parámetros',
+      required: ['meeting_key', 'session_key', 'a', 'b'],
+      example: '/api/engineer/stints?meeting_key=Australian%20Grand%20Prix&session_key=Australian%20Grand%20Prix__Race&type=driver&a=12&b=63'
+    }, corsHeaders, 400);
+  }
+
+  // Nota: buildComparison está retirado
+  return jsonResponse({
+    year: DEFAULT_YEAR,
+    meeting_key: meetingKey,
+    session_key: sessionKey,
+    type: type,
+    stints: null,
+    note: 'Comparativas de stints retiradas en esta versión'
+  }, corsHeaders);
 }
 
 async function handleEngineerCoverage(query, corsHeaders) {
-  return jsonResponse({ status: 'ok', data: { message: 'Coverage - implementar' } }, corsHeaders);
+  // Endpoint protegido con token - simplificado para Cloudflare
+  const token = query.get('token');
+  
+  // Sin token configurado, retornamos estructura básica
+  return jsonResponse({
+    year: DEFAULT_YEAR,
+    source: 'tracinginsights/2026',
+    coverage: {
+      note: 'Endpoint de cobertura requiere configuración adicional',
+      meetings_available: true
+    }
+  }, corsHeaders);
 }
 
 async function handleEngineerEvolution(query, corsHeaders) {
-  return jsonResponse({ status: 'ok', data: { message: 'Evolution - implementar' } }, corsHeaders);
+  const meetingKey = query.get('meeting_key');
+  const sessionKey = query.get('session_key');
+  const type = query.get('type') || 'driver';
+  const a = query.get('a');
+  const b = query.get('b');
+
+  if (!meetingKey || !sessionKey || !a || !b) {
+    return jsonResponse({
+      error: 'Faltan parámetros',
+      required: ['meeting_key', 'session_key', 'a', 'b'],
+      example: '/api/engineer/evolution?meeting_key=Australian%20Grand%20Prix&session_key=Australian%20Grand%20Prix__Race&type=driver&a=12&b=63'
+    }, corsHeaders, 400);
+  }
+
+  // Nota: buildComparison está retirado
+  return jsonResponse({
+    year: DEFAULT_YEAR,
+    meeting_key: meetingKey,
+    session_key: sessionKey,
+    type: type,
+    evolution: [],
+    note: 'Comparativas de evolución retiradas en esta versión'
+  }, corsHeaders);
 }
 
 async function handleEngineerMeetings(query, corsHeaders) {
-  return jsonResponse({ status: 'ok', data: { message: 'Meetings - implementar' } }, corsHeaders);
+  try {
+    const meetings = await getMeetings();
+    
+    return jsonResponse({
+      year: DEFAULT_YEAR,
+      source: 'tracinginsights/2026',
+      meetings: meetings.map(m => ({
+        meeting_key: m.meeting_key,
+        gp_label: m.gp_label,
+        meeting_name: m.meeting_name
+      }))
+    }, corsHeaders);
+  } catch (error) {
+    console.error('Meetings error:', error);
+    return jsonResponse({ error: 'No se pudieron cargar GPs', message: error?.message, code: error?.code }, corsHeaders, 500);
+  }
 }
 
 async function handleEngineerEntities(query, corsHeaders) {
-  return jsonResponse({ status: 'ok', data: { message: 'Entities - implementar' } }, corsHeaders);
+  try {
+    const sessionKey = query.get('session_key');
+    
+    if (!sessionKey) {
+      return jsonResponse({
+        error: 'Falta session_key',
+        required: ['session_key'],
+        example: '/api/engineer/entities?session_key=Australian%20Grand%20Prix__Race'
+      }, corsHeaders, 400);
+    }
+
+    const drivers = await getDrivers(sessionKey);
+    
+    return jsonResponse({
+      year: DEFAULT_YEAR,
+      session_key: sessionKey,
+      entities: {
+        drivers: drivers.map(d => ({
+          id: d.id,
+          code: d.code,
+          name: d.name,
+          team: d.team,
+          number: d.number
+        })),
+        teams: [] // Teams no implementado en esta versión
+      }
+    }, corsHeaders);
+  } catch (error) {
+    console.error('Entities error:', error);
+    return jsonResponse({ error: 'No se pudieron cargar entidades', message: error?.message, code: error?.code }, corsHeaders, 500);
+  }
+}
+
+
+async function handleEngineerContext(query, corsHeaders) {
+  try {
+    const meeting_key = query.get('meeting_key') || '';
+    const session_type = query.get('session_type') || '';
+    const driver = query.get('driver') || '';
+
+    const context = await resolveTelemetryContext({
+      year: DEFAULT_YEAR,
+      meetingKey: meeting_key,
+      sessionType: session_type,
+      driver: driver
+    });
+
+    return jsonResponse({
+      year: context.year,
+      source: context.source,
+      meetings: context.meetings.map(m => ({ meeting_key: m.meeting_key, gp_label: m.gp_label })),
+      sessions: context.sessions,
+      drivers: context.drivers,
+      selections: context.selections
+    }, corsHeaders);
+  } catch (error) {
+    console.error('Context error:', error);
+    return jsonResponse({ error: 'Error obteniendo contexto', message: error?.message, code: error?.code }, corsHeaders, 500);
+  }
 }
 
 // ============== UTILIDADES PREDICT ==============
@@ -852,6 +2449,17 @@ function extractConstValue(code, startIndex) {
   // Encontrar el inicio del valor (después del =)
   while (valueStart < code.length && code[valueStart] !== '=' && code[valueStart] !== '{' && code[valueStart] !== '[') {
     valueStart++;
+  }
+  
+  if (valueStart >= code.length) return null;
+  
+  // Saltar el '=' si lo encontramos
+  if (code[valueStart] === '=') {
+    valueStart++;
+    // Saltar espacios después del =
+    while (valueStart < code.length && /\s/.test(code[valueStart])) {
+      valueStart++;
+    }
   }
   
   if (valueStart >= code.length) return null;
@@ -898,6 +2506,45 @@ function extractConstValue(code, startIndex) {
   const endIdx = code.indexOf(';', valueStart);
   if (endIdx === -1) return null;
   return code.substring(valueStart, endIdx).trim();
+}
+
+// Evaluar módulo ES6 de forma directa (más robusto para arrays grandes)
+function evaluateModule(code) {
+  const exports = {};
+  
+  // Crear un wrapper que capture los exports
+  const wrappedCode = `(function(exports) { ${code.replace(/export const /g, 'exports.').replace(/export function /g, 'exports.')} })(exports)`;
+  
+  try {
+    eval(wrappedCode);
+  } catch (e) {
+    console.warn('evaluateModule eval error:', e.message);
+    // Fallback: intentar con el parser original
+    return fetchModuleFromCode(code);
+  }
+  
+  return exports;
+}
+
+// Fallback al parser original
+function fetchModuleFromCode(code) {
+  const module = {};
+  const exportConstRegex = /export const (\w+)\s*=/g;
+  let match;
+  while ((match = exportConstRegex.exec(code)) !== null) {
+    const name = match[1];
+    const valueStart = match.index + match[0].length;
+    const value = extractConstValue(code, valueStart);
+    
+    if (value) {
+      try {
+        module[name] = new Function(`return ${value}`)();
+      } catch (e) {
+        console.warn(`Failed to parse export const ${name}:`, e.message);
+      }
+    }
+  }
+  return module;
 }
 
 async function fetchModule(url) {
