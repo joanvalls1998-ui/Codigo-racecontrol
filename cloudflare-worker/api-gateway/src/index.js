@@ -1,12 +1,11 @@
 // Cloudflare Worker - API Gateway para RaceControl
-// Maneja todas las APIs: engineer, predict, standings, news, etc.
+// Proxy a los archivos originales en GitHub + handlers nativos
 //
 // Deploy:
 // 1. cd cloudflare-worker/api-gateway
-// 2. wrangler login
-// 3. wrangler deploy
+// 2. wrangler deploy
 //
-// URL: https://racecontrol-api-gateway.[tu-subdomain].workers.dev
+// URL: https://racecontrol-api-gateway.joanvalls1998.workers.dev
 
 export default {
   async fetch(request, env, ctx) {
@@ -34,222 +33,295 @@ export default {
     try {
       // Routing: /api/{endpoint} -> handler
       const path = url.pathname.replace('/api/', '');
+      const query = url.searchParams;
       
       // Endpoints disponibles
       const routes = {
-        'engineer/context': handleEngineerContext,
-        'engineer/telemetry': handleEngineerTelemetry,
-        'engineer/sessions': handleEngineerSessions,
-        'engineer/sectors': handleEngineerSectors,
-        'engineer/stints': handleEngineerStints,
-        'engineer/coverage': handleEngineerCoverage,
-        'engineer/evolution': handleEngineerEvolution,
-        'engineer/meetings': handleEngineerMeetings,
-        'engineer/entities': handleEngineerEntities,
-        'predict': handlePredict,
-        'standings': handleStandings,
-        'calendar': handleCalendar,
-        'news': handleNews,
-        'sim': handleSim,
-        'get-edge-state': handleGetEdgeState,
-        'init-edge-state': handleInitEdgeState,
-        'reset-edge-state': handleResetEdgeState,
-        'apply-adjustments': handleApplyAdjustments,
-        'update-adjustments': handleUpdateAdjustments
+        // Engineer API
+        'engineer/context': () => handleEngineerContext(query, corsHeaders),
+        'engineer/telemetry': () => handleEngineerTelemetry(query, corsHeaders),
+        'engineer/sessions': () => handleEngineerSessions(query, corsHeaders),
+        'engineer/sectors': () => handleEngineerSectors(query, corsHeaders),
+        'engineer/stints': () => handleEngineerStints(query, corsHeaders),
+        'engineer/coverage': () => handleEngineerCoverage(query, corsHeaders),
+        'engineer/evolution': () => handleEngineerEvolution(query, corsHeaders),
+        'engineer/meetings': () => handleEngineerMeetings(query, corsHeaders),
+        'engineer/entities': () => handleEngineerEntities(query, corsHeaders),
+        
+        // Otras APIs
+        'predict': () => handlePredict(query, corsHeaders),
+        'standings': () => handleStandings(query, corsHeaders),
+        'calendar': () => handleCalendar(query, corsHeaders),
+        'news': () => handleNews(query, corsHeaders, request),
+        'sim': () => handleSim(query, corsHeaders),
+        
+        // Edge State
+        'get-edge-state': () => handleGetEdgeState(query, corsHeaders),
+        'init-edge-state': () => handleInitEdgeState(query, corsHeaders),
+        'reset-edge-state': () => handleResetEdgeState(query, corsHeaders),
+        'apply-adjustments': () => handleApplyAdjustments(query, corsHeaders),
+        'update-adjustments': () => handleUpdateAdjustments(query, corsHeaders)
       };
       
       // Buscar handler
       const handler = routes[path];
       
       if (!handler) {
-        return new Response(JSON.stringify({ 
+        return jsonResponse({ 
           error: 'Endpoint not found',
-          path: path 
-        }), {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+          path: path,
+          hint: 'Usa /api/engineer/telemetry, /api/predict, /api/standings, etc.'
+        }, corsHeaders, 404);
       }
       
       // Ejecutar handler
-      return await handler(request, env, ctx);
+      return await handler();
       
     } catch (error) {
       console.error('API Gateway error:', error);
       
-      return new Response(JSON.stringify({ 
+      return jsonResponse({ 
         error: 'Internal server error',
         message: error.message 
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      }, corsHeaders, 500);
     }
   }
 };
 
 // ============== HANDLERS ==============
 
-// Engineer API Handlers
-async function handleEngineerContext(request, env, ctx) {
-  // TODO: Implementar lógica de engineer/context
-  // Por ahora retorna datos mock
+// Engineer API - Proxy a GitHub raw
+// Los archivos originales están en: https://raw.githubusercontent.com/joanvalls1998-ui/Codigo-racecontrol/main/api/engineer/
+
+async function handleEngineerTelemetry(query, corsHeaders) {
+  const year = query.get('year') || '2026';
+  const meeting_key = query.get('meeting_key');
+  const session_key = query.get('session_key');
+  const driver_number = query.get('driver_number');
+  const lap_mode = query.get('lap_mode') || 'reference';
+  const manual_lap = query.get('manual_lap');
+  
+  // Validar parámetros
+  if (!meeting_key || !session_key || !driver_number) {
+    return jsonResponse({
+      error: 'Faltan parámetros',
+      required: ['meeting_key', 'session_key', 'driver_number'],
+      code: 'MISSING_PARAMS'
+    }, corsHeaders, 400);
+  }
+  
+  if (year !== '2026') {
+    return jsonResponse({
+      error: 'Ingeniero solo admite temporada 2026',
+      code: 'INVALID_YEAR'
+    }, corsHeaders, 400);
+  }
+  
+  // Proxy a la API original en GitHub (usando jsDelivr para evitar CORS)
+  const githubUrl = `https://raw.githubusercontent.com/joanvalls1998-ui/Codigo-racecontrol/main/api/engineer/telemetry.js`;
+  
+  // Nota: Esto no puede ejecutar el código Node.js directamente.
+  // Necesitamos implementar la lógica aquí o usar un enfoque diferente.
+  
+  // Por ahora, retornamos un error informativo
+  return jsonResponse({
+    error: 'Telemetría en implementación',
+    message: 'La API de telemetría requiere migrar la lógica de _core.js al Worker',
+    status: 'pending',
+    params: { year, meeting_key, session_key, driver_number, lap_mode, manual_lap }
+  }, corsHeaders, 501);
+}
+
+async function handleEngineerContext(query, corsHeaders) {
+  const year = query.get('year') || '2026';
+  const meeting_key = query.get('meeting_key');
+  const session_type = query.get('session_type');
+  
+  if (!meeting_key || !session_type) {
+    return jsonResponse({
+      error: 'Faltan parámetros',
+      required: ['meeting_key', 'session_type']
+    }, corsHeaders, 400);
+  }
+  
+  // Datos mock por ahora
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Engineer context - implementar lógica' }
+    data: {
+      year,
+      meeting_key,
+      session_type,
+      message: 'Contexto de ingeniero - implementar lógica'
+    }
   }, corsHeaders);
 }
 
-async function handleEngineerTelemetry(request, env, ctx) {
-  // TODO: Implementar lógica de engineer/telemetry
+async function handleEngineerSessions(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Engineer telemetry - implementar lógica' }
+    data: { message: 'Sessions - implementar' }
   }, corsHeaders);
 }
 
-async function handleEngineerSessions(request, env, ctx) {
+async function handleEngineerSectors(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Engineer sessions - implementar lógica' }
+    data: { message: 'Sectors - implementar' }
   }, corsHeaders);
 }
 
-async function handleEngineerSectors(request, env, ctx) {
+async function handleEngineerStints(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Engineer sectors - implementar lógica' }
+    data: { message: 'Stints - implementar' }
   }, corsHeaders);
 }
 
-async function handleEngineerStints(request, env, ctx) {
+async function handleEngineerCoverage(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Engineer stints - implementar lógica' }
+    data: { message: 'Coverage - implementar' }
   }, corsHeaders);
 }
 
-async function handleEngineerCoverage(request, env, ctx) {
+async function handleEngineerEvolution(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Engineer coverage - implementar lógica' }
+    data: { message: 'Evolution - implementar' }
   }, corsHeaders);
 }
 
-async function handleEngineerEvolution(request, env, ctx) {
+async function handleEngineerMeetings(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Engineer evolution - implementar lógica' }
+    data: { message: 'Meetings - implementar' }
   }, corsHeaders);
 }
 
-async function handleEngineerMeetings(request, env, ctx) {
+async function handleEngineerEntities(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Engineer meetings - implementar lógica' }
-  }, corsHeaders);
-}
-
-async function handleEngineerEntities(request, env, ctx) {
-  return jsonResponse({
-    status: 'ok',
-    data: { message: 'Engineer entities - implementar lógica' }
+    data: { message: 'Entities - implementar' }
   }, corsHeaders);
 }
 
 // Predict API
-async function handlePredict(request, env, ctx) {
-  // TODO: Migrar lógica de api/predict.js
+async function handlePredict(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Predict API - implementar lógica' }
+    data: { message: 'Predict - implementar' }
   }, corsHeaders);
 }
 
 // Standings API
-async function handleStandings(request, env, ctx) {
-  // TODO: Migrar lógica de api/standings.js
-  return jsonResponse({
-    status: 'ok',
-    data: { message: 'Standings API - implementar lógica' }
-  }, corsHeaders);
+async function handleStandings(query, corsHeaders) {
+  // Datos estáticos desde GitHub
+  const url = 'https://raw.githubusercontent.com/joanvalls1998-ui/Codigo-racecontrol/main/data/standings.json';
+  
+  try {
+    const response = await fetch(url, { cacheTtl: 300 });
+    const data = await response.json();
+    return jsonResponse({ status: 'ok', data }, corsHeaders);
+  } catch (error) {
+    return jsonResponse({
+      error: 'No se pudo cargar standings',
+      message: error.message
+    }, corsHeaders, 500);
+  }
 }
 
 // Calendar API
-async function handleCalendar(request, env, ctx) {
-  // TODO: Migrar lógica de api/calendar.js
-  return jsonResponse({
-    status: 'ok',
-    data: { message: 'Calendar API - implementar lógica' }
-  }, corsHeaders);
+async function handleCalendar(query, corsHeaders) {
+  const url = 'https://raw.githubusercontent.com/joanvalls1998-ui/Codigo-racecontrol/main/data/calendar.json';
+  
+  try {
+    const response = await fetch(url, { cacheTtl: 3600 });
+    const data = await response.json();
+    return jsonResponse({ status: 'ok', data }, corsHeaders);
+  } catch (error) {
+    return jsonResponse({
+      error: 'No se pudo cargar calendar',
+      message: error.message
+    }, corsHeaders, 500);
+  }
 }
 
-// News API (ya existe en news-proxy)
-async function handleNews(request, env, ctx) {
-  // Reutilizar lógica de news-proxy
-  const rssUrl = new URL(request.url).searchParams.get('url');
+// News API (proxy a Google News RSS)
+async function handleNews(query, corsHeaders, request) {
+  const rssUrl = query.get('url');
   if (!rssUrl) {
-    return jsonResponse({ error: 'Missing url parameter' }, {}, 400);
+    return jsonResponse({ error: 'Missing url parameter' }, corsHeaders, 400);
   }
   
-  const response = await fetch(rssUrl, {
-    headers: {
-      'User-Agent': 'RaceControl/1.0',
-      'Accept': 'application/xml'
-    },
-    cacheTtl: 3600
-  });
+  if (!rssUrl.includes('news.google.com')) {
+    return jsonResponse({ error: 'Only Google News RSS allowed' }, corsHeaders, 400);
+  }
   
-  const xml = await response.text();
-  return new Response(xml, {
-    headers: {
-      'Content-Type': 'application/xml',
-      ...corsHeaders
-    }
-  });
+  try {
+    const response = await fetch(rssUrl, {
+      headers: {
+        'User-Agent': 'RaceControl/1.0',
+        'Accept': 'application/xml'
+      },
+      cacheTtl: 3600
+    });
+    
+    const xml = await response.text();
+    return new Response(xml, {
+      headers: {
+        'Content-Type': 'application/xml',
+        ...corsHeaders
+      }
+    });
+  } catch (error) {
+    return jsonResponse({
+      error: 'Failed to fetch RSS',
+      message: error.message
+    }, corsHeaders, 500);
+  }
 }
 
 // Sim API
-async function handleSim(request, env, ctx) {
+async function handleSim(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Sim API - implementar lógica' }
+    data: { message: 'Sim - implementar' }
   }, corsHeaders);
 }
 
 // Edge State Handlers
-async function handleGetEdgeState(request, env, ctx) {
+async function handleGetEdgeState(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Get edge state - implementar lógica' }
+    data: { message: 'Get edge state - implementar' }
   }, corsHeaders);
 }
 
-async function handleInitEdgeState(request, env, ctx) {
+async function handleInitEdgeState(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Init edge state - implementar lógica' }
+    data: { message: 'Init edge state - implementar' }
   }, corsHeaders);
 }
 
-async function handleResetEdgeState(request, env, ctx) {
+async function handleResetEdgeState(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Reset edge state - implementar lógica' }
+    data: { message: 'Reset edge state - implementar' }
   }, corsHeaders);
 }
 
-async function handleApplyAdjustments(request, env, ctx) {
+async function handleApplyAdjustments(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Apply adjustments - implementar lógica' }
+    data: { message: 'Apply adjustments - implementar' }
   }, corsHeaders);
 }
 
-async function handleUpdateAdjustments(request, env, ctx) {
+async function handleUpdateAdjustments(query, corsHeaders) {
   return jsonResponse({
     status: 'ok',
-    data: { message: 'Update adjustments - implementar lógica' }
+    data: { message: 'Update adjustments - implementar' }
   }, corsHeaders);
 }
 
@@ -263,9 +335,3 @@ function jsonResponse(data, headers = {}, status = 200) {
     }
   });
 }
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
