@@ -216,59 +216,330 @@ async function handlePredict(query, corsHeaders, request, env) {
   }
 }
 
-// Standings API - Datos estáticos desde GitHub
+// Standings API - Datos embebidos (temporada 2026 después de 3 carreras)
 async function handleStandings(query, corsHeaders) {
-  try {
-    const response = await fetch(DATA_URLS.standings, { cacheTtl: 300 });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    
-    return jsonResponse({
-      updatedAt: new Date().toISOString(),
-      source: 'github_static',
-      isStaticSnapshot: true,
-      ...data
-    }, corsHeaders);
-  } catch (error) {
-    // Fallback a datos embebidos si falla fetch
-    return jsonResponse({
-      error: 'No se pudo cargar standings',
-      message: error.message,
-      fallback: true
-    }, corsHeaders, 500);
-  }
+  // Datos estáticos de clasificación (actualizar manualmente cuando cambie)
+  const data = {
+    updatedAt: new Date().toISOString(),
+    source: 'worker_embedded',
+    isStaticSnapshot: true,
+    drivers: [
+      { pos: 1, number: "12", name: "Kimi Antonelli", team: "Mercedes", points: 72 },
+      { pos: 2, number: "63", name: "George Russell", team: "Mercedes", points: 63 },
+      { pos: 3, number: "16", name: "Charles Leclerc", team: "Ferrari", points: 49 },
+      { pos: 4, number: "44", name: "Lewis Hamilton", team: "Ferrari", points: 41 },
+      { pos: 5, number: "1", name: "Lando Norris", team: "McLaren", points: 25 },
+      { pos: 6, number: "81", name: "Oscar Piastri", team: "McLaren", points: 24 },
+      { pos: 7, number: "14", name: "Fernando Alonso", team: "Aston Martin", points: 18 },
+      { pos: 8, number: "18", name: "Lance Stroll", team: "Aston Martin", points: 12 },
+      { pos: 9, number: "27", name: "Nico Hulkenberg", team: "Haas", points: 8 },
+      { pos: 10, number: "23", name: "Alexander Albon", team: "Williams", points: 6 },
+      { pos: 11, number: "22", name: "Yuki Tsunoda", team: "Racing Bulls", points: 4 },
+      { pos: 12, number: "43", name: "Franco Colapinto", team: "Racing Bulls", points: 2 },
+      { pos: 13, number: "10", name: "Pierre Gasly", team: "Alpine", points: 1 },
+      { pos: 14, number: "31", name: "Esteban Ocon", team: "Alpine", points: 0 },
+      { pos: 15, number: "20", name: "Kevin Magnussen", team: "Haas", points: 0 },
+      { pos: 16, number: "40", name: "Liam Lawson", team: "Williams", points: 0 },
+      { pos: 17, number: "24", name: "Guanyu Zhou", team: "Audi", points: 0 },
+      { pos: 18, number: "77", name: "Valtteri Bottas", team: "Audi", points: 0 },
+      { pos: 19, number: "21", name: "Oliver Bearman", team: "Cadillac", points: 0 },
+      { pos: 20, number: "88", name: "Colton Herta", team: "Cadillac", points: 0 }
+    ],
+    teams: [
+      { pos: 1, team: "Mercedes", points: 135 },
+      { pos: 2, team: "Ferrari", points: 90 },
+      { pos: 3, team: "McLaren", points: 49 },
+      { pos: 4, team: "Aston Martin", points: 30 },
+      { pos: 5, team: "Haas", points: 8 },
+      { pos: 6, team: "Williams", points: 6 },
+      { pos: 7, team: "Racing Bulls", points: 6 },
+      { pos: 8, team: "Alpine", points: 1 },
+      { pos: 9, team: "Audi", points: 0 },
+      { pos: 10, team: "Cadillac", points: 0 }
+    ]
+  };
+  
+  return jsonResponse(data, corsHeaders);
 }
 
-// Calendar API - Cargar desde GitHub
+// Calendar API - Datos embebidos (temporada 2026)
 async function handleCalendar(query, corsHeaders) {
-  try {
-    const module = await fetchModule(DATA_URLS.calendarEvents);
-    const { calendarEvents } = module;
+  // Datos estáticos del calendario 2026
+  const calendarEvents = [
+    {
+      id: "test-bahrain-1",
+      type: "testing",
+      title: "Pre-Season Testing 1",
+      location: "Bahrain",
+      venue: "Bahrain International Circuit",
+      start: "2026-02-11",
+      end: "2026-02-13"
+    },
+    {
+      id: "test-bahrain-2",
+      type: "testing",
+      title: "Pre-Season Testing 2",
+      location: "Bahrain",
+      venue: "Bahrain International Circuit",
+      start: "2026-02-18",
+      end: "2026-02-20"
+    },
+    {
+      id: "round-1",
+      type: "race",
+      round: 1,
+      title: "Australian Grand Prix",
+      predictRace: "GP de Australia",
+      location: "Australia",
+      venue: "Melbourne",
+      start: "2026-03-06",
+      end: "2026-03-08"
+    },
+    {
+      id: "round-2",
+      type: "race",
+      round: 2,
+      title: "Chinese Grand Prix",
+      predictRace: "GP de China",
+      location: "China",
+      venue: "Shanghai",
+      start: "2026-03-13",
+      end: "2026-03-15"
+    },
+    {
+      id: "round-3",
+      type: "race",
+      round: 3,
+      title: "Japanese Grand Prix",
+      predictRace: "GP de Japón",
+      location: "Japan",
+      venue: "Suzuka",
+      start: "2026-03-27",
+      end: "2026-03-29"
+    },
+    {
+      id: "round-4",
+      type: "race",
+      round: 4,
+      title: "Miami Grand Prix",
+      predictRace: "GP Miami",
+      location: "USA",
+      venue: "Miami",
+      start: "2026-05-01",
+      end: "2026-05-03",
+      sprint: true
+    },
+    {
+      id: "round-5",
+      type: "race",
+      round: 5,
+      title: "Canadian Grand Prix",
+      predictRace: "GP de Canadá",
+      location: "Canada",
+      venue: "Montreal",
+      start: "2026-05-22",
+      end: "2026-05-24"
+    },
+    {
+      id: "round-6",
+      type: "race",
+      round: 6,
+      title: "Monaco Grand Prix",
+      predictRace: "GP de Mónaco",
+      location: "Monaco",
+      venue: "Monaco",
+      start: "2026-06-05",
+      end: "2026-06-07"
+    },
+    {
+      id: "round-7",
+      type: "race",
+      round: 7,
+      title: "Spanish Grand Prix",
+      predictRace: "GP de España",
+      location: "Spain",
+      venue: "Barcelona-Catalunya",
+      start: "2026-06-12",
+      end: "2026-06-14"
+    },
+    {
+      id: "round-8",
+      type: "race",
+      round: 8,
+      title: "Austrian Grand Prix",
+      predictRace: "GP de Austria",
+      location: "Austria",
+      venue: "Red Bull Ring",
+      start: "2026-06-26",
+      end: "2026-06-28",
+      sprint: true
+    },
+    {
+      id: "round-9",
+      type: "race",
+      round: 9,
+      title: "British Grand Prix",
+      predictRace: "GP de Gran Bretaña",
+      location: "Great Britain",
+      venue: "Silverstone",
+      start: "2026-07-03",
+      end: "2026-07-05"
+    },
+    {
+      id: "round-10",
+      type: "race",
+      round: 10,
+      title: "Belgian Grand Prix",
+      predictRace: "GP de Bélgica",
+      location: "Belgium",
+      venue: "Spa-Francorchamps",
+      start: "2026-07-24",
+      end: "2026-07-26"
+    },
+    {
+      id: "round-11",
+      type: "race",
+      round: 11,
+      title: "Hungarian Grand Prix",
+      predictRace: "GP de Hungría",
+      location: "Hungary",
+      venue: "Hungaroring",
+      start: "2026-07-31",
+      end: "2026-08-02"
+    },
+    {
+      id: "round-12",
+      type: "race",
+      round: 12,
+      title: "Dutch Grand Prix",
+      predictRace: "GP de Países Bajos",
+      location: "Netherlands",
+      venue: "Zandvoort",
+      start: "2026-08-28",
+      end: "2026-08-30"
+    },
+    {
+      id: "round-13",
+      type: "race",
+      round: 13,
+      title: "Italian Grand Prix",
+      predictRace: "GP de Italia",
+      location: "Italy",
+      venue: "Monza",
+      start: "2026-09-04",
+      end: "2026-09-06"
+    },
+    {
+      id: "round-14",
+      type: "race",
+      round: 14,
+      title: "Azerbaijan Grand Prix",
+      predictRace: "GP de Azerbaiyán",
+      location: "Azerbaijan",
+      venue: "Baku",
+      start: "2026-09-18",
+      end: "2026-09-20"
+    },
+    {
+      id: "round-15",
+      type: "race",
+      round: 15,
+      title: "Singapore Grand Prix",
+      predictRace: "GP de Singapur",
+      location: "Singapore",
+      venue: "Marina Bay",
+      start: "2026-10-02",
+      end: "2026-10-04"
+    },
+    {
+      id: "round-16",
+      type: "race",
+      round: 16,
+      title: "United States Grand Prix",
+      predictRace: "GP de Estados Unidos",
+      location: "USA",
+      venue: "Austin",
+      start: "2026-10-16",
+      end: "2026-10-18",
+      sprint: true
+    },
+    {
+      id: "round-17",
+      type: "race",
+      round: 17,
+      title: "Mexico City Grand Prix",
+      predictRace: "GP de México",
+      location: "Mexico",
+      venue: "Autódromo Hermanos Rodríguez",
+      start: "2026-10-23",
+      end: "2026-10-25"
+    },
+    {
+      id: "round-18",
+      type: "race",
+      round: 18,
+      title: "São Paulo Grand Prix",
+      predictRace: "GP de São Paulo",
+      location: "Brazil",
+      venue: "Interlagos",
+      start: "2026-11-06",
+      end: "2026-11-08",
+      sprint: true
+    },
+    {
+      id: "round-19",
+      type: "race",
+      round: 19,
+      title: "Las Vegas Grand Prix",
+      predictRace: "GP de Las Vegas",
+      location: "USA",
+      venue: "Las Vegas Strip",
+      start: "2026-11-20",
+      end: "2026-11-22"
+    },
+    {
+      id: "round-20",
+      type: "race",
+      round: 20,
+      title: "Qatar Grand Prix",
+      predictRace: "GP de Catar",
+      location: "Qatar",
+      venue: "Lusail",
+      start: "2026-11-28",
+      end: "2026-11-30",
+      sprint: true
+    },
+    {
+      id: "round-21",
+      type: "race",
+      round: 21,
+      title: "Abu Dhabi Grand Prix",
+      predictRace: "GP de Abu Dabi",
+      location: "UAE",
+      venue: "Yas Marina",
+      start: "2026-12-05",
+      end: "2026-12-07"
+    }
+  ];
+  
+  const now = new Date();
+  let nextRaceAssigned = false;
+  
+  const enriched = calendarEvents.map(event => {
+    const endDate = new Date(`${event.end}T23:59:59Z`);
+    let status = 'upcoming';
     
-    const now = new Date();
-    let nextRaceAssigned = false;
+    if (endDate < now) {
+      status = 'completed';
+    } else if (!nextRaceAssigned && event.type === 'race') {
+      status = 'next';
+      nextRaceAssigned = true;
+    }
     
-    const enriched = calendarEvents.map(event => {
-      const endDate = new Date(`${event.end}T23:59:59Z`);
-      let status = 'upcoming';
-      
-      if (endDate < now) {
-        status = 'completed';
-      } else if (!nextRaceAssigned && event.type === 'race') {
-        status = 'next';
-        nextRaceAssigned = true;
-      }
-      
-      return { ...event, status };
-    });
-    
-    return jsonResponse({ events: enriched }, corsHeaders);
-  } catch (error) {
-    return jsonResponse({
-      error: 'No se pudo cargar calendar',
-      message: error.message
-    }, corsHeaders, 500);
-  }
+    return { ...event, status };
+  });
+  
+  return jsonResponse({ events: enriched }, corsHeaders);
 }
 
 // Sim API - OpenAI integration
