@@ -802,44 +802,105 @@ async function handleEngineerEntities(query, corsHeaders) {
 // ============== UTILIDADES PREDICT ==============
 
 // Fetch y parse de módulos ES desde GitHub
+// Extraer valor de export const contando llaves para objetos anidados
+function extractConstValue(code, startIndex) {
+  let braceCount = 0;
+  let inString = false;
+  let stringChar = null;
+  let escaped = false;
+  let valueStart = startIndex;
+  
+  // Encontrar el inicio del valor (después del =)
+  while (valueStart < code.length && code[valueStart] !== '=' && code[valueStart] !== '{' && code[valueStart] !== '[') {
+    valueStart++;
+  }
+  
+  if (valueStart >= code.length) return null;
+  
+  const firstChar = code[valueStart];
+  
+  // Si es objeto o array, contar llaves/corchetes
+  if (firstChar === '{' || firstChar === '[') {
+    const openChar = firstChar;
+    const closeChar = firstChar === '{' ? '}' : ']';
+    let i = valueStart;
+    braceCount = 0;
+    
+    while (i < code.length) {
+      const char = code[i];
+      
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\' && inString) {
+        escaped = true;
+      } else if ((char === '"' || char === "'" || char === '`') && !escaped) {
+        if (!inString) {
+          inString = true;
+          stringChar = char;
+        } else if (char === stringChar) {
+          inString = false;
+          stringChar = null;
+        }
+      } else if (!inString) {
+        if (char === openChar) braceCount++;
+        else if (char === closeChar) {
+          braceCount--;
+          if (braceCount === 0) {
+            return code.substring(valueStart, i + 1);
+          }
+        }
+      }
+      i++;
+    }
+    return null;
+  }
+  
+  // Si no es objeto/array, buscar hasta el punto y coma
+  const endIdx = code.indexOf(';', valueStart);
+  if (endIdx === -1) return null;
+  return code.substring(valueStart, endIdx).trim();
+}
+
 async function fetchModule(url) {
   const response = await fetch(url, { cacheTtl: 3600 });
   if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`);
   const code = await response.text();
   
-  // Parse simple de exports - extraer lo que necesitamos
   const module = {};
   
-  // Extraer export const
-  const constMatches = code.matchAll(/export const (\w+) = ({[\s\S]*?}|[\s\S]*?);/g);
-  for (const match of constMatches) {
-    const [, name, value] = match;
-    try {
-      // Para objetos, evaluar con Function (sandbox limitado)
-      if (value.trim().startsWith('{')) {
-        module[name] = new Function(`return ${value}`)();
-      } else {
-        // Para arrays y otros, intentar JSON parse o eval seguro
-        module[name] = JSON.parse(value);
-      }
-    } catch {
-      // Fallback: intentar eval controlado
+  // Extraer export const usando parser que cuenta llaves
+  const exportConstRegex = /export const (\w+)\s*=/g;
+  let match;
+  while ((match = exportConstRegex.exec(code)) !== null) {
+    const name = match[1];
+    const valueStart = match.index + match[0].length;
+    const value = extractConstValue(code, valueStart);
+    
+    if (value) {
       try {
-        module[name] = eval(`(${value})`);
-      } catch {
-        console.warn(`Failed to parse export const ${name}`);
+        // Usar Function para evaluar de forma segura
+        module[name] = new Function(`return ${value}`)();
+      } catch (e) {
+        console.warn(`Failed to parse export const ${name}:`, e.message);
+        try {
+          // Fallback con eval controlado
+          module[name] = eval(`(${value})`);
+        } catch (e2) {
+          console.warn(`Fallback failed for ${name}:`, e2.message);
+        }
       }
     }
   }
   
-  // Extraer export function
-  const funcMatches = code.matchAll(/export function (\w+)\(([\s\S]*?)\)\s*{([\s\S]*?)}/g);
-  for (const match of funcMatches) {
-    const [, name, params, body] = match;
+  // Extraer export function (simplificado, solo funciones cortas)
+  const funcRegex = /export function (\w+)\(([^)]*)\)\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}/g;
+  let funcMatch;
+  while ((funcMatch = funcRegex.exec(code)) !== null) {
+    const [, name, params, body] = funcMatch;
     try {
       module[name] = new Function(params, body);
-    } catch {
-      console.warn(`Failed to parse export function ${name}`);
+    } catch (e) {
+      console.warn(`Failed to parse export function ${name}:`, e.message);
     }
   }
   
