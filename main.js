@@ -1962,30 +1962,20 @@ function computeStandingsDelta(data) {
 async function fetchStandingsData(force = false) {
   if (state.standingsCache && !force) return state.standingsCache;
   
-  // Datos estáticos de clasificación (actualizar manualmente cuando cambie)
-  const data = {
-    updatedAt: new Date().toISOString(),
-    drivers: [
-      { pos: 1, number: "12", name: "Kimi Antonelli", team: "Mercedes", points: 72 },
-      { pos: 2, number: "63", name: "George Russell", team: "Mercedes", points: 63 },
-      { pos: 3, number: "16", name: "Charles Leclerc", team: "Ferrari", points: 49 },
-      { pos: 4, number: "44", name: "Lewis Hamilton", team: "Ferrari", points: 41 },
-      { pos: 5, number: "1", name: "Lando Norris", team: "McLaren", points: 25 },
-      { pos: 6, number: "81", name: "Oscar Piastri", team: "McLaren", points: 24 },
-      { pos: 7, number: "14", name: "Fernando Alonso", team: "Aston Martin", points: 18 },
-      { pos: 8, number: "18", name: "Lance Stroll", team: "Aston Martin", points: 12 },
-      { pos: 9, number: "27", name: "Nico Hulkenberg", team: "Haas", points: 8 },
-      { pos: 10, number: "23", name: "Alexander Albon", team: "Williams", points: 6 }
-    ],
-    teams: [
-      { pos: 1, team: "Mercedes", points: 135 },
-      { pos: 2, team: "Ferrari", points: 90 },
-      { pos: 3, team: "McLaren", points: 49 },
-      { pos: 4, team: "Aston Martin", points: 30 },
-      { pos: 5, team: "Haas", points: 8 },
-      { pos: 6, team: "Williams", points: 6 }
-    ]
-  };
+  // Obtener datos reales desde el Cloudflare Worker
+  const apiUrl = `${RACECONTROL_CONFIG.API_BASE_URL}/api/standings`;
+  const response = await fetch(apiUrl);
+  
+  if (!response.ok) {
+    throw new Error(`Standings API error: ${response.status} ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  
+  // Validar que tenga datos
+  if (!data.drivers || !data.teams) {
+    throw new Error('Datos de standings inválidos');
+  }
   
   state.standingsCache = data;
   computeStandingsDelta(data);
@@ -1996,13 +1986,25 @@ async function fetchStandingsData(force = false) {
 async function fetchCalendarData(force = false) {
   if (state.calendarCache && !force) return state.calendarCache;
   
-  // Importar datos estáticos del calendario
-  const { calendarEvents } = await import('./data/calendar-events.js');
+  // Obtener datos reales desde el Cloudflare Worker
+  const apiUrl = `${RACECONTROL_CONFIG.API_BASE_URL}/api/calendar`;
+  const response = await fetch(apiUrl);
+  
+  if (!response.ok) {
+    throw new Error(`Calendar API error: ${response.status} ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  
+  // Validar que tenga eventos
+  if (!data.events || !Array.isArray(data.events)) {
+    throw new Error('Datos de calendario inválidos');
+  }
   
   const now = new Date();
   let nextRaceAssigned = false;
 
-  const enriched = calendarEvents.map((event) => {
+  const enriched = data.events.map((event) => {
     const endDate = new Date(`${event.end}T23:59:59Z`);
     let status = "upcoming";
 
@@ -2016,8 +2018,8 @@ async function fetchCalendarData(force = false) {
     return { ...event, status };
   });
 
-  const data = { events: enriched };
-  state.calendarCache = data;
+  const enrichedData = { events: enriched };
+  state.calendarCache = enrichedData;
 
   const nextRace = getNextRaceFromCalendar(enriched);
   const mappedRace = mapCalendarEventToPredictRace(nextRace);
@@ -2027,7 +2029,7 @@ async function fetchCalendarData(force = false) {
   state.weekendContext = buildWeekendContext(enriched, favorite);
   state.weekendNowIso = new Date().toISOString();
 
-  return data;
+  return enrichedData;
 }
 
 function getNewsCacheKey(favorite) {
