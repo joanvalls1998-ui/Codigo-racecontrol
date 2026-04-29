@@ -936,7 +936,12 @@ async function fetchEngineerApi(endpoint, params = {}) {
     if (value === undefined || value === null || value === "") return;
     query.set(key, String(value));
   });
-  const response = await fetch(`/api/engineer/${endpoint}?${query.toString()}`, { cache: "no-store" });
+  
+  // Usar API_BASE_URL si está configurada (Cloudflare Worker)
+  const baseUrl = (typeof RACECONTROL_CONFIG !== 'undefined' && RACECONTROL_CONFIG.API_BASE_URL) || '';
+  const url = baseUrl ? `${baseUrl}/api/engineer/${endpoint}?${query.toString()}` : `/api/engineer/${endpoint}?${query.toString()}`;
+  
+  const response = await fetch(url, { cache: "no-store" });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(payload?.error?.message || `Engineer API ${endpoint} (${response.status})`);

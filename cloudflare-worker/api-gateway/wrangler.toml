@@ -1,0 +1,14 @@
+name = "racecontrol-api-gateway"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+account_id = "50273c01c7f7511b7fdab08de6ab21d4"
+
+# Variables de entorno
+[vars]
+ALLOWED_ORIGINS = "https://joanvalls1998-ui.github.io,http://localhost:3000"
+
+# Durable Objects para estado persistente (opcional, para ingeniero/telemetría)
+# [durable_objects]
+# bindings = [
+#   { name = "RACE_STATE", class_name = "RaceState" }
+# ]
