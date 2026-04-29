@@ -5058,6 +5058,65 @@ nav > *,
   color: #66f8e0;
 }
 
+/* Auto-play buttons */
+.telemetry-auto-play-group {
+  display: flex;
+  gap: 6px;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.telemetry-autoplay-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: auto;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(102, 248, 224, 0.08) 0%, rgba(102, 180, 248, 0.08) 100%);
+  border: 1px solid rgba(102, 248, 224, 0.22);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.telemetry-autoplay-btn svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.85;
+}
+
+.telemetry-autoplay-btn:hover {
+  background: linear-gradient(135deg, rgba(102, 248, 224, 0.16) 0%, rgba(102, 180, 248, 0.16) 100%);
+  border-color: rgba(102, 248, 224, 0.44);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.telemetry-autoplay-btn:active {
+  transform: translateY(0);
+}
+
+.telemetry-best-lap-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 180, 0, 0.15) 100%);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  color: #ffd700;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: 8px;
+}
+
 /* Playback scrubber row */
 .telemetry-playback-scrubber-row {
   display: flex;

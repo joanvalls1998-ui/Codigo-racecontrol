@@ -860,16 +860,23 @@ function renderTelemetryPlaybackControls(relativeDistance = [], speed = [], sele
   const lapLabel = selectedLap ? `L${selectedLap.lapNumber}` : "—";
   const lapTime  = selectedLap && Number.isFinite(selectedLap.lapTime)
     ? formatTelemetrySeconds(selectedLap.lapTime) : "—";
+  const isBest = selectedLap?.isBest === true;
+  const lapsCount = engineerState.telemetry?.payload?.lap_selector?.laps?.length || 0;
+  
   return `
     <div class="telemetry-playback-bar">
       <div class="telemetry-playback-head">
         <div class="telemetry-playback-lap-info">
           <span class="telemetry-playback-lap-label">${escapeHtml(lapLabel)}</span>
           <span class="telemetry-playback-lap-time">${escapeHtml(lapTime)}</span>
+          ${isBest ? '<span class="telemetry-best-lap-badge">🏆 Mejor</span>' : ''}
         </div>
         <div class="telemetry-playback-controls">
           <button id="telemetry-play-btn" class="telemetry-playback-btn" aria-label="Reproducir" title="Reproducir / Pausar">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+          </button>
+          <button id="telemetry-stop-btn" class="telemetry-playback-btn telemetry-stop-btn" aria-label="Detener" title="Detener y resetear">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
           </button>
           <div class="telemetry-speed-group" role="group" aria-label="Velocidad de reproducción">
             <button id="telemetry-speed-025" class="telemetry-speed-btn" data-speed="0.25" aria-pressed="false">0.25×</button>
@@ -879,6 +886,20 @@ function renderTelemetryPlaybackControls(relativeDistance = [], speed = [], sele
           </div>
           <button class="telemetry-playback-btn telemetry-playback-stop-btn" id="telemetry-stop-btn" aria-label="Detener" title="Detener y reiniciar">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+          </button>
+        </div>
+        <div class="telemetry-auto-play-group" role="group" aria-label="Reproducción automática">
+          <button id="telemetry-autoplay-best" class="telemetry-autoplay-btn" title="Reproducir mejor vuelta">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            Mejor
+          </button>
+          <button id="telemetry-autoplay-latest" class="telemetry-autoplay-btn" title="Reproducir última vuelta">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+            Última
+          </button>
+          <button id="telemetry-autoplay-all" class="telemetry-autoplay-btn" title="Reproducir todas las vueltas en secuencia">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 5-5v10zm9-7h-7v2h7V10z"/></svg>
+            Todas
           </button>
         </div>
       </div>
@@ -1967,6 +1988,106 @@ function resetEngineerTelemetryRange() {
   renderEngineerScreen();
 }
 
+// Reproducción automática de vueltas
+async function autoPlayBestLap() {
+  const payload = engineerState.telemetry?.payload;
+  if (!payload) return;
+  
+  const laps = payload.lap_selector?.laps || [];
+  const bestLap = laps.find(lap => lap.isBest === true);
+  
+  if (!bestLap || !Number.isFinite(bestLap.lapNumber)) {
+    console.warn('No hay mejor vuelta disponible');
+    return;
+  }
+  
+  // Cambiar a la mejor vuelta
+  setEngineerTelemetryLapMode('best');
+  
+  // Esperar a que se cargue la telemetría y reproducir
+  setTimeout(() => {
+    if (telemetryPlayer) {
+      telemetryPlayer.stop();
+      telemetryPlayer.play();
+    }
+  }, 500);
+}
+
+async function autoPlayLatestLap() {
+  const payload = engineerState.telemetry?.payload;
+  if (!payload) return;
+  
+  const laps = payload.lap_selector?.laps || [];
+  const validLaps = laps.filter(lap => Number.isFinite(lap.lapNumber) && lap.hasTiming);
+  const latestLap = validLaps.length ? validLaps.reduce((max, lap) => lap.lapNumber > max.lapNumber ? lap : max) : null;
+  
+  if (!latestLap) {
+    console.warn('No hay última vuelta disponible');
+    return;
+  }
+  
+  // Cambiar a la última vuelta
+  setEngineerTelemetryLapMode('latest');
+  
+  // Esperar a que se cargue la telemetría y reproducir
+  setTimeout(() => {
+    if (telemetryPlayer) {
+      telemetryPlayer.stop();
+      telemetryPlayer.play();
+    }
+  }, 500);
+}
+
+let autoPlayAllInterval = null;
+
+async function autoPlayAllLaps() {
+  if (autoPlayAllInterval) {
+    // Detener reproducción en secuencia
+    clearInterval(autoPlayAllInterval);
+    autoPlayAllInterval = null;
+    return;
+  }
+  
+  const payload = engineerState.telemetry?.payload;
+  if (!payload) return;
+  
+  const laps = payload.lap_selector?.laps || [];
+  const validLaps = laps.filter(lap => Number.isFinite(lap.lapNumber) && lap.hasTelemetry).sort((a, b) => a.lapNumber - b.lapNumber);
+  
+  if (validLaps.length < 2) {
+    console.warn('No hay suficientes vueltas para reproducción en secuencia');
+    return;
+  }
+  
+  let currentIndex = 0;
+  
+  const playNextLap = async () => {
+    if (currentIndex >= validLaps.length) {
+      // Volver al principio
+      currentIndex = 0;
+    }
+    
+    const lap = validLaps[currentIndex];
+    setEngineerTelemetryManualLap(String(lap.lapNumber));
+    
+    // Reproducir esta vuelta
+    setTimeout(() => {
+      if (telemetryPlayer) {
+        telemetryPlayer.stop();
+        telemetryPlayer.play();
+      }
+    }, 300);
+    
+    currentIndex++;
+  };
+  
+  // Reproducir primera vuelta inmediatamente
+  playNextLap();
+  
+  // Programar siguientes vueltas (cada 3 segundos cambia a la siguiente)
+  autoPlayAllInterval = setInterval(playNextLap, 3000);
+}
+
 const telemetryRangeDrag = {
   active: false,
   mode: "",
@@ -2100,6 +2221,22 @@ function initTelemetryPlayer() {
       if (telemetryPlayer) telemetryPlayer.stop();
       resetEngineerTelemetryRange();
     });
+  }
+  
+  // Wire auto-play buttons
+  const bestBtn = document.getElementById("telemetry-autoplay-best");
+  if (bestBtn) {
+    bestBtn.addEventListener("click", autoPlayBestLap);
+  }
+  
+  const latestBtn = document.getElementById("telemetry-autoplay-latest");
+  if (latestBtn) {
+    latestBtn.addEventListener("click", autoPlayLatestLap);
+  }
+  
+  const allBtn = document.getElementById("telemetry-autoplay-all");
+  if (allBtn) {
+    allBtn.addEventListener("click", autoPlayAllLaps);
   }
 }
 
