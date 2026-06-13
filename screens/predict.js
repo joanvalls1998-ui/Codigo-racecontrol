@@ -837,7 +837,7 @@ function renderTelemetryTrackRangeControls(rangeStartPct = 0, rangeEndPct = 100,
   const width = Math.max(1, end - start);
   const cursor = Math.max(start, Math.min(end, cursorPct));
   return `
-    <div class="telemetry-track-range-controls" onpointerdown="handleTelemetryScrubberPointerDown(event)">
+    <div class="telemetry-track-range-controls telemetry-track-range-overlay" onpointerdown="handleTelemetryScrubberPointerDown(event)">
       <div class="telemetry-range-scrubber-map">
         <div class="telemetry-track-range-rail" aria-hidden="true"></div>
         <div class="telemetry-track-range-window" style="left:${start.toFixed(2)}%; width:${width.toFixed(2)}%;" aria-hidden="true"></div>
