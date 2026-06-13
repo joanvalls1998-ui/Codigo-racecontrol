@@ -839,9 +839,13 @@ function renderTelemetryTrackRangeControls(rangeStartPct = 0, rangeEndPct = 100,
   return `
     <div class="telemetry-track-range-controls" onpointerdown="handleTelemetryScrubberPointerDown(event)">
       <div class="telemetry-range-scrubber-map">
+        <div class="telemetry-track-range-overlay" aria-hidden="true"></div>
         <div class="telemetry-track-range-rail" aria-hidden="true"></div>
         <div class="telemetry-track-range-window" style="left:${start.toFixed(2)}%; width:${width.toFixed(2)}%;" aria-hidden="true"></div>
         <div class="telemetry-track-range-cursor" style="left:${cursor.toFixed(2)}%;" aria-hidden="true"></div>
+        <div class="telemetry-track-range-readout start" style="left:${start.toFixed(2)}%;" aria-hidden="true">IN ${Math.round(start)}%</div>
+        <div class="telemetry-track-range-readout end" style="left:${end.toFixed(2)}%;" aria-hidden="true">OUT ${Math.round(end)}%</div>
+        <div class="telemetry-track-range-readout cursor" style="left:${cursor.toFixed(2)}%;" aria-hidden="true">PX ${Math.round(cursor)}%</div>
         <button class="telemetry-range-window-hit" style="left:${start.toFixed(2)}%; width:${width.toFixed(2)}%;" data-drag="window" aria-label="Mover tramo"></button>
         <button class="telemetry-range-handle start" style="left:${start.toFixed(2)}%;" data-drag="start" aria-label="Mover inicio tramo"></button>
         <button class="telemetry-range-handle end" style="left:${end.toFixed(2)}%;" data-drag="end" aria-label="Mover fin tramo"></button>
